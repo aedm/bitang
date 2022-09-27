@@ -74,25 +74,25 @@ impl ProgramProc {
                 },
                 | Event::MainEventsCleared => {
                     vulkan_app.window_ref().request_redraw();
+
                 },
                 | Event::RedrawRequested(_window_id) => {
                     let delta_time = tick_counter.delta_time();
                     vulkan_app.draw_frame(delta_time);
-
-                    if IS_PAINT_FPS_COUNTER {
-                        print!("FPS: {}\r", tick_counter.fps());
-                    }
-
                     tick_counter.tick_frame();
-                    // tick_counter.keep_fps();
 
                 },
                 | Event::LoopDestroyed => {
                     vulkan_app.wait_device_idle();
                 },
-                _ => (),
+                _ => {
+                    ()
+                    // let delta_time = tick_counter.delta_time();
+                    // vulkan_app.draw_frame(delta_time);
+                    // tick_counter.tick_frame();
+                    //         print!("FPS: {}\r", tick_counter.fps());
+                },
             }
-
         })
     }
 

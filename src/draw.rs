@@ -532,13 +532,30 @@ impl VulkanApp27 {
         swapchain_extent: vk::Extent2D,
         ubo_set_layout: vk::DescriptorSetLayout,
     ) -> (vk::Pipeline, vk::PipelineLayout) {
+        // let vert_shader_module = share::create_shader_module(
+        //     device,
+        //     include_bytes!("./shaders/spv/26-shader-depth.vert.spv").to_vec(),
+        // );
+        // let frag_shader_module = share::create_shader_module(
+        //     device,
+        //     include_bytes!("./shaders/spv/26-shader-depth.frag.spv").to_vec(),
+        // );
+
+        let compiler = shaderc::Compiler::new().unwrap();
+        let vs_source = include_str!("./shaders/src/26-shader-depth.vert");
+        let vs_binary_result = compiler.compile_into_spirv(
+            vs_source, shaderc::ShaderKind::Vertex,
+            "shader.glsl", "main", None).unwrap();
         let vert_shader_module = share::create_shader_module(
-            device,
-            include_bytes!("./shaders/spv/26-shader-depth.vert.spv").to_vec(),
+            device, vs_binary_result.as_binary_u8().to_vec()
         );
+
+        let fs_source = include_str!("./shaders/src/26-shader-depth.frag");
+        let fs_binary_result = compiler.compile_into_spirv(
+            fs_source, shaderc::ShaderKind::Fragment,
+            "shader.glsl", "main", None).unwrap();
         let frag_shader_module = share::create_shader_module(
-            device,
-            include_bytes!("./shaders/spv/26-shader-depth.frag.spv").to_vec(),
+            device, fs_binary_result.as_binary_u8().to_vec()
         );
 
         let main_function_name = CString::new("main").unwrap(); // the beginning function name in shader code.
