@@ -127,7 +127,7 @@ pub fn load_blend_file(path: &str) -> Result<Object> {
         // println!("ID: {:#?}", id);
         // println!("NAME: {:#?}", name);
 
-        println!("\"{}\" at {:?}", name, loc);
+        // println!("\"{}\" at {:?}", name, loc);
         // let id = obj.get("id").get("newid");
         // println!("ID: {:#?}", id.is_valid("orig_id"));
         // println!("ID: {:#?}", id.is_valid("newid"));
@@ -153,10 +153,10 @@ pub fn load_blend_file(path: &str) -> Result<Object> {
         for (name, value) in &obj.fields {
             if obj.is_valid(name) {
                 // println!(" -- NAME {}: VALUE {:?}", name, value);
-                if name == "data" {
-                    println!(" -- NAME {}: VALUE {:?}", name, value);
-                    println!(" + {:#?}", obj.get("drawdata").fields.get("first").unwrap());
-                }
+                // if name == "data" {
+                //     println!(" -- NAME {}: VALUE {:?}", name, value);
+                //     println!(" + {:#?}", obj.get("drawdata").fields.get("first").unwrap());
+                // }
             }
             // println!("NAME {}: VALUE {:?}", field.0, field.1);
         }

@@ -2,7 +2,6 @@ mod file;
 mod types;
 mod render;
 mod draw;
-mod utility;
 
 use anyhow::Result;
 use crate::file::blend_loader::load_blend_file;
@@ -12,7 +11,7 @@ fn main() -> Result<()> {
     let object = load_blend_file("app/file.blend")?;
     // println!("{:#?}", object);
 
-    draw::main(&object);
+    draw::main();
 
     Ok(())
 }

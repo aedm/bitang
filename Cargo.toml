@@ -8,15 +8,20 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.65"
 blend = "0.6.1"
-ash = "0.29.0"
-winapi = { version = "0.3.5", features = ["windef", "libloaderapi"] }
 winit = "0.27.3"
 image = "0.22"
 num = "0.4.0"
 cgmath = "0.18.0"
 memoffset = "0.6.5"
 tobj = "0.1.10"
-shaderc = "0.8.0"
+bytemuck = "1.8.0"
+thiserror = "1.0"
+egui_vulkano = "0.8.0"
+egui = "0.18.1"
+vulkano = "0.29.0"
+vulkano-shaders = "0.29.0"
+vulkano-win = "0.29.0"
+shaderc = "*"
 
 [profile.dev.package."*"]
 opt-level = 'z'
