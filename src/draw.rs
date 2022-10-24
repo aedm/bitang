@@ -1,4 +1,5 @@
 use crate::render::VulkanRenderer;
+use crate::types::App;
 use bytemuck::{Pod, Zeroable};
 use std::cmp::max;
 use std::sync::Arc;
@@ -52,14 +53,6 @@ impl<F: GpuFuture> AsMut<dyn GpuFuture> for FrameEndFuture<F> {
             FrameEndFuture::BoxedFuture(f) => f,
         }
     }
-}
-
-pub struct VulkanRenderer {
-    current_frame: usize,
-    framebuffers: Vec<Arc<Framebuffer>>,
-    swapchain: Arc<Swapchain<Window>>,
-    surface: Arc<swapchain::Surface<Window>>,
-    render_pass: Arc<RenderPass>,
 }
 
 pub struct VulkanApp {
@@ -174,20 +167,22 @@ impl VulkanApp {
         )
         .unwrap();
 
-        let framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
-
-        let mut renderer = VulkanRenderer {
-            current_frame: 0,
-            framebuffers,
-            swapchain,
-            surface,
-            render_pass,
-        };
-
         let mut viewport = Viewport {
             origin: [0.0, 0.0],
             dimensions: [0.0, 0.0],
             depth_range: 0.0..1.0,
+        };
+
+        let framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
+
+        let mut renderer = VulkanRenderer {
+            device,
+            queue,
+            current_frame: 0,
+            framebuffers,
+            surface,
+            render_pass,
+            swapchain,
         };
 
         VulkanApp {
@@ -197,9 +192,9 @@ impl VulkanApp {
         }
     }
 
-    pub fn main_loop(mut self) {
+    pub fn main_loop(mut self, app: &mut dyn App) {
         let mut recreate_swapchain = false;
-        let mut previous_frame_end = Some(FrameEndFuture::now(self.device.clone()));
+        let mut previous_frame_end = Some(FrameEndFuture::now(self.renderer.device.clone()));
         self.event_loop.run(move |event, _, control_flow| {
             match event {
                 Event::WindowEvent {
@@ -228,11 +223,12 @@ impl VulkanApp {
                         .cleanup_finished();
 
                     if recreate_swapchain {
-                        let dimensions: [u32; 2] = self.surface.window().inner_size().into();
+                        let dimensions: [u32; 2] =
+                            self.renderer.surface.window().inner_size().into();
                         let (new_swapchain, new_images) =
-                            match self.swapchain.recreate(SwapchainCreateInfo {
-                                image_extent: self.surface.window().inner_size().into(),
-                                ..self.swapchain.create_info()
+                            match self.renderer.swapchain.recreate(SwapchainCreateInfo {
+                                image_extent: self.renderer.surface.window().inner_size().into(),
+                                ..self.renderer.swapchain.create_info()
                             }) {
                                 Ok(r) => r,
                                 Err(SwapchainCreationError::ImageExtentNotSupported { .. }) => {
@@ -241,10 +237,10 @@ impl VulkanApp {
                                 Err(e) => panic!("Failed to recreate swapchain: {:?}", e),
                             };
 
-                        self.swapchain = new_swapchain;
-                        self.framebuffers = window_size_dependent_setup(
+                        self.renderer.swapchain = new_swapchain;
+                        self.renderer.framebuffers = window_size_dependent_setup(
                             &new_images,
-                            self.render_pass.clone(),
+                            self.renderer.render_pass.clone(),
                             &mut self.viewport,
                         );
                         self.viewport.dimensions = [dimensions[0] as f32, dimensions[1] as f32];
@@ -252,7 +248,7 @@ impl VulkanApp {
                     }
 
                     let (image_num, suboptimal, acquire_future) =
-                        match swapchain::acquire_next_image(self.swapchain.clone(), None) {
+                        match swapchain::acquire_next_image(self.renderer.swapchain.clone(), None) {
                             Ok(r) => r,
                             Err(AcquireError::OutOfDate) => {
                                 recreate_swapchain = true;
@@ -265,10 +261,9 @@ impl VulkanApp {
                         recreate_swapchain = true;
                     }
 
-                    let clear_values = vec![[0.0, 0.0, 1.0, 1.0].into()];
                     let mut builder = AutoCommandBufferBuilder::primary(
-                        self.device.clone(),
-                        self.queue.family(),
+                        self.renderer.device.clone(),
+                        self.renderer.queue.family(),
                         CommandBufferUsage::OneTimeSubmit,
                     )
                     .unwrap();
@@ -301,7 +296,7 @@ impl VulkanApp {
                     //     }
                     // });
 
-                    let size = self.surface.window().inner_size();
+                    let size = self.renderer.surface.window().inner_size();
                     let movie_height = (size.width * 9 / 16) as i32;
                     let _panel_height = max(size.height as i32 - movie_height, 0) as f32;
 
@@ -328,20 +323,6 @@ impl VulkanApp {
                     //     .expect("egui texture error");
 
                     let wait_for_last_frame = true; // result == UpdateTexturesResult::Changed;
-
-                    // Do your usual rendering
-                    builder
-                        .begin_render_pass(
-                            self.framebuffers[image_num].clone(),
-                            SubpassContents::Inline,
-                            clear_values,
-                        )
-                        .unwrap()
-                        .set_viewport(0, [self.viewport.clone()])
-                        .bind_pipeline_graphics(self.pipeline.clone())
-                        .bind_vertex_buffers(0, self.vertex_buffer.clone())
-                        .draw(self.vertex_buffer.len().try_into().unwrap(), 1, 0, 0)
-                        .unwrap(); // Don't end the render pass yet
 
                     // Build your gui
 
@@ -377,11 +358,11 @@ impl VulkanApp {
                         .unwrap()
                         .get()
                         .join(acquire_future)
-                        .then_execute(self.queue.clone(), command_buffer)
+                        .then_execute(self.renderer.queue.clone(), command_buffer)
                         .unwrap()
                         .then_swapchain_present(
-                            self.queue.clone(),
-                            self.swapchain.clone(),
+                            self.renderer.queue.clone(),
+                            self.renderer.swapchain.clone(),
                             image_num,
                         )
                         .then_signal_fence_and_flush();
@@ -392,11 +373,13 @@ impl VulkanApp {
                         }
                         Err(FlushError::OutOfDate) => {
                             recreate_swapchain = true;
-                            previous_frame_end = Some(FrameEndFuture::now(self.device.clone()));
+                            previous_frame_end =
+                                Some(FrameEndFuture::now(self.renderer.device.clone()));
                         }
                         Err(e) => {
                             println!("Failed to flush future: {:?}", e);
-                            previous_frame_end = Some(FrameEndFuture::now(self.device.clone()));
+                            previous_frame_end =
+                                Some(FrameEndFuture::now(self.renderer.device.clone()));
                         }
                     }
                 }

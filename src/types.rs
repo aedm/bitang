@@ -1,4 +1,5 @@
-
+use crate::render::VulkanRenderer;
+use vulkano::command_buffer::AutoCommandBufferBuilder;
 
 pub type Vertex = ([f32; 3], [f32; 3], [f32; 2]);
 pub type Face = [Vertex; 3];
@@ -57,3 +58,7 @@ pub struct VertexV3 {
 //         ]
 //     }
 // }
+
+pub trait App {
+    fn draw(&mut self, renderer: &VulkanRenderer, builder: AutoCommandBufferBuilder<i32>);
+}
