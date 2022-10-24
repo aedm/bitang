@@ -1,7 +1,5 @@
+use crate::render::VulkanRenderer;
 use bytemuck::{Pod, Zeroable};
-use egui::plot::{HLine, Line, Plot, Value, Values};
-use egui::{Color32, ColorImage, Ui};
-use egui_vulkano::UpdateTexturesResult;
 use std::cmp::max;
 use std::sync::Arc;
 use std::time::Instant;
@@ -25,7 +23,7 @@ use vulkano::{swapchain, sync};
 use vulkano_win::VkSurfaceBuild;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::{Fullscreen, Window, WindowBuilder};
+use winit::window::{Window, WindowBuilder};
 
 pub const NUMBER_FRAMES_IN_FLIGHT: usize = 3;
 
@@ -56,28 +54,21 @@ impl<F: GpuFuture> AsMut<dyn GpuFuture> for FrameEndFuture<F> {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
-#[repr(C)]
-struct Vertex {
-    position: [f32; 2],
-}
-
 pub struct VulkanRenderer {
-    surface: Arc<swapchain::Surface<Window>>,
-    render_pass: Arc<RenderPass>,
     current_frame: usize,
     framebuffers: Vec<Arc<Framebuffer>>,
-    event_loop: EventLoop<()>,
     swapchain: Arc<Swapchain<Window>>,
-    viewport: Viewport,
-    device: Arc<Device>,
-    queue: Arc<Queue>,
-    // ---
-    vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>>,
-    pipeline: Arc<GraphicsPipeline>,
+    surface: Arc<swapchain::Surface<Window>>,
+    render_pass: Arc<RenderPass>,
 }
 
-impl VulkanRenderer {
+pub struct VulkanApp {
+    renderer: VulkanRenderer,
+    event_loop: EventLoop<()>,
+    viewport: Viewport,
+}
+
+impl VulkanApp {
     pub fn new() -> Self {
         let required_extensions = vulkano_win::required_extensions();
         let instance = Instance::new(InstanceCreateInfo {
@@ -141,7 +132,7 @@ impl VulkanRenderer {
         // let mut renderer = VulkanRenderer::new();
         // renderer.run();
 
-        let (mut swapchain, images) = {
+        let (swapchain, images) = {
             let caps = physical_device
                 .surface_capabilities(&surface, Default::default())
                 .unwrap();
@@ -166,63 +157,6 @@ impl VulkanRenderer {
             .unwrap()
         };
 
-        vulkano::impl_vertex!(Vertex, position);
-
-        let vertex_buffer = {
-            CpuAccessibleBuffer::from_iter(
-                device.clone(),
-                BufferUsage::all(),
-                false,
-                [
-                    Vertex {
-                        position: [-0.5, -0.25],
-                    },
-                    Vertex {
-                        position: [0.0, 0.5],
-                    },
-                    Vertex {
-                        position: [0.25, -0.1],
-                    },
-                ]
-                .iter()
-                .cloned(),
-            )
-            .unwrap()
-        };
-
-        mod vs {
-            vulkano_shaders::shader! {
-                ty: "vertex",
-                src: "
-				#version 450
-
-				layout(location = 0) in vec2 position;
-
-				void main() {
-					gl_Position = vec4(position, 0.0, 1.0);
-				}
-			"
-            }
-        }
-
-        mod fs {
-            vulkano_shaders::shader! {
-                ty: "fragment",
-                src: "
-				#version 450
-
-				layout(location = 0) out vec4 f_color;
-
-				void main() {
-					f_color = vec4(1.0, 0.0, 0.0, 1.0);
-				}
-			"
-            }
-        }
-
-        let vs = vs::load(device.clone()).unwrap();
-        let fs = fs::load(device.clone()).unwrap();
-
         let render_pass = vulkano::ordered_passes_renderpass!(
             device.clone(),
             attachments: {
@@ -240,15 +174,15 @@ impl VulkanRenderer {
         )
         .unwrap();
 
-        let pipeline = GraphicsPipeline::start()
-            .vertex_input_state(BuffersDefinition::new().vertex::<Vertex>())
-            .vertex_shader(vs.entry_point("main").unwrap(), ())
-            .input_assembly_state(InputAssemblyState::new())
-            .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
-            .fragment_shader(fs.entry_point("main").unwrap(), ())
-            .render_pass(Subpass::from(render_pass.clone().into(), 0).unwrap())
-            .build(device.clone())
-            .unwrap();
+        let framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
+
+        let mut renderer = VulkanRenderer {
+            current_frame: 0,
+            framebuffers,
+            swapchain,
+            surface,
+            render_pass,
+        };
 
         let mut viewport = Viewport {
             origin: [0.0, 0.0],
@@ -256,22 +190,10 @@ impl VulkanRenderer {
             depth_range: 0.0..1.0,
         };
 
-        let mut framebuffers =
-            window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
-
-        VulkanRenderer {
-            surface,
-            render_pass,
-            current_frame: 0,
-            framebuffers,
+        VulkanApp {
+            renderer,
             event_loop,
-            swapchain,
             viewport,
-            device,
-            queue,
-            //---
-            vertex_buffer,
-            pipeline,
         }
     }
 
@@ -292,7 +214,7 @@ impl VulkanRenderer {
                 } => {
                     recreate_swapchain = true;
                 }
-                Event::WindowEvent { event, .. } => {
+                Event::WindowEvent { event: _, .. } => {
                     // let egui_consumed_event = egui_winit.on_event(&egui_ctx, &event);
                     // if !egui_consumed_event {
                     //     // do your own event handling here
@@ -351,7 +273,7 @@ impl VulkanRenderer {
                     )
                     .unwrap();
 
-                    let frame_start = Instant::now();
+                    let _frame_start = Instant::now();
                     // egui_ctx.begin_frame(egui_winit.take_egui_input(surface.window()));
                     // demo_windows.ui(&egui_ctx);
 
@@ -381,7 +303,7 @@ impl VulkanRenderer {
 
                     let size = self.surface.window().inner_size();
                     let movie_height = (size.width * 9 / 16) as i32;
-                    let panel_height = max(size.height as i32 - movie_height, 0) as f32;
+                    let _panel_height = max(size.height as i32 - movie_height, 0) as f32;
 
                     // egui::TopBottomPanel::bottom("my_panel")
                     //     .height_range(panel_height..=panel_height)

@@ -110,15 +110,15 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     Some(Mesh { faces })
 }
 
-pub fn load_blend_file(path: &str) -> Result<Object> {
+pub fn load_blend_file(_path: &str) -> Result<Object> {
     let blend = Blend::from_path("app/file.blend");
     let mut objects = Vec::new();
 
     for obj in blend.get_by_code(*b"OB") {
-        let name = obj.get("id").get_string("name");
+        let _name = obj.get("id").get_string("name");
         // if name != "OBCube" { continue; }
-        let loc = obj.get_f32_vec("loc");
-        let id = obj.get("id");
+        let _loc = obj.get_f32_vec("loc");
+        let _id = obj.get("id");
         // for field in &id.fields {
         //     println!("NAME {}: VALUE {:?}", field.0, field.1);
         // }
@@ -149,7 +149,7 @@ pub fn load_blend_file(path: &str) -> Result<Object> {
             }
         }
 
-        for (name, value) in &obj.fields {
+        for (name, _value) in &obj.fields {
             if obj.is_valid(name) {
                 // println!(" -- NAME {}: VALUE {:?}", name, value);
                 // if name == "data" {

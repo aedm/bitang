@@ -9,7 +9,7 @@ use crate::types::{Mesh, Object, Vertex};
 use anyhow::Result;
 
 fn main() -> Result<()> {
-    let object = load_blend_file("app/file.blend")?;
+    let _object = load_blend_file("app/file.blend")?;
     // println!("{:#?}", object);
 
     VulkanRenderer::new().main_loop();

@@ -1,4 +1,4 @@
-use memoffset::offset_of;
+
 
 pub type Vertex = ([f32; 3], [f32; 3], [f32; 2]);
 pub type Face = [Vertex; 3];
