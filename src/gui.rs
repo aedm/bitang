@@ -1,5 +1,6 @@
 use crate::render::VulkanRenderer;
-use egui::{epaint, ColorImage, FullOutput, TextureHandle};
+use egui::epaint::ClippedShape;
+use egui::{epaint, ColorImage, FullOutput, Pos2, Rect, TextureHandle};
 use std::mem;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::pipeline::graphics::viewport::Viewport;
@@ -18,6 +19,8 @@ pub struct Gui {
 impl Gui {
     pub fn new(renderer: &VulkanRenderer) -> Gui {
         let egui_ctx = egui::Context::default();
+        // egui_ctx.set_pixels_per_point(renderer.surface.window().scale_factor() as f32);
+        let sf = renderer.surface.window().scale_factor() as f32;
         let mut egui_winit = egui_winit::State::new(4096, renderer.surface.window());
 
         let mut egui_painter = egui_vulkano::Painter::new(
@@ -102,7 +105,25 @@ impl Gui {
             .update_textures(egui_output.textures_delta, builder)
             .expect("egui texture error");
 
-        self.shapes = egui_output.shapes;
+        let sf: f32 = renderer.surface.window().scale_factor() as f32;
+
+        self.shapes = egui_output
+            .shapes
+            .into_iter()
+            .map(|s| ClippedShape {
+                0: Rect {
+                    min: Pos2 {
+                        x: s.0.min.x * sf,
+                        y: s.0.min.y * sf,
+                    },
+                    max: Pos2 {
+                        x: s.0.max.x * sf,
+                        y: s.0.max.y * sf,
+                    },
+                },
+                1: s.1,
+            })
+            .collect();
     }
 
     pub fn handle_window_event(&mut self, event: &winit::event::WindowEvent) {
