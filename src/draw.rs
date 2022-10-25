@@ -1,5 +1,5 @@
 use crate::render::VulkanRenderer;
-use crate::types::App;
+use crate::DemoApp;
 use bytemuck::{Pod, Zeroable};
 use std::cmp::max;
 use std::sync::Arc;
@@ -56,7 +56,7 @@ impl<F: GpuFuture> AsMut<dyn GpuFuture> for FrameEndFuture<F> {
 }
 
 pub struct VulkanApp {
-    renderer: VulkanRenderer,
+    pub renderer: VulkanRenderer,
     event_loop: EventLoop<()>,
     viewport: Viewport,
 }
@@ -192,7 +192,7 @@ impl VulkanApp {
         }
     }
 
-    pub fn main_loop(mut self, app: &mut dyn App) {
+    pub fn main_loop(mut self, mut app: DemoApp) {
         let mut recreate_swapchain = false;
         let mut previous_frame_end = Some(FrameEndFuture::now(self.renderer.device.clone()));
         self.event_loop.run(move |event, _, control_flow| {
@@ -269,6 +269,15 @@ impl VulkanApp {
                     .unwrap();
 
                     let _frame_start = Instant::now();
+
+                    let framebuffer = self.renderer.framebuffers[image_num].clone();
+                    app.draw(
+                        &mut self.renderer,
+                        &mut builder,
+                        framebuffer,
+                        self.viewport.clone(),
+                    );
+
                     // egui_ctx.begin_frame(egui_winit.take_egui_input(surface.window()));
                     // demo_windows.ui(&egui_ctx);
 

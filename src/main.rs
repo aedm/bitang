@@ -14,8 +14,8 @@ fn main() -> Result<()> {
     // println!("{:#?}", object);
 
     let mut va = VulkanApp::new();
-    let mut app = DemoApp::new(&va);
-    va.main_loop(&mut app);
+    let mut app = DemoApp::new(&va.renderer);
+    va.main_loop(app);
 
     Ok(())
 }

@@ -1,8 +1,9 @@
-use crate::types::App;
 use bytemuck::{Pod, Zeroable};
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
-use vulkano::command_buffer::{AutoCommandBufferBuilder, SubpassContents};
+use vulkano::command_buffer::{
+    AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, SubpassContents,
+};
 use vulkano::device::{Device, Queue};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
@@ -108,21 +109,21 @@ impl DemoApp {
             pipeline,
         }
     }
-}
-impl App for DemoApp {
-    fn draw(self: &mut Self, renderer: &VulkanRenderer, builder: AutoCommandBufferBuilder<i32>) {
-        // Do your usual rendering
+
+    pub fn draw(
+        self: &mut Self,
+        renderer: &VulkanRenderer,
+        builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
+        framebuffer: Arc<Framebuffer>,
+        viewport: Viewport,
+    ) {
         let clear_values = vec![[0.0, 0.0, 1.0, 1.0].into()];
 
         builder
-            .begin_render_pass(
-                self.renderer.framebuffers[image_num].clone(),
-                SubpassContents::Inline,
-                clear_values,
-            )
+            .begin_render_pass(framebuffer, SubpassContents::Inline, clear_values)
             .unwrap()
-            .set_viewport(0, [self.viewport.clone()])
-            .bind_pipeline_graphics(self.renderer.pipeline.clone())
+            .set_viewport(0, [viewport])
+            .bind_pipeline_graphics(self.pipeline.clone())
             .bind_vertex_buffers(0, self.vertex_buffer.clone())
             .draw(self.vertex_buffer.len().try_into().unwrap(), 1, 0, 0)
             .unwrap(); // Don't end the render pass yet
