@@ -64,15 +64,15 @@ impl Gui {
         //         egui_bench.draw(ui);
         //     });
         //
-        egui::Window::new("Texture test").show(&self.egui_ctx, |ui| {
-            ui.image(self.my_texture.id(), (200.0, 200.0));
-            if ui.button("Reload texture").clicked() {
-                // previous TextureHandle is dropped, causing egui to free the texture:
-                self.my_texture = self
-                    .egui_ctx
-                    .load_texture("my_texture", ColorImage::example());
-            }
-        });
+        // egui::Window::new("Texture test").show(&self.egui_ctx, |ui| {
+        //     ui.image(self.my_texture.id(), (200.0, 200.0));
+        //     if ui.button("Reload texture").clicked() {
+        //         // previous TextureHandle is dropped, causing egui to free the texture:
+        //         self.my_texture = self
+        //             .egui_ctx
+        //             .load_texture("my_texture", ColorImage::example());
+        //     }
+        // });
 
         let height = bottom_panel_height as f32;
         egui::TopBottomPanel::bottom("my_panel")

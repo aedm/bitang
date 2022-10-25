@@ -82,6 +82,7 @@ impl VulkanApp {
         let event_loop = EventLoop::new();
         let surface = WindowBuilder::new()
             .with_title("bitang")
+            .with_inner_size(winit::dpi::LogicalSize::new(1280.0, 980.0))
             // .with_fullscreen(Some(Fullscreen::Borderless(None)))
             .build_vk_surface(&event_loop, instance.clone())
             .unwrap();
@@ -262,8 +263,6 @@ impl VulkanApp {
                         CommandBufferUsage::OneTimeSubmit,
                     )
                     .unwrap();
-
-                    let _frame_start = Instant::now();
 
                     let framebuffer = self.renderer.framebuffers[image_num].clone();
 
