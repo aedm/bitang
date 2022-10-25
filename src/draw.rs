@@ -1,5 +1,6 @@
 use crate::render::VulkanRenderer;
 use crate::DemoApp;
+use crate::Gui;
 use bytemuck::{Pod, Zeroable};
 use std::cmp::max;
 use std::sync::Arc;
@@ -80,7 +81,7 @@ impl VulkanApp {
 
         let event_loop = EventLoop::new();
         let surface = WindowBuilder::new()
-            .with_title("egui_vulkano demo")
+            .with_title("bitang")
             // .with_fullscreen(Some(Fullscreen::Borderless(None)))
             .build_vk_surface(&event_loop, instance.clone())
             .unwrap();
@@ -122,9 +123,6 @@ impl VulkanApp {
 
         let queue = queues.next().unwrap();
 
-        // let mut renderer = VulkanRenderer::new();
-        // renderer.run();
-
         let (swapchain, images) = {
             let caps = physical_device
                 .surface_capabilities(&surface, Default::default())
@@ -161,8 +159,8 @@ impl VulkanApp {
                 }
             },
             passes: [
-                { color: [color], depth_stencil: {}, input: [] }
-                // { color: [color], depth_stencil: {}, input: [] } // Create a second renderpass to draw egui
+                { color: [color], depth_stencil: {}, input: [] },
+                { color: [color], depth_stencil: {}, input: [] } // Create a second renderpass to draw egui
             ]
         )
         .unwrap();
@@ -192,7 +190,7 @@ impl VulkanApp {
         }
     }
 
-    pub fn main_loop(mut self, mut app: DemoApp) {
+    pub fn main_loop(mut self, mut app: DemoApp, mut gui: Gui) {
         let mut recreate_swapchain = false;
         let mut previous_frame_end = Some(FrameEndFuture::now(self.renderer.device.clone()));
         self.event_loop.run(move |event, _, control_flow| {
@@ -209,11 +207,8 @@ impl VulkanApp {
                 } => {
                     recreate_swapchain = true;
                 }
-                Event::WindowEvent { event: _, .. } => {
-                    // let egui_consumed_event = egui_winit.on_event(&egui_ctx, &event);
-                    // if !egui_consumed_event {
-                    //     // do your own event handling here
-                    // };
+                Event::WindowEvent { event, .. } => {
+                    gui.handle_window_event(&event);
                 }
                 Event::RedrawEventsCleared => {
                     previous_frame_end
@@ -271,83 +266,30 @@ impl VulkanApp {
                     let _frame_start = Instant::now();
 
                     let framebuffer = self.renderer.framebuffers[image_num].clone();
+
+                    let size = self.renderer.surface.window().inner_size();
+                    let movie_height = (size.width * 9 / 16) as i32;
+                    let bottom_panel_height = max(size.height as i32 - movie_height, 0);
+
+                    gui.build(&mut self.renderer, &mut builder, bottom_panel_height);
+
+                    let render_viewport = Viewport {
+                        origin: [0.0, 0.0],
+                        dimensions: [size.width as f32, movie_height as f32],
+                        depth_range: 0.0..1.0,
+                    };
                     app.draw(
                         &mut self.renderer,
                         &mut builder,
                         framebuffer,
-                        self.viewport.clone(),
+                        render_viewport,
                     );
 
-                    // egui_ctx.begin_frame(egui_winit.take_egui_input(surface.window()));
-                    // demo_windows.ui(&egui_ctx);
+                    builder.set_viewport(0, [self.viewport.clone()]);
 
-                    // egui::Window::new("Color test")
-                    //     .vscroll(true)
-                    //     .show(&egui_ctx, |ui| {
-                    //         egui_test.ui(ui);
-                    //     });
-                    //
-                    // egui::Window::new("Settings").show(&egui_ctx, |ui| {
-                    //     egui_ctx.settings_ui(ui);
-                    // });
-                    //
-                    // egui::Window::new("Benchmark")
-                    //     .default_height(600.0)
-                    //     .show(&egui_ctx, |ui| {
-                    //         egui_bench.draw(ui);
-                    //     });
-                    //
-                    // egui::Window::new("Texture test").show(&egui_ctx, |ui| {
-                    //     ui.image(my_texture.id(), (200.0, 200.0));
-                    //     if ui.button("Reload texture").clicked() {
-                    //         // previous TextureHandle is dropped, causing egui to free the texture:
-                    //         my_texture = egui_ctx.load_texture("my_texture", ColorImage::example());
-                    //     }
-                    // });
-
-                    let size = self.renderer.surface.window().inner_size();
-                    let movie_height = (size.width * 9 / 16) as i32;
-                    let _panel_height = max(size.height as i32 - movie_height, 0) as f32;
-
-                    // egui::TopBottomPanel::bottom("my_panel")
-                    //     .height_range(panel_height..=panel_height)
-                    //     .show(&egui_ctx, |ui| {
-                    //         ui.with_layout(
-                    //             egui::Layout::top_down_justified(egui::Align::Center),
-                    //             |ui| {
-                    //                 ui.button("I am becoming wider as needed");
-                    //                 ui.allocate_space(ui.available_size());
-                    //             },
-                    //         );
-                    //         // ui.label("Hello World!");
-                    //     });
-
-                    // // Get the shapes from egui
-                    // let egui_output = egui_ctx.end_frame();
-                    // let platform_output = egui_output.platform_output;
-                    // egui_winit.handle_platform_output(surface.window(), &egui_ctx, platform_output);
-
-                    // let result = egui_painter
-                    //     .update_textures(egui_output.textures_delta, &mut builder)
-                    //     .expect("egui texture error");
+                    gui.draw(&mut self.renderer, &mut builder);
 
                     let wait_for_last_frame = true; // result == UpdateTexturesResult::Changed;
-
-                    // Build your gui
-
-                    // Automatically start the next render subpass and draw the gui
-                    // let size = self.surface.window().inner_size();
-                    // let sf: f32 = self.surface.window().scale_factor() as f32;
-                    // egui_painter
-                    //     .draw(
-                    //         &mut builder,
-                    //         [(size.width as f32) / sf, (size.height as f32) / sf],
-                    //         &egui_ctx,
-                    //         egui_output.shapes,
-                    //     )
-                    //     .unwrap();
-
-                    // egui_bench.push(frame_start.elapsed().as_secs_f64());
 
                     // End the render pass as usual
                     builder.end_render_pass().unwrap();

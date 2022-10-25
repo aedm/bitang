@@ -1,18 +1,56 @@
-use bytemuck::{Pod, Zeroable};
+// use bytemuck::{Pod, Zeroable};
+// use std::sync::Arc;
+// use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
+// use vulkano::command_buffer::{
+//     AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, SubpassContents,
+// };
+// use vulkano::device::{Device, Queue};
+// use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
+// use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
+// use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
+// use vulkano::pipeline::GraphicsPipeline;
+// use vulkano::render_pass::{Framebuffer, RenderPass, Subpass};
+// use vulkano::swapchain;
+// use vulkano::swapchain::Swapchain;
+// use winit::window::Window;
+
+use std::cmp::max;
+// Copied from https://github.com/vulkano-rs/vulkano/blob/master/examples/src/bin/triangle.rs
+/// Differences:
+/// * Set the correct color format for the swapchain
+/// * Second renderpass to draw the gui
+use std::collections::VecDeque;
+use std::convert::TryInto;
 use std::sync::Arc;
-use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
+use std::time::Instant;
+
+use bytemuck::{Pod, Zeroable};
+use egui::plot::{HLine, Line, Plot, Value, Values};
+use egui::{Color32, ColorImage, Ui};
+use egui_vulkano::UpdateTexturesResult;
+use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
 use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, SubpassContents,
+    AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, SubpassContents,
 };
-use vulkano::device::{Device, Queue};
+use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
+use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo};
+use vulkano::format::Format;
+use vulkano::image::view::ImageView;
+use vulkano::image::{ImageAccess, ImageUsage, SwapchainImage};
+use vulkano::instance::{Instance, InstanceCreateInfo};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
-use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
+use vulkano::pipeline::graphics::viewport::Viewport;
+use vulkano::pipeline::graphics::viewport::ViewportState;
 use vulkano::pipeline::GraphicsPipeline;
-use vulkano::render_pass::{Framebuffer, RenderPass, Subpass};
-use vulkano::swapchain;
-use vulkano::swapchain::Swapchain;
-use winit::window::Window;
+use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
+use vulkano::swapchain::{AcquireError, Swapchain, SwapchainCreateInfo, SwapchainCreationError};
+use vulkano::sync::{FenceSignalFuture, FlushError, GpuFuture};
+use vulkano::{swapchain, sync};
+use vulkano_win::VkSurfaceBuild;
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::{Fullscreen, Window, WindowBuilder};
 
 #[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]

@@ -1,10 +1,12 @@
 mod draw;
 mod file;
+mod gui;
 mod render;
 mod types;
 
 use crate::draw::VulkanApp;
 use crate::file::blend_loader::load_blend_file;
+use crate::gui::Gui;
 use crate::render::DemoApp;
 use crate::types::{Mesh, Object, Vertex};
 use anyhow::Result;
@@ -15,7 +17,8 @@ fn main() -> Result<()> {
 
     let mut va = VulkanApp::new();
     let mut app = DemoApp::new(&va.renderer);
-    va.main_loop(app);
+    let mut gui = Gui::new(&va.renderer);
+    va.main_loop(app, gui);
 
     Ok(())
 }
