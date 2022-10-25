@@ -1,19 +1,24 @@
-mod file;
-mod types;
-mod render;
 mod draw;
-mod utility;
+mod file;
+mod gui;
+mod render;
+mod types;
 
-use anyhow::Result;
+use crate::draw::VulkanApp;
 use crate::file::blend_loader::load_blend_file;
+use crate::gui::Gui;
+use crate::render::DemoApp;
 use crate::types::{Mesh, Object, Vertex};
+use anyhow::Result;
 
 fn main() -> Result<()> {
-    let object = load_blend_file("app/file.blend")?;
+    let _object = load_blend_file("app/file.blend")?;
     // println!("{:#?}", object);
 
-    draw::main(&object);
+    let mut va = VulkanApp::new();
+    let mut app = DemoApp::new(&va.renderer);
+    let mut gui = Gui::new(&va.renderer);
+    va.main_loop(app, gui);
 
     Ok(())
 }
-

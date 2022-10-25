@@ -1,7 +1,7 @@
-use blend::{Blend, Instance};
-use anyhow::Result;
 use crate::{Mesh, Object, Vertex};
 use anyhow::Context;
+use anyhow::Result;
+use blend::{Blend, Instance};
 // This is only valid for meshes with triangular faces
 fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     if !mesh.is_valid("mpoly")
@@ -20,9 +20,9 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     let mut index_count = 0;
     let mut face_indice_count = 0;
     for face in &faces {
-        println!("-- face {:?}", face);
+        // println!("-- face {:?}", face);
         let len = face.get_i32("totloop");
-        println!("-- totloop {len}");
+        // println!("-- totloop {len}");
 
         let mut indexi = 1;
 
@@ -37,15 +37,15 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     let mut verts_array_buff = vec![0f32; face_indice_count * 3];
 
     for face in &faces {
-        println!("-- face {:?}", face);
+        // println!("-- face {:?}", face);
         let len = face.get_i32("totloop");
         let start = face.get_i32("loopstart");
-        println!("-- totloop {len}");
-        println!("-- loopstart {start}");
+        // println!("-- totloop {len}");
+        // println!("-- loopstart {start}");
         let mut indexi = 1;
 
         while indexi < len {
-            println!("-- indexi {:?}", indexi);
+            // println!("-- indexi {:?}", indexi);
             let mut index;
 
             for l in 0..3 {
@@ -57,7 +57,7 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
 
                 let v = loops[index as usize].get_i32("v");
                 let vert = &verts[v as usize];
-                println!("-- vert {:?}", vert);
+                // println!("-- vert {:?}", vert);
 
                 let co = vert.get_f32_vec("co");
                 verts_array_buff[index_count * 3] = co[0];
@@ -75,7 +75,6 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
                     normal_buffer[index_count * 3 + 1] = 0.0;
                     normal_buffer[index_count * 3 + 2] = 0.0;
                 }
-
 
                 let uv = uvs[index as usize].get_f32_vec("uv");
                 let uv_x = uv[0];
@@ -111,15 +110,15 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     Some(Mesh { faces })
 }
 
-pub fn load_blend_file(path: &str) -> Result<Object> {
+pub fn load_blend_file(_path: &str) -> Result<Object> {
     let blend = Blend::from_path("app/file.blend");
     let mut objects = Vec::new();
 
     for obj in blend.get_by_code(*b"OB") {
-        let name = obj.get("id").get_string("name");
+        let _name = obj.get("id").get_string("name");
         // if name != "OBCube" { continue; }
-        let loc = obj.get_f32_vec("loc");
-        let id = obj.get("id");
+        let _loc = obj.get_f32_vec("loc");
+        let _id = obj.get("id");
         // for field in &id.fields {
         //     println!("NAME {}: VALUE {:?}", field.0, field.1);
         // }
@@ -127,7 +126,7 @@ pub fn load_blend_file(path: &str) -> Result<Object> {
         // println!("ID: {:#?}", id);
         // println!("NAME: {:#?}", name);
 
-        println!("\"{}\" at {:?}", name, loc);
+        // println!("\"{}\" at {:?}", name, loc);
         // let id = obj.get("id").get("newid");
         // println!("ID: {:#?}", id.is_valid("orig_id"));
         // println!("ID: {:#?}", id.is_valid("newid"));
@@ -150,13 +149,13 @@ pub fn load_blend_file(path: &str) -> Result<Object> {
             }
         }
 
-        for (name, value) in &obj.fields {
+        for (name, _value) in &obj.fields {
             if obj.is_valid(name) {
                 // println!(" -- NAME {}: VALUE {:?}", name, value);
-                if name == "data" {
-                    println!(" -- NAME {}: VALUE {:?}", name, value);
-                    println!(" + {:#?}", obj.get("drawdata").fields.get("first").unwrap());
-                }
+                // if name == "data" {
+                //     println!(" -- NAME {}: VALUE {:?}", name, value);
+                //     println!(" + {:#?}", obj.get("drawdata").fields.get("first").unwrap());
+                // }
             }
             // println!("NAME {}: VALUE {:?}", field.0, field.1);
         }
@@ -164,4 +163,3 @@ pub fn load_blend_file(path: &str) -> Result<Object> {
 
     Ok(objects.into_iter().nth(0).context("No object found")?)
 }
-
