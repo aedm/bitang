@@ -82,7 +82,7 @@ impl VulkanApp {
         let event_loop = EventLoop::new();
         let surface = WindowBuilder::new()
             .with_title("bitang")
-            .with_inner_size(winit::dpi::LogicalSize::new(1280.0, 980.0))
+            .with_inner_size(winit::dpi::LogicalSize::new(1024.0, 768.0))
             // .with_fullscreen(Some(Fullscreen::Borderless(None)))
             .build_vk_surface(&event_loop, instance.clone())
             .unwrap();
@@ -266,9 +266,11 @@ impl VulkanApp {
 
                     let framebuffer = self.renderer.framebuffers[image_num].clone();
 
+                    let sf = self.renderer.surface.window().scale_factor() as i32;
+
                     let size = self.renderer.surface.window().inner_size();
                     let movie_height = (size.width * 9 / 16) as i32;
-                    let bottom_panel_height = max(size.height as i32 - movie_height, 0);
+                    let bottom_panel_height = max(size.height as i32 - movie_height, 0) / sf;
 
                     gui.build(&mut self.renderer, &mut builder, bottom_panel_height);
 
@@ -284,7 +286,9 @@ impl VulkanApp {
                         render_viewport,
                     );
 
-                    builder.set_viewport(0, [self.viewport.clone()]);
+                    let vp = self.viewport.clone();
+                    // builder.set_viewport(0, [self.viewport.clone()]);
+                    builder.set_viewport(0, [vp]);
 
                     gui.draw(&mut self.renderer, &mut builder);
 
