@@ -25,7 +25,7 @@ use vulkano::{swapchain, sync};
 use vulkano_win::VkSurfaceBuild;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::{Window, WindowBuilder};
+use winit::window::{Fullscreen, Window, WindowBuilder};
 
 pub const NUMBER_FRAMES_IN_FLIGHT: usize = 3;
 
