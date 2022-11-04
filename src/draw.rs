@@ -8,7 +8,9 @@ use std::time::Instant;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents};
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
-use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo};
+use vulkano::device::{
+    Device, DeviceCreateInfo, DeviceExtensions, DeviceOwned, Queue, QueueCreateInfo,
+};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{ImageAccess, ImageUsage, SwapchainImage};
@@ -25,9 +27,10 @@ use vulkano::{swapchain, sync};
 use vulkano_win::VkSurfaceBuild;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::{Window, WindowBuilder};
+use winit::monitor::VideoMode;
+use winit::window::{Fullscreen, Window, WindowBuilder};
 
-pub const NUMBER_FRAMES_IN_FLIGHT: usize = 3;
+pub const NUMBER_FRAMES_IN_FLIGHT: usize = 2;
 
 pub enum FrameEndFuture<F: GpuFuture + 'static> {
     FenceSignalFuture(FenceSignalFuture<F>),
@@ -80,10 +83,19 @@ impl VulkanApp {
         );
 
         let event_loop = EventLoop::new();
+        let mode = event_loop
+            .primary_monitor()
+            .unwrap()
+            .video_modes()
+            .next()
+            .unwrap();
+        println!("Using mode: {:?}", mode);
+
         let surface = WindowBuilder::new()
             .with_title("bitang")
             .with_inner_size(winit::dpi::LogicalSize::new(1024.0, 768.0))
             // .with_fullscreen(Some(Fullscreen::Borderless(None)))
+            // .with_fullscreen(Some(Fullscreen::Exclusive(mode)))
             .build_vk_surface(&event_loop, instance.clone())
             .unwrap();
 
@@ -142,6 +154,7 @@ impl VulkanApp {
                     image_extent,
                     image_usage: ImageUsage::color_attachment(),
                     composite_alpha,
+                    present_mode: swapchain::PresentMode::Fifo,
 
                     ..Default::default()
                 },
