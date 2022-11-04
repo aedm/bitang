@@ -21,6 +21,7 @@ use std::cmp::max;
 /// * Second renderpass to draw the gui
 use std::collections::VecDeque;
 use std::convert::TryInto;
+use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -30,7 +31,7 @@ use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 use egui::plot::{HLine, Line, Plot, Value, Values};
 use egui::{Color32, ColorImage, Ui};
 use egui_vulkano::UpdateTexturesResult;
-use glam::Vec3;
+use glam::{Mat4, Vec3};
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, SubpassContents,
@@ -118,7 +119,7 @@ mod vs {
 				layout(location = 1) in vec3 normal;
 				layout(location = 2) in vec3 tangent;
 				layout(location = 3) in vec2 uv;
-                layout(set = 0, binding = 0) uniform Data { vec4 e; vec2 viewport_adjust; } uniforms;
+                layout(set = 0, binding = 0) uniform Data { vec4 e; vec2 viewport_adjust; mat4 projection; } uniforms;
 
 				layout(location = 0) out vec2 v_uv;
 
@@ -126,7 +127,8 @@ mod vs {
                     float sn = sin(uniforms.e.x);
                     float cs = cos(uniforms.e.x);
                     vec2 xy = position.xy;
-					gl_Position = vec4(vec2(xy.x *sn + xy.y * cs, -xy.x * cs + xy.y * sn) * uniforms.viewport_adjust, position.z, 1.0);
+					// gl_Position = vec4(vec2(xy.x *sn + xy.y * cs, -xy.x * cs + xy.y * sn) * uniforms.viewport_adjust, position.z, 1.0);
+					gl_Position = uniforms.projection * vec4(position, 1.0);
                     v_uv = uv;
 				}
 			"
@@ -241,10 +243,19 @@ impl DemoApp {
             .set_viewport(0, [viewport.clone()]);
 
         if let Some(drawable) = &self.drawable {
+            let projection = Mat4::perspective_infinite_rh(
+                PI / 2.0,
+                viewport.dimensions[0] / viewport.dimensions[1],
+                0.1,
+            ) * Mat4::from_translation(Vec3::new(0.0, 0.0, -4.0))
+                * Mat4::from_rotation_y(elapsed);
+
             let uniform_buffer_subbuffer = {
                 let uniform_data = vs::ty::Data {
                     e: [elapsed, 0.0, 0.0, 0.0].into(),
                     viewport_adjust: [1.0, viewport.dimensions[0] / viewport.dimensions[1]].into(),
+                    projection: projection.to_cols_array_2d(),
+                    _dummy0: [0; 8],
                 };
                 drawable.uniform_buffer.next(uniform_data).unwrap()
             };
