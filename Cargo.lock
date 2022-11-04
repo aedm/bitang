@@ -114,6 +114,7 @@ dependencies = [
  "egui",
  "egui-winit",
  "egui_vulkano",
+ "glam",
  "image",
  "memoffset",
  "num",
@@ -662,6 +663,15 @@ checksum = "471d90201b3b223f3451cd4ad53e34295f16a1df17b1edf3736d47761c3981af"
 dependencies = [
  "color_quant",
  "lzw",
+]
+
+[[package]]
+name = "glam"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12f597d56c1bd55a811a1be189459e8fad2bbc272616375602443bdfb37fa774"
+dependencies = [
+ "bytemuck",
 ]
 
 [[package]]

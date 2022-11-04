@@ -30,7 +30,7 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::monitor::VideoMode;
 use winit::window::{Fullscreen, Window, WindowBuilder};
 
-pub const NUMBER_FRAMES_IN_FLIGHT: usize = 2;
+pub const NUMBER_FRAMES_IN_FLIGHT: usize = 3;
 
 pub enum FrameEndFuture<F: GpuFuture + 'static> {
     FenceSignalFuture(FenceSignalFuture<F>),
