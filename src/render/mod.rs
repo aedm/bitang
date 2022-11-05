@@ -43,6 +43,7 @@ use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{ImageAccess, ImageUsage, SwapchainImage};
 use vulkano::instance::{Instance, InstanceCreateInfo};
+use vulkano::pipeline::graphics::depth_stencil::DepthStencilState;
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::vertex_input::{
     BuffersDefinition, VertexMemberInfo, VertexMemberTy,
@@ -216,6 +217,7 @@ impl DemoApp {
             .input_assembly_state(InputAssemblyState::new())
             .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
             .fragment_shader(fs.entry_point("main").unwrap(), ())
+            .depth_stencil_state(DepthStencilState::simple_depth_test())
             .render_pass(Subpass::from(renderer.render_pass.clone().into(), 0).unwrap())
             .build(renderer.device.clone())
             .unwrap();
@@ -234,7 +236,7 @@ impl DemoApp {
         framebuffer: Arc<Framebuffer>,
         viewport: Viewport,
     ) {
-        let clear_values = vec![[0.0, 0.0, 1.0, 1.0].into()];
+        let clear_values = vec![[0.0, 0.0, 1.0, 1.0].into(), 1f32.into()];
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
         builder
