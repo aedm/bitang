@@ -13,7 +13,7 @@ use vulkano::device::{
 };
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
-use vulkano::image::{ImageAccess, ImageUsage, SwapchainImage};
+use vulkano::image::{AttachmentImage, ImageAccess, ImageUsage, SwapchainImage};
 use vulkano::instance::{Instance, InstanceCreateInfo};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
@@ -170,10 +170,16 @@ impl VulkanApp {
                     store: Store,
                     format: swapchain.image_format(),
                     samples: 1,
+                },
+                depth: {
+                    load: Clear,
+                    store: DontCare,
+                    format: Format::D16_UNORM,
+                    samples: 1,
                 }
             },
             passes: [
-                { color: [color], depth_stencil: {}, input: [] },
+                { color: [color], depth_stencil: {depth}, input: [] },
                 { color: [color], depth_stencil: {}, input: [] } // Create a second renderpass to draw egui
             ]
         )
@@ -185,7 +191,8 @@ impl VulkanApp {
             depth_range: 0.0..1.0,
         };
 
-        let framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
+        let framebuffers =
+            window_size_dependent_setup(&images, render_pass.clone(), &mut viewport, &device);
 
         let mut renderer = VulkanRenderer {
             device,
@@ -251,6 +258,7 @@ impl VulkanApp {
                             &new_images,
                             self.renderer.render_pass.clone(),
                             &mut self.viewport,
+                            &self.renderer.device,
                         );
                         self.viewport.dimensions = [dimensions[0] as f32, dimensions[1] as f32];
                         recreate_swapchain = false;
@@ -360,9 +368,15 @@ fn window_size_dependent_setup(
     images: &[Arc<SwapchainImage<Window>>],
     render_pass: Arc<RenderPass>,
     viewport: &mut Viewport,
+    device: &Arc<Device>,
 ) -> Vec<Arc<Framebuffer>> {
     let dimensions = images[0].dimensions().width_height();
     viewport.dimensions = [dimensions[0] as f32, dimensions[1] as f32];
+
+    let depth_buffer = ImageView::new_default(
+        AttachmentImage::transient(device.clone(), dimensions, Format::D16_UNORM).unwrap(),
+    )
+    .unwrap();
 
     images
         .iter()
@@ -371,7 +385,7 @@ fn window_size_dependent_setup(
             Framebuffer::new(
                 render_pass.clone(),
                 FramebufferCreateInfo {
-                    attachments: vec![view],
+                    attachments: vec![view, depth_buffer.clone()],
                     ..Default::default()
                 },
             )
