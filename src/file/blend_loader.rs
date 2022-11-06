@@ -61,8 +61,8 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
 
                 let co = vert.get_f32_vec("co");
                 verts_array_buff[index_count * 3] = co[0];
-                verts_array_buff[index_count * 3 + 1] = co[1];
-                verts_array_buff[index_count * 3 + 2] = co[2];
+                verts_array_buff[index_count * 3 + 1] = -co[2];
+                verts_array_buff[index_count * 3 + 2] = co[1];
 
                 //Normals are compressed into 16 bit integers
                 if vert.is_valid("no") {
@@ -110,13 +110,16 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     Some(Mesh { faces })
 }
 
-pub fn load_blend_file(_path: &str) -> Result<Object> {
-    let blend = Blend::from_path("app/file.blend");
+pub fn load_blend_file(path: &str) -> Result<Object> {
+    let blend = Blend::from_path(path);
     let mut objects = Vec::new();
 
     for obj in blend.get_by_code(*b"OB") {
-        let _name = obj.get("id").get_string("name");
-        // if name != "OBCube" { continue; }
+        let name = obj.get("id").get_string("name");
+        println!("-- name {:?}", name);
+        if name != "OBHead_Low" {
+            continue;
+        }
         let _loc = obj.get_f32_vec("loc");
         let _id = obj.get("id");
         // for field in &id.fields {

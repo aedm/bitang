@@ -12,7 +12,7 @@ use crate::types::{Mesh, Object, Vertex};
 use anyhow::Result;
 
 fn main() -> Result<()> {
-    let object = load_blend_file("app/file.blend")?;
+    let object = load_blend_file("app/naty/File.blend")?;
     // println!("{:#?}", object);
 
     let mut va = VulkanApp::new();
