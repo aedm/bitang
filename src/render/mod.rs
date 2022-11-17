@@ -128,7 +128,7 @@ mod fs {
 				layout(location = 0) in vec2 v_uv;
 
 				layout(location = 0) out vec4 f_color;
-                layout(set = 0, binding = 0) uniform sampler2D tex;
+                layout(set = 1, binding = 0) uniform sampler2D tex;
 
 				void main() {
 					f_color = texture(tex, v_uv);
@@ -251,7 +251,7 @@ impl DemoApp {
         )
         .unwrap();
 
-        let layout = pipeline.layout().set_layouts().get(0).unwrap();
+        let layout = pipeline.layout().set_layouts().get(1).unwrap();
         let set = PersistentDescriptorSet::new(
             layout.clone(),
             [WriteDescriptorSet::image_view_sampler(
@@ -320,6 +320,12 @@ impl DemoApp {
                     drawable.pipeline.layout().clone(),
                     0,
                     set,
+                )
+                .bind_descriptor_sets(
+                    PipelineBindPoint::Graphics,
+                    drawable.pipeline.layout().clone(),
+                    1,
+                    self.drawable.as_ref().unwrap().descriptor_set.clone(),
                 )
                 .bind_vertex_buffers(0, drawable.vertex_buffer.clone())
                 .draw(drawable.vertex_buffer.len().try_into().unwrap(), 1, 0, 0)

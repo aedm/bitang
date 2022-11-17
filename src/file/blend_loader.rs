@@ -78,9 +78,9 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
 
                 let uv = uvs[index as usize].get_f32_vec("uv");
                 let uv_x = uv[0];
-                let uv_y = uv[1];
-                uv_buffer[index_count * 2] = uv_x;
-                uv_buffer[index_count * 2 + 1] = uv_y;
+                let uv_y = 1.0 - uv[1];
+                uv_buffer[index_count * 2] = uv_x as f32;
+                uv_buffer[index_count * 2 + 1] = uv_y as f32;
 
                 index_count += 1;
             }

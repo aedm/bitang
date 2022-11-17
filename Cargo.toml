@@ -25,8 +25,8 @@ vulkano-shaders = "0.29.0"
 vulkano-win = "0.29.0"
 shaderc = "*"
 
-[profile.dev.package."*"]
-#opt-level = 'z'
+[profile.dev.package.image]
+opt-level = 'z'
 #debug = false
 #debug-assertions = false
 #overflow-checks = false
