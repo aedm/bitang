@@ -33,7 +33,6 @@ use egui::plot::{HLine, Line, Plot, Value, Values};
 use egui::{Color32, ColorImage, Ui};
 use egui_vulkano::UpdateTexturesResult;
 use glam::{Mat4, Vec3};
-use image::error::UnsupportedErrorKind::Format;
 use image::io::Reader as ImageReader;
 use image::RgbaImage;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess};
@@ -45,7 +44,9 @@ use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
 use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
-use vulkano::image::{ImageAccess, ImageUsage, ImmutableImage, MipmapsCount, SwapchainImage};
+use vulkano::image::{
+    ImageAccess, ImageDimensions, ImageUsage, ImmutableImage, MipmapsCount, SwapchainImage,
+};
 use vulkano::instance::{Instance, InstanceCreateInfo};
 use vulkano::pipeline::graphics::depth_stencil::DepthStencilState;
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
@@ -127,9 +128,10 @@ mod fs {
 				layout(location = 0) in vec2 v_uv;
 
 				layout(location = 0) out vec4 f_color;
+                layout(set = 0, binding = 0) uniform sampler2D tex;
 
 				void main() {
-					f_color = vec4(v_uv, 0.0, 1.0);
+					f_color = texture(tex, v_uv);
 				}
 			"
     }
@@ -159,35 +161,38 @@ impl DemoApp {
         }
     }
 
-    fn load_texture(
-        upload_queue: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-    ) -> Result<Arc<ImageView<ImmutableImage>>> {
+    fn load_texture(renderer: &VulkanRenderer) -> Result<Arc<ImageView<ImmutableImage>>> {
         let rgba = ImageReader::open("app/naty/Albedo.png")?
             .decode()?
             .to_rgba8();
+        let dimensions = ImageDimensions::Dim2d {
+            width: rgba.dimensions().0,
+            height: rgba.dimensions().0,
+            array_layers: 1,
+        };
         let (image, _future) = ImmutableImage::from_iter(
-            rgba.pixels(),
+            rgba.into_raw(),
             dimensions,
             MipmapsCount::One,
             Format::R8G8B8A8_SRGB,
-            upload_queue.clone(),
+            renderer.queue.clone(),
         )?;
         Ok(ImageView::new_default(image)?)
     }
 
     pub fn load_model(&mut self, renderer: &VulkanRenderer, object: Object) -> Result<()> {
-        let mut upload_commands = AutoCommandBufferBuilder::primary(
-            self.renderer.device.clone(),
-            self.renderer.queue.family(),
-            CommandBufferUsage::OneTimeSubmit,
-        )
-        .unwrap();
+        // let mut upload_commands = AutoCommandBufferBuilder::primary(
+        //     self.renderer.device.clone(),
+        //     self.renderer.queue.family(),
+        //     CommandBufferUsage::OneTimeSubmit,
+        // )
+        // .unwrap();
 
-        let texture = Self::load_texture(&mut upload_commands).unwrap();
+        let texture = Self::load_texture(renderer).unwrap();
 
-        let x = sync::now(renderer.device.clone())
-            .then_execute(renderer.queue.clone(), upload_commands.build())?
-            .wait(None)?;
+        // let x = sync::now(renderer.device.clone())
+        //     .then_execute(renderer.queue.clone(), upload_commands.build())?
+        //     .wait(None)?;
 
         let vertices = object
             .mesh
@@ -236,7 +241,7 @@ impl DemoApp {
             .unwrap();
 
         let sampler = Sampler::new(
-            device.clone(),
+            renderer.device.clone(),
             SamplerCreateInfo {
                 mag_filter: Filter::Linear,
                 min_filter: Filter::Linear,
