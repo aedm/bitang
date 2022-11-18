@@ -24,6 +24,7 @@ vulkano = "0.29.0"
 vulkano-shaders = "0.29.0"
 vulkano-win = "0.29.0"
 shaderc = "*"
+spirv-reflect = "0.2.3"
 
 [profile.dev.package.image]
 opt-level = 'z'
