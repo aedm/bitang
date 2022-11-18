@@ -84,7 +84,7 @@ impl Gui {
                 ui.with_layout(
                     egui::Layout::top_down_justified(egui::Align::Center),
                     |ui| {
-                        ui.button("I am becoming wider as needed");
+                        let _ = ui.button("I am becoming wider as needed");
                         ui.allocate_space(ui.available_size());
                     },
                 );

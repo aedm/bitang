@@ -17,7 +17,7 @@ fn main() -> Result<()> {
 
     let mut va = VulkanApp::new();
     let mut app = DemoApp::new(&va.renderer);
-    app.load_model(&va.renderer, object);
+    app.load_model(&va.renderer, object)?;
     let mut gui = Gui::new(&va.renderer);
     va.main_loop(app, gui);
 
