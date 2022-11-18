@@ -92,54 +92,6 @@ pub struct VulkanRenderer {
     pub swapchain: Arc<Swapchain<Window>>,
 }
 
-// mod vs {
-//     vulkano_shaders::shader! {
-//         ty: "vertex",
-//         types_meta: {
-//             use bytemuck::{Pod, Zeroable};
-//             #[derive(Clone, Copy, Zeroable, Pod)]
-//         },
-//         src: "
-// 				#version 450
-//
-// 				layout(location = 0) in vec3 position;
-// 				layout(location = 1) in vec3 normal;
-// 				layout(location = 2) in vec3 tangent;
-// 				layout(location = 3) in vec2 uv;
-//                 layout(set = 0, binding = 0) uniform Data { vec4 e; vec2 viewport_adjust; mat4 projection; } uniforms;
-//
-// 				layout(location = 0) out vec2 v_uv;
-//
-// 				void main() {
-//                     float sn = sin(uniforms.e.x);
-//                     float cs = cos(uniforms.e.x);
-//                     vec2 xy = position.xy;
-// 					// gl_Position = vec4(vec2(xy.x *sn + xy.y * cs, -xy.x * cs + xy.y * sn) * uniforms.viewport_adjust, position.z, 1.0);
-// 					gl_Position = uniforms.projection * vec4(position, 1.0);
-//                     v_uv = uv;
-// 				}
-// 			"
-//     }
-// }
-//
-// mod fs {
-//     vulkano_shaders::shader! {
-//         ty: "fragment",
-//         src: "
-// 				#version 450
-//
-// 				layout(location = 0) in vec2 v_uv;
-//
-// 				layout(location = 0) out vec4 f_color;
-//                 layout(set = 1, binding = 0) uniform sampler2D tex;
-//
-// 				void main() {
-// 					f_color = texture(tex, v_uv);
-// 				}
-// 			"
-//     }
-// }
-
 #[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct Uniforms {
@@ -188,6 +140,13 @@ impl DemoApp {
             renderer.queue.clone(),
         )?;
         Ok(ImageView::new_default(image)?)
+    }
+
+    fn debug_spirv(binary: &[u8]) -> Result<()> {
+        let reflect = spirv_reflect::ShaderModule::load_u8_data(binary).unwrap();
+        let ep = &reflect.enumerate_entry_points().unwrap()[0];
+        println!("SPIRV Metadata: {:#?}", ep);
+        Ok(())
     }
 
     pub fn load_model(&mut self, renderer: &VulkanRenderer, object: Object) -> Result<()> {
@@ -245,6 +204,7 @@ impl DemoApp {
                 "main",
                 None,
             )?;
+            DemoApp::debug_spirv(&spirv.as_binary_u8())?;
             unsafe { ShaderModule::from_bytes(renderer.device.clone(), spirv.as_binary_u8()) }?
         };
 
