@@ -23,6 +23,8 @@ use anyhow::Result;
 use std::collections::VecDeque;
 use std::convert::TryInto;
 use std::f32::consts::PI;
+use std::fs::File;
+use std::io::Read;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -59,6 +61,7 @@ use vulkano::pipeline::Pipeline;
 use vulkano::pipeline::{GraphicsPipeline, PipelineBindPoint};
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
 use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
+use vulkano::shader::ShaderModule;
 use vulkano::swapchain::{AcquireError, Swapchain, SwapchainCreateInfo, SwapchainCreationError};
 use vulkano::sync::{FenceSignalFuture, FlushError, GpuFuture};
 use vulkano::{swapchain, sync};
@@ -89,58 +92,65 @@ pub struct VulkanRenderer {
     pub swapchain: Arc<Swapchain<Window>>,
 }
 
-mod vs {
-    vulkano_shaders::shader! {
-        ty: "vertex",
-        types_meta: {
-            use bytemuck::{Pod, Zeroable};
-            #[derive(Clone, Copy, Zeroable, Pod)]
-        },
-        src: "
-				#version 450
+// mod vs {
+//     vulkano_shaders::shader! {
+//         ty: "vertex",
+//         types_meta: {
+//             use bytemuck::{Pod, Zeroable};
+//             #[derive(Clone, Copy, Zeroable, Pod)]
+//         },
+//         src: "
+// 				#version 450
+//
+// 				layout(location = 0) in vec3 position;
+// 				layout(location = 1) in vec3 normal;
+// 				layout(location = 2) in vec3 tangent;
+// 				layout(location = 3) in vec2 uv;
+//                 layout(set = 0, binding = 0) uniform Data { vec4 e; vec2 viewport_adjust; mat4 projection; } uniforms;
+//
+// 				layout(location = 0) out vec2 v_uv;
+//
+// 				void main() {
+//                     float sn = sin(uniforms.e.x);
+//                     float cs = cos(uniforms.e.x);
+//                     vec2 xy = position.xy;
+// 					// gl_Position = vec4(vec2(xy.x *sn + xy.y * cs, -xy.x * cs + xy.y * sn) * uniforms.viewport_adjust, position.z, 1.0);
+// 					gl_Position = uniforms.projection * vec4(position, 1.0);
+//                     v_uv = uv;
+// 				}
+// 			"
+//     }
+// }
+//
+// mod fs {
+//     vulkano_shaders::shader! {
+//         ty: "fragment",
+//         src: "
+// 				#version 450
+//
+// 				layout(location = 0) in vec2 v_uv;
+//
+// 				layout(location = 0) out vec4 f_color;
+//                 layout(set = 1, binding = 0) uniform sampler2D tex;
+//
+// 				void main() {
+// 					f_color = texture(tex, v_uv);
+// 				}
+// 			"
+//     }
+// }
 
-				layout(location = 0) in vec3 position;
-				layout(location = 1) in vec3 normal;
-				layout(location = 2) in vec3 tangent;
-				layout(location = 3) in vec2 uv;
-                layout(set = 0, binding = 0) uniform Data { vec4 e; vec2 viewport_adjust; mat4 projection; } uniforms;
-
-				layout(location = 0) out vec2 v_uv;
-
-				void main() {
-                    float sn = sin(uniforms.e.x);
-                    float cs = cos(uniforms.e.x);
-                    vec2 xy = position.xy;
-					// gl_Position = vec4(vec2(xy.x *sn + xy.y * cs, -xy.x * cs + xy.y * sn) * uniforms.viewport_adjust, position.z, 1.0);
-					gl_Position = uniforms.projection * vec4(position, 1.0);
-                    v_uv = uv;
-				}
-			"
-    }
-}
-
-mod fs {
-    vulkano_shaders::shader! {
-        ty: "fragment",
-        src: "
-				#version 450
-
-				layout(location = 0) in vec2 v_uv;
-
-				layout(location = 0) out vec4 f_color;
-                layout(set = 1, binding = 0) uniform sampler2D tex;
-
-				void main() {
-					f_color = texture(tex, v_uv);
-				}
-			"
-    }
+#[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
+#[repr(C)]
+pub struct Uniforms {
+    model_to_projection: [[f32; 4]; 4],
+    model_to_camera: [[f32; 4]; 4],
 }
 
 pub struct Drawable {
     pub pipeline: Arc<GraphicsPipeline>,
     pub vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex3]>>,
-    pub uniform_buffer: CpuBufferPool<vs::ty::Data>,
+    pub uniform_buffer: CpuBufferPool<Uniforms>,
     pub texture: Arc<ImageView<ImmutableImage>>,
     pub descriptor_set: Arc<PersistentDescriptorSet>,
 }
@@ -181,18 +191,7 @@ impl DemoApp {
     }
 
     pub fn load_model(&mut self, renderer: &VulkanRenderer, object: Object) -> Result<()> {
-        // let mut upload_commands = AutoCommandBufferBuilder::primary(
-        //     self.renderer.device.clone(),
-        //     self.renderer.queue.family(),
-        //     CommandBufferUsage::OneTimeSubmit,
-        // )
-        // .unwrap();
-
         let texture = Self::load_texture(renderer).unwrap();
-
-        // let x = sync::now(renderer.device.clone())
-        //     .then_execute(renderer.queue.clone(), upload_commands.build())?
-        //     .wait(None)?;
 
         let vertices = object
             .mesh
@@ -218,10 +217,38 @@ impl DemoApp {
             .unwrap()
         };
 
-        let vs = vs::load(renderer.device.clone()).unwrap();
-        let fs = fs::load(renderer.device.clone()).unwrap();
+        // let vs = vs::load(renderer.device.clone()).unwrap();
+        // let fs = fs::load(renderer.device.clone()).unwrap();
 
-        let uniform_buffer = CpuBufferPool::<vs::ty::Data>::new(
+        let mut compiler = shaderc::Compiler::new().unwrap();
+
+        let vs = {
+            let file_name = "app/vs.glsl";
+            let source = std::fs::read_to_string(file_name)?;
+            let spirv = compiler.compile_into_spirv(
+                &source,
+                shaderc::ShaderKind::Vertex,
+                file_name,
+                "main",
+                None,
+            )?;
+            unsafe { ShaderModule::from_bytes(renderer.device.clone(), spirv.as_binary_u8()) }?
+        };
+
+        let fs = {
+            let file_name = "app/fs.glsl";
+            let source = std::fs::read_to_string(file_name)?;
+            let spirv = compiler.compile_into_spirv(
+                &source,
+                shaderc::ShaderKind::Fragment,
+                file_name,
+                "main",
+                None,
+            )?;
+            unsafe { ShaderModule::from_bytes(renderer.device.clone(), spirv.as_binary_u8()) }?
+        };
+
+        let uniform_buffer = CpuBufferPool::<Uniforms>::new(
             renderer.device.clone(),
             BufferUsage {
                 uniform_buffer: true,
@@ -289,7 +316,9 @@ impl DemoApp {
             .set_viewport(0, [viewport.clone()]);
 
         if let Some(drawable) = &self.drawable {
-            let projection = Mat4::perspective_infinite_rh(
+            let model_to_camera =
+                Mat4::from_translation(Vec3::new(0.0, 0.0, -3.0)) * Mat4::from_rotation_y(elapsed);
+            let model_to_projection = Mat4::perspective_infinite_rh(
                 PI / 2.0,
                 viewport.dimensions[0] / viewport.dimensions[1],
                 0.1,
@@ -297,11 +326,9 @@ impl DemoApp {
                 * Mat4::from_rotation_y(elapsed);
 
             let uniform_buffer_subbuffer = {
-                let uniform_data = vs::ty::Data {
-                    e: [elapsed, 0.0, 0.0, 0.0].into(),
-                    viewport_adjust: [1.0, viewport.dimensions[0] / viewport.dimensions[1]].into(),
-                    projection: projection.to_cols_array_2d(),
-                    _dummy0: [0; 8],
+                let uniform_data = Uniforms {
+                    model_to_projection: model_to_projection.to_cols_array_2d(),
+                    model_to_camera: model_to_camera.to_cols_array_2d(),
                 };
                 drawable.uniform_buffer.next(uniform_data).unwrap()
             };
