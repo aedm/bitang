@@ -1,25 +1,6 @@
-// use bytemuck::{Pod, Zeroable};
-// use std::sync::Arc;
-// use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
-// use vulkano::command_buffer::{
-//     AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, SubpassContents,
-// };
-// use vulkano::device::{Device, Queue};
-// use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
-// use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
-// use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
-// use vulkano::pipeline::GraphicsPipeline;
-// use vulkano::render_pass::{Framebuffer, RenderPass, Subpass};
-// use vulkano::swapchain;
-// use vulkano::swapchain::Swapchain;
-// use winit::window::Window;
-
-use std::cmp::max;
-// Copied from https://github.com/vulkano-rs/vulkano/blob/master/examples/src/bin/triangle.rs
+mod shader_context;
 use anyhow::Result;
-/// Differences:
-/// * Set the correct color format for the swapchain
-/// * Second renderpass to draw the gui
+use std::cmp::max;
 use std::collections::VecDeque;
 use std::convert::TryInto;
 use std::f32::consts::PI;
@@ -28,6 +9,7 @@ use std::io::Read;
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::render::shader_context::ContextUniforms;
 use crate::Object;
 use bytemuck::{Pod, Zeroable};
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
@@ -92,17 +74,10 @@ pub struct VulkanRenderer {
     pub swapchain: Arc<Swapchain<Window>>,
 }
 
-#[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
-#[repr(C)]
-pub struct Uniforms {
-    model_to_projection: [[f32; 4]; 4],
-    model_to_camera: [[f32; 4]; 4],
-}
-
 pub struct Drawable {
     pub pipeline: Arc<GraphicsPipeline>,
     pub vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex3]>>,
-    pub uniform_buffer: CpuBufferPool<Uniforms>,
+    pub uniform_buffer: CpuBufferPool<ContextUniforms>,
     pub texture: Arc<ImageView<ImmutableImage>>,
     pub descriptor_set: Arc<PersistentDescriptorSet>,
 }
@@ -142,11 +117,25 @@ impl DemoApp {
         Ok(ImageView::new_default(image)?)
     }
 
-    fn debug_spirv(binary: &[u8]) -> Result<()> {
-        let reflect = spirv_reflect::ShaderModule::load_u8_data(binary).unwrap();
+    fn load_shader(
+        file_name: &str,
+        renderer: &VulkanRenderer,
+        kind: shaderc::ShaderKind,
+    ) -> Result<Arc<ShaderModule>> {
+        let source = std::fs::read_to_string(file_name)?;
+        let header = std::fs::read_to_string("app/header.glsl")?;
+        let combined = format!("{}{}", header, source);
+
+        let mut compiler = shaderc::Compiler::new().unwrap();
+
+        let spirv = compiler.compile_into_spirv(&combined, kind, file_name, "main", None)?;
+        let spirv_binary = spirv.as_binary_u8();
+
+        let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
         let ep = &reflect.enumerate_entry_points().unwrap()[0];
         println!("SPIRV Metadata: {:#?}", ep);
-        Ok(())
+
+        Ok(unsafe { ShaderModule::from_bytes(renderer.device.clone(), spirv_binary) }?)
     }
 
     pub fn load_model(&mut self, renderer: &VulkanRenderer, object: Object) -> Result<()> {
@@ -166,49 +155,17 @@ impl DemoApp {
             })
             .collect::<Vec<Vertex3>>();
 
-        let vertex_buffer = {
-            CpuAccessibleBuffer::from_iter(
-                renderer.device.clone(),
-                BufferUsage::all(),
-                false,
-                vertices,
-            )
-            .unwrap()
-        };
+        let vertex_buffer = CpuAccessibleBuffer::from_iter(
+            renderer.device.clone(),
+            BufferUsage::all(),
+            false,
+            vertices,
+        )?;
 
-        // let vs = vs::load(renderer.device.clone()).unwrap();
-        // let fs = fs::load(renderer.device.clone()).unwrap();
+        let vs = DemoApp::load_shader("app/vs.glsl", renderer, shaderc::ShaderKind::Vertex)?;
+        let fs = DemoApp::load_shader("app/fs.glsl", renderer, shaderc::ShaderKind::Fragment)?;
 
-        let mut compiler = shaderc::Compiler::new().unwrap();
-
-        let vs = {
-            let file_name = "app/vs.glsl";
-            let source = std::fs::read_to_string(file_name)?;
-            let spirv = compiler.compile_into_spirv(
-                &source,
-                shaderc::ShaderKind::Vertex,
-                file_name,
-                "main",
-                None,
-            )?;
-            unsafe { ShaderModule::from_bytes(renderer.device.clone(), spirv.as_binary_u8()) }?
-        };
-
-        let fs = {
-            let file_name = "app/fs.glsl";
-            let source = std::fs::read_to_string(file_name)?;
-            let spirv = compiler.compile_into_spirv(
-                &source,
-                shaderc::ShaderKind::Fragment,
-                file_name,
-                "main",
-                None,
-            )?;
-            DemoApp::debug_spirv(&spirv.as_binary_u8())?;
-            unsafe { ShaderModule::from_bytes(renderer.device.clone(), spirv.as_binary_u8()) }?
-        };
-
-        let uniform_buffer = CpuBufferPool::<Uniforms>::new(
+        let uniform_buffer = CpuBufferPool::<ContextUniforms>::new(
             renderer.device.clone(),
             BufferUsage {
                 uniform_buffer: true,
@@ -286,9 +243,9 @@ impl DemoApp {
                 * Mat4::from_rotation_y(elapsed);
 
             let uniform_buffer_subbuffer = {
-                let uniform_data = Uniforms {
-                    model_to_projection: model_to_projection.to_cols_array_2d(),
-                    model_to_camera: model_to_camera.to_cols_array_2d(),
+                let uniform_data = ContextUniforms {
+                    model_to_projection, //: model_to_projection.to_cols_array_2d(),
+                    model_to_camera,     //: model_to_camera.to_cols_array_2d(),
                 };
                 drawable.uniform_buffer.next(uniform_data).unwrap()
             };
