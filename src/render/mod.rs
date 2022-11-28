@@ -55,14 +55,14 @@ use winit::window::{Fullscreen, Window, WindowBuilder};
 #[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct Vertex3 {
-    position: [f32; 3],
-    normal: [f32; 3],
-    tangent: [f32; 3],
-    uv: [f32; 2],
-    padding: f32,
+    a_position: [f32; 3],
+    a_normal: [f32; 3],
+    a_tangent: [f32; 3],
+    a_uv: [f32; 2],
+    a_padding: f32,
 }
 
-vulkano::impl_vertex!(Vertex3, position, normal, tangent, uv, padding);
+vulkano::impl_vertex!(Vertex3, a_position, a_normal, a_tangent, a_uv, a_padding);
 
 pub struct VulkanRenderer {
     pub device: Arc<Device>,
@@ -90,8 +90,6 @@ pub struct DemoApp {
 impl DemoApp {
     pub fn new(renderer: &VulkanRenderer) -> Self {
         use vulkano::pipeline::graphics::vertex_input::Vertex;
-        let pos = Vertex3::member("position").unwrap();
-        println!("sdfgljh {} {:?} {}", pos.array_size, pos.ty, pos.offset);
         DemoApp {
             start_time: Instant::now(),
             drawable: None,
@@ -147,11 +145,11 @@ impl DemoApp {
             .iter()
             .flatten()
             .map(|v| Vertex3 {
-                position: [v.0[0], v.0[1], v.0[2]],
-                normal: [v.1[0], v.1[1], v.1[2]],
-                tangent: [0.0, 0.0, 0.0],
-                uv: [v.2[0], v.2[1]],
-                padding: 0.0,
+                a_position: [v.0[0], v.0[1], v.0[2]],
+                a_normal: [v.1[0], v.1[1], v.1[2]],
+                a_tangent: [0.0, 0.0, 0.0],
+                a_uv: [v.2[0], v.2[1]],
+                a_padding: 0.0,
             })
             .collect::<Vec<Vertex3>>();
 
@@ -234,12 +232,12 @@ impl DemoApp {
 
         if let Some(drawable) = &self.drawable {
             let model_to_camera =
-                Mat4::from_translation(Vec3::new(0.0, 0.0, -3.0)) * Mat4::from_rotation_y(elapsed);
-            let model_to_projection = Mat4::perspective_infinite_rh(
+                Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
+            let model_to_projection = Mat4::perspective_infinite_lh(
                 PI / 2.0,
                 viewport.dimensions[0] / viewport.dimensions[1],
                 0.1,
-            ) * Mat4::from_translation(Vec3::new(0.0, 0.0, -3.0))
+            ) * Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0))
                 * Mat4::from_rotation_y(elapsed);
 
             let uniform_buffer_subbuffer = {

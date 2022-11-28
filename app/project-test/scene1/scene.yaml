@@ -1,0 +1,49 @@
+camera:
+  position: [0, 0, -10]
+  target: [ 0, 0, 0 ]
+  fov: 60
+  position: campos
+  target: /scene2/camtarget
+
+render_items:
+  - mesh: plan.blend/Plane
+    material:
+      pass:
+        - name: early_depth
+          vs: plane.vs.glsl
+          fs: /nop.fs.glsl
+          depth_write: true
+          depth_test: less
+          blend: false
+        - name: shadow
+          vs: plane.vs.glsl
+          fs: /nop.fs.glsl
+          depth_write: true
+          depth_test: less
+          blend: false
+        - name: solid
+          vs: plane.vs.glsl
+          fs: plane.fs.glsl
+          depth_write: false
+          depth_test: less_equal
+          blend: solid
+          samplers:
+            - name: tex
+              texture: /scene2/plan.png
+              wrap: clamp
+              filter: linear
+              mipmap: true
+            - name: tex2
+              texture: /scene2/plan2.png
+              wrap: clamp
+              filter: linear
+              mipmap: true
+          uniforms:
+            - name: u_time
+              value: 0
+            - name: u_damp
+              spline: damp
+
+
+
+
