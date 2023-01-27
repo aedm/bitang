@@ -1,0 +1,53 @@
+camera:
+  position: 0,0,-10
+  target: 0,0,0
+  target: spline /scene2/camtarget
+  target: spline foo
+  fov: 60
+  position: spline campos
+
+render_items:
+  - id: plane
+    mesh: plane.blend/Plane
+    position: spline foo
+    rotation: [0, 0, 0]
+    material:
+      pass:
+        - id: early_depth
+          vs: plane.vs.glsl
+          fs: /nop.fs.glsl
+          depth_write: true
+          depth_test: less
+          blend: false
+        - id: shadow
+          vs: plane.vs.glsl
+          fs: /nop.fs.glsl
+          depth_write: true
+          depth_test: less
+          blend: false
+        - id: solid
+          vs: plane.vs.glsl
+          fs: plane.fs.glsl
+          depth_write: false
+          depth_test: less_equal
+          blend: solid
+          samplers:
+            - name: tex
+              texture: /scene2/plan.png
+              wrap: clamp
+              filter: linear
+              mipmap: true
+            - name: tex2
+              texture: /scene2/plan2.png
+              wrap: clamp
+              filter: linear
+              mipmap: true
+          uniforms:
+            - name: u_time
+              value: 0
+            - name: u_damp
+              value: spline damp
+
+
+
+

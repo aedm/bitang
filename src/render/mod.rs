@@ -234,12 +234,12 @@ impl DemoApp {
 
         if let Some(drawable) = &self.drawable {
             let model_to_camera =
-                Mat4::from_translation(Vec3::new(0.0, 0.0, -3.0)) * Mat4::from_rotation_y(elapsed);
-            let model_to_projection = Mat4::perspective_infinite_rh(
+                Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
+            let model_to_projection = Mat4::perspective_infinite_lh(
                 PI / 2.0,
                 viewport.dimensions[0] / viewport.dimensions[1],
                 0.1,
-            ) * Mat4::from_translation(Vec3::new(0.0, 0.0, -3.0))
+            ) * Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0))
                 * Mat4::from_rotation_y(elapsed);
 
             let uniform_buffer_subbuffer = {
