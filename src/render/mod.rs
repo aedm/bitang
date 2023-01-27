@@ -1,4 +1,6 @@
 mod shader_context;
+pub mod vulkan_renderer;
+
 use anyhow::Result;
 use std::cmp::max;
 use std::collections::VecDeque;
@@ -13,9 +15,9 @@ use crate::render::shader_context::ContextUniforms;
 use crate::Object;
 use bytemuck::{Pod, Zeroable};
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
-use egui::plot::{HLine, Line, Plot, Value, Values};
+// use egui::plot::{HLine, Line, Plot, Value, Values};
 use egui::{Color32, ColorImage, Ui};
-use egui_vulkano::UpdateTexturesResult;
+// use egui_vulkano::UpdateTexturesResult;
 use glam::{Mat4, Vec3};
 use image::io::Reader as ImageReader;
 use image::RgbaImage;
@@ -69,9 +71,9 @@ pub struct VulkanRenderer {
     pub queue: Arc<Queue>,
     pub current_frame: usize,
     pub framebuffers: Vec<Arc<Framebuffer>>,
-    pub surface: Arc<swapchain::Surface<Window>>,
+    pub surface: Arc<swapchain::Surface>,
     pub render_pass: Arc<RenderPass>,
-    pub swapchain: Arc<Swapchain<Window>>,
+    pub swapchain: Arc<Swapchain>,
 }
 
 pub struct Drawable {
@@ -272,7 +274,7 @@ impl DemoApp {
                     self.drawable.as_ref().unwrap().descriptor_set.clone(),
                 )
                 .bind_vertex_buffers(0, drawable.vertex_buffer.clone())
-                .draw(drawable.vertex_buffer.len().try_into().unwrap(), 1, 0, 0)
+                .draw(drawable.vertex_buffer.len().try_into().unwrap(), 20, 0, 0)
                 .unwrap(); // Don't end the render pass yet
         }
     }

@@ -1,6 +1,6 @@
 use crate::render::VulkanRenderer;
 use crate::DemoApp;
-use crate::Gui;
+// use crate::Gui;
 use bytemuck::{Pod, Zeroable};
 use std::cmp::max;
 use std::sync::Arc;
@@ -15,6 +15,7 @@ use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{AttachmentImage, ImageAccess, ImageUsage, SwapchainImage};
 use vulkano::instance::{Instance, InstanceCreateInfo};
+use vulkano::memory::allocator::StandardMemoryAllocator;
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
 use vulkano::pipeline::graphics::viewport::Viewport;
@@ -23,7 +24,7 @@ use vulkano::pipeline::GraphicsPipeline;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
 use vulkano::swapchain::{AcquireError, Swapchain, SwapchainCreateInfo, SwapchainCreationError};
 use vulkano::sync::{FenceSignalFuture, FlushError, GpuFuture};
-use vulkano::{swapchain, sync};
+use vulkano::{swapchain, sync, VulkanLibrary};
 use vulkano_win::VkSurfaceBuild;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -67,11 +68,17 @@ pub struct VulkanApp {
 
 impl VulkanApp {
     pub fn new() -> Self {
-        let required_extensions = vulkano_win::required_extensions();
-        let instance = Instance::new(InstanceCreateInfo {
-            enabled_extensions: required_extensions,
-            ..Default::default()
-        })
+        let library = VulkanLibrary::new().unwrap();
+        let required_extensions = vulkano_win::required_extensions(&library);
+        let instance = Instance::new(
+            library,
+            InstanceCreateInfo {
+                enabled_extensions: required_extensions,
+                // Enable enumerating devices that use non-conformant vulkan implementations. (ex. MoltenVK)
+                enumerate_portability: true,
+                ..Default::default()
+            },
+        )
         .unwrap();
 
         let physical = PhysicalDevice::enumerate(&instance).next().unwrap();
@@ -101,17 +108,28 @@ impl VulkanApp {
 
         let device_extensions = DeviceExtensions {
             khr_swapchain: true,
-            ..DeviceExtensions::none()
+            ..DeviceExtensions::empty()
         };
 
-        let (physical_device, queue_family) = PhysicalDevice::enumerate(&instance)
-            .filter(|&p| p.supported_extensions().is_superset_of(&device_extensions))
+        let (physical_device, queue_family_index) = instance
+            .enumerate_physical_devices()
+            .unwrap()
+            .filter(|p| p.supported_extensions().contains(&device_extensions))
             .filter_map(|p| {
-                p.queue_families()
-                    .find(|&q| {
-                        q.supports_graphics() && q.supports_surface(&surface).unwrap_or(false)
+                p.queue_family_properties()
+                    .iter()
+                    .enumerate()
+                    .position(|(i, q)| {
+                        // We select a queue family that supports graphics operations. When drawing to
+                        // a window surface, as we do in this example, we also need to check that queues
+                        // in this queue family are capable of presenting images to the surface.
+                        q.queue_flags.graphics
+                            && p.surface_support(i as u32, &surface).unwrap_or(false)
                     })
-                    .map(|q| (p, q))
+                    // The code here searches for the first queue family that is suitable. If none is
+                    // found, `None` is returned to `filter_map`, which disqualifies this physical
+                    // device.
+                    .map(|i| (p, i as u32))
             })
             .min_by_key(|(p, _)| match p.properties().device_type {
                 PhysicalDeviceType::DiscreteGpu => 0,
@@ -119,8 +137,15 @@ impl VulkanApp {
                 PhysicalDeviceType::VirtualGpu => 2,
                 PhysicalDeviceType::Cpu => 3,
                 PhysicalDeviceType::Other => 4,
+                _ => 5,
             })
-            .unwrap();
+            .expect("No suitable GPU found.");
+
+        println!(
+            "Using device: {} (type: {:?})",
+            physical_device.properties().device_name,
+            physical_device.properties().device_type,
+        );
 
         let (device, mut queues) = Device::new(
             physical_device,
@@ -136,31 +161,69 @@ impl VulkanApp {
 
         let queue = queues.next().unwrap();
 
-        let (swapchain, images) = {
-            let caps = physical_device
+        let (mut swapchain, images) = {
+            // Querying the capabilities of the surface. When we create the swapchain we can only
+            // pass values that are allowed by the capabilities.
+            let surface_capabilities = device
+                .physical_device()
                 .surface_capabilities(&surface, Default::default())
                 .unwrap();
-            let composite_alpha = caps.supported_composite_alpha.iter().next().unwrap();
 
-            let image_format = Some(Format::B8G8R8A8_SRGB);
-            let image_extent: [u32; 2] = surface.window().inner_size().into();
+            // Choosing the internal format that the images will have.
+            let image_format = Some(
+                device
+                    .physical_device()
+                    .surface_formats(&surface, Default::default())
+                    .unwrap()[0]
+                    .0,
+            );
+            let window = surface.object().unwrap().downcast_ref::<Window>().unwrap();
 
+            // Please take a look at the docs for the meaning of the parameters we didn't mention.
             Swapchain::new(
                 device.clone(),
                 surface.clone(),
                 SwapchainCreateInfo {
-                    min_image_count: caps.min_image_count,
+                    min_image_count: surface_capabilities.min_image_count,
+
                     image_format,
-                    image_extent,
-                    image_usage: ImageUsage::color_attachment(),
-                    composite_alpha,
-                    present_mode: swapchain::PresentMode::Fifo,
+                    // The dimensions of the window, only used to initially setup the swapchain.
+                    // NOTE:
+                    // On some drivers the swapchain dimensions are specified by
+                    // `surface_capabilities.current_extent` and the swapchain size must use these
+                    // dimensions.
+                    // These dimensions are always the same as the window dimensions.
+                    //
+                    // However, other drivers don't specify a value, i.e.
+                    // `surface_capabilities.current_extent` is `None`. These drivers will allow
+                    // anything, but the only sensible value is the window
+                    // dimensions.
+                    //
+                    // Both of these cases need the swapchain to use the window dimensions, so we just
+                    // use that.
+                    image_extent: window.inner_size().into(),
+
+                    image_usage: ImageUsage {
+                        color_attachment: true,
+                        ..ImageUsage::empty()
+                    },
+
+                    // The alpha mode indicates how the alpha value of the final image will behave. For
+                    // example, you can choose whether the window will be opaque or transparent.
+                    composite_alpha: surface_capabilities
+                        .supported_composite_alpha
+                        .iter()
+                        .next()
+                        .unwrap(),
 
                     ..Default::default()
                 },
             )
             .unwrap()
         };
+
+        // TODO
+        // let memory_allocator = StandardMemoryAllocator::new_default(device.clone());
 
         let render_pass = vulkano::ordered_passes_renderpass!(
             device.clone(),
@@ -365,7 +428,7 @@ impl VulkanApp {
 }
 
 fn window_size_dependent_setup(
-    images: &[Arc<SwapchainImage<Window>>],
+    images: &[Arc<SwapchainImage>],
     render_pass: Arc<RenderPass>,
     viewport: &mut Viewport,
     device: &Arc<Device>,
