@@ -90,6 +90,8 @@ pub struct DemoApp {
 impl DemoApp {
     pub fn new(renderer: &VulkanRenderer) -> Self {
         use vulkano::pipeline::graphics::vertex_input::Vertex;
+        let pos = Vertex3::member("a_position").unwrap();
+        println!("sdfgljh {} {:?} {}", pos.array_size, pos.ty, pos.offset);
         DemoApp {
             start_time: Instant::now(),
             drawable: None,
