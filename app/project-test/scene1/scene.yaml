@@ -1,27 +1,31 @@
 camera:
-  position: [0, 0, -10]
-  target: [ 0, 0, 0 ]
+  position: 0,0,-10
+  target: 0,0,0
+  target: spline /scene2/camtarget
+  target: spline foo
   fov: 60
-  position: campos
-  target: /scene2/camtarget
+  position: spline campos
 
 render_items:
-  - mesh: plan.blend/Plane
+  - id: plane
+    mesh: plane.blend/Plane
+    position: spline foo
+    rotation: [0, 0, 0]
     material:
       pass:
-        - name: early_depth
+        - id: early_depth
           vs: plane.vs.glsl
           fs: /nop.fs.glsl
           depth_write: true
           depth_test: less
           blend: false
-        - name: shadow
+        - id: shadow
           vs: plane.vs.glsl
           fs: /nop.fs.glsl
           depth_write: true
           depth_test: less
           blend: false
-        - name: solid
+        - id: solid
           vs: plane.vs.glsl
           fs: plane.fs.glsl
           depth_write: false
@@ -42,7 +46,7 @@ render_items:
             - name: u_time
               value: 0
             - name: u_damp
-              spline: damp
+              value: spline damp
 
 
 
