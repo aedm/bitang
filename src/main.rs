@@ -8,7 +8,7 @@ mod types;
 use crate::file::blend_loader::load_blend_file;
 // use crate::gui::Gui;
 use crate::render::vulkan_renderer::VulkanPainter;
-use crate::render::{DemoApp, VulkanRenderer};
+// use crate::render::{DemoApp, VulkanRenderer};
 use crate::types::{Mesh, Object, Vertex};
 use anyhow::Result;
 

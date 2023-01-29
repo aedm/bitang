@@ -1,8 +1,19 @@
-use vulkano::swapchain::PresentMode;
-use vulkano_util::context::{VulkanoConfig, VulkanoContext};
-use vulkano_util::window::{VulkanoWindows, WindowDescriptor, WindowMode};
-use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
+// use vulkano::swapchain::PresentMode;
+// use vulkano_util::context::{VulkanoConfig, VulkanoContext};
+// use vulkano_util::window::{VulkanoWindows, WindowDescriptor, WindowMode};
+// use winit::event::{Event, WindowEvent};
+// use winit::event_loop::{ControlFlow, EventLoop};
+
+use egui::{ScrollArea, TextEdit, TextStyle};
+use egui_winit_vulkano::Gui;
+use vulkano_util::{
+    context::{VulkanoConfig, VulkanoContext},
+    window::{VulkanoWindows, WindowDescriptor},
+};
+use winit::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+};
 
 pub struct VulkanPainter {
     event_loop: EventLoop<()>,
