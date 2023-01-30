@@ -6,6 +6,8 @@
 
 use egui::{ScrollArea, TextEdit, TextStyle};
 use egui_winit_vulkano::Gui;
+use std::sync::Arc;
+use vulkano::render_pass::RenderPass;
 use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},
@@ -15,13 +17,18 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
-pub struct VulkanPainter {
+pub struct VulkanRenderer {
+    pub context: VulkanoContext,
+    pub render_pass: Arc<RenderPass>,
+}
+
+pub struct VulkanWindow {
     event_loop: EventLoop<()>,
-    context: VulkanoContext,
+    renderer: VulkanRenderer,
     windows: VulkanoWindows,
 }
 
-impl VulkanPainter {
+impl VulkanWindow {
     pub fn new() -> Self {
         let event_loop = EventLoop::new();
 
@@ -53,10 +60,19 @@ impl VulkanPainter {
             ci.image_format = Some(vulkano::format::Format::B8G8R8A8_SRGB)
         });
 
+        let renderer = VulkanRenderer {
+            context,
+            render_pass: windows
+                .get_primary_renderer()
+                .unwrap()
+                .render_pass()
+                .clone(),
+        };
+
         Self {
             windows,
             event_loop,
-            context,
+            renderer,
         }
     }
 
