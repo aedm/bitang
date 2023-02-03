@@ -18,10 +18,12 @@ use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 // use egui::plot::{HLine, Line, Plot, Value, Values};
 use egui::{Color32, ColorImage, Ui};
 // use egui_vulkano::UpdateTexturesResult;
+use crate::render::vulkan_window::{AppContext, VulkanContext};
 use glam::{Mat4, Vec3};
 use image::io::Reader as ImageReader;
 use image::RgbaImage;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess};
+use vulkano::command_buffer::PrimaryCommandBufferAbstract;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo,
     SubpassContents,
@@ -52,6 +54,7 @@ use vulkano::swapchain::{AcquireError, Swapchain, SwapchainCreateInfo, Swapchain
 use vulkano::sync::{FenceSignalFuture, FlushError, GpuFuture};
 use vulkano::{swapchain, sync};
 use vulkano_util::context::VulkanoContext;
+use vulkano_util::renderer::{DeviceImageView, SwapchainImageView};
 use vulkano_win::VkSurfaceBuild;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -103,7 +106,7 @@ impl DemoApp {
         }
     }
 
-    fn load_texture(context: &VulkanoContext) -> Result<Arc<ImageView<ImmutableImage>>> {
+    fn load_texture(context: &VulkanContext) -> Result<Arc<ImageView<ImmutableImage>>> {
         let rgba = ImageReader::open("app/naty/Albedo.png")?
             .decode()?
             .to_rgba8();
@@ -114,13 +117,13 @@ impl DemoApp {
         };
 
         let mut cbb = AutoCommandBufferBuilder::primary(
-            context.memory_allocator(),
-            context.graphics_queue().queue_family_index(),
+            &context.command_buffer_allocator,
+            context.context.graphics_queue().queue_family_index(),
             CommandBufferUsage::OneTimeSubmit,
         )?;
 
-        let (image, _future) = ImmutableImage::from_iter(
-            context.memory_allocator(),
+        let image = ImmutableImage::from_iter(
+            context.context.memory_allocator(),
             rgba.into_raw(),
             dimensions,
             MipmapsCount::One,
@@ -130,7 +133,7 @@ impl DemoApp {
         let _fut = cbb
             .build()
             .unwrap()
-            .execute(context.graphics_queue().clone())
+            .execute(context.context.graphics_queue().clone())
             .unwrap();
 
         Ok(ImageView::new_default(image)?)
@@ -138,7 +141,7 @@ impl DemoApp {
 
     fn load_shader(
         file_name: &str,
-        context: &VulkanoContext,
+        context: &VulkanContext,
         kind: shaderc::ShaderKind,
     ) -> Result<Arc<ShaderModule>> {
         let source = std::fs::read_to_string(file_name)?;
@@ -152,12 +155,17 @@ impl DemoApp {
 
         let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
         let ep = &reflect.enumerate_entry_points().unwrap()[0];
-        println!("SPIRV Metadata: {:#?}", ep);
+        // println!("SPIRV Metadata: {:#?}", ep);
 
-        Ok(unsafe { ShaderModule::from_bytes(context.device().clone(), spirv_binary) }?)
+        Ok(unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) }?)
     }
 
-    pub fn load_model(&mut self, context: &VulkanoContext, object: Object) -> Result<()> {
+    pub fn load_model(
+        &mut self,
+        context: &VulkanContext,
+        app_context: &AppContext,
+        object: Object,
+    ) -> Result<()> {
         let texture = Self::load_texture(context).unwrap();
 
         let vertices = object
@@ -175,8 +183,11 @@ impl DemoApp {
             .collect::<Vec<Vertex3>>();
 
         let vertex_buffer = CpuAccessibleBuffer::from_iter(
-            context.memory_allocator(),
-            BufferUsage::all(),
+            context.context.memory_allocator(),
+            BufferUsage {
+                vertex_buffer: true,
+                ..BufferUsage::empty()
+            },
             false,
             vertices,
         )?;
@@ -185,7 +196,7 @@ impl DemoApp {
         let fs = DemoApp::load_shader("app/fs.glsl", context, shaderc::ShaderKind::Fragment)?;
 
         let uniform_buffer = CpuBufferPool::<ContextUniforms>::new(
-            context.memory_allocator().clone(),
+            context.context.memory_allocator().clone(),
             BufferUsage {
                 uniform_buffer: true,
                 ..BufferUsage::empty()
@@ -200,12 +211,12 @@ impl DemoApp {
             .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
             .fragment_shader(fs.entry_point("main").unwrap(), ())
             .depth_stencil_state(DepthStencilState::simple_depth_test())
-            .render_pass(Subpass::from(context.render_pass.clone().into(), 0).unwrap())
-            .build(renderer.device.clone())
+            .render_pass(app_context.subpass.clone())
+            .build(context.context.device().clone())
             .unwrap();
 
         let sampler = Sampler::new(
-            renderer.device.clone(),
+            context.context.device().clone(),
             SamplerCreateInfo {
                 mag_filter: Filter::Linear,
                 min_filter: Filter::Linear,
@@ -217,7 +228,7 @@ impl DemoApp {
 
         let layout = pipeline.layout().set_layouts().get(1).unwrap();
         let set = PersistentDescriptorSet::new(
-            context.memory_allocator(),
+            &context.descriptor_set_allocator,
             layout.clone(),
             [WriteDescriptorSet::image_view_sampler(
                 0,
@@ -240,16 +251,34 @@ impl DemoApp {
 
     pub fn draw(
         self: &mut Self,
-        context: &VulkanoContext,
-        builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-        framebuffer: Arc<Framebuffer>,
+        context: &VulkanContext,
+        app_context: &AppContext,
+        target_image: SwapchainImageView,
+        depth_image: DeviceImageView,
         viewport: Viewport,
-    ) {
-        let clear_values = vec![[0.03, 0.03, 0.03, 1.0].into(), 1f32.into()];
+        before_future: Box<dyn GpuFuture>,
+    ) -> Box<dyn GpuFuture> {
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
+        // let dimensions = target_image.dimensions().width_height();
+        let framebuffer = Framebuffer::new(
+            app_context.subpass.render_pass().clone(),
+            FramebufferCreateInfo {
+                attachments: vec![target_image, depth_image],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let mut builder = AutoCommandBufferBuilder::primary(
+            &context.command_buffer_allocator,
+            context.context.graphics_queue().queue_family_index(),
+            CommandBufferUsage::OneTimeSubmit,
+        )
+        .unwrap();
+
+        let clear_values = vec![Some([0.03, 0.03, 0.03, 1.0].into()), Some(1f32.into())];
         builder
-            // .begin_render_pass(framebuffer, SubpassContents::Inline, clear_values)
             .begin_render_pass(
                 RenderPassBeginInfo {
                     clear_values,
@@ -275,22 +304,22 @@ impl DemoApp {
                     model_to_projection, //: model_to_projection.to_cols_array_2d(),
                     model_to_camera,     //: model_to_camera.to_cols_array_2d(),
                 };
-                // drawable.uniform_buffer.next(uniform_data).unwrap()
-                CpuAccessibleBuffer::from_iter(
-                    context.memory_allocator(),
-                    BufferUsage {
-                        uniform_buffer: true,
-                        ..BufferUsage::empty()
-                    },
-                    false,
-                    aligned_data.into_iter(),
-                )
-                .unwrap()
+                drawable.uniform_buffer.from_data(uniform_data).unwrap()
+                // CpuAccessibleBuffer::from_iter(
+                //     context.memory_allocator(),
+                //     BufferUsage {
+                //         uniform_buffer: true,
+                //         ..BufferUsage::empty()
+                //     },
+                //     false,
+                //     uniform_data.into_iter(),
+                // )
+                // .unwrap()
             };
 
             let layout = drawable.pipeline.layout().set_layouts().get(0).unwrap();
             let set = PersistentDescriptorSet::new(
-                context.memory_allocator(),
+                &context.descriptor_set_allocator,
                 layout.clone(),
                 [WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)],
             )
@@ -312,7 +341,17 @@ impl DemoApp {
                 )
                 .bind_vertex_buffers(0, drawable.vertex_buffer.clone())
                 .draw(drawable.vertex_buffer.len().try_into().unwrap(), 20, 0, 0)
-                .unwrap(); // Don't end the render pass yet
+                .unwrap();
         }
+
+        builder.end_render_pass().unwrap();
+        let command_buffer = builder.build().unwrap();
+
+        let after_future = before_future
+            .then_execute(context.context.graphics_queue().clone(), command_buffer)
+            .unwrap()
+            .boxed();
+
+        after_future
     }
 }

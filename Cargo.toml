@@ -37,7 +37,7 @@ opt-level = 'z'
 #overflow-checks = false
 
 [profile.dev.package.vulkano]
-opt-level = 1
+#opt-level = 1
 
 [profile.dev.package.vulkano-shaders]
 opt-level = 1
