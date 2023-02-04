@@ -105,6 +105,7 @@ impl VulkanWindow {
 
     pub fn main_loop(mut self, mut app: DemoApp) {
         self.event_loop.run(move |event, _, control_flow| {
+            let sf = self.windows.get_primary_window().unwrap().scale_factor() as f32;
             let renderer = self.windows.get_primary_renderer_mut().unwrap();
             match event {
                 Event::WindowEvent { event, window_id } if window_id == renderer.window().id() => {
@@ -128,7 +129,8 @@ impl VulkanWindow {
                     let image = renderer.swapchain_image_view();
                     let size = image.dimensions();
                     let movie_height = (size.width() * 3 / 16) as i32;
-                    let bottom_panel_height = max(size.height() as i32 - movie_height, 0) as f32;
+                    let bottom_panel_height =
+                        max(size.height() as i32 - movie_height, 0) as f32 / sf;
 
                     let render_viewport = Viewport {
                         origin: [0.0, 0.0],
