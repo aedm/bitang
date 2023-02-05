@@ -1,9 +1,3 @@
-// use vulkano::swapchain::PresentMode;
-// use vulkano_util::context::{VulkanoConfig, VulkanoContext};
-// use vulkano_util::window::{VulkanoWindows, WindowDescriptor, WindowMode};
-// use winit::event::{Event, WindowEvent};
-// use winit::event_loop::{ControlFlow, EventLoop};
-
 use crate::render::DemoApp;
 use egui::{ScrollArea, TextEdit, TextStyle};
 use egui_winit_vulkano::Gui;
@@ -61,12 +55,16 @@ impl VulkanWindow {
         let vulkano_context = VulkanoContext::new(VulkanoConfig::default());
 
         let mut windows = VulkanoWindows::default();
-        windows.create_window(
-            &event_loop,
-            &vulkano_context,
-            &WindowDescriptor::default(),
-            |ci| ci.image_format = Some(Format::B8G8R8A8_SRGB),
-        );
+        let window_descriptor = WindowDescriptor {
+            title: "bitang".to_string(),
+            width: 1000.,
+            height: 720.,
+            ..WindowDescriptor::default()
+        };
+
+        windows.create_window(&event_loop, &vulkano_context, &window_descriptor, |ci| {
+            ci.image_format = Some(Format::B8G8R8A8_SRGB)
+        });
 
         let renderer = windows.get_primary_renderer_mut().unwrap();
         renderer.add_additional_image_view(
@@ -105,12 +103,12 @@ impl VulkanWindow {
 
     pub fn main_loop(mut self, mut app: DemoApp) {
         self.event_loop.run(move |event, _, control_flow| {
-            let sf = self.windows.get_primary_window().unwrap().scale_factor() as f32;
+            let scale_factor = self.windows.get_primary_window().unwrap().scale_factor() as f32;
             let renderer = self.windows.get_primary_renderer_mut().unwrap();
             match event {
                 Event::WindowEvent { event, window_id } if window_id == renderer.window().id() => {
                     // Update Egui integration so the UI works!
-                    // let _pass_events_to_game = !gui.update(&event);
+                    let _pass_events_to_game = !self.gui_context.gui.update(&event);
                     match event {
                         WindowEvent::Resized(_) => {
                             renderer.resize();
@@ -128,9 +126,9 @@ impl VulkanWindow {
                     let before_future = renderer.acquire().unwrap();
                     let image = renderer.swapchain_image_view();
                     let size = image.dimensions();
-                    let movie_height = (size.width() * 3 / 16) as i32;
+                    let movie_height = (size.width() * 9 / 16) as i32;
                     let bottom_panel_height =
-                        max(size.height() as i32 - movie_height, 0) as f32 / sf;
+                        max(size.height() as i32 - movie_height, 0) as f32 / scale_factor;
 
                     let render_viewport = Viewport {
                         origin: [0.0, 0.0],
@@ -158,7 +156,9 @@ impl VulkanWindow {
                                 ui.with_layout(
                                     egui::Layout::top_down_justified(egui::Align::Center),
                                     |ui| {
-                                        let _ = ui.button("I am becoming wider as needed");
+                                        let _ = ui.add_space(5.0);
+                                        let _ = ui.button("Some button");
+                                        let _ = ui.button("Another button");
                                         ui.allocate_space(ui.available_size());
                                     },
                                 );
