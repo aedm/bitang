@@ -12,13 +12,11 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::render::shader_context::ContextUniforms;
+use crate::render::vulkan_window::{AppContext, VulkanContext};
 use crate::Object;
 use bytemuck::{Pod, Zeroable};
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
-// use egui::plot::{HLine, Line, Plot, Value, Values};
 use egui::{Color32, ColorImage, Ui};
-// use egui_vulkano::UpdateTexturesResult;
-use crate::render::vulkan_window::{AppContext, VulkanContext};
 use glam::{Mat4, Vec3};
 use image::io::Reader as ImageReader;
 use image::RgbaImage;
@@ -72,16 +70,6 @@ pub struct Vertex3 {
 
 vulkano::impl_vertex!(Vertex3, a_position, a_normal, a_tangent, a_uv, a_padding);
 
-// pub struct VulkanRenderer {
-//     pub device: Arc<Device>,
-//     pub queue: Arc<Queue>,
-//     pub current_frame: usize,
-//     pub framebuffers: Vec<Arc<Framebuffer>>,
-//     pub surface: Arc<swapchain::Surface>,
-//     pub render_pass: Arc<RenderPass>,
-//     pub swapchain: Arc<Swapchain>,
-// }
-//
 pub struct Drawable {
     pub pipeline: Arc<GraphicsPipeline>,
     pub vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex3]>>,
@@ -292,17 +280,18 @@ impl DemoApp {
         if let Some(drawable) = &self.drawable {
             let model_to_camera =
                 Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
-            let model_to_projection = Mat4::perspective_infinite_lh(
+            let camera_to_projection = Mat4::perspective_infinite_lh(
                 PI / 2.0,
                 viewport.dimensions[0] / viewport.dimensions[1],
                 0.1,
-            ) * Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0))
-                * Mat4::from_rotation_y(elapsed);
+            );
+
+            let model_to_projection = camera_to_projection * model_to_camera;
 
             let uniform_buffer_subbuffer = {
                 let uniform_data = ContextUniforms {
-                    model_to_projection, //: model_to_projection.to_cols_array_2d(),
-                    model_to_camera,     //: model_to_camera.to_cols_array_2d(),
+                    model_to_projection,
+                    model_to_camera,
                 };
                 drawable.uniform_buffer.from_data(uniform_data).unwrap()
                 // CpuAccessibleBuffer::from_iter(
@@ -340,7 +329,7 @@ impl DemoApp {
                     self.drawable.as_ref().unwrap().descriptor_set.clone(),
                 )
                 .bind_vertex_buffers(0, drawable.vertex_buffer.clone())
-                .draw(drawable.vertex_buffer.len().try_into().unwrap(), 20, 0, 0)
+                .draw(drawable.vertex_buffer.len().try_into().unwrap(), 1, 0, 0)
                 .unwrap();
         }
 

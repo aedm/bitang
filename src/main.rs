@@ -15,12 +15,6 @@ use anyhow::Result;
 
 fn main() -> Result<()> {
     let object = load_blend_file("app/naty/File.blend")?;
-    // // println!("{:#?}", object);
-    //
-    // let mut va = VulkanApp::new();
-    // app.load_model(&va.renderer, object)?;
-    // let mut gui = Gui::new(&va.renderer);
-    // va.main_loop(app, gui);
 
     let window = VulkanWindow::new();
     let mut app = DemoApp::new();
