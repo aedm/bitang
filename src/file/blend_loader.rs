@@ -80,8 +80,8 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
                 let uv = uvs[index as usize].get_f32_vec("uv");
                 let uv_x = uv[0];
                 let uv_y = 1.0 - uv[1];
-                uv_buffer[index_count * 2] = uv_x as f32;
-                uv_buffer[index_count * 2 + 1] = uv_y as f32;
+                uv_buffer[index_count * 2] = uv_x;
+                uv_buffer[index_count * 2 + 1] = uv_y;
 
                 index_count += 1;
             }
@@ -90,7 +90,7 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
         }
     }
 
-    let faces: Vec<_> = (&verts_array_buff[..])
+    let faces: Vec<_> = verts_array_buff[..]
         .chunks(3)
         .enumerate()
         .map(|(i, pos)| {
@@ -117,7 +117,7 @@ pub fn load_blend_file(path: &str) -> Result<Object> {
 
     for obj in blend.get_by_code(*b"OB") {
         let name = obj.get("id").get_string("name");
-        println!("-- name {:?}", name);
+        println!("-- name {name:?}");
         if name != "OBHead_Low" {
             continue;
         }
@@ -165,5 +165,5 @@ pub fn load_blend_file(path: &str) -> Result<Object> {
         }
     }
 
-    Ok(objects.into_iter().nth(0).context("No object found")?)
+    objects.into_iter().next().context("No object found")
 }

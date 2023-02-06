@@ -62,9 +62,6 @@ pub struct DemoApp {
 
 impl DemoApp {
     pub fn new() -> Self {
-        use vulkano::pipeline::graphics::vertex_input::Vertex;
-        let pos = Vertex3::member("a_position").unwrap();
-        println!("sdfgljh {} {:?} {}", pos.array_size, pos.ty, pos.offset);
         DemoApp {
             start_time: Instant::now(),
             drawable: None,
@@ -111,7 +108,7 @@ impl DemoApp {
     ) -> Result<Arc<ShaderModule>> {
         let source = std::fs::read_to_string(file_name)?;
         let header = std::fs::read_to_string("app/header.glsl")?;
-        let combined = format!("{}{}", header, source);
+        let combined = format!("{header}{source}");
 
         let compiler = shaderc::Compiler::new().unwrap();
 
@@ -198,7 +195,7 @@ impl DemoApp {
             [WriteDescriptorSet::image_view_sampler(
                 0,
                 texture.clone(),
-                sampler.clone(),
+                sampler,
             )],
         )
         .unwrap();
@@ -215,7 +212,7 @@ impl DemoApp {
     }
 
     pub fn draw(
-        self: &mut Self,
+        &mut self,
         context: &VulkanContext,
         app_context: &AppContext,
         target_image: SwapchainImageView,
@@ -247,7 +244,7 @@ impl DemoApp {
             .begin_render_pass(
                 RenderPassBeginInfo {
                     clear_values,
-                    ..RenderPassBeginInfo::framebuffer(framebuffer.clone())
+                    ..RenderPassBeginInfo::framebuffer(framebuffer)
                 },
                 SubpassContents::Inline,
             )
