@@ -83,8 +83,8 @@ impl VulkanWindow {
         let descriptor_set_allocator =
             StandardDescriptorSetAllocator::new(vulkano_context.device().clone());
 
-        let gui_context = GuiContext::new(&vulkano_context.device(), renderer, &event_loop);
-        let app_context = AppContext::new(&vulkano_context.device(), renderer);
+        let gui_context = GuiContext::new(vulkano_context.device(), renderer, &event_loop);
+        let app_context = AppContext::new(vulkano_context.device(), renderer);
 
         let context = VulkanContext {
             context: vulkano_context,
@@ -122,7 +122,7 @@ impl VulkanWindow {
                         _ => (),
                     }
                 }
-                Event::RedrawRequested(window_id) if window_id == window_id => {
+                Event::RedrawRequested(_) => {
                     let before_future = renderer.acquire().unwrap();
                     let image = renderer.swapchain_image_view();
                     let size = image.dimensions();
@@ -142,7 +142,7 @@ impl VulkanWindow {
                         &self.context,
                         &self.app_context,
                         image.clone(),
-                        depth_image.clone(),
+                        depth_image,
                         render_viewport,
                         before_future,
                     );
@@ -156,7 +156,7 @@ impl VulkanWindow {
                                 ui.with_layout(
                                     egui::Layout::top_down_justified(egui::Align::Center),
                                     |ui| {
-                                        let _ = ui.add_space(5.0);
+                                        ui.add_space(5.0);
                                         let _ = ui.button("Some button");
                                         let _ = ui.button("Another button");
                                         ui.allocate_space(ui.available_size());
