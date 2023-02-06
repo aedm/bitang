@@ -2,6 +2,7 @@ use crate::{Mesh, Object, Vertex};
 use anyhow::Context;
 use anyhow::Result;
 use blend::{Blend, Instance};
+
 // This is only valid for meshes with triangular faces
 fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     if !mesh.is_valid("mpoly")

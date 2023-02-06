@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.65"
 blend = "0.6.1"
-winit = "0.26.1"
 image = "0.24.4"
 num = "0.4.0"
 cgmath = "0.18.0"
@@ -17,12 +16,17 @@ memoffset = "0.6.5"
 tobj = "0.1.10"
 bytemuck = "1.8.0"
 thiserror = "1.0"
-egui_vulkano = "0.8.0"
-egui = "0.18.1"
-egui-winit = "0.18.0"
-vulkano = "0.29.0"
-vulkano-shaders = "0.29.0"
-vulkano-win = "0.29.0"
+egui_winit_vulkano = "0.22.0"
+#egui = "0.18.1"
+#egui-winit = "0.18.0"
+egui = "*"
+egui-winit = "*"
+winit = "*"
+
+vulkano = "0.32.3"
+vulkano-shaders = "0.32.0"
+vulkano-win = "0.32.0"
+vulkano-util = "0.32"
 shaderc = "*"
 spirv-reflect = "0.2.3"
 
@@ -33,7 +37,7 @@ opt-level = 'z'
 #overflow-checks = false
 
 [profile.dev.package.vulkano]
-opt-level = 1
+#opt-level = 1
 
 [profile.dev.package.vulkano-shaders]
 opt-level = 1
