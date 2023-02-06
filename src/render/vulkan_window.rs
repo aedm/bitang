@@ -1,5 +1,5 @@
 use crate::render::DemoApp;
-use egui::{ScrollArea, TextEdit, TextStyle};
+
 use egui_winit_vulkano::Gui;
 use std::cmp::max;
 use std::sync::Arc;
@@ -12,7 +12,7 @@ use vulkano::device::Device;
 use vulkano::format::Format;
 use vulkano::image::{ImageUsage, ImageViewAbstract};
 use vulkano::pipeline::graphics::viewport::Viewport;
-use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
+use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
 use vulkano::sync::GpuFuture;
 use vulkano_util::renderer::{SwapchainImageView, VulkanoWindowRenderer};
 use vulkano_util::{
@@ -224,7 +224,7 @@ impl GuiContext {
         .unwrap();
         let subpass = Subpass::from(render_pass, 0).unwrap();
 
-        let mut gui = Gui::new_with_subpass(
+        let gui = Gui::new_with_subpass(
             event_loop,
             renderer.surface(),
             Some(vulkano::format::Format::B8G8R8A8_SRGB),

@@ -4,11 +4,8 @@ mod file;
 mod render;
 mod types;
 
-// use crate::draw::VulkanApp;
 use crate::file::blend_loader::load_blend_file;
-// use crate::gui::Gui;
 use crate::render::vulkan_window::VulkanWindow;
-// use crate::render::{DemoApp, VulkanRenderer};
 use crate::render::DemoApp;
 use crate::types::{Mesh, Object, Vertex};
 use anyhow::Result;
