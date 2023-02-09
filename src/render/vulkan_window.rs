@@ -8,11 +8,12 @@ use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
-use vulkano::device::Device;
+use vulkano::device::{Device, Queue};
 use vulkano::format::Format;
 use vulkano::image::{ImageUsage, ImageViewAbstract};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
+use vulkano::swapchain::Surface;
 use vulkano::sync::GpuFuture;
 use vulkano_util::renderer::{SwapchainImageView, VulkanoWindowRenderer};
 use vulkano_util::{
@@ -29,27 +30,36 @@ pub struct VulkanContext {
     pub context: VulkanoContext,
     pub command_buffer_allocator: StandardCommandBufferAllocator,
     pub descriptor_set_allocator: StandardDescriptorSetAllocator,
+    pub swapchain_format: Format,
+    pub surface: Arc<Surface>,
+    pub gfx_queue: Arc<Queue>,
 }
 
-pub struct AppContext {
-    pub subpass: Subpass,
-}
-
-pub struct GuiContext {
-    pub gui: Gui,
-    pub subpass: Subpass,
-}
+// pub struct AppContext {
+//     pub subpass: Subpass,
+// }
+//
+// pub struct GuiContext {
+//     pub gui: Gui,
+//     pub subpass: Subpass,
+// }
 
 pub struct VulkanWindow {
     event_loop: EventLoop<()>,
     windows: VulkanoWindows,
     pub context: VulkanContext,
-    pub gui_context: GuiContext,
-    pub app_context: AppContext,
+    // pub gui_context: GuiContext,
+    // pub app_context: AppContext,
+    app: Box<dyn VulkanApp>,
+}
+
+pub trait VulkanApp {
+    fn init(&mut self, context: &VulkanContext, event_loop: &EventLoop<()>);
+    fn paint(&mut self, context: &VulkanContext);
 }
 
 impl VulkanWindow {
-    pub fn new() -> Self {
+    pub fn new(mut app: impl VulkanApp) -> Self {
         let event_loop = EventLoop::new();
 
         let vulkano_context = VulkanoContext::new(VulkanoConfig::default());
@@ -83,21 +93,27 @@ impl VulkanWindow {
         let descriptor_set_allocator =
             StandardDescriptorSetAllocator::new(vulkano_context.device().clone());
 
-        let gui_context = GuiContext::new(vulkano_context.device(), renderer, &event_loop);
-        let app_context = AppContext::new(vulkano_context.device(), renderer);
+        // let gui_context = GuiContext::new(vulkano_context.device(), renderer, &event_loop);
+        // let app_context = AppContext::new(vulkano_context.device(), renderer);
 
         let context = VulkanContext {
             context: vulkano_context,
             command_buffer_allocator,
             descriptor_set_allocator,
+            swapchain_format: renderer.swapchain_format(),
+            surface: renderer.surface(),
+            gfx_queue: renderer.graphics_queue(),
         };
+
+        app.init(&context);
 
         Self {
             windows,
             event_loop,
             context,
-            gui_context,
-            app_context,
+            // gui_context,
+            // app_context,
+            app: Box::new(app),
         }
     }
 
@@ -172,26 +188,6 @@ impl VulkanWindow {
                             .render_gui(&self.context, app_finished_future, image);
 
                     renderer.present(gui_finished_future, true);
-
-                    // Present swapchain
-
-                    // let mut command_buffer_builder = AutoCommandBufferBuilder::primary(
-                    //     self.allocators.command_buffers.as_ref(),
-                    //     self.gfx_queue.queue_family_index(),
-                    //     CommandBufferUsage::OneTimeSubmit,
-                    // )
-                    // .unwrap();
-                    // let render_viewport = Viewport {
-                    //     origin: [0.0, 0.0],
-                    //     dimensions: [size.width as f32, movie_height as f32],
-                    //     depth_range: 0.0..1.0,
-                    // };
-                    // app.draw(
-                    //     &self.context,
-                    //     &mut command_buffer_builder,
-                    //     framebuffer,
-                    //     render_viewport,
-                    // );
                 }
                 Event::MainEventsCleared => {
                     renderer.window().request_redraw();
@@ -199,115 +195,5 @@ impl VulkanWindow {
                 _ => (),
             }
         });
-    }
-}
-
-impl GuiContext {
-    fn new(
-        device: &Arc<Device>,
-        renderer: &mut VulkanoWindowRenderer,
-        event_loop: &EventLoop<()>,
-    ) -> GuiContext {
-        let render_pass = vulkano::single_pass_renderpass!(
-            device.clone(),
-            attachments: {
-                color: {
-                    load: DontCare,
-                    store: Store,
-                    format: renderer.swapchain_format(),
-                    samples: 1,
-                }
-            },
-            pass:
-                { color: [color], depth_stencil: {} }
-        )
-        .unwrap();
-        let subpass = Subpass::from(render_pass, 0).unwrap();
-
-        let gui = Gui::new_with_subpass(
-            event_loop,
-            renderer.surface(),
-            Some(vulkano::format::Format::B8G8R8A8_SRGB),
-            renderer.graphics_queue(),
-            subpass.clone(),
-        );
-
-        GuiContext { gui, subpass }
-    }
-
-    fn render_gui(
-        &mut self,
-        context: &VulkanContext,
-        before_future: Box<dyn GpuFuture>,
-        target_image: SwapchainImageView,
-    ) -> Box<dyn GpuFuture> {
-        let mut builder = AutoCommandBufferBuilder::primary(
-            &context.command_buffer_allocator,
-            context.context.graphics_queue().queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )
-        .unwrap();
-
-        let dimensions = target_image.dimensions().width_height();
-        let framebuffer = Framebuffer::new(
-            self.subpass.render_pass().clone(),
-            FramebufferCreateInfo {
-                attachments: vec![target_image],
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-        builder
-            .begin_render_pass(
-                RenderPassBeginInfo {
-                    clear_values: vec![None],
-                    ..RenderPassBeginInfo::framebuffer(framebuffer)
-                },
-                SubpassContents::SecondaryCommandBuffers,
-            )
-            .unwrap();
-
-        let gui_commands = self.gui.draw_on_subpass_image(dimensions);
-        builder.execute_commands(gui_commands).unwrap();
-
-        builder.end_render_pass().unwrap();
-        let command_buffer = builder.build().unwrap();
-
-        let after_future = before_future
-            .then_execute(context.context.graphics_queue().clone(), command_buffer)
-            .unwrap()
-            .boxed();
-
-        after_future
-    }
-}
-
-impl AppContext {
-    fn new(device: &Arc<Device>, renderer: &mut VulkanoWindowRenderer) -> AppContext {
-        let render_pass = vulkano::single_pass_renderpass!(
-            device.clone(),
-            attachments: {
-                color: {
-                    load: Clear,
-                    store: Store,
-                    format: renderer.swapchain_format(),
-                    samples: 1,
-                },
-                depth: {
-                    load: Clear,
-                    store: DontCare,
-                    format: Format::D16_UNORM,
-                    samples: 1,
-                }
-            },
-            pass:
-                { color: [color], depth_stencil: {depth} }
-        )
-        .unwrap();
-
-        let subpass = Subpass::from(render_pass, 0).unwrap();
-
-        AppContext { subpass }
     }
 }
