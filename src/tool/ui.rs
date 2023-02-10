@@ -1,27 +1,14 @@
 use crate::render::vulkan_window::VulkanContext;
 use egui_winit_vulkano::Gui;
-use std::cmp::max;
-use std::sync::Arc;
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
+
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
-use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
-use vulkano::device::Device;
-use vulkano::format::Format;
-use vulkano::image::{ImageUsage, ImageViewAbstract};
-use vulkano::pipeline::graphics::viewport::Viewport;
+use vulkano::image::ImageViewAbstract;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
 use vulkano::sync::GpuFuture;
-use vulkano_util::renderer::{SwapchainImageView, VulkanoWindowRenderer};
-use vulkano_util::{
-    context::{VulkanoConfig, VulkanoContext},
-    window::{VulkanoWindows, WindowDescriptor},
-};
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-};
+use vulkano_util::renderer::SwapchainImageView;
+use winit::{event::WindowEvent, event_loop::EventLoop};
 
 pub struct Ui {
     pub gui: Gui,
@@ -133,6 +120,6 @@ impl Ui {
     }
 
     pub fn handle_window_event(&mut self, event: &WindowEvent) {
-        let _pass_events_to_game = !self.gui.update(&event);
+        let _pass_events_to_game = !self.gui.update(event);
     }
 }

@@ -4,7 +4,6 @@ use crate::render::{Drawable, Vertex3};
 use crate::tool::ui::Ui;
 use crate::types::Object;
 use anyhow::Result;
-use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 use image::io::Reader as ImageReader;
 use std::cmp::max;
@@ -366,6 +365,6 @@ impl VulkanApp for DemoTool {
     }
 
     fn handle_window_event(&mut self, event: &WindowEvent) {
-        self.ui.handle_window_event(&event);
+        self.ui.handle_window_event(event);
     }
 }
