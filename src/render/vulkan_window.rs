@@ -1,5 +1,3 @@
-use crate::render::DemoApp;
-
 use egui_winit_vulkano::Gui;
 use std::cmp::max;
 use std::sync::Arc;
@@ -35,31 +33,19 @@ pub struct VulkanContext {
     pub gfx_queue: Arc<Queue>,
 }
 
-// pub struct AppContext {
-//     pub subpass: Subpass,
-// }
-//
-// pub struct GuiContext {
-//     pub gui: Gui,
-//     pub subpass: Subpass,
-// }
-
 pub struct VulkanWindow {
-    event_loop: EventLoop<()>,
-    windows: VulkanoWindows,
     pub context: VulkanContext,
-    // pub gui_context: GuiContext,
-    // pub app_context: AppContext,
-    app: Box<dyn VulkanApp>,
+    pub event_loop: EventLoop<()>,
+    windows: VulkanoWindows,
 }
 
 pub trait VulkanApp {
-    fn init(&mut self, context: &VulkanContext, event_loop: &EventLoop<()>);
-    fn paint(&mut self, context: &VulkanContext);
+    fn paint(&mut self, context: &VulkanContext, renderer: &mut VulkanoWindowRenderer);
+    fn handle_window_event(&mut self, event: &WindowEvent);
 }
 
 impl VulkanWindow {
-    pub fn new(mut app: impl VulkanApp) -> Self {
+    pub fn new() -> Self {
         let event_loop = EventLoop::new();
 
         let vulkano_context = VulkanoContext::new(VulkanoConfig::default());
@@ -93,9 +79,6 @@ impl VulkanWindow {
         let descriptor_set_allocator =
             StandardDescriptorSetAllocator::new(vulkano_context.device().clone());
 
-        // let gui_context = GuiContext::new(vulkano_context.device(), renderer, &event_loop);
-        // let app_context = AppContext::new(vulkano_context.device(), renderer);
-
         let context = VulkanContext {
             context: vulkano_context,
             command_buffer_allocator,
@@ -105,31 +88,21 @@ impl VulkanWindow {
             gfx_queue: renderer.graphics_queue(),
         };
 
-        app.init(&context);
-
         Self {
             windows,
             event_loop,
             context,
-            // gui_context,
-            // app_context,
-            app: Box::new(app),
         }
     }
 
-    pub fn main_loop(mut self, mut app: DemoApp) {
+    pub fn run(mut self, mut app: impl VulkanApp + 'static) {
         self.event_loop.run(move |event, _, control_flow| {
-            let scale_factor = self.windows.get_primary_window().unwrap().scale_factor() as f32;
             let renderer = self.windows.get_primary_renderer_mut().unwrap();
             match event {
                 Event::WindowEvent { event, window_id } if window_id == renderer.window().id() => {
-                    // Update Egui integration so the UI works!
-                    let _pass_events_to_game = !self.gui_context.gui.update(&event);
+                    app.handle_window_event(&event);
                     match event {
-                        WindowEvent::Resized(_) => {
-                            renderer.resize();
-                        }
-                        WindowEvent::ScaleFactorChanged { .. } => {
+                        WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                             renderer.resize();
                         }
                         WindowEvent::CloseRequested => {
@@ -139,55 +112,7 @@ impl VulkanWindow {
                     }
                 }
                 Event::RedrawRequested(_) => {
-                    let before_future = renderer.acquire().unwrap();
-                    let image = renderer.swapchain_image_view();
-                    let size = image.dimensions();
-                    let movie_height = (size.width() * 9 / 16) as i32;
-                    let bottom_panel_height =
-                        max(size.height() as i32 - movie_height, 0) as f32 / scale_factor;
-
-                    let render_viewport = Viewport {
-                        origin: [0.0, 0.0],
-                        dimensions: [size.width() as f32, movie_height as f32],
-                        depth_range: 0.0..1.0,
-                    };
-
-                    let depth_image = renderer.get_additional_image_view(1);
-                    // Render app
-                    let app_finished_future = app.draw(
-                        &self.context,
-                        &self.app_context,
-                        image.clone(),
-                        depth_image,
-                        render_viewport,
-                        before_future,
-                    );
-
-                    // Draw UI
-                    self.gui_context.gui.immediate_ui(|gui| {
-                        let ctx = gui.context();
-                        egui::TopBottomPanel::bottom("my_panel")
-                            .height_range(bottom_panel_height..=bottom_panel_height)
-                            .show(&ctx, |ui| {
-                                ui.with_layout(
-                                    egui::Layout::top_down_justified(egui::Align::Center),
-                                    |ui| {
-                                        ui.add_space(5.0);
-                                        let _ = ui.button("Some button");
-                                        let _ = ui.button("Another button");
-                                        ui.allocate_space(ui.available_size());
-                                    },
-                                );
-                                // ui.label("Hello World!");
-                            });
-                    });
-
-                    // Render UI
-                    let gui_finished_future =
-                        self.gui_context
-                            .render_gui(&self.context, app_finished_future, image);
-
-                    renderer.present(gui_finished_future, true);
+                    app.paint(&self.context, renderer);
                 }
                 Event::MainEventsCleared => {
                     renderer.window().request_redraw();

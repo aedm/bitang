@@ -1,8 +1,8 @@
-mod shader_context;
+pub mod shader_context;
 pub mod vulkan_window;
 
 use crate::render::shader_context::ContextUniforms;
-use crate::render::vulkan_window::{AppContext, VulkanContext};
+use crate::render::vulkan_window::VulkanContext;
 use crate::Object;
 use anyhow::Result;
 use bytemuck::{Pod, Zeroable};

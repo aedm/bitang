@@ -1,8 +1,6 @@
 use crate::render::vulkan_window::VulkanContext;
 use egui_winit_vulkano::Gui;
-use egui_winit_vulkano::Gui;
 use std::cmp::max;
-use std::sync::Arc;
 use std::sync::Arc;
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::command_buffer::{
@@ -10,20 +8,16 @@ use vulkano::command_buffer::{
 };
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::device::Device;
-use vulkano::device::Device;
 use vulkano::format::Format;
 use vulkano::image::{ImageUsage, ImageViewAbstract};
 use vulkano::pipeline::graphics::viewport::Viewport;
-use vulkano::render_pass::Subpass;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
 use vulkano::sync::GpuFuture;
-use vulkano_util::renderer::VulkanoWindowRenderer;
 use vulkano_util::renderer::{SwapchainImageView, VulkanoWindowRenderer};
 use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},
 };
-use winit::event_loop::EventLoop;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -35,7 +29,7 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> GuiContext {
+    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Ui {
         let render_pass = vulkano::single_pass_renderpass!(
             context.context.device().clone(),
             attachments: {
@@ -60,7 +54,35 @@ impl Ui {
             subpass.clone(),
         );
 
-        GuiContext { gui, subpass }
+        Ui { gui, subpass }
+    }
+
+    pub fn render(
+        &mut self,
+        context: &VulkanContext,
+        before_future: Box<dyn GpuFuture>,
+        target_image: SwapchainImageView,
+        bottom_panel_height: f32,
+    ) -> Box<dyn GpuFuture> {
+        self.gui.immediate_ui(|gui| {
+            let ctx = gui.context();
+            egui::TopBottomPanel::bottom("my_panel")
+                .height_range(bottom_panel_height..=bottom_panel_height)
+                .show(&ctx, |ui| {
+                    ui.with_layout(
+                        egui::Layout::top_down_justified(egui::Align::Center),
+                        |ui| {
+                            ui.add_space(5.0);
+                            let _ = ui.button("Some button");
+                            let _ = ui.button("Another button");
+                            ui.allocate_space(ui.available_size());
+                        },
+                    );
+                    // ui.label("Hello World!");
+                });
+        });
+
+        self.render_gui(context, before_future, target_image)
     }
 
     fn render_gui(
@@ -108,5 +130,9 @@ impl Ui {
             .boxed();
 
         after_future
+    }
+
+    pub fn handle_window_event(&mut self, event: &WindowEvent) {
+        let _pass_events_to_game = !self.gui.update(&event);
     }
 }
