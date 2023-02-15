@@ -8,7 +8,7 @@ camera:
 
 render_items:
   - id: plane
-    mesh: plane.blend/Plane
+    meshFile: plane.blend/Plane
     position: spline foo
     rotation: [0, 0, 0]
     material:
