@@ -1,7 +1,12 @@
+pub mod material;
+pub mod mesh;
+mod render_unit;
 pub mod shader;
 pub mod shader_context;
 pub mod vulkan_window;
 
+use crate::render::material::Material;
+use crate::render::mesh::Mesh;
 use crate::render::shader::Shader;
 use crate::render::shader_context::ContextUniforms;
 use bytemuck::{Pod, Zeroable};
@@ -12,6 +17,7 @@ use vulkano::descriptor_set::PersistentDescriptorSet;
 use vulkano::image::view::ImageView;
 use vulkano::image::ImmutableImage;
 use vulkano::pipeline::GraphicsPipeline;
+use vulkano::render_pass::Subpass;
 
 #[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
@@ -25,21 +31,13 @@ pub struct Vertex3 {
 
 vulkano::impl_vertex!(Vertex3, a_position, a_normal, a_tangent, a_uv, a_padding);
 
-enum MaterialPassEnum {
-    EarlyDepth = 0,
-    Shadow = 1,
-    Solid = 2,
-}
-const MATERIAL_PASS_COUNT: usize = 3;
-
-type VertexBuffer = CpuAccessibleBuffer<[Vertex3]>;
 type Texture = ImageView<ImmutableImage>;
 
 struct RenderItem {
-    mesh: Mesh,
-    position: Vec3,
-    rotation: Vec3,
-    material: [Option<MaterialPass>; MATERIAL_PASS_COUNT],
+    pub mesh: Mesh,
+    pub position: Vec3,
+    pub rotation: Vec3,
+    pub material: Material,
 }
 
 pub struct Drawable {
@@ -48,16 +46,4 @@ pub struct Drawable {
     pub uniform_buffer: CpuBufferPool<ContextUniforms>,
     pub texture: Arc<ImageView<ImmutableImage>>,
     pub descriptor_set: Arc<PersistentDescriptorSet>,
-}
-
-struct Mesh {
-    vertex_buffer: Arc<VertexBuffer>,
-}
-
-struct MaterialPass {
-    pipeline: Arc<GraphicsPipeline>,
-    vertex_shader: Shader,
-    fragment_shader: Shader,
-    depth_test: bool,
-    depth_write: bool,
 }

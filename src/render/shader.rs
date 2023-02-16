@@ -12,15 +12,18 @@ use vulkano::image::ImmutableImage;
 use vulkano::memory::allocator::MemoryUsage;
 use vulkano::pipeline::GraphicsPipeline;
 use vulkano::sampler::Sampler;
+use vulkano::shader::ShaderModule;
 
 type UniformBufferPool = CpuBufferPool<ContextUniforms>;
-type ShaderBinary = Vec<u8>;
+
+pub enum DescriptorSetIds {
+    Vertex = 0,
+    Fragment = 1,
+}
 
 pub struct Shader {
-    binary: Arc<ShaderBinary>,
-    uniform_buffer_pool: UniformBufferPool,
-    texture_bindings: Vec<TextureBinding>,
-    layout: Arc<DescriptorSetLayout>,
+    pub shader_module: Arc<ShaderModule>,
+    pub texture_bindings: Vec<TextureBinding>,
 }
 
 struct TextureBinding {
@@ -31,9 +34,9 @@ struct TextureBinding {
 impl Shader {
     pub fn new(
         context: &VulkanContext,
-        binary: &Arc<ShaderBinary>,
+        shader_module: &Arc<ShaderModule>,
         texture_bindings: Vec<TextureBinding>,
-        layout: &Arc<DescriptorSetLayout>,
+        // layout: &Arc<DescriptorSetLayout>,
     ) -> Self {
         let uniform_buffer_pool = UniformBufferPool::new(
             context.context.memory_allocator().clone(),
@@ -45,10 +48,8 @@ impl Shader {
         );
 
         Self {
-            binary: binary.clone(),
-            uniform_buffer_pool,
+            shader_module: shader_module.clone(),
             texture_bindings,
-            layout: layout.clone(),
         }
     }
 
