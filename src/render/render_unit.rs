@@ -1,9 +1,11 @@
-use crate::render::material::{MaterialStep, MATERIAL_STEP_COUNT};
-use crate::render::mesh::VertexBuffer;
-use crate::render::shader::DescriptorSetIds;
+use crate::render::material::{MaterialStep, MaterialStepType, MATERIAL_STEP_COUNT};
+use crate::render::mesh::{Mesh, VertexBuffer};
+use crate::render::render_target::RenderTarget;
+use crate::render::shader::{DescriptorSetIds, Shader};
 use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::VulkanContext;
-use crate::render::{RenderItem, Vertex3};
+use crate::render::{RenderObject, Vertex3};
+use std::array;
 use std::sync::Arc;
 use vulkano::buffer::cpu_pool::CpuBufferPoolSubbuffer;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
@@ -17,13 +19,16 @@ use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
 use vulkano::pipeline::graphics::viewport::ViewportState;
 use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineBindPoint, PipelineLayout, StateMode};
 use vulkano::render_pass::Subpass;
+use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
 
-struct RenderUnit {
-    render_item: Arc<RenderItem>,
+type UniformBufferPool = CpuBufferPool<ContextUniforms>;
+
+pub struct RenderUnit {
+    render_item: Arc<RenderObject>,
     // TODO: use render pass instead
-    subpass: Subpass,
+    render_target: Arc<RenderTarget>,
     steps: [Option<RenderUnitStep>; MATERIAL_STEP_COUNT],
-    uniform_values: ContextUniforms,
+    pub uniform_values: ContextUniforms,
 }
 
 struct RenderUnitStep {
@@ -33,28 +38,24 @@ struct RenderUnitStep {
 }
 
 struct ShaderUniformStorage {
-    uniform_buffer_pool: CpuBufferPool<ContextUniforms>,
+    uniform_buffer_pool: UniformBufferPool,
     persistent_descriptor_set: Option<Arc<PersistentDescriptorSet>>,
 }
 
 impl RenderUnit {
     pub fn new(
         context: &VulkanContext,
-        subpass: Subpass,
-        render_item: Arc<RenderItem>,
+        render_target: &Arc<RenderTarget>,
+        render_item: Arc<RenderObject>,
     ) -> RenderUnit {
-        let steps = render_item
-            .material
-            .passes
-            .iter()
-            .map(|material_pass| {
-                if let Some(material_pass) = material_pass {
-                    Some(RenderUnitStep::new(context, &subpass, material_pass))
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let steps = array::from_fn(|index| {
+            let material_step = &render_item.material.passes[index];
+            if let Some(material_step) = material_step {
+                Some(RenderUnitStep::new(context, render_target, material_step))
+            } else {
+                None
+            }
+        });
 
         let uniform_values = ContextUniforms {
             model_to_projection: Default::default(),
@@ -63,28 +64,28 @@ impl RenderUnit {
 
         RenderUnit {
             render_item,
-            subpass,
+            render_target: render_target.clone(),
             steps,
             uniform_values,
         }
     }
 
-    pub fn build_uniform_buffers(&mut self) {
-        self.vertex_uniforms
-            .build_uniform_buffers(&self.uniform_values);
-        self.fragment_uniforms
-            .build_uniform_buffers(&self.uniform_values);
-    }
-
     pub fn render(
         &self,
+        context: &VulkanContext,
         builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-        material_pass_type: MaterialPassType,
+        material_step_type: MaterialStepType,
     ) {
-        let index = material_pass_type as usize;
+        let index = material_step_type as usize;
         match (&self.steps[index], &self.render_item.material.passes[index]) {
-            (Some(component), Some(material_pass)) => {
-                component.render(builder, material_pass, &self.render_item.mesh.vertex_buffer);
+            (Some(component), Some(material_step)) => {
+                component.render(
+                    context,
+                    builder,
+                    material_step,
+                    &self.render_item.mesh,
+                    &self.uniform_values,
+                );
             }
             (None, None) => {}
             _ => panic!("RenderUnitStep and MaterialStep mismatch"),
@@ -95,7 +96,7 @@ impl RenderUnit {
 impl RenderUnitStep {
     pub fn new(
         context: &VulkanContext,
-        subpass: &Subpass,
+        render_target: &RenderTarget,
         material_step: &MaterialStep,
     ) -> RenderUnitStep {
         let vertex_uniforms_storage = ShaderUniformStorage::new(context);
@@ -143,7 +144,7 @@ impl RenderUnitStep {
                 (),
             )
             .depth_stencil_state(depth_stencil_state)
-            .render_pass(subpass.clone())
+            .render_pass(Subpass::from(render_target.render_pass.clone(), 0).unwrap())
             .build(context.context.device().clone())
             .unwrap();
 
@@ -156,30 +157,32 @@ impl RenderUnitStep {
 
     pub fn render(
         &self,
+        context: &VulkanContext,
         builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-        material_pass: &MaterialStep,
-        vertex_buffer: &VertexBuffer,
+        material_step: &MaterialStep,
+        mesh: &Mesh,
+        uniform_values: &ContextUniforms,
     ) {
         let descriptor_set_layouts = self.pipeline.layout().set_layouts();
         let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
             context,
             uniform_values,
-            material_pass,
+            &material_step.vertex_shader,
             descriptor_set_layouts
-                .get(DescriptorSetIds::Vertex)
+                .get(DescriptorSetIds::Vertex as usize)
                 .unwrap(),
         );
         let fragment_descriptor_set = self.fragment_uniforms_storage.make_descriptor_set(
             context,
             uniform_values,
-            material_pass,
+            &material_step.fragment_shader,
             descriptor_set_layouts
-                .get(DescriptorSetIds::Fragment)
+                .get(DescriptorSetIds::Fragment as usize)
                 .unwrap(),
         );
 
         builder
-            .bind_pipeline_graphics(drawable.pipeline.clone())
+            .bind_pipeline_graphics(self.pipeline.clone())
             .bind_descriptor_sets(
                 PipelineBindPoint::Graphics,
                 self.pipeline.layout().clone(),
@@ -192,8 +195,8 @@ impl RenderUnitStep {
                 1,
                 fragment_descriptor_set,
             )
-            .bind_vertex_buffers(0, vertex_buffer.clone())
-            .draw(vertex_buffer.len().try_into().unwrap(), 1, 0, 0)
+            .bind_vertex_buffers(0, mesh.vertex_buffer.clone())
+            .draw(mesh.vertex_buffer.len().try_into().unwrap(), 1, 0, 0)
             .unwrap();
     }
 }
@@ -218,22 +221,28 @@ impl ShaderUniformStorage {
         &self,
         context: &VulkanContext,
         uniform_values: &ContextUniforms,
-        material_pass: &MaterialPass,
+        shader: &Shader,
         layout: &Arc<DescriptorSetLayout>,
     ) -> Arc<PersistentDescriptorSet> {
         // TODO: uniform mapping
         let uniform_buffer_subbuffer = self.uniform_buffer_pool.from_data(*uniform_values).unwrap();
 
         let mut descriptors = vec![WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)];
-        descriptors.extend(material_pass.texture_bindings.iter().enumerate().map(
-            |(i, texture_binding)| {
-                WriteDescriptorSet::image_view_sampler(
-                    i as u32 + 1,
-                    texture_binding.texture.clone(),
-                    texture_binding.sampler.clone(),
-                )
-            },
-        ));
+        descriptors.extend(shader.textures.iter().enumerate().map(|(i, texture)| {
+            let sampler = Sampler::new(
+                context.context.device().clone(),
+                SamplerCreateInfo {
+                    mag_filter: Filter::Linear,
+                    min_filter: Filter::Linear,
+                    address_mode: [SamplerAddressMode::Repeat; 3],
+                    // mipmap_mode: SamplerMipmapMode::Linear,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+
+            WriteDescriptorSet::image_view_sampler(i as u32 + 1, texture.clone(), sampler)
+        }));
 
         let persistent_descriptor_set = PersistentDescriptorSet::new(
             &context.descriptor_set_allocator,

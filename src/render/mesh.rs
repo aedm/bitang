@@ -11,7 +11,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(context: &VulkanContext, vertices: &[Vertex3]) -> Mesh {
+    pub fn new(context: &VulkanContext, vertices: Vec<Vertex3>) -> Mesh {
         let vertex_buffer = CpuAccessibleBuffer::from_iter(
             context.context.memory_allocator(),
             BufferUsage {
@@ -19,7 +19,7 @@ impl Mesh {
                 ..BufferUsage::empty()
             },
             false,
-            *vertices,
+            vertices,
         )
         .unwrap();
         Mesh { vertex_buffer }

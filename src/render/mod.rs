@@ -1,6 +1,7 @@
 pub mod material;
 pub mod mesh;
-mod render_unit;
+pub mod render_target;
+pub mod render_unit;
 pub mod shader;
 pub mod shader_context;
 pub mod vulkan_window;
@@ -31,9 +32,9 @@ pub struct Vertex3 {
 
 vulkano::impl_vertex!(Vertex3, a_position, a_normal, a_tangent, a_uv, a_padding);
 
-type Texture = ImageView<ImmutableImage>;
+pub type Texture = ImageView<ImmutableImage>;
 
-struct RenderItem {
+pub struct RenderObject {
     pub mesh: Mesh,
     pub position: Vec3,
     pub rotation: Vec3,

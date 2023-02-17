@@ -1,11 +1,6 @@
-use crate::render::material::{Material, MaterialStep, MaterialStepType};
-use crate::render::mesh::Mesh;
-use crate::render::render_target::RenderTarget;
-use crate::render::render_unit::RenderUnit;
-use crate::render::shader::Shader;
 use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::{VulkanApp, VulkanContext};
-use crate::render::{Drawable, RenderObject, Texture, Vertex3};
+use crate::render::{Drawable, Vertex3};
 use crate::tool::ui::Ui;
 use crate::types::Object;
 use anyhow::Result;
@@ -42,66 +37,52 @@ use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowR
 use winit::event::WindowEvent;
 use winit::event_loop::EventLoop;
 
-pub struct DemoTool {
-    render_target: Arc<RenderTarget>,
+pub struct DemoTool2 {
+    subpass: Subpass,
     ui: Ui,
+    drawable: Option<Drawable>,
     start_time: Instant,
-    render_unit: RenderUnit,
 }
 
-impl DemoTool {
-    pub fn new(
-        context: &VulkanContext,
-        event_loop: &EventLoop<()>,
-        object: Object,
-    ) -> Result<DemoTool> {
-        let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
-        let texture = Self::load_texture(context)?;
-        let mesh = Self::load_mesh(&context, &object);
-        let vs = DemoTool::load_shader("app/vs.glsl", context, shaderc::ShaderKind::Vertex)?;
-        let fs = DemoTool::load_shader("app/fs.glsl", context, shaderc::ShaderKind::Fragment)?;
-
-        let vertex_shader = Shader {
-            shader_module: vs,
-            textures: vec![],
-        };
-
-        let fragment_shader = Shader {
-            shader_module: fs,
-            textures: vec![texture],
-        };
-
-        let solid_step = MaterialStep {
-            vertex_shader,
-            fragment_shader,
-            depth_test: false,
-            depth_write: false,
-        };
-
-        let material = Material {
-            passes: [None, None, Some(solid_step)],
-        };
-
-        let render_item = RenderObject {
-            mesh,
-            material,
-            position: Default::default(),
-            rotation: Default::default(),
-        };
-
-        let render_unit = RenderUnit::new(context, &render_target, Arc::new(render_item));
-
+impl DemoTool2 {
+    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>, object: Object) -> DemoTool2 {
+        let subpass = Self::make_subpass(context);
         let ui = Ui::new(context, event_loop);
+        let drawable = Self::load_model(context, &subpass, &object).ok();
 
-        Ok(DemoTool {
-            render_target,
+        DemoTool2 {
+            subpass,
             ui,
-            render_unit,
+            drawable,
             start_time: Instant::now(),
-        })
+        }
     }
 
-    fn load_texture(context: &VulkanContext) -> Result<Arc<Texture>> {
+    fn make_subpass(context: &VulkanContext) -> Subpass {
+        let render_pass = vulkano::single_pass_renderpass!(
+            context.context.device().clone(),
+            attachments: {
+                color: {
+                    load: Clear,
+                    store: Store,
+                    format: context.swapchain_format,
+                    samples: 1,
+                },
+                depth: {
+                    load: Clear,
+                    store: DontCare,
+                    format: Format::D16_UNORM,
+                    samples: 1,
+                }
+            },
+            pass:
+                { color: [color], depth_stencil: {depth} }
+        )
+        .unwrap();
+        Subpass::from(render_pass, 0).unwrap()
+    }
+
+    fn load_texture(context: &VulkanContext) -> Result<Arc<ImageView<ImmutableImage>>> {
         let rgba = ImageReader::open("app/naty/Albedo.png")?
             .decode()?
             .to_rgba8();
@@ -155,7 +136,13 @@ impl DemoTool {
         Ok(unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) }?)
     }
 
-    pub fn load_mesh(context: &VulkanContext, object: &Object) -> Mesh {
+    pub fn load_model(
+        context: &VulkanContext,
+        subpass: &Subpass,
+        object: &Object,
+    ) -> Result<Drawable> {
+        let texture = Self::load_texture(context).unwrap();
+
         let vertices = object
             .mesh
             .faces
@@ -170,7 +157,69 @@ impl DemoTool {
             })
             .collect::<Vec<Vertex3>>();
 
-        Mesh::new(context, vertices)
+        let vertex_buffer = CpuAccessibleBuffer::from_iter(
+            context.context.memory_allocator(),
+            BufferUsage {
+                vertex_buffer: true,
+                ..BufferUsage::empty()
+            },
+            false,
+            vertices,
+        )?;
+
+        let vs = DemoTool2::load_shader("app/vs.glsl", context, shaderc::ShaderKind::Vertex)?;
+        let fs = DemoTool2::load_shader("app/fs.glsl", context, shaderc::ShaderKind::Fragment)?;
+
+        let uniform_buffer = CpuBufferPool::<ContextUniforms>::new(
+            context.context.memory_allocator().clone(),
+            BufferUsage {
+                uniform_buffer: true,
+                ..BufferUsage::empty()
+            },
+            MemoryUsage::Upload,
+        );
+
+        let pipeline = GraphicsPipeline::start()
+            .vertex_input_state(BuffersDefinition::new().vertex::<Vertex3>())
+            .vertex_shader(vs.entry_point("main").unwrap(), ())
+            .input_assembly_state(InputAssemblyState::new())
+            .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
+            .fragment_shader(fs.entry_point("main").unwrap(), ())
+            .depth_stencil_state(DepthStencilState::simple_depth_test())
+            .render_pass(subpass.clone())
+            .build(context.context.device().clone())
+            .unwrap();
+
+        let sampler = Sampler::new(
+            context.context.device().clone(),
+            SamplerCreateInfo {
+                mag_filter: Filter::Linear,
+                min_filter: Filter::Linear,
+                address_mode: [SamplerAddressMode::Repeat; 3],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let layout = pipeline.layout().set_layouts().get(1).unwrap();
+        let set = PersistentDescriptorSet::new(
+            &context.descriptor_set_allocator,
+            layout.clone(),
+            [WriteDescriptorSet::image_view_sampler(
+                0,
+                texture.clone(),
+                sampler,
+            )],
+        )
+        .unwrap();
+
+        Ok(Drawable {
+            pipeline,
+            vertex_buffer,
+            uniform_buffer,
+            texture,
+            descriptor_set: set,
+        })
     }
 
     pub fn draw(
@@ -186,7 +235,7 @@ impl DemoTool {
 
         // let dimensions = target_image.dimensions().width_height();
         let framebuffer = Framebuffer::new(
-            self.render_target.render_pass.clone(),
+            self.subpass.render_pass().clone(),
             FramebufferCreateInfo {
                 attachments: vec![target_image, depth_image],
                 ..Default::default()
@@ -213,7 +262,7 @@ impl DemoTool {
             .unwrap()
             .set_viewport(0, [viewport.clone()]);
 
-        self.render_unit.uniform_values = {
+        if let Some(drawable) = &self.drawable {
             let model_to_camera =
                 Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
             let camera_to_projection = Mat4::perspective_infinite_lh(
@@ -221,15 +270,53 @@ impl DemoTool {
                 viewport.dimensions[0] / viewport.dimensions[1],
                 0.1,
             );
+
             let model_to_projection = camera_to_projection * model_to_camera;
 
-            ContextUniforms {
-                model_to_projection,
-                model_to_camera,
-            }
-        };
-        self.render_unit
-            .render(context, &mut builder, MaterialStepType::Solid);
+            let uniform_buffer_subbuffer = {
+                let uniform_data = ContextUniforms {
+                    model_to_projection,
+                    model_to_camera,
+                };
+                drawable.uniform_buffer.from_data(uniform_data).unwrap()
+                // CpuAccessibleBuffer::from_iter(
+                //     context.memory_allocator(),
+                //     BufferUsage {
+                //         uniform_buffer: true,
+                //         ..BufferUsage::empty()
+                //     },
+                //     false,
+                //     uniform_data.into_iter(),
+                // )
+                // .unwrap()
+            };
+
+            let layout = drawable.pipeline.layout().set_layouts().get(0).unwrap();
+            let set = PersistentDescriptorSet::new(
+                &context.descriptor_set_allocator,
+                layout.clone(),
+                [WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)],
+            )
+            .unwrap();
+
+            builder
+                .bind_pipeline_graphics(drawable.pipeline.clone())
+                .bind_descriptor_sets(
+                    PipelineBindPoint::Graphics,
+                    drawable.pipeline.layout().clone(),
+                    0,
+                    set,
+                )
+                .bind_descriptor_sets(
+                    PipelineBindPoint::Graphics,
+                    drawable.pipeline.layout().clone(),
+                    1,
+                    self.drawable.as_ref().unwrap().descriptor_set.clone(),
+                )
+                .bind_vertex_buffers(0, drawable.vertex_buffer.clone())
+                .draw(drawable.vertex_buffer.len().try_into().unwrap(), 1, 0, 0)
+                .unwrap();
+        }
 
         builder.end_render_pass().unwrap();
         let command_buffer = builder.build().unwrap();
@@ -243,7 +330,7 @@ impl DemoTool {
     }
 }
 
-impl VulkanApp for DemoTool {
+impl VulkanApp for DemoTool2 {
     fn paint(&mut self, context: &VulkanContext, renderer: &mut VulkanoWindowRenderer) {
         let before_future = renderer.acquire().unwrap();
         let image = renderer.swapchain_image_view();

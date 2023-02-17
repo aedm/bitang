@@ -8,7 +8,7 @@ use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
 use vulkano::pipeline::graphics::viewport::ViewportState;
 use vulkano::pipeline::{GraphicsPipeline, StateMode};
 
-enum MaterialSteps {
+pub enum MaterialStepType {
     EarlyDepth = 0,
     Shadow = 1,
     Solid = 2,
