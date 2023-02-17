@@ -227,7 +227,13 @@ impl ShaderUniformStorage {
         // TODO: uniform mapping
         let uniform_buffer_subbuffer = self.uniform_buffer_pool.from_data(*uniform_values).unwrap();
 
-        let mut descriptors = vec![WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)];
+        let mut descriptors = vec![];
+        if layout.bindings().contains_key(&0) {
+            // Handle uniform buffers being optimized out entirely
+            descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
+        }
+
+        // Add texture-sampler bindings
         descriptors.extend(shader.textures.iter().enumerate().map(|(i, texture)| {
             let sampler = Sampler::new(
                 context.context.device().clone(),
