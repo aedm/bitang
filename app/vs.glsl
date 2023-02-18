@@ -6,6 +6,11 @@ layout (location = 3) in vec2 a_uv;
 layout (location = 0) out vec2 v_uv;
 layout (location = 1) out vec3 v_normal;
 
+layout (set = 0, binding = 0) uniform Context {
+    mat4 model_to_projection;
+    mat4 model_to_camera;
+} cx;
+
 void main() {
     gl_Position = cx.model_to_projection * vec4(a_position, 1.0);
     v_uv = a_uv;
