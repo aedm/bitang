@@ -47,8 +47,12 @@ pub struct DemoTool {
     render_target: Arc<RenderTarget>,
     ui: Ui,
     start_time: Instant,
-    render_unit: RenderUnit,
     resource_cache: ResourceCache,
+    render_unit: Option<RenderUnit>,
+    vs: Option<Arc<ShaderModule>>,
+    fs: Option<Arc<ShaderModule>>,
+    texture: Arc<Texture>,
+    mesh: Mesh,
 }
 
 impl DemoTool {
@@ -62,17 +66,56 @@ impl DemoTool {
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
         let texture = Self::load_texture(context)?;
         let mesh = Self::load_mesh(&context, &object);
-        let vs = resource_cache.get_vertex_shader(context, "app/vs.glsl")?;
-        let fs = resource_cache.get_fragment_shader(context, "app/fs.glsl")?;
+
+        let ui = Ui::new(context, event_loop);
+
+        let mut demo_tool = DemoTool {
+            render_target,
+            ui,
+            render_unit: None,
+            vs: None,
+            fs: None,
+            texture,
+            start_time: Instant::now(),
+            resource_cache,
+            mesh,
+        };
+        demo_tool.update_render_unit(context)?;
+        Ok(demo_tool)
+    }
+
+    fn update_render_unit(&mut self, context: &VulkanContext) -> Result<()> {
+        let vs = self
+            .resource_cache
+            .get_vertex_shader(context, "app/vs.glsl")
+            .ok()?;
+        let fs = self
+            .resource_cache
+            .get_fragment_shader(context, "app/fs.glsl")
+            .ok()?;
+
+        let vs_equal = self
+            .vs
+            .as_ref()
+            .map(|x| Arc::ptr_eq(x, &vs))
+            .unwrap_or(false);
+        let fs_equal = self
+            .fs
+            .as_ref()
+            .map(|x| Arc::ptr_eq(x, &fs))
+            .unwrap_or(false);
+        if vs_equal && fs_equal {
+            return Ok(());
+        }
 
         let vertex_shader = Shader {
-            shader_module: vs,
+            shader_module: vs.clone(),
             textures: vec![],
         };
 
         let fragment_shader = Shader {
-            shader_module: fs,
-            textures: vec![texture],
+            shader_module: fs.clone(),
+            textures: vec![self.texture.clone()],
         };
 
         let solid_step = MaterialStep {
@@ -87,23 +130,17 @@ impl DemoTool {
         };
 
         let render_item = RenderObject {
-            mesh,
+            mesh: self.mesh.clone(),
             material,
             position: Default::default(),
             rotation: Default::default(),
         };
 
         let render_unit = RenderUnit::new(context, &render_target, Arc::new(render_item));
-
-        let ui = Ui::new(context, event_loop);
-
-        Ok(DemoTool {
-            render_target,
-            ui,
-            render_unit,
-            start_time: Instant::now(),
-            resource_cache,
-        })
+        self.vs = Some(vs);
+        self.fs = Some(fs);
+        self.render_unit = Some(render_unit);
+        Ok(())
     }
 
     fn load_texture(context: &VulkanContext) -> Result<Arc<Texture>> {
@@ -166,6 +203,8 @@ impl DemoTool {
         viewport: Viewport,
         before_future: Box<dyn GpuFuture>,
     ) -> Box<dyn GpuFuture> {
+        self.update_render_unit(context).unwrap();
+
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
         // let dimensions = target_image.dimensions().width_height();
