@@ -74,8 +74,8 @@ impl DemoTool {
         let solid_step = MaterialStep {
             vertex_shader,
             fragment_shader,
-            depth_test: false,
-            depth_write: false,
+            depth_test: true,
+            depth_write: true,
         };
 
         let material = Material {
@@ -246,13 +246,13 @@ impl DemoTool {
 impl VulkanApp for DemoTool {
     fn paint(&mut self, context: &VulkanContext, renderer: &mut VulkanoWindowRenderer) {
         let before_future = renderer.acquire().unwrap();
-        let image = renderer.swapchain_image_view();
+        let target_image = renderer.swapchain_image_view();
         let depth_image = renderer.get_additional_image_view(1);
         let scale_factor = renderer.window().scale_factor() as f32;
 
-        let size = image.dimensions();
+        let size = target_image.dimensions();
         let movie_height = (size.width() * 9 / 16) as i32;
-        let bottom_panel_height = max(size.height() as i32 - movie_height, 0) as f32 / scale_factor;
+        let ui_height = max(size.height() as i32 - movie_height, 0) as f32 / scale_factor;
 
         let render_viewport = Viewport {
             origin: [0.0, 0.0],
@@ -263,7 +263,7 @@ impl VulkanApp for DemoTool {
         // Render app
         let app_finished_future = self.draw(
             context,
-            image.clone(),
+            target_image.clone(),
             depth_image,
             render_viewport,
             before_future,
@@ -272,7 +272,7 @@ impl VulkanApp for DemoTool {
         // Render UI
         let gui_finished_future =
             self.ui
-                .render(context, app_finished_future, image, bottom_panel_height);
+                .render(context, app_finished_future, target_image, ui_height);
 
         renderer.present(gui_finished_future, true);
     }

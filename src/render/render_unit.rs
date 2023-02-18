@@ -10,7 +10,7 @@ use std::sync::Arc;
 use vulkano::buffer::cpu_pool::CpuBufferPoolSubbuffer;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
-use vulkano::descriptor_set::layout::DescriptorSetLayout;
+use vulkano::descriptor_set::layout::{DescriptorSetLayout, DescriptorType};
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::memory::allocator::MemoryUsage;
 use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
@@ -24,7 +24,7 @@ use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
 type UniformBufferPool = CpuBufferPool<ContextUniforms>;
 
 pub struct RenderUnit {
-    render_item: Arc<RenderObject>,
+    render_object: Arc<RenderObject>,
     // TODO: use render pass instead
     render_target: Arc<RenderTarget>,
     steps: [Option<RenderUnitStep>; MATERIAL_STEP_COUNT],
@@ -46,10 +46,10 @@ impl RenderUnit {
     pub fn new(
         context: &VulkanContext,
         render_target: &Arc<RenderTarget>,
-        render_item: Arc<RenderObject>,
+        render_object: Arc<RenderObject>,
     ) -> RenderUnit {
         let steps = array::from_fn(|index| {
-            let material_step = &render_item.material.passes[index];
+            let material_step = &render_object.material.passes[index];
             if let Some(material_step) = material_step {
                 Some(RenderUnitStep::new(context, render_target, material_step))
             } else {
@@ -63,7 +63,7 @@ impl RenderUnit {
         };
 
         RenderUnit {
-            render_item,
+            render_object,
             render_target: render_target.clone(),
             steps,
             uniform_values,
@@ -77,13 +77,16 @@ impl RenderUnit {
         material_step_type: MaterialStepType,
     ) {
         let index = material_step_type as usize;
-        match (&self.steps[index], &self.render_item.material.passes[index]) {
+        match (
+            &self.steps[index],
+            &self.render_object.material.passes[index],
+        ) {
             (Some(component), Some(material_step)) => {
                 component.render(
                     context,
                     builder,
                     material_step,
-                    &self.render_item.mesh,
+                    &self.render_object.mesh,
                     &self.uniform_values,
                 );
             }
@@ -224,31 +227,39 @@ impl ShaderUniformStorage {
         shader: &Shader,
         layout: &Arc<DescriptorSetLayout>,
     ) -> Arc<PersistentDescriptorSet> {
-        // TODO: uniform mapping
-        let uniform_buffer_subbuffer = self.uniform_buffer_pool.from_data(*uniform_values).unwrap();
-
-        let mut descriptors = vec![];
-        if layout.bindings().contains_key(&0) {
-            // Handle uniform buffers being optimized out entirely
-            descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
-        }
-
-        // Add texture-sampler bindings
-        descriptors.extend(shader.textures.iter().enumerate().map(|(i, texture)| {
-            let sampler = Sampler::new(
-                context.context.device().clone(),
-                SamplerCreateInfo {
-                    mag_filter: Filter::Linear,
-                    min_filter: Filter::Linear,
-                    address_mode: [SamplerAddressMode::Repeat; 3],
-                    // mipmap_mode: SamplerMipmapMode::Linear,
-                    ..Default::default()
-                },
-            )
-            .unwrap();
-
-            WriteDescriptorSet::image_view_sampler(i as u32 + 1, texture.clone(), sampler)
-        }));
+        // TODO: avoid memory allocation
+        let mut descriptors: Vec<_> = layout
+            .bindings()
+            .iter()
+            .enumerate()
+            .map(|(index, (k, v))| {
+                match v.descriptor_type {
+                    DescriptorType::UniformBuffer => {
+                        assert_eq!(*k, 0, "Uniform buffer must be bound to binding 0");
+                        // TODO: uniform mapping
+                        let uniform_buffer_subbuffer =
+                            self.uniform_buffer_pool.from_data(*uniform_values).unwrap();
+                        WriteDescriptorSet::buffer(*k, uniform_buffer_subbuffer)
+                    }
+                    DescriptorType::CombinedImageSampler => {
+                        let sampler = Sampler::new(
+                            context.context.device().clone(),
+                            SamplerCreateInfo {
+                                mag_filter: Filter::Linear,
+                                min_filter: Filter::Linear,
+                                address_mode: [SamplerAddressMode::Repeat; 3],
+                                // mipmap_mode: SamplerMipmapMode::Linear,
+                                ..Default::default()
+                            },
+                        )
+                        .unwrap();
+                        let texture = shader.textures[*k as usize - 1].clone();
+                        WriteDescriptorSet::image_view_sampler(*k, texture, sampler)
+                    }
+                    _ => panic!("Unsupported descriptor type: {:?}", v.descriptor_type),
+                }
+            })
+            .collect();
 
         let persistent_descriptor_set = PersistentDescriptorSet::new(
             &context.descriptor_set_allocator,
