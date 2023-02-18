@@ -1,3 +1,4 @@
+use crate::file::ResourceCache;
 use crate::render::material::{Material, MaterialStep, MaterialStepType};
 use crate::render::mesh::Mesh;
 use crate::render::render_target::RenderTarget;
@@ -47,6 +48,7 @@ pub struct DemoTool {
     ui: Ui,
     start_time: Instant,
     render_unit: RenderUnit,
+    resource_cache: ResourceCache,
 }
 
 impl DemoTool {
@@ -55,11 +57,13 @@ impl DemoTool {
         event_loop: &EventLoop<()>,
         object: Object,
     ) -> Result<DemoTool> {
+        let mut resource_cache = ResourceCache::new();
+
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
         let texture = Self::load_texture(context)?;
         let mesh = Self::load_mesh(&context, &object);
-        let vs = DemoTool::load_shader("app/vs.glsl", context, shaderc::ShaderKind::Vertex)?;
-        let fs = DemoTool::load_shader("app/fs.glsl", context, shaderc::ShaderKind::Fragment)?;
+        let vs = resource_cache.get_vertex_shader(context, "app/vs.glsl")?;
+        let fs = resource_cache.get_fragment_shader(context, "app/fs.glsl")?;
 
         let vertex_shader = Shader {
             shader_module: vs,
@@ -98,6 +102,7 @@ impl DemoTool {
             ui,
             render_unit,
             start_time: Instant::now(),
+            resource_cache,
         })
     }
 
@@ -132,27 +137,6 @@ impl DemoTool {
             .unwrap();
 
         Ok(ImageView::new_default(image)?)
-    }
-
-    fn load_shader(
-        file_name: &str,
-        context: &VulkanContext,
-        kind: shaderc::ShaderKind,
-    ) -> Result<Arc<ShaderModule>> {
-        let source = std::fs::read_to_string(file_name)?;
-        let header = std::fs::read_to_string("app/header.glsl")?;
-        let combined = format!("{header}{source}");
-
-        let compiler = shaderc::Compiler::new().unwrap();
-
-        let spirv = compiler.compile_into_spirv(&combined, kind, file_name, "main", None)?;
-        let spirv_binary = spirv.as_binary_u8();
-
-        let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
-        let _ep = &reflect.enumerate_entry_points().unwrap()[0];
-        // println!("SPIRV Metadata: {:#?}", ep);
-
-        Ok(unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) }?)
     }
 
     pub fn load_mesh(context: &VulkanContext, object: &Object) -> Mesh {

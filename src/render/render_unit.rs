@@ -1,7 +1,7 @@
 use crate::render::material::{MaterialStep, MaterialStepType, MATERIAL_STEP_COUNT};
 use crate::render::mesh::{Mesh, VertexBuffer};
 use crate::render::render_target::RenderTarget;
-use crate::render::shader::{DescriptorSetIds, Shader};
+use crate::render::shader::{Shader, ShaderKind};
 use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Vertex3};
@@ -172,7 +172,7 @@ impl RenderUnitStep {
             uniform_values,
             &material_step.vertex_shader,
             descriptor_set_layouts
-                .get(DescriptorSetIds::Vertex as usize)
+                .get(ShaderKind::Vertex as usize)
                 .unwrap(),
         );
         let fragment_descriptor_set = self.fragment_uniforms_storage.make_descriptor_set(
@@ -180,7 +180,7 @@ impl RenderUnitStep {
             uniform_values,
             &material_step.fragment_shader,
             descriptor_set_layouts
-                .get(DescriptorSetIds::Fragment as usize)
+                .get(ShaderKind::Fragment as usize)
                 .unwrap(),
         );
 
