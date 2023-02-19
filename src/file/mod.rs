@@ -4,11 +4,12 @@ use crate::render::shader::ShaderKind;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::anyhow;
 use anyhow::Result;
-use notify::{RecommendedWatcher, Watcher};
+use notify::{Config, Event, RecommendedWatcher, Watcher};
 use num::abs;
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
+use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use vulkano::shader::ShaderModule;
 
@@ -49,6 +50,7 @@ pub struct ShaderModuleCache {
     shader_kind: ShaderKind,
 
     watcher: RecommendedWatcher,
+    receiver: Receiver<Result<notify::Event, notify::Error>>,
 }
 
 fn to_absolute_path(path: &str) -> Result<PathBuf> {
@@ -62,16 +64,21 @@ fn to_absolute_path(path: &str) -> Result<PathBuf> {
 
 impl ShaderModuleCache {
     pub fn new(shader_kind: ShaderKind) -> ShaderModuleCache {
-        let mut watcher = notify::recommended_watcher(|res| match res {
-            Ok(event) => println!("event: {:?}", event),
-            Err(e) => println!("watch error: {:?}", e),
-        })
-        .unwrap();
+        let (tx, receiver) = std::sync::mpsc::channel();
+
+        let mut watcher = notify::recommended_watcher(tx).unwrap();
+
+        // let mut watcher = notify::recommended_watcher(|res| match res {
+        //     Ok(event) => println!("event: {:?}", event),
+        //     Err(e) => println!("watch error: {:?}", e),
+        // })
+        // .unwrap();
 
         ShaderModuleCache {
             cache: HashMap::new(),
             shader_kind,
             watcher,
+            receiver,
         }
     }
 
@@ -81,6 +88,18 @@ impl ShaderModuleCache {
         path: &str,
     ) -> Result<Arc<ShaderModule>> {
         let path = to_absolute_path(path)?;
+        for res in self.receiver.try_iter() {
+            match res {
+                Ok(event) => {
+                    for path in event.paths {
+                        println!("Removing file: {:?}", path);
+                        self.cache.remove(&path);
+                    }
+                }
+                Err(e) => println!("watch error: {:?}", e),
+            }
+        }
+
         if let Some(shader_module) = self.cache.get(&path) {
             return Ok(shader_module.clone());
         }
@@ -108,6 +127,7 @@ impl ShaderModuleCache {
             ShaderKind::Vertex => shaderc::ShaderKind::Vertex,
             ShaderKind::Fragment => shaderc::ShaderKind::Fragment,
         };
+        println!("Loading shader: {:?}", path);
         let source = std::fs::read_to_string(path)?;
         let header = std::fs::read_to_string("app/header.glsl")?;
         let combined = format!("{header}\n{source}");
@@ -122,7 +142,12 @@ impl ShaderModuleCache {
         // let _ep = &reflect.enumerate_entry_points().unwrap()[0];
         // println!("SPIRV Metadata: {:#?}", ep);
 
-        Ok(unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) }?)
+        println!("SPIRV size: {}", spirv_binary.len());
+
+        let module =
+            unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) };
+
+        Ok(module?)
     }
 
     pub fn invalidate(&mut self, path: &PathBuf) {

@@ -87,12 +87,10 @@ impl DemoTool {
     fn update_render_unit(&mut self, context: &VulkanContext) -> Result<()> {
         let vs = self
             .resource_cache
-            .get_vertex_shader(context, "app/vs.glsl")
-            .ok()?;
+            .get_vertex_shader(context, "app/vs.glsl")?;
         let fs = self
             .resource_cache
-            .get_fragment_shader(context, "app/fs.glsl")
-            .ok()?;
+            .get_fragment_shader(context, "app/fs.glsl")?;
 
         let vs_equal = self
             .vs
@@ -136,7 +134,7 @@ impl DemoTool {
             rotation: Default::default(),
         };
 
-        let render_unit = RenderUnit::new(context, &render_target, Arc::new(render_item));
+        let render_unit = RenderUnit::new(context, &self.render_target, Arc::new(render_item));
         self.vs = Some(vs);
         self.fs = Some(fs);
         self.render_unit = Some(render_unit);
@@ -236,23 +234,24 @@ impl DemoTool {
             .unwrap()
             .set_viewport(0, [viewport.clone()]);
 
-        self.render_unit.uniform_values = {
-            let model_to_camera =
-                Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
-            let camera_to_projection = Mat4::perspective_infinite_lh(
-                PI / 2.0,
-                viewport.dimensions[0] / viewport.dimensions[1],
-                0.1,
-            );
-            let model_to_projection = camera_to_projection * model_to_camera;
+        if let Some(render_unit) = &mut self.render_unit {
+            render_unit.uniform_values = {
+                let model_to_camera = Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0))
+                    * Mat4::from_rotation_y(elapsed);
+                let camera_to_projection = Mat4::perspective_infinite_lh(
+                    PI / 2.0,
+                    viewport.dimensions[0] / viewport.dimensions[1],
+                    0.1,
+                );
+                let model_to_projection = camera_to_projection * model_to_camera;
 
-            ContextUniforms {
-                model_to_projection,
-                model_to_camera,
-            }
-        };
-        self.render_unit
-            .render(context, &mut builder, MaterialStepType::Solid);
+                ContextUniforms {
+                    model_to_projection,
+                    model_to_camera,
+                }
+            };
+            render_unit.render(context, &mut builder, MaterialStepType::Solid);
+        }
 
         builder.end_render_pass().unwrap();
         let command_buffer = builder.build().unwrap();
