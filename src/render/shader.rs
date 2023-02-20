@@ -14,7 +14,7 @@ use vulkano::pipeline::GraphicsPipeline;
 use vulkano::sampler::Sampler;
 use vulkano::shader::ShaderModule;
 
-pub enum DescriptorSetIds {
+pub enum ShaderKind {
     Vertex = 0,
     Fragment = 1,
 }
@@ -23,34 +23,3 @@ pub struct Shader {
     pub shader_module: Arc<ShaderModule>,
     pub textures: Vec<Arc<Texture>>,
 }
-//
-// impl Shader {
-//     pub fn make_descriptor_set(
-//         &self,
-//         context: &VulkanContext,
-//         uniform_values: &ContextUniforms,
-//     ) -> Arc<PersistentDescriptorSet> {
-//         let uniform_buffer_subbuffer = self.uniform_buffer_pool.from_data(*uniform_values).unwrap();
-//
-//         let mut descriptors = vec![WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)];
-//         descriptors.extend(
-//             self.texture_bindings
-//                 .iter()
-//                 .enumerate()
-//                 .map(|(i, texture_binding)| {
-//                     WriteDescriptorSet::image_view_sampler(
-//                         i as u32 + 1,
-//                         texture_binding.texture.clone(),
-//                         texture_binding.sampler.clone(),
-//                     )
-//                 }),
-//         );
-//
-//         PersistentDescriptorSet::new(
-//             &context.descriptor_set_allocator,
-//             self.layout.clone(),
-//             descriptors,
-//         )
-//         .unwrap()
-//     }
-// }

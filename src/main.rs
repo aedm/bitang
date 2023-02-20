@@ -1,4 +1,3 @@
-mod dom;
 mod file;
 mod render;
 mod tool;

@@ -1,3 +1,4 @@
+use crate::file::ResourceCache;
 use crate::render::material::{Material, MaterialStep, MaterialStepType};
 use crate::render::mesh::Mesh;
 use crate::render::render_target::RenderTarget;
@@ -46,7 +47,12 @@ pub struct DemoTool {
     render_target: Arc<RenderTarget>,
     ui: Ui,
     start_time: Instant,
-    render_unit: RenderUnit,
+    resource_cache: ResourceCache,
+    render_unit: Option<RenderUnit>,
+    vs: Option<Arc<ShaderModule>>,
+    fs: Option<Arc<ShaderModule>>,
+    texture: Arc<Texture>,
+    mesh: Mesh,
 }
 
 impl DemoTool {
@@ -55,20 +61,59 @@ impl DemoTool {
         event_loop: &EventLoop<()>,
         object: Object,
     ) -> Result<DemoTool> {
+        let mut resource_cache = ResourceCache::new();
+
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
         let texture = Self::load_texture(context)?;
         let mesh = Self::load_mesh(&context, &object);
-        let vs = DemoTool::load_shader("app/vs.glsl", context, shaderc::ShaderKind::Vertex)?;
-        let fs = DemoTool::load_shader("app/fs.glsl", context, shaderc::ShaderKind::Fragment)?;
+
+        let ui = Ui::new(context, event_loop);
+
+        let mut demo_tool = DemoTool {
+            render_target,
+            ui,
+            render_unit: None,
+            vs: None,
+            fs: None,
+            texture,
+            start_time: Instant::now(),
+            resource_cache,
+            mesh,
+        };
+        demo_tool.update_render_unit(context)?;
+        Ok(demo_tool)
+    }
+
+    fn update_render_unit(&mut self, context: &VulkanContext) -> Result<()> {
+        let vs = self
+            .resource_cache
+            .get_vertex_shader(context, "app/vs.glsl")?;
+        let fs = self
+            .resource_cache
+            .get_fragment_shader(context, "app/fs.glsl")?;
+
+        let vs_equal = self
+            .vs
+            .as_ref()
+            .map(|x| Arc::ptr_eq(x, &vs))
+            .unwrap_or(false);
+        let fs_equal = self
+            .fs
+            .as_ref()
+            .map(|x| Arc::ptr_eq(x, &fs))
+            .unwrap_or(false);
+        if vs_equal && fs_equal {
+            return Ok(());
+        }
 
         let vertex_shader = Shader {
-            shader_module: vs,
+            shader_module: vs.clone(),
             textures: vec![],
         };
 
         let fragment_shader = Shader {
-            shader_module: fs,
-            textures: vec![texture],
+            shader_module: fs.clone(),
+            textures: vec![self.texture.clone()],
         };
 
         let solid_step = MaterialStep {
@@ -83,22 +128,17 @@ impl DemoTool {
         };
 
         let render_item = RenderObject {
-            mesh,
+            mesh: self.mesh.clone(),
             material,
             position: Default::default(),
             rotation: Default::default(),
         };
 
-        let render_unit = RenderUnit::new(context, &render_target, Arc::new(render_item));
-
-        let ui = Ui::new(context, event_loop);
-
-        Ok(DemoTool {
-            render_target,
-            ui,
-            render_unit,
-            start_time: Instant::now(),
-        })
+        let render_unit = RenderUnit::new(context, &self.render_target, Arc::new(render_item));
+        self.vs = Some(vs);
+        self.fs = Some(fs);
+        self.render_unit = Some(render_unit);
+        Ok(())
     }
 
     fn load_texture(context: &VulkanContext) -> Result<Arc<Texture>> {
@@ -134,27 +174,6 @@ impl DemoTool {
         Ok(ImageView::new_default(image)?)
     }
 
-    fn load_shader(
-        file_name: &str,
-        context: &VulkanContext,
-        kind: shaderc::ShaderKind,
-    ) -> Result<Arc<ShaderModule>> {
-        let source = std::fs::read_to_string(file_name)?;
-        let header = std::fs::read_to_string("app/header.glsl")?;
-        let combined = format!("{header}{source}");
-
-        let compiler = shaderc::Compiler::new().unwrap();
-
-        let spirv = compiler.compile_into_spirv(&combined, kind, file_name, "main", None)?;
-        let spirv_binary = spirv.as_binary_u8();
-
-        let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
-        let _ep = &reflect.enumerate_entry_points().unwrap()[0];
-        // println!("SPIRV Metadata: {:#?}", ep);
-
-        Ok(unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) }?)
-    }
-
     pub fn load_mesh(context: &VulkanContext, object: &Object) -> Mesh {
         let vertices = object
             .mesh
@@ -182,6 +201,8 @@ impl DemoTool {
         viewport: Viewport,
         before_future: Box<dyn GpuFuture>,
     ) -> Box<dyn GpuFuture> {
+        self.update_render_unit(context).unwrap();
+
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
         // let dimensions = target_image.dimensions().width_height();
@@ -213,23 +234,24 @@ impl DemoTool {
             .unwrap()
             .set_viewport(0, [viewport.clone()]);
 
-        self.render_unit.uniform_values = {
-            let model_to_camera =
-                Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
-            let camera_to_projection = Mat4::perspective_infinite_lh(
-                PI / 2.0,
-                viewport.dimensions[0] / viewport.dimensions[1],
-                0.1,
-            );
-            let model_to_projection = camera_to_projection * model_to_camera;
+        if let Some(render_unit) = &mut self.render_unit {
+            render_unit.uniform_values = {
+                let model_to_camera = Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0))
+                    * Mat4::from_rotation_y(elapsed);
+                let camera_to_projection = Mat4::perspective_infinite_lh(
+                    PI / 2.0,
+                    viewport.dimensions[0] / viewport.dimensions[1],
+                    0.1,
+                );
+                let model_to_projection = camera_to_projection * model_to_camera;
 
-            ContextUniforms {
-                model_to_projection,
-                model_to_camera,
-            }
-        };
-        self.render_unit
-            .render(context, &mut builder, MaterialStepType::Solid);
+                ContextUniforms {
+                    model_to_projection,
+                    model_to_camera,
+                }
+            };
+            render_unit.render(context, &mut builder, MaterialStepType::Solid);
+        }
 
         builder.end_render_pass().unwrap();
         let command_buffer = builder.build().unwrap();

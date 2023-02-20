@@ -6,6 +6,7 @@ use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
 
 pub type VertexBuffer = CpuAccessibleBuffer<[Vertex3]>;
 
+#[derive(Clone)]
 pub struct Mesh {
     pub vertex_buffer: Arc<VertexBuffer>,
 }
