@@ -6,37 +6,26 @@ use crate::render::render_unit::RenderUnit;
 use crate::render::shader::Shader;
 use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::{VulkanApp, VulkanContext};
-use crate::render::{Drawable, RenderObject, Texture, Vertex3};
+use crate::render::{RenderObject, Texture, Vertex3};
 use crate::tool::ui::Ui;
 use crate::types::Object;
 use anyhow::Result;
 use glam::{Mat4, Vec3};
 use image::io::Reader as ImageReader;
 use std::cmp::max;
-use std::convert::TryInto;
 use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time::Instant;
-use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess};
 use vulkano::command_buffer::PrimaryCommandBufferAbstract;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
-use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::ImageViewAbstract;
 use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
-use vulkano::memory::allocator::MemoryUsage;
-use vulkano::pipeline::graphics::depth_stencil::DepthStencilState;
-use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
-use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
 use vulkano::pipeline::graphics::viewport::Viewport;
-use vulkano::pipeline::graphics::viewport::ViewportState;
-use vulkano::pipeline::Pipeline;
-use vulkano::pipeline::{GraphicsPipeline, PipelineBindPoint};
-use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
-use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
+use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo};
 use vulkano::shader::ShaderModule;
 use vulkano::sync::GpuFuture;
 use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
@@ -61,7 +50,7 @@ impl DemoTool {
         event_loop: &EventLoop<()>,
         object: Object,
     ) -> Result<DemoTool> {
-        let mut resource_cache = ResourceCache::new();
+        let resource_cache = ResourceCache::new();
 
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
         let texture = Self::load_texture(context)?;

@@ -1,12 +1,4 @@
 use crate::render::shader::Shader;
-use crate::render::vulkan_window::VulkanContext;
-use crate::render::Vertex3;
-use std::sync::Arc;
-use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
-use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
-use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
-use vulkano::pipeline::graphics::viewport::ViewportState;
-use vulkano::pipeline::{GraphicsPipeline, StateMode};
 
 pub enum MaterialStepType {
     EarlyDepth = 0,

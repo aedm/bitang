@@ -1,6 +1,5 @@
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::Vertex3;
-use crate::types::Object;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
 

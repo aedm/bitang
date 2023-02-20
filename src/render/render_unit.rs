@@ -1,5 +1,5 @@
 use crate::render::material::{MaterialStep, MaterialStepType, MATERIAL_STEP_COUNT};
-use crate::render::mesh::{Mesh, VertexBuffer};
+use crate::render::mesh::Mesh;
 use crate::render::render_target::RenderTarget;
 use crate::render::shader::{Shader, ShaderKind};
 use crate::render::shader_context::ContextUniforms;
@@ -7,7 +7,6 @@ use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Vertex3};
 use std::array;
 use std::sync::Arc;
-use vulkano::buffer::cpu_pool::CpuBufferPoolSubbuffer;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::layout::{DescriptorSetLayout, DescriptorType};
@@ -17,7 +16,7 @@ use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthSte
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
 use vulkano::pipeline::graphics::viewport::ViewportState;
-use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineBindPoint, PipelineLayout, StateMode};
+use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineBindPoint, StateMode};
 use vulkano::render_pass::Subpass;
 use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
 
@@ -228,11 +227,11 @@ impl ShaderUniformStorage {
         layout: &Arc<DescriptorSetLayout>,
     ) -> Arc<PersistentDescriptorSet> {
         // TODO: avoid memory allocation
-        let mut descriptors: Vec<_> = layout
+        let descriptors: Vec<_> = layout
             .bindings()
             .iter()
             .enumerate()
-            .map(|(index, (k, v))| {
+            .map(|(_index, (k, v))| {
                 match v.descriptor_type {
                     DescriptorType::UniformBuffer => {
                         assert_eq!(*k, 0, "Uniform buffer must be bound to binding 0");

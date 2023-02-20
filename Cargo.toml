@@ -7,12 +7,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.65"
-blend = "0.6.1"
-image = "0.24.4"
-num = "0.4.0"
-glam = { version = "0.22", features = ["bytemuck"] }
-
-bytemuck = "1.8.0"
 
 egui_winit_vulkano = "0.22.0"
 egui = "*"
@@ -25,11 +19,14 @@ vulkano-win = "0.32.0"
 vulkano-util = "0.32"
 shaderc = "*"
 spirv-reflect = "0.2.3"
+glam = { version = "0.22", features = ["bytemuck"] }
+bytemuck = "1.8.0"
 
-notify = "5.1.0"
-
-ron = "0.8.0"
 serde = { version = "*", features = ["derive"] }
+notify = "5.1.0"
+ron = "0.8.0"
+blend = "0.6.1"
+image = "0.24.4"
 
 [profile.dev.package.image]
 opt-level = 'z'
@@ -41,7 +38,12 @@ opt-level = 'z'
 opt-level = 1
 
 [profile.dev.package.vulkano-shaders]
-opt-level = 'z'
+opt-level = 1
 
 [profile.dev.package.shaderc]
-opt-level = 'z'
+opt-level = 1
+
+#[profile.release]
+#opt-level = 3
+#strip = true
+#debug = 0
