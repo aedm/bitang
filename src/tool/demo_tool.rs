@@ -1,4 +1,4 @@
-use crate::file::ResourceCache;
+use crate::file::resource_cache::ResourceCache;
 use crate::render::material::{Material, MaterialStep, MaterialStepType};
 use crate::render::mesh::Mesh;
 use crate::render::render_target::RenderTarget;
