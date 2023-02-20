@@ -65,15 +65,7 @@ fn to_absolute_path(path: &str) -> Result<PathBuf> {
 impl ShaderModuleCache {
     pub fn new(shader_kind: ShaderKind) -> ShaderModuleCache {
         let (tx, receiver) = std::sync::mpsc::channel();
-
         let mut watcher = notify::recommended_watcher(tx).unwrap();
-
-        // let mut watcher = notify::recommended_watcher(|res| match res {
-        //     Ok(event) => println!("event: {:?}", event),
-        //     Err(e) => println!("watch error: {:?}", e),
-        // })
-        // .unwrap();
-
         ShaderModuleCache {
             cache: HashMap::new(),
             shader_kind,
@@ -127,7 +119,6 @@ impl ShaderModuleCache {
             ShaderKind::Vertex => shaderc::ShaderKind::Vertex,
             ShaderKind::Fragment => shaderc::ShaderKind::Fragment,
         };
-        println!("Loading shader: {:?}", path);
         let source = std::fs::read_to_string(path)?;
         let header = std::fs::read_to_string("app/header.glsl")?;
         let combined = format!("{header}\n{source}");
@@ -142,7 +133,7 @@ impl ShaderModuleCache {
         // let _ep = &reflect.enumerate_entry_points().unwrap()[0];
         // println!("SPIRV Metadata: {:#?}", ep);
 
-        println!("SPIRV size: {}", spirv_binary.len());
+        println!("Shader '{path:?}' SPIRV size: {}", spirv_binary.len());
 
         let module =
             unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) };
