@@ -54,7 +54,7 @@ impl DemoTool {
 
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
         let texture = Self::load_texture(context)?;
-        let mesh = Self::load_mesh(&context, &object);
+        let mesh = Self::load_mesh(&context, &object)?;
 
         let ui = Ui::new(context, event_loop);
 
@@ -163,7 +163,7 @@ impl DemoTool {
         Ok(ImageView::new_default(image)?)
     }
 
-    pub fn load_mesh(context: &VulkanContext, object: &Object) -> Mesh {
+    pub fn load_mesh(context: &VulkanContext, object: &Object) -> Result<Mesh> {
         let vertices = object
             .mesh
             .faces
@@ -178,7 +178,7 @@ impl DemoTool {
             })
             .collect::<Vec<Vertex3>>();
 
-        Mesh::new(context, vertices)
+        Mesh::try_new(context, vertices)
     }
 
     pub fn draw(

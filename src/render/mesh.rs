@@ -2,6 +2,7 @@ use crate::render::vulkan_window::VulkanContext;
 use crate::render::Vertex3;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
+use anyhow::Result;
 
 pub type VertexBuffer = CpuAccessibleBuffer<[Vertex3]>;
 
@@ -11,7 +12,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(context: &VulkanContext, vertices: Vec<Vertex3>) -> Mesh {
+    pub fn try_new(context: &VulkanContext, vertices: Vec<Vertex3>) -> Result<Mesh> {
         let vertex_buffer = CpuAccessibleBuffer::from_iter(
             context.context.memory_allocator(),
             BufferUsage {
@@ -20,8 +21,7 @@ impl Mesh {
             },
             false,
             vertices,
-        )
-        .unwrap();
-        Mesh { vertex_buffer }
+        )?;
+        Ok(Mesh { vertex_buffer })
     }
 }
