@@ -1,4 +1,5 @@
 use crate::file::resource_cache::ResourceCache;
+use crate::file::ron_file_dom::load_render_object;
 use crate::render::material::{Material, MaterialStep, MaterialStepType};
 use crate::render::mesh::Mesh;
 use crate::render::render_target::RenderTarget;
@@ -38,159 +39,37 @@ pub struct DemoTool {
     start_time: Instant,
     resource_cache: ResourceCache,
     render_unit: Option<RenderUnit>,
-    vs: Option<Arc<ShaderModule>>,
-    fs: Option<Arc<ShaderModule>>,
-    texture: Arc<Texture>,
-    mesh: Mesh,
 }
 
 impl DemoTool {
-    pub fn new(
-        context: &VulkanContext,
-        event_loop: &EventLoop<()>,
-        object: Object,
-    ) -> Result<DemoTool> {
-        let resource_cache = ResourceCache::new();
-
+    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
+        let mut resource_cache = ResourceCache::new();
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
-        let texture = Self::load_texture(context)?;
-        let mesh = Self::load_mesh(&context, &object)?;
+
+        let render_object = load_render_object(&mut resource_cache, context)?;
+        let render_unit = RenderUnit::new(context, &render_target, Arc::new(render_object));
 
         let ui = Ui::new(context, event_loop);
 
-        let mut demo_tool = DemoTool {
+        let demo_tool = DemoTool {
             render_target,
             ui,
-            render_unit: None,
-            vs: None,
-            fs: None,
-            texture,
             start_time: Instant::now(),
             resource_cache,
-            mesh,
+            render_unit: Some(render_unit),
         };
-        demo_tool.update_render_unit(context)?;
         Ok(demo_tool)
-    }
-
-    fn update_render_unit(&mut self, context: &VulkanContext) -> Result<()> {
-        let vs = self
-            .resource_cache
-            .get_vertex_shader(context, "app/vs.glsl")?;
-        let fs = self
-            .resource_cache
-            .get_fragment_shader(context, "app/fs.glsl")?;
-
-        let vs_equal = self
-            .vs
-            .as_ref()
-            .map(|x| Arc::ptr_eq(x, &vs))
-            .unwrap_or(false);
-        let fs_equal = self
-            .fs
-            .as_ref()
-            .map(|x| Arc::ptr_eq(x, &fs))
-            .unwrap_or(false);
-        if vs_equal && fs_equal {
-            return Ok(());
-        }
-
-        let vertex_shader = Shader {
-            shader_module: vs.clone(),
-            textures: vec![],
-        };
-
-        let fragment_shader = Shader {
-            shader_module: fs.clone(),
-            textures: vec![self.texture.clone()],
-        };
-
-        let solid_step = MaterialStep {
-            vertex_shader,
-            fragment_shader,
-            depth_test: true,
-            depth_write: true,
-        };
-
-        let material = Material {
-            passes: [None, None, Some(solid_step)],
-        };
-
-        let render_item = RenderObject {
-            mesh: self.mesh.clone(),
-            material,
-            position: Default::default(),
-            rotation: Default::default(),
-        };
-
-        let render_unit = RenderUnit::new(context, &self.render_target, Arc::new(render_item));
-        self.vs = Some(vs);
-        self.fs = Some(fs);
-        self.render_unit = Some(render_unit);
-        Ok(())
-    }
-
-    fn load_texture(context: &VulkanContext) -> Result<Arc<Texture>> {
-        let rgba = ImageReader::open("app/naty/Albedo.png")?
-            .decode()?
-            .to_rgba8();
-        let dimensions = ImageDimensions::Dim2d {
-            width: rgba.dimensions().0,
-            height: rgba.dimensions().0,
-            array_layers: 1,
-        };
-
-        let mut cbb = AutoCommandBufferBuilder::primary(
-            &context.command_buffer_allocator,
-            context.context.graphics_queue().queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )?;
-
-        let image = ImmutableImage::from_iter(
-            context.context.memory_allocator(),
-            rgba.into_raw(),
-            dimensions,
-            MipmapsCount::One,
-            Format::R8G8B8A8_SRGB,
-            &mut cbb,
-        )?;
-        let _fut = cbb
-            .build()
-            .unwrap()
-            .execute(context.context.graphics_queue().clone())
-            .unwrap();
-
-        Ok(ImageView::new_default(image)?)
-    }
-
-    pub fn load_mesh(context: &VulkanContext, object: &Object) -> Result<Mesh> {
-        let vertices = object
-            .mesh
-            .faces
-            .iter()
-            .flatten()
-            .map(|v| Vertex3 {
-                a_position: [v.0[0], v.0[1], v.0[2]],
-                a_normal: [v.1[0], v.1[1], v.1[2]],
-                a_tangent: [0.0, 0.0, 0.0],
-                a_uv: [v.2[0], v.2[1]],
-                a_padding: 0.0,
-            })
-            .collect::<Vec<Vertex3>>();
-
-        Mesh::try_new(context, vertices)
     }
 
     pub fn draw(
         &mut self,
         context: &VulkanContext,
-        // app_context: &AppContext,
         target_image: SwapchainImageView,
         depth_image: DeviceImageView,
         viewport: Viewport,
         before_future: Box<dyn GpuFuture>,
     ) -> Box<dyn GpuFuture> {
-        self.update_render_unit(context).unwrap();
+        // self.update_render_unit(context).unwrap();
 
         let elapsed = self.start_time.elapsed().as_secs_f32();
 

@@ -1,8 +1,9 @@
-[
-	Shader(
-
-	),
-	RenderUnit(
-
-	),
-]
+Object(
+	mesh_path: "app/naty/File.blend",
+	// mesh_selector: "Cube",
+	texture_path: "app/naty/Albedo.png",
+	vertex_shader: "app/vs.glsl",
+	fragment_shader: "app/fs.glsl",
+	depth_test: true,
+	depth_write: true,
+)

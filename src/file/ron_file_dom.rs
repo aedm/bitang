@@ -28,20 +28,12 @@ struct Object {
     depth_write: bool,
 }
 
-fn load_render_object(cache: &mut ResourceCache, context: &VulkanContext) -> Result<RenderObject> {
-    let object = ron::from_str::<Object>(
-        r#"
-        (
-            mesh_path: "app/naty/File.blend",
-            // mesh_selector: "Cube",
-            texture_path: "app/naty/Albedo.png",
-            vertex_shader: "app/vs.glsl",
-            fragment_shader: "app/fs.glsl",
-            depth_test: true,
-            depth_write: true,
-        )
-        "#,
-    )?;
+pub fn load_render_object(
+    cache: &mut ResourceCache,
+    context: &VulkanContext,
+) -> Result<RenderObject> {
+    let source = std::fs::read_to_string("app/demo.ron")?;
+    let object = ron::from_str::<Object>(&source)?;
 
     let mesh = load_mesh(context, &object.mesh_path)?;
     let texture = load_texture(context, &object.texture_path)?;

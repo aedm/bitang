@@ -10,9 +10,8 @@ use crate::types::{Mesh, Object, Vertex};
 use anyhow::Result;
 
 fn main() -> Result<()> {
-    let object = load_blend_file("app/naty/File.blend")?;
     let window = VulkanWindow::new();
-    let app = DemoTool::new(&window.context, &window.event_loop, object)?;
+    let app = DemoTool::new(&window.context, &window.event_loop)?;
     window.run(app);
     Ok(())
 }
