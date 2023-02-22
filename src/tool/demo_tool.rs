@@ -1,4 +1,5 @@
-use crate::file::ResourceCache;
+use crate::file::resource_cache::ResourceCache;
+use crate::file::ron_file_dom::load_render_object;
 use crate::render::material::{Material, MaterialStep, MaterialStepType};
 use crate::render::mesh::Mesh;
 use crate::render::render_target::RenderTarget;
@@ -6,37 +7,26 @@ use crate::render::render_unit::RenderUnit;
 use crate::render::shader::Shader;
 use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::{VulkanApp, VulkanContext};
-use crate::render::{Drawable, RenderObject, Texture, Vertex3};
+use crate::render::{RenderObject, Texture, Vertex3};
 use crate::tool::ui::Ui;
 use crate::types::Object;
 use anyhow::Result;
 use glam::{Mat4, Vec3};
 use image::io::Reader as ImageReader;
 use std::cmp::max;
-use std::convert::TryInto;
 use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time::Instant;
-use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess};
 use vulkano::command_buffer::PrimaryCommandBufferAbstract;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
-use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::ImageViewAbstract;
 use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
-use vulkano::memory::allocator::MemoryUsage;
-use vulkano::pipeline::graphics::depth_stencil::DepthStencilState;
-use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
-use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
 use vulkano::pipeline::graphics::viewport::Viewport;
-use vulkano::pipeline::graphics::viewport::ViewportState;
-use vulkano::pipeline::Pipeline;
-use vulkano::pipeline::{GraphicsPipeline, PipelineBindPoint};
-use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
-use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
+use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo};
 use vulkano::shader::ShaderModule;
 use vulkano::sync::GpuFuture;
 use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
@@ -49,159 +39,37 @@ pub struct DemoTool {
     start_time: Instant,
     resource_cache: ResourceCache,
     render_unit: Option<RenderUnit>,
-    vs: Option<Arc<ShaderModule>>,
-    fs: Option<Arc<ShaderModule>>,
-    texture: Arc<Texture>,
-    mesh: Mesh,
 }
 
 impl DemoTool {
-    pub fn new(
-        context: &VulkanContext,
-        event_loop: &EventLoop<()>,
-        object: Object,
-    ) -> Result<DemoTool> {
+    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let mut resource_cache = ResourceCache::new();
-
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
-        let texture = Self::load_texture(context)?;
-        let mesh = Self::load_mesh(&context, &object);
+
+        let render_object = load_render_object(&mut resource_cache, context)?;
+        let render_unit = RenderUnit::new(context, &render_target, Arc::new(render_object));
 
         let ui = Ui::new(context, event_loop);
 
-        let mut demo_tool = DemoTool {
+        let demo_tool = DemoTool {
             render_target,
             ui,
-            render_unit: None,
-            vs: None,
-            fs: None,
-            texture,
             start_time: Instant::now(),
             resource_cache,
-            mesh,
+            render_unit: Some(render_unit),
         };
-        demo_tool.update_render_unit(context)?;
         Ok(demo_tool)
-    }
-
-    fn update_render_unit(&mut self, context: &VulkanContext) -> Result<()> {
-        let vs = self
-            .resource_cache
-            .get_vertex_shader(context, "app/vs.glsl")?;
-        let fs = self
-            .resource_cache
-            .get_fragment_shader(context, "app/fs.glsl")?;
-
-        let vs_equal = self
-            .vs
-            .as_ref()
-            .map(|x| Arc::ptr_eq(x, &vs))
-            .unwrap_or(false);
-        let fs_equal = self
-            .fs
-            .as_ref()
-            .map(|x| Arc::ptr_eq(x, &fs))
-            .unwrap_or(false);
-        if vs_equal && fs_equal {
-            return Ok(());
-        }
-
-        let vertex_shader = Shader {
-            shader_module: vs.clone(),
-            textures: vec![],
-        };
-
-        let fragment_shader = Shader {
-            shader_module: fs.clone(),
-            textures: vec![self.texture.clone()],
-        };
-
-        let solid_step = MaterialStep {
-            vertex_shader,
-            fragment_shader,
-            depth_test: true,
-            depth_write: true,
-        };
-
-        let material = Material {
-            passes: [None, None, Some(solid_step)],
-        };
-
-        let render_item = RenderObject {
-            mesh: self.mesh.clone(),
-            material,
-            position: Default::default(),
-            rotation: Default::default(),
-        };
-
-        let render_unit = RenderUnit::new(context, &self.render_target, Arc::new(render_item));
-        self.vs = Some(vs);
-        self.fs = Some(fs);
-        self.render_unit = Some(render_unit);
-        Ok(())
-    }
-
-    fn load_texture(context: &VulkanContext) -> Result<Arc<Texture>> {
-        let rgba = ImageReader::open("app/naty/Albedo.png")?
-            .decode()?
-            .to_rgba8();
-        let dimensions = ImageDimensions::Dim2d {
-            width: rgba.dimensions().0,
-            height: rgba.dimensions().0,
-            array_layers: 1,
-        };
-
-        let mut cbb = AutoCommandBufferBuilder::primary(
-            &context.command_buffer_allocator,
-            context.context.graphics_queue().queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )?;
-
-        let image = ImmutableImage::from_iter(
-            context.context.memory_allocator(),
-            rgba.into_raw(),
-            dimensions,
-            MipmapsCount::One,
-            Format::R8G8B8A8_SRGB,
-            &mut cbb,
-        )?;
-        let _fut = cbb
-            .build()
-            .unwrap()
-            .execute(context.context.graphics_queue().clone())
-            .unwrap();
-
-        Ok(ImageView::new_default(image)?)
-    }
-
-    pub fn load_mesh(context: &VulkanContext, object: &Object) -> Mesh {
-        let vertices = object
-            .mesh
-            .faces
-            .iter()
-            .flatten()
-            .map(|v| Vertex3 {
-                a_position: [v.0[0], v.0[1], v.0[2]],
-                a_normal: [v.1[0], v.1[1], v.1[2]],
-                a_tangent: [0.0, 0.0, 0.0],
-                a_uv: [v.2[0], v.2[1]],
-                a_padding: 0.0,
-            })
-            .collect::<Vec<Vertex3>>();
-
-        Mesh::new(context, vertices)
     }
 
     pub fn draw(
         &mut self,
         context: &VulkanContext,
-        // app_context: &AppContext,
         target_image: SwapchainImageView,
         depth_image: DeviceImageView,
         viewport: Viewport,
         before_future: Box<dyn GpuFuture>,
     ) -> Box<dyn GpuFuture> {
-        self.update_render_unit(context).unwrap();
+        // self.update_render_unit(context).unwrap();
 
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
