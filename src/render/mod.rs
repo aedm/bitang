@@ -32,17 +32,18 @@ vulkano::impl_vertex!(Vertex3, a_position, a_normal, a_tangent, a_uv, a_padding)
 
 pub type Texture = ImageView<ImmutableImage>;
 
+#[derive(Clone)]
 pub struct RenderObject {
-    pub mesh: Mesh,
+    pub mesh: Arc<Mesh>,
     pub position: Vec3,
     pub rotation: Vec3,
     pub material: Material,
 }
 
-pub struct Drawable {
-    pub pipeline: Arc<GraphicsPipeline>,
-    pub vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex3]>>,
-    pub uniform_buffer: CpuBufferPool<ContextUniforms>,
-    pub texture: Arc<ImageView<ImmutableImage>>,
-    pub descriptor_set: Arc<PersistentDescriptorSet>,
-}
+// pub struct Drawable {
+//     pub pipeline: Arc<GraphicsPipeline>,
+//     pub vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex3]>>,
+//     pub uniform_buffer: CpuBufferPool<ContextUniforms>,
+//     pub texture: Arc<ImageView<ImmutableImage>>,
+//     pub descriptor_set: Arc<PersistentDescriptorSet>,
+// }

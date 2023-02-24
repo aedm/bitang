@@ -1,3 +1,4 @@
+use crate::file::file_hash_cache::FileHashCache;
 use crate::render::shader::ShaderKind;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::anyhow;
@@ -10,37 +11,38 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use vulkano::shader::ShaderModule;
 
-pub struct ResourceCache {
-    vertex_shader_cache: ShaderModuleCache,
-    fragment_shader_cache: ShaderModuleCache,
-}
-
-impl ResourceCache {
-    pub fn new() -> ResourceCache {
-        ResourceCache {
-            vertex_shader_cache: ShaderModuleCache::new(ShaderKind::Vertex),
-            fragment_shader_cache: ShaderModuleCache::new(ShaderKind::Fragment),
-        }
-    }
-
-    pub fn get_vertex_shader(
-        &mut self,
-        context: &VulkanContext,
-        path: &str,
-    ) -> Result<Arc<ShaderModule>> {
-        self.vertex_shader_cache.get_shader_module(context, path)
-    }
-
-    pub fn get_fragment_shader(
-        &mut self,
-        context: &VulkanContext,
-        path: &str,
-    ) -> Result<Arc<ShaderModule>> {
-        self.fragment_shader_cache.get_shader_module(context, path)
-    }
-}
+// pub struct ShaderCache {
+//     vertex_shader_cache: ShaderModuleCache,
+//     fragment_shader_cache: ShaderModuleCache,
+// }
+//
+// impl ShaderCache {
+//     pub fn new() -> ShaderCache {
+//         ShaderCache {
+//             vertex_shader_cache: ShaderModuleCache::new(ShaderKind::Vertex),
+//             fragment_shader_cache: ShaderModuleCache::new(ShaderKind::Fragment),
+//         }
+//     }
+//
+//     pub fn get_vertex_shader(
+//         &mut self,
+//         context: &VulkanContext,
+//         path: &str,
+//     ) -> Result<Arc<ShaderModule>> {
+//         self.vertex_shader_cache.get_shader_module(context, path)
+//     }
+//
+//     pub fn get_fragment_shader(
+//         &mut self,
+//         context: &VulkanContext,
+//         path: &str,
+//     ) -> Result<Arc<ShaderModule>> {
+//         self.fragment_shader_cache.get_shader_module(context, path)
+//     }
+// }
 
 pub struct ShaderModuleCache {
+    // file_hash_cache: FileHashCache,
     cache: HashMap<PathBuf, Arc<ShaderModule>>,
     shader_kind: ShaderKind,
 

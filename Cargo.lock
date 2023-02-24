@@ -118,6 +118,7 @@ checksum = "dcb6dd1c2376d2e096796e234a70e17e94cc2d5d54ff8ce42b28cef1d0d359a4"
 name = "bitang"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "anyhow",
  "blend",
  "bytemuck",
