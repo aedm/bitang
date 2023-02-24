@@ -80,7 +80,7 @@ impl DemoTool {
             let mut changed = true;
 
             if let Some(old_object) = &self.render_object {
-                changed = Arc::ptr_eq(&render_object, old_object);
+                changed = !Arc::ptr_eq(&render_object, old_object);
             }
             if changed {
                 self.render_object = Some(render_object.clone());

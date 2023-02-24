@@ -1,7 +1,7 @@
 use ahash::AHasher;
 use anyhow::{Context, Result};
-use notify::RecommendedWatcher;
-use std::collections::HashMap;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
 use std::mem;
 use std::path::PathBuf;
@@ -15,8 +15,8 @@ pub struct FileHashCache {
     content_change_receiver: Receiver<Result<notify::Event, notify::Error>>,
 
     // Load cycle state
-    watched_paths: Vec<PathBuf>,
-    new_watched_paths: Vec<PathBuf>,
+    watched_paths: HashSet<PathBuf>,
+    new_watched_paths: HashSet<PathBuf>,
 }
 
 impl FileHashCache {
@@ -27,8 +27,8 @@ impl FileHashCache {
             cache_map: HashMap::new(),
             watcher,
             content_change_receiver: receiver,
-            watched_paths: Vec::new(),
-            new_watched_paths: Vec::new(),
+            watched_paths: HashSet::new(),
+            new_watched_paths: HashSet::new(),
         }
     }
 
@@ -50,16 +50,22 @@ impl FileHashCache {
         has_changes
     }
 
-    pub fn end_load_cycle(&mut self, has_changes: bool) {
-        // TODO: update watchers
-
+    pub fn end_load_cycle(&mut self) -> Result<()> {
+        for path in self.watched_paths.difference(&self.new_watched_paths) {
+            self.watcher.unwatch(path)?;
+        }
+        for path in self.new_watched_paths.difference(&self.watched_paths) {
+            self.watcher.watch(path, RecursiveMode::NonRecursive)?;
+        }
         self.watched_paths = mem::take(&mut self.new_watched_paths);
+        Ok(())
     }
 
     pub fn get(&mut self, path: &PathBuf) -> Result<(FileContentHash, Option<Vec<u8>>)> {
         if let Some(hash) = self.cache_map.get(path) {
             Ok((*hash, None))
         } else {
+            self.new_watched_paths.insert(path.clone());
             let source = std::fs::read(path)?;
             let hash = hash_content(&source);
             Ok((hash, Some(source)))

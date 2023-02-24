@@ -32,8 +32,8 @@ impl<T> BinaryFileCache<T> {
         self.file_hash_cache.start_load_cycle()
     }
 
-    pub fn end_load_cycle(&mut self, has_changes: bool) {
-        self.file_hash_cache.end_load_cycle(has_changes);
+    pub fn end_load_cycle(&mut self) -> Result<()> {
+        self.file_hash_cache.end_load_cycle()
     }
 
     pub fn get_or_load(&mut self, context: &VulkanContext, path: &PathBuf) -> Result<&T> {

@@ -74,10 +74,10 @@ impl ResourceRepository {
         }
         let result = Arc::new(self.load_render_object(context)?);
         self.cached_root = Some(result.clone());
-        self.texture_cache.end_load_cycle(has_changes);
-        self.mesh_cache.end_load_cycle(has_changes);
-        self.vertex_shader_cache.end_load_cycle(has_changes);
-        self.fragment_shader_cache.end_load_cycle(has_changes);
+        self.texture_cache.end_load_cycle()?;
+        self.mesh_cache.end_load_cycle()?;
+        self.vertex_shader_cache.end_load_cycle()?;
+        self.fragment_shader_cache.end_load_cycle()?;
         Ok(result)
     }
 
