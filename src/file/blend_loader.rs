@@ -111,8 +111,7 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     Some(Mesh { faces })
 }
 
-pub fn load_blend_file(path: &str) -> Result<Object> {
-    let blend = Blend::from_path(path);
+fn load_blend(blend: Blend) -> Result<Object> {
     let mut objects = Vec::new();
 
     for obj in blend.get_by_code(*b"OB") {
@@ -166,4 +165,14 @@ pub fn load_blend_file(path: &str) -> Result<Object> {
     }
 
     objects.into_iter().next().context("No object found")
+}
+
+pub fn load_blend_buffer(buffer: &[u8]) -> Result<Object> {
+    let blend = Blend::new(buffer);
+    load_blend(blend)
+}
+
+pub fn load_blend_file(path: &str) -> Result<Object> {
+    let blend = Blend::from_path(path);
+    load_blend(blend)
 }

@@ -27,6 +27,7 @@ notify = "5.1.0"
 ron = "0.8.0"
 blend = "0.6.1"
 image = "0.24.4"
+ahash = "0.8.3"
 
 [profile.dev.package.image]
 opt-level = 'z'

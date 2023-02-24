@@ -1,4 +1,4 @@
-Object(
+RonObject(
 	mesh_path: "app/naty/File.blend",
 	// mesh_selector: "Cube",
 	texture_path: "app/naty/Albedo.png",

@@ -7,6 +7,7 @@ pub enum ShaderKind {
     Fragment = 1,
 }
 
+#[derive(Clone)]
 pub struct Shader {
     pub shader_module: Arc<ShaderModule>,
     pub textures: Vec<Arc<Texture>>,
