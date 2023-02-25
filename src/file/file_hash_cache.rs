@@ -12,7 +12,7 @@ pub type FileContentHash = u64;
 pub struct FileHashCache {
     cache_map: HashMap<PathBuf, FileContentHash>,
     watcher: RecommendedWatcher,
-    content_change_receiver: Receiver<Result<notify::Event, notify::Error>>,
+    file_change_events: Receiver<Result<notify::Event, notify::Error>>,
 
     // Load cycle state
     watched_paths: HashSet<PathBuf>,
@@ -26,7 +26,7 @@ impl FileHashCache {
         Self {
             cache_map: HashMap::new(),
             watcher,
-            content_change_receiver: receiver,
+            file_change_events: receiver,
             watched_paths: HashSet::new(),
             new_watched_paths: HashSet::new(),
         }
@@ -34,7 +34,7 @@ impl FileHashCache {
 
     pub fn start_load_cycle(&mut self) -> bool {
         let mut has_changes = false;
-        for res in self.content_change_receiver.try_iter() {
+        for res in self.file_change_events.try_iter() {
             match res {
                 Ok(event) => {
                     for path in event.paths {
@@ -46,7 +46,6 @@ impl FileHashCache {
                 Err(e) => println!("watch error: {:?}", e),
             }
         }
-        self.new_watched_paths.clear();
         has_changes
     }
 
