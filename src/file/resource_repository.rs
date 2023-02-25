@@ -1,5 +1,6 @@
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::{load_blend_buffer, load_blend_file};
+use crate::file::file_hash_cache::FileHashCache;
 use crate::file::shader_cache::ShaderModuleCache;
 use crate::render::material::{Material, MaterialStep};
 use crate::render::mesh::Mesh;
@@ -9,9 +10,11 @@ use crate::render::{RenderObject, Texture, Vertex3};
 use crate::types::Object;
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
+use std::cell::RefCell;
 use std::env;
 use std::io::Cursor;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use vulkano::command_buffer::{
@@ -35,38 +38,40 @@ pub struct RonObject {
 
 pub struct ResourceRepository {
     current_dir: PathBuf,
-    // file_changed_notification: Receiver<()>,
+
+    file_hash_cache: Rc<RefCell<FileHashCache>>,
+
     texture_cache: BinaryFileCache<Arc<Texture>>,
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
     vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
+    root_ron_file_cache: BinaryFileCache<Arc<RonObject>>,
+
     cached_root: Option<Arc<RenderObject>>,
 }
 
 impl ResourceRepository {
     pub fn try_new() -> Result<Self> {
-        let (sender, receiver) = std::sync::mpsc::channel::<()>();
+        let file_hash_cache = Rc::new(RefCell::new(FileHashCache::new()));
 
         Ok(Self {
             current_dir: env::current_dir()?,
-            texture_cache: BinaryFileCache::new(load_texture),
-            mesh_cache: BinaryFileCache::new(load_mesh),
-            vertex_shader_cache: BinaryFileCache::new(|context, content| {
+            texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
+            mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
+            vertex_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
                 load_shader_module(context, content, shaderc::ShaderKind::Vertex)
             }),
-            fragment_shader_cache: BinaryFileCache::new(|context, content| {
+            fragment_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
                 load_shader_module(context, content, shaderc::ShaderKind::Fragment)
             }),
+            root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_ron_file),
+            file_hash_cache,
             cached_root: None,
         })
     }
 
     pub fn load_root_document(&mut self, context: &VulkanContext) -> Result<Arc<RenderObject>> {
-        let mut has_changes = false;
-        has_changes |= self.texture_cache.start_load_cycle();
-        has_changes |= self.mesh_cache.start_load_cycle();
-        has_changes |= self.vertex_shader_cache.start_load_cycle();
-        has_changes |= self.fragment_shader_cache.start_load_cycle();
+        let mut has_changes = self.file_hash_cache.borrow_mut().start_load_cycle();
         if !has_changes {
             if let Some(cached_root) = &self.cached_root {
                 return Ok(cached_root.clone());
@@ -74,10 +79,7 @@ impl ResourceRepository {
         }
         let result = Arc::new(self.load_render_object(context)?);
         self.cached_root = Some(result.clone());
-        self.texture_cache.end_load_cycle()?;
-        self.mesh_cache.end_load_cycle()?;
-        self.vertex_shader_cache.end_load_cycle()?;
-        self.fragment_shader_cache.end_load_cycle()?;
+        self.file_hash_cache.borrow_mut().end_load_cycle()?;
         Ok(result)
     }
 
@@ -110,8 +112,12 @@ impl ResourceRepository {
     }
 
     pub fn load_render_object(&mut self, context: &VulkanContext) -> Result<RenderObject> {
-        let source = std::fs::read_to_string("app/demo.ron")?;
-        let object = ron::from_str::<RonObject>(&source)?;
+        // let source = std::fs::read_to_string("app/demo.ron")?;
+        // let object = ron::from_str::<RonObject>(&source)?;
+        let object = self
+            .root_ron_file_cache
+            .get_or_load(context, &PathBuf::from("app/demo.ron"))?
+            .clone();
 
         let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
         let texture = self.get_texture(context, &object.texture_path)?.clone();
@@ -136,8 +142,8 @@ impl ResourceRepository {
         let solid_step = MaterialStep {
             vertex_shader,
             fragment_shader,
-            depth_test: true,
-            depth_write: true,
+            depth_test: object.depth_test,
+            depth_write: object.depth_write,
         };
 
         let material = Material {
@@ -241,4 +247,9 @@ fn load_shader_module(
         unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) };
 
     Ok(module?)
+}
+
+pub fn load_ron_file(context: &VulkanContext, content: &[u8]) -> Result<Arc<RonObject>> {
+    let object = ron::from_str::<RonObject>(std::str::from_utf8(content)?)?;
+    Ok(Arc::new(object))
 }
