@@ -36,7 +36,6 @@ pub struct DemoTool {
     render_target: Arc<RenderTarget>,
     ui: Ui,
     start_time: Instant,
-    // resource_cache: ResourceCache,
     resource_repository: ResourceRepository,
     render_unit: Option<RenderUnit>,
     render_object: Option<Arc<RenderObject>>,
@@ -44,11 +43,9 @@ pub struct DemoTool {
 
 impl DemoTool {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
-        // let mut resource_cache = ResourceCache::new();
         let mut resource_repository = ResourceRepository::try_new()?;
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
 
-        // let render_object = load_render_object(&mut resource_cache, context)?;
         let render_object = resource_repository.load_root_document(context)?;
         let render_unit = RenderUnit::new(context, &render_target, render_object.clone());
 
@@ -58,12 +55,24 @@ impl DemoTool {
             render_target,
             ui,
             start_time: Instant::now(),
-            // resource_cache,
             resource_repository,
             render_unit: Some(render_unit),
             render_object: Some(render_object),
         };
         Ok(demo_tool)
+    }
+
+    fn update_render_unit(&mut self, context: &VulkanContext) {
+        let render_object = self.resource_repository.load_root_document(context);
+        if let Ok(render_object) = render_object {
+            if let Some(old_object) = &self.render_object {
+                if Arc::ptr_eq(&render_object, old_object) {
+                    return;
+                }
+            }
+            self.render_object = Some(render_object.clone());
+            self.render_unit = Some(RenderUnit::new(context, &self.render_target, render_object));
+        }
     }
 
     pub fn draw(
@@ -74,20 +83,7 @@ impl DemoTool {
         viewport: Viewport,
         before_future: Box<dyn GpuFuture>,
     ) -> Box<dyn GpuFuture> {
-        // self.update_render_unit(context).unwrap();
-        let render_object = self.resource_repository.load_root_document(context);
-        if let Ok(render_object) = render_object {
-            let mut changed = true;
-
-            if let Some(old_object) = &self.render_object {
-                changed = !Arc::ptr_eq(&render_object, old_object);
-            }
-            if changed {
-                self.render_object = Some(render_object.clone());
-                self.render_unit =
-                    Some(RenderUnit::new(context, &self.render_target, render_object));
-            }
-        }
+        self.update_render_unit(context);
 
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
