@@ -1,7 +1,6 @@
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::{load_blend_buffer, load_blend_file};
 use crate::file::file_hash_cache::FileHashCache;
-use crate::file::shader_cache::ShaderModuleCache;
 use crate::render::material::{Material, MaterialStep};
 use crate::render::mesh::Mesh;
 use crate::render::shader::{Shader, ShaderKind};
