@@ -1,17 +1,10 @@
 use crate::file::file_hash_cache::{FileContentHash, FileHashCache};
 use crate::render::vulkan_window::VulkanContext;
-use crate::render::Texture;
-use ahash::{AHasher, RandomState};
 use anyhow::{Context, Result};
-use notify::RecommendedWatcher;
 use std::cell::RefCell;
-use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
-use std::hash::{BuildHasher, Hasher};
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Arc;
 
 type LoaderFunc<T> = fn(&VulkanContext, &[u8]) -> Result<T>;
 

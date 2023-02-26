@@ -8,15 +8,11 @@ pub mod vulkan_window;
 
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
-use crate::render::shader_context::ContextUniforms;
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use std::sync::Arc;
-use vulkano::buffer::{CpuAccessibleBuffer, CpuBufferPool};
-use vulkano::descriptor_set::PersistentDescriptorSet;
 use vulkano::image::view::ImageView;
 use vulkano::image::ImmutableImage;
-use vulkano::pipeline::GraphicsPipeline;
 
 #[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]

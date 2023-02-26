@@ -1,32 +1,23 @@
 use crate::file::resource_repository::ResourceRepository;
-use crate::render::material::{Material, MaterialStep, MaterialStepType};
-use crate::render::mesh::Mesh;
+use crate::render::material::MaterialStepType;
 use crate::render::render_target::RenderTarget;
 use crate::render::render_unit::RenderUnit;
-use crate::render::shader::Shader;
 use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::{VulkanApp, VulkanContext};
-use crate::render::{RenderObject, Texture, Vertex3};
+use crate::render::RenderObject;
 use crate::tool::ui::Ui;
-use crate::types::Object;
 use anyhow::Result;
 use glam::{Mat4, Vec3};
-use image::io::Reader as ImageReader;
 use std::cmp::max;
 use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time::Instant;
-use vulkano::command_buffer::PrimaryCommandBufferAbstract;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
-use vulkano::format::Format;
-use vulkano::image::view::ImageView;
 use vulkano::image::ImageViewAbstract;
-use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo};
-use vulkano::shader::ShaderModule;
 use vulkano::sync::GpuFuture;
 use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
 use winit::event::WindowEvent;

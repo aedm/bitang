@@ -3,7 +3,6 @@ mod render;
 mod tool;
 mod types;
 
-use crate::file::blend_loader::load_blend_file;
 use crate::render::vulkan_window::VulkanWindow;
 use crate::tool::demo_tool::DemoTool;
 use crate::types::{Mesh, Object, Vertex};

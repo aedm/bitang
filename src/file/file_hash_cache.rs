@@ -1,11 +1,11 @@
 use ahash::AHasher;
-use anyhow::{Context, Result};
+use anyhow::{Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
 use std::mem;
 use std::path::PathBuf;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{Receiver};
 
 pub type FileContentHash = u64;
 

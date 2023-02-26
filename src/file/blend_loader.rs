@@ -171,8 +171,3 @@ pub fn load_blend_buffer(buffer: &[u8]) -> Result<Object> {
     let blend = Blend::new(buffer);
     load_blend(blend)
 }
-
-pub fn load_blend_file(path: &str) -> Result<Object> {
-    let blend = Blend::from_path(path);
-    load_blend(blend)
-}

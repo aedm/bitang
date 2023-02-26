@@ -24,8 +24,6 @@ type UniformBufferPool = CpuBufferPool<ContextUniforms>;
 
 pub struct RenderUnit {
     render_object: Arc<RenderObject>,
-    // TODO: use render pass instead
-    render_target: Arc<RenderTarget>,
     steps: [Option<RenderUnitStep>; MATERIAL_STEP_COUNT],
     pub uniform_values: ContextUniforms,
 }
@@ -38,7 +36,6 @@ struct RenderUnitStep {
 
 struct ShaderUniformStorage {
     uniform_buffer_pool: UniformBufferPool,
-    persistent_descriptor_set: Option<Arc<PersistentDescriptorSet>>,
 }
 
 impl RenderUnit {
@@ -63,7 +60,6 @@ impl RenderUnit {
 
         RenderUnit {
             render_object,
-            render_target: render_target.clone(),
             steps,
             uniform_values,
         }
@@ -215,7 +211,6 @@ impl ShaderUniformStorage {
         );
         ShaderUniformStorage {
             uniform_buffer_pool,
-            persistent_descriptor_set: None,
         }
     }
 

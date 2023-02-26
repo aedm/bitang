@@ -1,20 +1,18 @@
 use crate::file::binary_file_cache::BinaryFileCache;
-use crate::file::blend_loader::{load_blend_buffer, load_blend_file};
+use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileHashCache;
 use crate::render::material::{Material, MaterialStep};
 use crate::render::mesh::Mesh;
-use crate::render::shader::{Shader, ShaderKind};
+use crate::render::shader::Shader;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
-use crate::types::Object;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::env;
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
@@ -70,7 +68,7 @@ impl ResourceRepository {
     }
 
     pub fn load_root_document(&mut self, context: &VulkanContext) -> Result<Arc<RenderObject>> {
-        let mut has_changes = self.file_hash_cache.borrow_mut().start_load_cycle();
+        let has_changes = self.file_hash_cache.borrow_mut().start_load_cycle();
         if !has_changes {
             if let Some(cached_root) = &self.cached_root {
                 return Ok(cached_root.clone());
@@ -248,7 +246,7 @@ fn load_shader_module(
     Ok(module?)
 }
 
-pub fn load_ron_file(context: &VulkanContext, content: &[u8]) -> Result<Arc<RonObject>> {
+pub fn load_ron_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<RonObject>> {
     let object = ron::from_str::<RonObject>(std::str::from_utf8(content)?)?;
     Ok(Arc::new(object))
 }
