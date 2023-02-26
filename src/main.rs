@@ -1,3 +1,4 @@
+mod control;
 mod file;
 mod render;
 mod tool;

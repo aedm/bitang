@@ -1,7 +1,8 @@
-use crate::render::material::{MaterialStep, MaterialStepType, MATERIAL_STEP_COUNT};
+use crate::render::material::{
+    MaterialStep, MaterialStepType, Shader, ShaderKind, MATERIAL_STEP_COUNT,
+};
 use crate::render::mesh::Mesh;
 use crate::render::render_target::RenderTarget;
-use crate::render::shader::{Shader, ShaderKind};
 use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Vertex3};

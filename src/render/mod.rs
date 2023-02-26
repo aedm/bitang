@@ -2,7 +2,6 @@ pub mod material;
 pub mod mesh;
 pub mod render_target;
 pub mod render_unit;
-pub mod shader;
 pub mod shader_context;
 pub mod vulkan_window;
 

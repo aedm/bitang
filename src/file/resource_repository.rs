@@ -1,9 +1,8 @@
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileHashCache;
-use crate::render::material::{Material, MaterialStep};
+use crate::render::material::{Material, MaterialStep, Shader, TextureBinding, UniformBinding};
 use crate::render::mesh::Mesh;
-use crate::render::shader::Shader;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
 use anyhow::Result;
@@ -128,12 +127,17 @@ impl ResourceRepository {
 
         let vertex_shader = Shader {
             shader_module: vs,
-            textures: vec![],
+            texture_bindings: vec![],
+            //uniform_bindings: vec![],
         };
 
         let fragment_shader = Shader {
             shader_module: fs,
-            textures: vec![texture],
+            texture_bindings: vec![TextureBinding {
+                texture,
+                descriptor_set_binding: 1,
+            }],
+            //uniform_bindings: vec![],
         };
 
         let solid_step = MaterialStep {
