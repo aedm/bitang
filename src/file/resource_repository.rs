@@ -1,6 +1,8 @@
+use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileHashCache;
+use crate::file::shader_loader::load_shader_module;
 use crate::render::material::{Material, MaterialStep, Shader, TextureBinding, UniformBinding};
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
@@ -43,6 +45,8 @@ pub struct ResourceRepository {
     fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     root_ron_file_cache: BinaryFileCache<Arc<RonObject>>,
 
+    pub controls: Controls,
+
     cached_root: Option<Arc<RenderObject>>,
 }
 
@@ -63,6 +67,7 @@ impl ResourceRepository {
             root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_ron_file),
             file_hash_cache,
             cached_root: None,
+            controls: Controls::new(),
         })
     }
 
@@ -128,7 +133,7 @@ impl ResourceRepository {
         let vertex_shader = Shader {
             shader_module: vs,
             texture_bindings: vec![],
-            //uniform_bindings: vec![],
+            local_uniform_bindings: vec![],
         };
 
         let fragment_shader = Shader {
@@ -137,7 +142,7 @@ impl ResourceRepository {
                 texture,
                 descriptor_set_binding: 1,
             }],
-            //uniform_bindings: vec![],
+            local_uniform_bindings: vec![],
         };
 
         let solid_step = MaterialStep {
@@ -221,33 +226,6 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
         .unwrap();
 
     Ok(ImageView::new_default(image)?)
-}
-
-fn load_shader_module(
-    context: &VulkanContext,
-    content: &[u8],
-    kind: shaderc::ShaderKind,
-) -> Result<Arc<ShaderModule>> {
-    let source = std::str::from_utf8(content)?;
-    let header = std::fs::read_to_string("app/header.glsl")?;
-    let combined = format!("{header}\n{source}");
-
-    let compiler = shaderc::Compiler::new().unwrap();
-
-    // let input_file_name = path.to_str().ok_or(anyhow!("Invalid file name"))?;
-    let spirv = compiler.compile_into_spirv(&combined, kind, "input_file_name", "main", None)?;
-    let spirv_binary = spirv.as_binary_u8();
-
-    // let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
-    // let _ep = &reflect.enumerate_entry_points().unwrap()[0];
-    // println!("SPIRV Metadata: {:#?}", ep);
-
-    // println!("Shader '{path:?}' SPIRV size: {}", spirv_binary.len());
-
-    let module =
-        unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) };
-
-    Ok(module?)
 }
 
 pub fn load_ron_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<RonObject>> {

@@ -1,4 +1,4 @@
-use crate::control::controls::{Control, ControlValue};
+use crate::control::controls::{Control, ControlValue, GlobalType};
 use crate::render::Texture;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -34,7 +34,8 @@ pub enum ShaderKind {
 pub struct Shader {
     pub shader_module: Arc<ShaderModule>,
     pub texture_bindings: Vec<TextureBinding>,
-    pub uniform_bindings: Vec<UniformBinding>,
+    pub global_uniform_bindings: Vec<GlobalUniformBinding>,
+    pub local_uniform_bindings: Vec<LocalUniformBinding>,
 }
 
 #[derive(Clone)]
@@ -43,8 +44,14 @@ pub struct TextureBinding {
     pub descriptor_set_binding: u32,
 }
 
-pub struct UniformBinding {
+#[derive(Clone)]
+pub struct LocalUniformBinding {
     pub control: Rc<Control>,
     pub component_count: u32,
+    pub uniform_buffer_offset: u32,
+}
+
+pub struct GlobalUniformBinding {
+    pub global_type: GlobalType,
     pub uniform_buffer_offset: u32,
 }

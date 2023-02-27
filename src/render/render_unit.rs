@@ -222,7 +222,7 @@ impl ShaderUniformStorage {
         shader: &Shader,
         layout: &Arc<DescriptorSetLayout>,
     ) -> Arc<PersistentDescriptorSet> {
-        // TODO: avoid memory allocation
+        // TODO: avoid memory allocation, maybe use tinyvec
         let descriptors: Vec<_> = layout
             .bindings()
             .iter()
@@ -248,7 +248,8 @@ impl ShaderUniformStorage {
                             },
                         )
                         .unwrap();
-                        let texture = shader.textures[*k as usize - 1].clone();
+                        // TODO: use the precalculated texture binding instead of *k
+                        let texture = shader.texture_bindings[*k as usize - 1].texture.clone();
                         WriteDescriptorSet::image_view_sampler(*k, texture, sampler)
                     }
                     _ => panic!("Unsupported descriptor type: {:?}", v.descriptor_type),
