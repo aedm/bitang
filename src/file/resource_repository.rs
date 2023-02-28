@@ -1,9 +1,11 @@
-use crate::control::controls::Controls;
+use crate::control::controls::{Controls, GlobalType};
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::load_blend_buffer;
-use crate::file::file_hash_cache::FileHashCache;
+use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::load_shader_module;
-use crate::render::material::{Material, MaterialStep, Shader, TextureBinding, UniformBinding};
+use crate::render::material::{
+    GlobalUniformBinding, Material, MaterialStep, Shader, TextureBinding,
+};
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
@@ -35,9 +37,7 @@ pub struct RonObject {
 }
 
 pub struct ResourceRepository {
-    current_dir: PathBuf,
-
-    file_hash_cache: Rc<RefCell<FileHashCache>>,
+    file_hash_cache: Rc<RefCell<FileCache>>,
 
     texture_cache: BinaryFileCache<Arc<Texture>>,
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
@@ -52,10 +52,9 @@ pub struct ResourceRepository {
 
 impl ResourceRepository {
     pub fn try_new() -> Result<Self> {
-        let file_hash_cache = Rc::new(RefCell::new(FileHashCache::new()));
+        let file_hash_cache = Rc::new(RefCell::new(FileCache::new()))?;
 
         Ok(Self {
-            current_dir: env::current_dir()?,
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
             mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
             vertex_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
@@ -85,12 +84,10 @@ impl ResourceRepository {
     }
 
     pub fn get_texture(&mut self, context: &VulkanContext, path: &str) -> Result<&Arc<Texture>> {
-        let path = self.to_absolute_path(path);
         self.texture_cache.get_or_load(context, &path)
     }
 
     pub fn get_mesh(&mut self, context: &VulkanContext, path: &str) -> Result<&Arc<Mesh>> {
-        let path = self.to_absolute_path(path);
         self.mesh_cache.get_or_load(context, &path)
     }
 
@@ -99,7 +96,6 @@ impl ResourceRepository {
         context: &VulkanContext,
         path: &str,
     ) -> Result<&Arc<ShaderModule>> {
-        let path = self.to_absolute_path(path);
         self.vertex_shader_cache.get_or_load(context, &path)
     }
 
@@ -108,7 +104,6 @@ impl ResourceRepository {
         context: &VulkanContext,
         path: &str,
     ) -> Result<&Arc<ShaderModule>> {
-        let path = self.to_absolute_path(path);
         self.fragment_shader_cache.get_or_load(context, &path)
     }
 
@@ -117,7 +112,7 @@ impl ResourceRepository {
         // let object = ron::from_str::<RonObject>(&source)?;
         let object = self
             .root_ron_file_cache
-            .get_or_load(context, &PathBuf::from("app/demo.ron"))?
+            .get_or_load(context, &path)?
             .clone();
 
         let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
@@ -134,6 +129,16 @@ impl ResourceRepository {
             shader_module: vs,
             texture_bindings: vec![],
             local_uniform_bindings: vec![],
+            global_uniform_bindings: vec![
+                GlobalUniformBinding {
+                    global_type: GlobalType::ModelToProjection,
+                    uniform_buffer_f32_offset: 0,
+                },
+                GlobalUniformBinding {
+                    global_type: GlobalType::ModelToCamera,
+                    uniform_buffer_f32_offset: 16,
+                },
+            ],
         };
 
         let fragment_shader = Shader {
@@ -143,6 +148,16 @@ impl ResourceRepository {
                 descriptor_set_binding: 1,
             }],
             local_uniform_bindings: vec![],
+            global_uniform_bindings: vec![
+                GlobalUniformBinding {
+                    global_type: GlobalType::ModelToProjection,
+                    uniform_buffer_f32_offset: 0,
+                },
+                GlobalUniformBinding {
+                    global_type: GlobalType::ModelToCamera,
+                    uniform_buffer_f32_offset: 16,
+                },
+            ],
         };
 
         let solid_step = MaterialStep {
@@ -164,15 +179,6 @@ impl ResourceRepository {
         };
 
         Ok(render_object)
-    }
-
-    fn to_absolute_path(&self, path: &str) -> PathBuf {
-        let path = std::path::Path::new(path);
-        if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            self.current_dir.join(path)
-        }
     }
 }
 

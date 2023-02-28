@@ -1,9 +1,8 @@
 RonObject(
 	mesh_path: "app/naty/File.blend",
-	// mesh_selector: "Cube",
-	texture_path: "app/naty/Albedo.png",
-	//texture_path: "app/naty/Eye_Brows.001.png",
-	vertex_shader: "app/vs.glsl",
+	//texture_path: "app/naty/Albedo.png",
+	texture_path: "app/naty/grid.png",
+	vertex_shader: "app/vs2.glsl",
 	fragment_shader: "app/fs.glsl",
 	depth_test: true,
 	depth_write: true,

@@ -1,32 +1,136 @@
+use crate::file::file_hash_cache::{hash_content, ContentHash, FileCache, FileCacheEntry};
 use crate::render::vulkan_window::VulkanContext;
-use anyhow::Result;
+use anyhow::{Context, Result};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::buffer::BufferContents;
 use vulkano::shader::ShaderModule;
 
-pub fn load_shader_module(
-    context: &VulkanContext,
-    content: &[u8],
-    kind: shaderc::ShaderKind,
-) -> Result<Arc<ShaderModule>> {
-    let source = std::str::from_utf8(content)?;
-    let header = std::fs::read_to_string("app/header.glsl")?;
-    let combined = format!("{header}\n{source}");
-
-    let compiler = shaderc::Compiler::new().unwrap();
-
-    // let input_file_name = path.to_str().ok_or(anyhow!("Invalid file name"))?;
-    let spirv = compiler.compile_into_spirv(&combined, kind, "input_file_name", "main", None)?;
-    let spirv_binary = spirv.as_binary_u8();
-
-    let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
-    let ep = &reflect.enumerate_entry_points().unwrap()[0];
-    println!("SPIRV Metadata: {:#?}", ep);
-
-    // println!("Shader '{path:?}' SPIRV size: {}", spirv_binary.len());
-
-    let module =
-        unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) };
-
-    Ok(module?)
+struct ShaderCacheKey {
+    vertex_shader_hash: ContentHash,
+    fragment_shader_hash: ContentHash,
 }
+
+#[derive(Clone)]
+struct ShaderCacheValue {
+    vertex_shader: Arc<ShaderModule>,
+    fragment_shader: Arc<ShaderModule>,
+}
+
+pub struct ShaderCache {
+    file_hash_cache: Rc<RefCell<FileCache>>,
+    shader_cache: HashMap<ShaderCacheKey, ShaderCacheValue>,
+}
+
+impl ShaderCache {
+    pub fn new(file_hash_cache: &Rc<RefCell<FileCache>>) -> Self {
+        Self {
+            file_hash_cache: file_hash_cache.clone(),
+            shader_cache: HashMap::new(),
+        }
+    }
+
+    pub fn get_or_load(
+        &mut self,
+        context: &VulkanContext,
+        vs_path: &str,
+        fs_path: &str,
+    ) -> Result<ShaderCacheValue> {
+        let header = self.load_source("app/header.glsl")?;
+        let vs_source = format!("{header}\n{}", self.load_source(vs_path)?);
+        let fs_source = format!("{header}\n{}", self.load_source(fs_path)?);
+
+        let vs_hash = hash_content(vs_source.as_bytes());
+        let fs_hash = hash_content(fs_source.as_bytes());
+        let key = ShaderCacheKey {
+            vertex_shader_hash: vs_hash,
+            fragment_shader_hash: fs_hash,
+        };
+        if self.shader_cache.contains_key(&key) {
+            Ok(self.shader_cache.get(&key).unwrap().clone())
+        } else {
+            let vs_module = load_shader_module(
+                context,
+                vs_source.as_bytes(),
+                vs_path,
+                shaderc::ShaderKind::Vertex,
+            )?;
+            let fs_module = load_shader_module(
+                context,
+                fs_source.as_bytes(),
+                fs_path,
+                shaderc::ShaderKind::Fragment,
+            )?;
+            let value = ShaderCacheValue {
+                vertex_shader: vs_module,
+                fragment_shader: fs_module,
+            };
+            self.shader_cache.insert(key, value.clone());
+            Ok(value)
+        }
+    }
+
+    fn compile_shader_module(
+        context: &VulkanContext,
+        source: &str,
+        path: &str,
+        kind: shaderc::ShaderKind,
+    ) -> Result<Arc<ShaderModule>> {
+        let compiler = shaderc::Compiler::new().unwrap();
+        let spirv = compiler.compile_into_spirv(&source, kind, path, "main", None)?;
+        let spirv_binary = spirv.as_binary_u8();
+        println!("Shader '{path:?}' SPIRV size: {}", spirv_binary.len());
+
+        // Extract metadata from SPIRV
+        let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
+        let ep = &reflect.enumerate_entry_points().unwrap()[0];
+        println!("SPIRV Metadata: {:#?}", ep);
+
+        let module =
+            unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) };
+
+        Ok(module?)
+    }
+
+    fn load_source(&mut self, path: &str) -> Result<String> {
+        let mut file_cache = self.file_hash_cache.borrow_mut();
+        let FileCacheEntry {
+            hash: _,
+            content: vs_source,
+        } = file_cache.get(vs_path, true)?;
+        Ok(
+            std::str::from_utf8(&vs_source.context("Failed to read vertex shader source")?)?
+                .to_string(),
+        )
+    }
+}
+
+// pub fn load_shader_module(
+//     context: &VulkanContext,
+//     content: &[u8],
+//     kind: shaderc::ShaderKind,
+// ) -> Result<Arc<ShaderModule>> {
+//     let source = std::str::from_utf8(content)?;
+//     let header = std::fs::read_to_string("app/header.glsl")?;
+//     let combined = format!("{header}\n{source}");
+//
+//     let compiler = shaderc::Compiler::new().unwrap();
+//
+//     // let input_file_name = path.to_str().ok_or(anyhow!("Invalid file name"))?;
+//     let spirv = compiler.compile_into_spirv(&combined, kind, "input_file_name", "main", None)?;
+//     let spirv_binary = spirv.as_binary_u8();
+//
+//     let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
+//     let ep = &reflect.enumerate_entry_points().unwrap()[0];
+//     println!("SPIRV Metadata: {:#?}", ep);
+//
+//     // println!("Shader '{path:?}' SPIRV size: {}", spirv_binary.len());
+//
+//     let module =
+//         unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) };
+//
+//     Ok(module?)
+// }

@@ -51,7 +51,8 @@ pub struct LocalUniformBinding {
     pub uniform_buffer_offset: u32,
 }
 
+#[derive(Clone)]
 pub struct GlobalUniformBinding {
     pub global_type: GlobalType,
-    pub uniform_buffer_offset: u32,
+    pub uniform_buffer_f32_offset: u32,
 }
