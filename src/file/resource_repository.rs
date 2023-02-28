@@ -2,9 +2,9 @@ use crate::control::controls::{Controls, GlobalType};
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileCache;
-use crate::file::shader_loader::load_shader_module;
+use crate::file::shader_loader::ShaderCache;
 use crate::render::material::{
-    GlobalUniformBinding, Material, MaterialStep, Shader, TextureBinding,
+    GlobalUniformMapping, Material, MaterialStep, Shader, TextureBinding,
 };
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
@@ -41,10 +41,11 @@ pub struct ResourceRepository {
 
     texture_cache: BinaryFileCache<Arc<Texture>>,
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
-    vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
-    fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     root_ron_file_cache: BinaryFileCache<Arc<RonObject>>,
 
+    shader_cache: ShaderCache,
+    // vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
+    // fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     pub controls: Controls,
 
     cached_root: Option<Arc<RenderObject>>,
@@ -52,17 +53,18 @@ pub struct ResourceRepository {
 
 impl ResourceRepository {
     pub fn try_new() -> Result<Self> {
-        let file_hash_cache = Rc::new(RefCell::new(FileCache::new()))?;
+        let file_hash_cache = Rc::new(RefCell::new(FileCache::new()?));
 
         Ok(Self {
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
             mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
-            vertex_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
-                load_shader_module(context, content, shaderc::ShaderKind::Vertex)
-            }),
-            fragment_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
-                load_shader_module(context, content, shaderc::ShaderKind::Fragment)
-            }),
+            // vertex_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
+            //     load_shader_module(context, content, shaderc::ShaderKind::Vertex)
+            // }),
+            // fragment_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
+            //     load_shader_module(context, content, shaderc::ShaderKind::Fragment)
+            // }),
+            shader_cache: ShaderCache::new(&file_hash_cache),
             root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_ron_file),
             file_hash_cache,
             cached_root: None,
@@ -91,71 +93,76 @@ impl ResourceRepository {
         self.mesh_cache.get_or_load(context, &path)
     }
 
-    pub fn get_vertex_shader(
-        &mut self,
-        context: &VulkanContext,
-        path: &str,
-    ) -> Result<&Arc<ShaderModule>> {
-        self.vertex_shader_cache.get_or_load(context, &path)
-    }
-
-    pub fn get_fragment_shader(
-        &mut self,
-        context: &VulkanContext,
-        path: &str,
-    ) -> Result<&Arc<ShaderModule>> {
-        self.fragment_shader_cache.get_or_load(context, &path)
-    }
+    // pub fn get_vertex_shader(
+    //     &mut self,
+    //     context: &VulkanContext,
+    //     path: &str,
+    // ) -> Result<&Arc<ShaderModule>> {
+    //     // self.vertex_shader_cache.get_or_load(context, &path)
+    // }
+    //
+    // pub fn get_fragment_shader(
+    //     &mut self,
+    //     context: &VulkanContext,
+    //     path: &str,
+    // ) -> Result<&Arc<ShaderModule>> {
+    //     self.fragment_shader_cache.get_or_load(context, &path)
+    // }
 
     pub fn load_render_object(&mut self, context: &VulkanContext) -> Result<RenderObject> {
         // let source = std::fs::read_to_string("app/demo.ron")?;
         // let object = ron::from_str::<RonObject>(&source)?;
         let object = self
             .root_ron_file_cache
-            .get_or_load(context, &path)?
+            .get_or_load(context, "app/demo.ron")?
             .clone();
 
         let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
         let texture = self.get_texture(context, &object.texture_path)?.clone();
 
-        let vs = self
-            .get_vertex_shader(context, &object.vertex_shader)?
-            .clone();
-        let fs = self
-            .get_fragment_shader(context, &object.fragment_shader)?
-            .clone();
+        // let vs = self
+        //     .get_vertex_shader(context, &object.vertex_shader)?
+        //     .clone();
+        // let fs = self
+        //     .get_fragment_shader(context, &object.fragment_shader)?
+        //     .clone();
+        let shader_modules = self.shader_cache.get_or_load(
+            context,
+            &object.vertex_shader,
+            &object.fragment_shader,
+        )?;
 
         let vertex_shader = Shader {
-            shader_module: vs,
+            shader_module: shader_modules.vertex_shader,
             texture_bindings: vec![],
             local_uniform_bindings: vec![],
             global_uniform_bindings: vec![
-                GlobalUniformBinding {
+                GlobalUniformMapping {
                     global_type: GlobalType::ModelToProjection,
-                    uniform_buffer_f32_offset: 0,
+                    offset: 0,
                 },
-                GlobalUniformBinding {
+                GlobalUniformMapping {
                     global_type: GlobalType::ModelToCamera,
-                    uniform_buffer_f32_offset: 16,
+                    offset: 16,
                 },
             ],
         };
 
         let fragment_shader = Shader {
-            shader_module: fs,
+            shader_module: shader_modules.fragment_shader,
             texture_bindings: vec![TextureBinding {
                 texture,
                 descriptor_set_binding: 1,
             }],
             local_uniform_bindings: vec![],
             global_uniform_bindings: vec![
-                GlobalUniformBinding {
+                GlobalUniformMapping {
                     global_type: GlobalType::ModelToProjection,
-                    uniform_buffer_f32_offset: 0,
+                    offset: 0,
                 },
-                GlobalUniformBinding {
+                GlobalUniformMapping {
                     global_type: GlobalType::ModelToCamera,
-                    uniform_buffer_f32_offset: 16,
+                    offset: 16,
                 },
             ],
         };

@@ -34,8 +34,8 @@ pub enum ShaderKind {
 pub struct Shader {
     pub shader_module: Arc<ShaderModule>,
     pub texture_bindings: Vec<TextureBinding>,
-    pub global_uniform_bindings: Vec<GlobalUniformBinding>,
-    pub local_uniform_bindings: Vec<LocalUniformBinding>,
+    pub global_uniform_bindings: Vec<GlobalUniformMapping>,
+    pub local_uniform_bindings: Vec<LocalUniformMapping>,
 }
 
 #[derive(Clone)]
@@ -45,14 +45,14 @@ pub struct TextureBinding {
 }
 
 #[derive(Clone)]
-pub struct LocalUniformBinding {
+pub struct LocalUniformMapping {
     pub control: Rc<Control>,
     pub component_count: u32,
     pub uniform_buffer_offset: u32,
 }
 
 #[derive(Clone)]
-pub struct GlobalUniformBinding {
+pub struct GlobalUniformMapping {
     pub global_type: GlobalType,
-    pub uniform_buffer_f32_offset: u32,
+    pub offset: u32,
 }
