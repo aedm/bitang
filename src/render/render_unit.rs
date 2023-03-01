@@ -233,6 +233,12 @@ impl ShaderUniformStorage {
                     uniform_values[offset + i] = *value;
                 }
             }
+            for local_mapping in &shader.local_uniform_bindings {
+                for i in 0..local_mapping.f32_count {
+                    uniform_values[local_mapping.f32_offset + i] =
+                        local_mapping.control.get_value(i, 0.0);
+                }
+            }
             let _value_count = shader.uniform_buffer_size / size_of::<f32>();
             let uniform_buffer_subbuffer =
                 self.uniform_buffer_pool.from_data(uniform_values).unwrap();

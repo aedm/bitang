@@ -47,8 +47,8 @@ pub struct TextureBinding {
 #[derive(Clone)]
 pub struct LocalUniformMapping {
     pub control: Rc<Control>,
-    pub component_count: u32,
-    pub uniform_buffer_offset: usize,
+    pub f32_count: usize,
+    pub f32_offset: usize,
 }
 
 #[derive(Copy, Clone, Debug)]

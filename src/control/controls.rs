@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use anyhow::Result;
-use glam::{Mat4};
+use glam::Mat4;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -8,8 +8,8 @@ use std::rc::Rc;
 use std::slice;
 
 pub struct Controls {
-    controls_by_id: HashMap<String, Rc<Control>>,
-    globals: Globals,
+    pub controls_by_id: HashMap<String, Rc<Control>>,
+    pub globals: Globals,
 }
 
 impl Controls {
@@ -20,13 +20,13 @@ impl Controls {
         }
     }
 
-    fn get_control(&mut self, id: &str) -> Option<Rc<Control>> {
+    pub fn get_control(&mut self, id: &str) -> Rc<Control> {
         if let Some(x) = self.controls_by_id.get(id) {
-            return Some(x.clone());
+            return x.clone();
         }
         let control = Rc::new(Control::new());
         self.controls_by_id.insert(id.to_string(), control.clone());
-        Some(control)
+        control
     }
 }
 
@@ -42,7 +42,7 @@ pub enum ControlValue {
 impl Control {
     pub fn new() -> Self {
         Self {
-            value: RefCell::new(ControlValue::Scalars([0.0; 16])),
+            value: RefCell::new(ControlValue::Scalars([0.2; 16])),
         }
     }
 

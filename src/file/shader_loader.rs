@@ -6,6 +6,7 @@ use anyhow::{Context, Error, Result};
 use spirv_reflect::types::ReflectDescriptorType;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::buffer::BufferContents;
@@ -42,8 +43,8 @@ pub struct ShaderCompilationTextureBinding {
 #[derive(Debug)]
 pub struct ShaderCompilationLocalUniform {
     pub name: String,
-    pub offset: u32,
-    pub size: u32,
+    pub f32_offset: usize,
+    pub f32_count: usize,
 }
 
 pub struct ShaderCache {
@@ -161,8 +162,9 @@ impl ShaderCache {
                         .filter(|var| !var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
                         .map(|var| ShaderCompilationLocalUniform {
                             name: var.name.clone(),
-                            offset: var.offset,
-                            size: var.size,
+                            // TODO: assert that type is FLOAT
+                            f32_offset: var.offset as usize / size_of::<f32>(),
+                            f32_count: var.size as usize / size_of::<f32>(),
                         })
                         .collect();
                     let global_uniform_bindings = members

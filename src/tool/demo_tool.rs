@@ -1,4 +1,4 @@
-use crate::control::controls::Globals;
+use crate::control::controls::{Controls, Globals};
 use crate::file::resource_repository::ResourceRepository;
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::RenderTarget;
@@ -30,14 +30,16 @@ pub struct DemoTool {
     resource_repository: ResourceRepository,
     render_unit: Option<RenderUnit>,
     render_object: Option<Arc<RenderObject>>,
+    controls: Controls,
 }
 
 impl DemoTool {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let mut resource_repository = ResourceRepository::try_new()?;
+        let mut controls = Controls::new();
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
 
-        let render_object = resource_repository.load_root_document(context)?;
+        let render_object = resource_repository.load_root_document(context, &mut controls)?;
         let render_unit = RenderUnit::new(context, &render_target, render_object.clone());
 
         let ui = Ui::new(context, event_loop);
@@ -49,12 +51,15 @@ impl DemoTool {
             resource_repository,
             render_unit: Some(render_unit),
             render_object: Some(render_object),
+            controls,
         };
         Ok(demo_tool)
     }
 
     fn update_render_unit(&mut self, context: &VulkanContext) {
-        let render_object = self.resource_repository.load_root_document(context);
+        let render_object = self
+            .resource_repository
+            .load_root_document(context, &mut self.controls);
         if let Ok(render_object) = render_object {
             if let Some(old_object) = &self.render_object {
                 if Arc::ptr_eq(&render_object, old_object) {
@@ -108,6 +113,7 @@ impl DemoTool {
             .set_viewport(0, [viewport.clone()]);
 
         if let Some(render_unit) = &mut self.render_unit {
+            // TODO: https://docs.rs/glam/latest/glam/f32/struct.Mat4.html#method.look_to_lh
             let model_to_camera =
                 Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
             let camera_to_projection = Mat4::perspective_infinite_lh(
@@ -117,11 +123,15 @@ impl DemoTool {
             );
             let model_to_projection = camera_to_projection * model_to_camera;
 
-            let mut globals = Globals::default();
-            globals.model_to_projection = model_to_projection;
-            globals.model_to_camera = model_to_camera;
+            self.controls.globals.model_to_projection = model_to_projection;
+            self.controls.globals.model_to_camera = model_to_camera;
 
-            render_unit.render(context, &mut builder, MaterialStepType::Solid, &globals);
+            render_unit.render(
+                context,
+                &mut builder,
+                MaterialStepType::Solid,
+                &self.controls.globals,
+            );
         }
 
         builder.end_render_pass().unwrap();

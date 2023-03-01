@@ -3,7 +3,9 @@ use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::ShaderCache;
-use crate::render::material::{Material, MaterialStep, Shader, TextureBinding};
+use crate::render::material::{
+    LocalUniformMapping, Material, MaterialStep, Shader, TextureBinding,
+};
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
@@ -22,6 +24,7 @@ use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 
 #[derive(Debug, Deserialize)]
 pub struct RonObject {
+    id: String,
     mesh_path: String,
     texture_path: String,
     // mesh_selector: String,
@@ -67,14 +70,18 @@ impl ResourceRepository {
         })
     }
 
-    pub fn load_root_document(&mut self, context: &VulkanContext) -> Result<Arc<RenderObject>> {
+    pub fn load_root_document(
+        &mut self,
+        context: &VulkanContext,
+        controls: &mut Controls,
+    ) -> Result<Arc<RenderObject>> {
         let has_changes = self.file_hash_cache.borrow_mut().start_load_cycle();
         if !has_changes {
             if let Some(cached_root) = &self.cached_root {
                 return Ok(cached_root.clone());
             }
         }
-        let result = Arc::new(self.load_render_object(context)?);
+        let result = Arc::new(self.load_render_object(context, controls)?);
         self.cached_root = Some(result.clone());
         self.file_hash_cache.borrow_mut().end_load_cycle()?;
         Ok(result)
@@ -104,7 +111,11 @@ impl ResourceRepository {
     //     self.fragment_shader_cache.get_or_load(context, &path)
     // }
 
-    pub fn load_render_object(&mut self, context: &VulkanContext) -> Result<RenderObject> {
+    pub fn load_render_object(
+        &mut self,
+        context: &VulkanContext,
+        controls: &mut Controls,
+    ) -> Result<RenderObject> {
         let object = self
             .root_ron_file_cache
             .get_or_load(context, "app/demo.ron")?
@@ -119,13 +130,43 @@ impl ResourceRepository {
             &object.fragment_shader,
         )?;
 
+        let vs_local_mapping = shaders
+            .vertex_shader
+            .local_uniform_bindings
+            .iter()
+            .map(|binding| {
+                let control_id = format!("ob/{}/{}", &object.id, binding.name);
+                let control = controls.get_control(&control_id);
+                LocalUniformMapping {
+                    control,
+                    f32_count: binding.f32_count,
+                    f32_offset: binding.f32_offset,
+                }
+            })
+            .collect::<Vec<_>>();
+
         let vertex_shader = Shader {
             shader_module: shaders.vertex_shader.module.clone(),
             texture_bindings: vec![],
-            local_uniform_bindings: vec![],
+            local_uniform_bindings: vs_local_mapping,
             global_uniform_bindings: shaders.vertex_shader.global_uniform_bindings.clone(),
             uniform_buffer_size: shaders.vertex_shader.uniform_buffer_size,
         };
+
+        let fs_local_mapping = shaders
+            .fragment_shader
+            .local_uniform_bindings
+            .iter()
+            .map(|binding| {
+                let control_id = format!("ob/{}/{}", &object.id, binding.name);
+                let control = controls.get_control(&control_id);
+                LocalUniformMapping {
+                    control,
+                    f32_count: binding.f32_count,
+                    f32_offset: binding.f32_offset,
+                }
+            })
+            .collect::<Vec<_>>();
 
         let fragment_shader = Shader {
             shader_module: shaders.fragment_shader.module.clone(),
@@ -133,7 +174,7 @@ impl ResourceRepository {
                 texture,
                 descriptor_set_binding: 1,
             }],
-            local_uniform_bindings: vec![],
+            local_uniform_bindings: fs_local_mapping,
             global_uniform_bindings: shaders.fragment_shader.global_uniform_bindings.clone(),
             uniform_buffer_size: shaders.fragment_shader.uniform_buffer_size,
         };
