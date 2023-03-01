@@ -62,16 +62,16 @@ impl Control {
 #[derive(Copy, Clone, Debug)]
 pub enum GlobalType {
     AppTime,
-    ModelToProjection,
-    ModelToCamera,
+    ProjectionFromModel,
+    CameraFromModel,
 }
 
 impl GlobalType {
     pub fn from_str(s: &str) -> Result<GlobalType> {
         match s {
             "app_time" => Ok(GlobalType::AppTime),
-            "model_to_projection" => Ok(GlobalType::ModelToProjection),
-            "model_to_camera" => Ok(GlobalType::ModelToCamera),
+            "projection_from_model" => Ok(GlobalType::ProjectionFromModel),
+            "camera_from_model" => Ok(GlobalType::CameraFromModel),
             _ => Err(anyhow!("Unknown global type: {}", s)),
         }
     }
@@ -80,16 +80,16 @@ impl GlobalType {
 #[derive(Default)]
 pub struct Globals {
     pub app_time: f32,
-    pub model_to_projection: Mat4,
-    pub model_to_camera: Mat4,
+    pub projection_from_model: Mat4,
+    pub camera_from_model: Mat4,
 }
 
 impl Globals {
     pub fn get(&self, global_type: GlobalType) -> &[f32] {
         match global_type {
             GlobalType::AppTime => slice::from_ref(&self.app_time),
-            GlobalType::ModelToProjection => self.model_to_projection.as_ref(),
-            GlobalType::ModelToCamera => self.model_to_camera.as_ref(),
+            GlobalType::ProjectionFromModel => self.projection_from_model.as_ref(),
+            GlobalType::CameraFromModel => self.camera_from_model.as_ref(),
         }
     }
 }
