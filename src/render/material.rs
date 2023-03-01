@@ -36,6 +36,7 @@ pub struct Shader {
     pub texture_bindings: Vec<TextureBinding>,
     pub global_uniform_bindings: Vec<GlobalUniformMapping>,
     pub local_uniform_bindings: Vec<LocalUniformMapping>,
+    pub uniform_buffer_size: usize,
 }
 
 #[derive(Clone)]
@@ -48,11 +49,11 @@ pub struct TextureBinding {
 pub struct LocalUniformMapping {
     pub control: Rc<Control>,
     pub component_count: u32,
-    pub uniform_buffer_offset: u32,
+    pub uniform_buffer_offset: usize,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct GlobalUniformMapping {
     pub global_type: GlobalType,
-    pub offset: u32,
+    pub offset: usize,
 }

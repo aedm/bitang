@@ -2,7 +2,7 @@ use crate::control::controls::GlobalType;
 use crate::file::file_hash_cache::{hash_content, ContentHash, FileCache, FileCacheEntry};
 use crate::render::material::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
-use anyhow::{Context, Result};
+use anyhow::{Context, Error, Result};
 use spirv_reflect::types::{ReflectDescriptorType, ReflectResourceType};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -12,31 +12,35 @@ use std::sync::Arc;
 use vulkano::buffer::BufferContents;
 use vulkano::shader::ShaderModule;
 
+#[derive(Hash, PartialEq, Eq, Clone)]
 struct ShaderCacheKey {
     vertex_shader_hash: ContentHash,
     fragment_shader_hash: ContentHash,
 }
 
-#[derive(Clone)]
 pub struct ShaderCacheValue {
-    pub vertex_shader: Arc<ShaderModule>,
-    pub fragment_shader: Arc<ShaderModule>,
+    pub vertex_shader: ShaderCompilationResult,
+    pub fragment_shader: ShaderCompilationResult,
 }
 
+#[derive(Debug)]
 pub struct ShaderCompilationResult {
     pub module: Arc<ShaderModule>,
     pub texture_bindings: Vec<ShaderCompilationTextureBinding>,
     pub global_uniform_bindings: Vec<GlobalUniformMapping>,
     pub local_uniform_bindings: Vec<ShaderCompilationLocalUniform>,
+    pub uniform_buffer_size: usize,
 }
 
 // Metadata of a texture binding extracted from the compiled shader
+#[derive(Debug)]
 pub struct ShaderCompilationTextureBinding {
     pub name: String,
     pub binding: u32,
 }
 
 // Metadata of a local uniform extracted from the compiled shader
+#[derive(Debug)]
 pub struct ShaderCompilationLocalUniform {
     pub name: String,
     pub offset: u32,
@@ -63,7 +67,7 @@ impl ShaderCache {
         context: &VulkanContext,
         vs_path: &str,
         fs_path: &str,
-    ) -> Result<ShaderCacheValue> {
+    ) -> Result<&ShaderCacheValue> {
         let header = self.load_source("app/header.glsl")?;
         let vs_source = format!("{header}\n{}", self.load_source(vs_path)?);
         let fs_source = format!("{header}\n{}", self.load_source(fs_path)?);
@@ -74,28 +78,26 @@ impl ShaderCache {
             vertex_shader_hash: vs_hash,
             fragment_shader_hash: fs_hash,
         };
-        if self.shader_cache.contains_key(&key) {
-            Ok(self.shader_cache.get(&key).unwrap().clone())
-        } else {
-            let vs_module = load_shader_module(
+        if !self.shader_cache.contains_key(&key) {
+            let vs_result = Self::compile_shader_module(
                 context,
-                vs_source.as_bytes(),
+                &vs_source,
                 vs_path,
                 shaderc::ShaderKind::Vertex,
             )?;
-            let fs_module = load_shader_module(
+            let fs_result = Self::compile_shader_module(
                 context,
-                fs_source.as_bytes(),
+                &fs_source,
                 fs_path,
                 shaderc::ShaderKind::Fragment,
             )?;
             let value = ShaderCacheValue {
-                vertex_shader: vs_module,
-                fragment_shader: fs_module,
+                vertex_shader: vs_result,
+                fragment_shader: fs_result,
             };
-            self.shader_cache.insert(key, value.clone());
-            Ok(value)
+            self.shader_cache.insert(key.clone(), value);
         }
+        Ok(self.shader_cache.get(&key).unwrap())
     }
 
     fn compile_shader_module(
@@ -112,7 +114,8 @@ impl ShaderCache {
         // Extract metadata from SPIRV
         let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
         let entry_point = reflect
-            .enumerate_entry_points()?
+            .enumerate_entry_points()
+            .map_err(Error::msg)?
             .into_iter()
             .find(|ep| ep.name == "main")
             .with_context(|| format!("Failed to find entry point 'main' in '{path}'"))?;
@@ -147,32 +150,47 @@ impl ShaderCache {
         let uniform_block = &descriptor_set
             .bindings
             .iter()
-            .find(|binding| binding.descriptor_type == ReflectDescriptorType::UniformBuffer)
-            .with_context(|| format!("Failed to find uniform buffer in '{path}'"))?
-            .block
-            .members;
+            .find(|binding| binding.descriptor_type == ReflectDescriptorType::UniformBuffer);
 
-        // Split local and global uniforms
-        let local_uniform_bindings = uniform_block
-            .iter()
-            .filter(|var| !var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
-            .map(|var| ShaderCompilationLocalUniform {
-                name: var.name.clone(),
-                offset: var.offset,
-                size: var.size,
-            })
-            .collect();
-
-        let global_uniform_bindings = uniform_block
-            .iter()
-            .filter(|var| var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
-            .map(|var| GlobalUniformMapping {
-                global_type: GlobalType::from_str(&var.name[(GLOBAL_UNIFORM_PREFIX.len())..])?,
-                offset: var.offset,
-            })
-            .collect();
-
-        println!("SPIRV Metadata: {:#?}", entry_point);
+        // Find local and global uniforms
+        let (local_uniform_bindings, global_uniform_bindings, uniform_buffer_size) =
+            match uniform_block {
+                Some(binding) => {
+                    let members = &binding.block.members;
+                    let local_uniform_bindings = members
+                        .iter()
+                        .filter(|var| !var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
+                        .map(|var| ShaderCompilationLocalUniform {
+                            name: var.name.clone(),
+                            offset: var.offset,
+                            size: var.size,
+                        })
+                        .collect();
+                    let global_uniform_bindings = members
+                        .iter()
+                        .filter(|var| var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
+                        .map(|var| {
+                            GlobalType::from_str(&var.name[(GLOBAL_UNIFORM_PREFIX.len())..])
+                                .and_then(|global_type| {
+                                    Ok(GlobalUniformMapping {
+                                        global_type,
+                                        offset: var.offset as usize,
+                                    })
+                                })
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    let uniform_buffer_size = binding.block.size as usize;
+                    (
+                        local_uniform_bindings,
+                        global_uniform_bindings,
+                        uniform_buffer_size,
+                    )
+                }
+                None => {
+                    println!("WARNING: No uniform block found in '{:?}'", path);
+                    (vec![], vec![], 0)
+                }
+            };
 
         let module =
             unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) }?;
@@ -182,7 +200,13 @@ impl ShaderCache {
             texture_bindings,
             local_uniform_bindings,
             global_uniform_bindings,
+            uniform_buffer_size,
         };
+
+        println!("Shader '{path}' ({kind:?}) compiled successfully.");
+        println!("Local uniforms: {:#?}", result.local_uniform_bindings);
+        println!("Global uniforms: {:#?}", result.global_uniform_bindings);
+        println!("Textures: {:#?}", result.texture_bindings);
         Ok(result)
     }
 
@@ -198,30 +222,3 @@ impl ShaderCache {
         )
     }
 }
-
-// pub fn load_shader_module(
-//     context: &VulkanContext,
-//     content: &[u8],
-//     kind: shaderc::ShaderKind,
-// ) -> Result<Arc<ShaderModule>> {
-//     let source = std::str::from_utf8(content)?;
-//     let header = std::fs::read_to_string("app/header.glsl")?;
-//     let combined = format!("{header}\n{source}");
-//
-//     let compiler = shaderc::Compiler::new().unwrap();
-//
-//     // let input_file_name = path.to_str().ok_or(anyhow!("Invalid file name"))?;
-//     let spirv = compiler.compile_into_spirv(&combined, kind, "input_file_name", "main", None)?;
-//     let spirv_binary = spirv.as_binary_u8();
-//
-//     let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
-//     let ep = &reflect.enumerate_entry_points().unwrap()[0];
-//     println!("SPIRV Metadata: {:#?}", ep);
-//
-//     // println!("Shader '{path:?}' SPIRV size: {}", spirv_binary.len());
-//
-//     let module =
-//         unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) };
-//
-//     Ok(module?)
-// }

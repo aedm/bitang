@@ -55,7 +55,7 @@ impl Control {
 }
 
 // TODO: generate this automatically from the Globals struct somehow
-#[derive(Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum GlobalType {
     AppTime,
     ModelToProjection,

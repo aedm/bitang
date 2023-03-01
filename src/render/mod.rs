@@ -2,7 +2,6 @@ pub mod material;
 pub mod mesh;
 pub mod render_target;
 pub mod render_unit;
-pub mod shader_context;
 pub mod vulkan_window;
 
 use crate::render::material::Material;
@@ -34,11 +33,3 @@ pub struct RenderObject {
     pub rotation: Vec3,
     pub material: Material,
 }
-
-// pub struct Drawable {
-//     pub pipeline: Arc<GraphicsPipeline>,
-//     pub vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex3]>>,
-//     pub uniform_buffer: CpuBufferPool<ContextUniforms>,
-//     pub texture: Arc<ImageView<ImmutableImage>>,
-//     pub descriptor_set: Arc<PersistentDescriptorSet>,
-// }

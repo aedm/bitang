@@ -110,8 +110,6 @@ impl ResourceRepository {
     // }
 
     pub fn load_render_object(&mut self, context: &VulkanContext) -> Result<RenderObject> {
-        // let source = std::fs::read_to_string("app/demo.ron")?;
-        // let object = ron::from_str::<RonObject>(&source)?;
         let object = self
             .root_ron_file_cache
             .get_or_load(context, "app/demo.ron")?
@@ -120,51 +118,29 @@ impl ResourceRepository {
         let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
         let texture = self.get_texture(context, &object.texture_path)?.clone();
 
-        // let vs = self
-        //     .get_vertex_shader(context, &object.vertex_shader)?
-        //     .clone();
-        // let fs = self
-        //     .get_fragment_shader(context, &object.fragment_shader)?
-        //     .clone();
-        let shader_modules = self.shader_cache.get_or_load(
+        let shaders = self.shader_cache.get_or_load(
             context,
             &object.vertex_shader,
             &object.fragment_shader,
         )?;
 
         let vertex_shader = Shader {
-            shader_module: shader_modules.vertex_shader,
+            shader_module: shaders.vertex_shader.module.clone(),
             texture_bindings: vec![],
             local_uniform_bindings: vec![],
-            global_uniform_bindings: vec![
-                GlobalUniformMapping {
-                    global_type: GlobalType::ModelToProjection,
-                    offset: 0,
-                },
-                GlobalUniformMapping {
-                    global_type: GlobalType::ModelToCamera,
-                    offset: 16,
-                },
-            ],
+            global_uniform_bindings: shaders.vertex_shader.global_uniform_bindings.clone(),
+            uniform_buffer_size: shaders.vertex_shader.uniform_buffer_size,
         };
 
         let fragment_shader = Shader {
-            shader_module: shader_modules.fragment_shader,
+            shader_module: shaders.fragment_shader.module.clone(),
             texture_bindings: vec![TextureBinding {
                 texture,
                 descriptor_set_binding: 1,
             }],
             local_uniform_bindings: vec![],
-            global_uniform_bindings: vec![
-                GlobalUniformMapping {
-                    global_type: GlobalType::ModelToProjection,
-                    offset: 0,
-                },
-                GlobalUniformMapping {
-                    global_type: GlobalType::ModelToCamera,
-                    offset: 16,
-                },
-            ],
+            global_uniform_bindings: shaders.fragment_shader.global_uniform_bindings.clone(),
+            uniform_buffer_size: shaders.fragment_shader.uniform_buffer_size,
         };
 
         let solid_step = MaterialStep {

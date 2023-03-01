@@ -1,8 +1,8 @@
+use crate::control::controls::Globals;
 use crate::file::resource_repository::ResourceRepository;
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::RenderTarget;
 use crate::render::render_unit::RenderUnit;
-use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::{VulkanApp, VulkanContext};
 use crate::render::RenderObject;
 use crate::tool::ui::Ui;
@@ -108,22 +108,20 @@ impl DemoTool {
             .set_viewport(0, [viewport.clone()]);
 
         if let Some(render_unit) = &mut self.render_unit {
-            render_unit.uniform_values = {
-                let model_to_camera = Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0))
-                    * Mat4::from_rotation_y(elapsed);
-                let camera_to_projection = Mat4::perspective_infinite_lh(
-                    PI / 2.0,
-                    viewport.dimensions[0] / viewport.dimensions[1],
-                    0.1,
-                );
-                let model_to_projection = camera_to_projection * model_to_camera;
+            let model_to_camera =
+                Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
+            let camera_to_projection = Mat4::perspective_infinite_lh(
+                PI / 2.0,
+                viewport.dimensions[0] / viewport.dimensions[1],
+                0.1,
+            );
+            let model_to_projection = camera_to_projection * model_to_camera;
 
-                ContextUniforms {
-                    model_to_projection,
-                    model_to_camera,
-                }
-            };
-            render_unit.render(context, &mut builder, MaterialStepType::Solid);
+            let mut globals = Globals::default();
+            globals.model_to_projection = model_to_projection;
+            globals.model_to_camera = model_to_camera;
+
+            render_unit.render(context, &mut builder, MaterialStepType::Solid, &globals);
         }
 
         builder.end_render_pass().unwrap();
