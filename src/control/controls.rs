@@ -35,14 +35,14 @@ pub struct Control {
 }
 
 pub enum ControlValue {
-    Scalars([f32; 16]), // Can store up to a 4x4 matrix
+    Scalars([f32; 4]),
     Splines(),
 }
 
 impl Control {
     pub fn new() -> Self {
         Self {
-            value: RefCell::new(ControlValue::Scalars([0.2; 16])),
+            value: RefCell::new(ControlValue::Scalars([0.0; 4])),
         }
     }
 
@@ -51,6 +51,10 @@ impl Control {
             ControlValue::Scalars(x) => x[index],
             ControlValue::Splines() => 0.0,
         }
+    }
+
+    pub fn set_scalar(&self, value: [f32; 4]) {
+        *self.value.borrow_mut() = ControlValue::Scalars(value);
     }
 }
 

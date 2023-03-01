@@ -2,16 +2,20 @@ use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileCache;
-use crate::file::shader_loader::ShaderCache;
+use crate::file::shader_loader::{ShaderCache, ShaderCacheValue, ShaderCompilationResult};
 use crate::render::material::{
     LocalUniformMapping, Material, MaterialStep, Shader, TextureBinding,
 };
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use glam::Vec4;
 use serde::Deserialize;
+use serde::Serialize;
+use std::array;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::Cursor;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -22,7 +26,7 @@ use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RonObject {
     id: String,
     mesh_path: String,
@@ -32,6 +36,7 @@ pub struct RonObject {
     fragment_shader: String,
     depth_test: bool,
     depth_write: bool,
+    uniforms: HashMap<String, Vec<f32>>,
 }
 
 pub struct ResourceRepository {
@@ -95,22 +100,6 @@ impl ResourceRepository {
         self.mesh_cache.get_or_load(context, &path)
     }
 
-    // pub fn get_vertex_shader(
-    //     &mut self,
-    //     context: &VulkanContext,
-    //     path: &str,
-    // ) -> Result<&Arc<ShaderModule>> {
-    //     // self.vertex_shader_cache.get_or_load(context, &path)
-    // }
-    //
-    // pub fn get_fragment_shader(
-    //     &mut self,
-    //     context: &VulkanContext,
-    //     path: &str,
-    // ) -> Result<&Arc<ShaderModule>> {
-    //     self.fragment_shader_cache.get_or_load(context, &path)
-    // }
-
     pub fn load_render_object(
         &mut self,
         context: &VulkanContext,
@@ -121,71 +110,23 @@ impl ResourceRepository {
             .get_or_load(context, "app/demo.ron")?
             .clone();
 
+        // Set uniforms
+        for (uniform_name, uniform_value) in &object.uniforms {
+            if uniform_value.is_empty() {
+                return Err(anyhow!(
+                    "Uniform '{}' has no values. Object id '{}'",
+                    uniform_name,
+                    object.id
+                ));
+            }
+            let control_id = Self::make_control_id_for_object(&object.id, uniform_name);
+            let value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
+            controls.get_control(&control_id).set_scalar(value);
+        }
+
         let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
         let texture = self.get_texture(context, &object.texture_path)?.clone();
-
-        let shaders = self.shader_cache.get_or_load(
-            context,
-            &object.vertex_shader,
-            &object.fragment_shader,
-        )?;
-
-        let vs_local_mapping = shaders
-            .vertex_shader
-            .local_uniform_bindings
-            .iter()
-            .map(|binding| {
-                let control_id = format!("ob/{}/{}", &object.id, binding.name);
-                let control = controls.get_control(&control_id);
-                LocalUniformMapping {
-                    control,
-                    f32_count: binding.f32_count,
-                    f32_offset: binding.f32_offset,
-                }
-            })
-            .collect::<Vec<_>>();
-
-        let vertex_shader = Shader {
-            shader_module: shaders.vertex_shader.module.clone(),
-            texture_bindings: vec![],
-            local_uniform_bindings: vs_local_mapping,
-            global_uniform_bindings: shaders.vertex_shader.global_uniform_bindings.clone(),
-            uniform_buffer_size: shaders.vertex_shader.uniform_buffer_size,
-        };
-
-        let fs_local_mapping = shaders
-            .fragment_shader
-            .local_uniform_bindings
-            .iter()
-            .map(|binding| {
-                let control_id = format!("ob/{}/{}", &object.id, binding.name);
-                let control = controls.get_control(&control_id);
-                LocalUniformMapping {
-                    control,
-                    f32_count: binding.f32_count,
-                    f32_offset: binding.f32_offset,
-                }
-            })
-            .collect::<Vec<_>>();
-
-        let fragment_shader = Shader {
-            shader_module: shaders.fragment_shader.module.clone(),
-            texture_bindings: vec![TextureBinding {
-                texture,
-                descriptor_set_binding: 1,
-            }],
-            local_uniform_bindings: fs_local_mapping,
-            global_uniform_bindings: shaders.fragment_shader.global_uniform_bindings.clone(),
-            uniform_buffer_size: shaders.fragment_shader.uniform_buffer_size,
-        };
-
-        let solid_step = MaterialStep {
-            vertex_shader,
-            fragment_shader,
-            depth_test: object.depth_test,
-            depth_write: object.depth_write,
-        };
-
+        let solid_step = self.make_material_step(context, controls, &object, &texture)?;
         let material = Material {
             passes: [None, None, Some(solid_step)],
         };
@@ -196,8 +137,80 @@ impl ResourceRepository {
             position: Default::default(),
             rotation: Default::default(),
         };
-
         Ok(render_object)
+    }
+
+    fn make_material_step(
+        &mut self,
+        context: &VulkanContext,
+        controls: &mut Controls,
+        object: &Arc<RonObject>,
+        texture: &Arc<Texture>,
+    ) -> Result<MaterialStep> {
+        let shaders = self.shader_cache.get_or_load(
+            context,
+            &object.vertex_shader,
+            &object.fragment_shader,
+        )?;
+
+        let vertex_shader = Self::make_shader(controls, &object, &shaders.vertex_shader, &texture);
+        let fragment_shader =
+            Self::make_shader(controls, &object, &shaders.fragment_shader, &texture);
+
+        let material_step = MaterialStep {
+            vertex_shader,
+            fragment_shader,
+            depth_test: object.depth_test,
+            depth_write: object.depth_write,
+        };
+        Ok(material_step)
+    }
+
+    fn make_control_id_for_object(object_id: &str, uniform_name: &str) -> String {
+        format!("ob/{}/{}", object_id, uniform_name)
+    }
+
+    fn make_shader(
+        controls: &mut Controls,
+        object: &RonObject,
+        compilation_result: &ShaderCompilationResult,
+        texture: &Arc<Texture>,
+    ) -> Shader {
+        let local_mapping = compilation_result
+            .local_uniform_bindings
+            .iter()
+            .map(|binding| {
+                let control_id = Self::make_control_id_for_object(&object.id, &binding.name);
+                let control = controls.get_control(&control_id);
+                LocalUniformMapping {
+                    control,
+                    f32_count: binding.f32_count,
+                    f32_offset: binding.f32_offset,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        // Bind all samplers to the same texture for now
+        let texture_bindings = compilation_result
+            .texture_bindings
+            .iter()
+            .map(|binding| {
+                let control_id = format!("ob/{}/{}", &object.id, binding.name);
+                let control = controls.get_control(&control_id);
+                TextureBinding {
+                    texture: texture.clone(),
+                    descriptor_set_binding: binding.binding,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Shader {
+            shader_module: compilation_result.module.clone(),
+            texture_bindings,
+            local_uniform_bindings: local_mapping,
+            global_uniform_bindings: compilation_result.global_uniform_bindings.clone(),
+            uniform_buffer_size: compilation_result.uniform_buffer_size,
+        }
     }
 }
 

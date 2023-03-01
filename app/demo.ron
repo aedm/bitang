@@ -3,8 +3,12 @@ RonObject(
 	mesh_path: "app/naty/File.blend",
 	texture_path: "app/naty/Albedo.png",
 	// texture_path: "app/naty/grid.png",
-	vertex_shader: "app/vs2.glsl",
+	vertex_shader: "app/vs.glsl",
 	fragment_shader: "app/fs.glsl",
 	depth_test: true,
 	depth_write: true,
+	uniforms: {
+		"color": [1.0, 1.0, 1.0, 1.0],
+		"extrude": [0.0]
+	}
 )

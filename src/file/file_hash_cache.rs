@@ -1,5 +1,5 @@
 use ahash::AHasher;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::{HashMap, HashSet};
@@ -49,7 +49,7 @@ impl FileCache {
             match res {
                 Ok(event) => {
                     for path in event.paths {
-                        println!("Removing file: {:?}", path);
+                        println!("File change: {:?}", path);
                         self.cache_map.remove(&path);
                     }
                     has_changes = true;
@@ -72,11 +72,12 @@ impl FileCache {
     }
 
     pub fn get(&mut self, path: &str, store_content: bool) -> Result<FileCacheEntry> {
-        let path = self.to_absolute_path(path);
-        self.new_watched_paths.insert(path.clone());
-        let result = match self.cache_map.entry(path.clone()) {
+        let absolute_path = self.to_absolute_path(path);
+        self.new_watched_paths.insert(absolute_path.clone());
+        let result = match self.cache_map.entry(absolute_path.clone()) {
             Vacant(e) => {
-                let source = std::fs::read(path)?;
+                let source = std::fs::read(absolute_path)
+                    .with_context(|| anyhow::format_err!("Failed to read file: '{path}'"))?;
                 let hash = hash_content(&source);
                 let entry = FileCacheEntry {
                     hash,
