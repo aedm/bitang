@@ -7,12 +7,13 @@ layout (location = 0) out vec2 v_uv;
 layout (location = 1) out vec3 v_normal;
 
 layout (set = 0, binding = 0) uniform Context {
-    mat4 model_to_projection;
-    mat4 model_to_camera;
+    mat4 g_model_to_projection;
+    mat4 g_model_to_camera;
+    float extrude;
 } cx;
 
 void main() {
-    gl_Position = cx.model_to_projection * vec4(a_position, 1.0);
+    gl_Position = cx.g_model_to_projection * vec4(a_position, 1.0);
     v_uv = a_uv;
-    v_normal = (cx.model_to_camera * vec4(a_normal, 0.0)).xyz;
+    v_normal = (cx.g_model_to_camera * vec4(a_normal, cx.extrude)).xyz;
 }

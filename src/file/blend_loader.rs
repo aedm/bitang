@@ -70,7 +70,7 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
                     let no = vert.get_i16_vec("no");
                     normal_buffer[index_count * 3] = f32::from(no[0]) / 32767.0;
                     normal_buffer[index_count * 3 + 2] = f32::from(no[1]) / 32767.0;
-                    normal_buffer[index_count * 3 + 1] = f32::from(no[2]) / 32767.0;
+                    normal_buffer[index_count * 3 + 1] = -f32::from(no[2]) / 32767.0;
                 } else {
                     normal_buffer[index_count * 3] = 0.0;
                     normal_buffer[index_count * 3 + 1] = 0.0;
@@ -169,10 +169,5 @@ fn load_blend(blend: Blend) -> Result<Object> {
 
 pub fn load_blend_buffer(buffer: &[u8]) -> Result<Object> {
     let blend = Blend::new(buffer);
-    load_blend(blend)
-}
-
-pub fn load_blend_file(path: &str) -> Result<Object> {
-    let blend = Blend::from_path(path);
     load_blend(blend)
 }

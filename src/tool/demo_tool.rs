@@ -1,32 +1,23 @@
+use crate::control::controls::{Controls, Globals};
 use crate::file::resource_repository::ResourceRepository;
-use crate::render::material::{Material, MaterialStep, MaterialStepType};
-use crate::render::mesh::Mesh;
+use crate::render::material::MaterialStepType;
 use crate::render::render_target::RenderTarget;
 use crate::render::render_unit::RenderUnit;
-use crate::render::shader::Shader;
-use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::{VulkanApp, VulkanContext};
-use crate::render::{RenderObject, Texture, Vertex3};
+use crate::render::RenderObject;
 use crate::tool::ui::Ui;
-use crate::types::Object;
 use anyhow::Result;
 use glam::{Mat4, Vec3};
-use image::io::Reader as ImageReader;
 use std::cmp::max;
 use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time::Instant;
-use vulkano::command_buffer::PrimaryCommandBufferAbstract;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
-use vulkano::format::Format;
-use vulkano::image::view::ImageView;
 use vulkano::image::ImageViewAbstract;
-use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo};
-use vulkano::shader::ShaderModule;
 use vulkano::sync::GpuFuture;
 use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
 use winit::event::WindowEvent;
@@ -36,20 +27,19 @@ pub struct DemoTool {
     render_target: Arc<RenderTarget>,
     ui: Ui,
     start_time: Instant,
-    // resource_cache: ResourceCache,
     resource_repository: ResourceRepository,
     render_unit: Option<RenderUnit>,
     render_object: Option<Arc<RenderObject>>,
+    controls: Controls,
 }
 
 impl DemoTool {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
-        // let mut resource_cache = ResourceCache::new();
         let mut resource_repository = ResourceRepository::try_new()?;
+        let mut controls = Controls::new();
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
 
-        // let render_object = load_render_object(&mut resource_cache, context)?;
-        let render_object = resource_repository.load_root_document(context)?;
+        let render_object = resource_repository.load_root_document(context, &mut controls)?;
         let render_unit = RenderUnit::new(context, &render_target, render_object.clone());
 
         let ui = Ui::new(context, event_loop);
@@ -58,12 +48,27 @@ impl DemoTool {
             render_target,
             ui,
             start_time: Instant::now(),
-            // resource_cache,
             resource_repository,
             render_unit: Some(render_unit),
             render_object: Some(render_object),
+            controls,
         };
         Ok(demo_tool)
+    }
+
+    fn update_render_unit(&mut self, context: &VulkanContext) {
+        let render_object = self
+            .resource_repository
+            .load_root_document(context, &mut self.controls);
+        if let Ok(render_object) = render_object {
+            if let Some(old_object) = &self.render_object {
+                if Arc::ptr_eq(&render_object, old_object) {
+                    return;
+                }
+            }
+            self.render_object = Some(render_object.clone());
+            self.render_unit = Some(RenderUnit::new(context, &self.render_target, render_object));
+        }
     }
 
     pub fn draw(
@@ -74,20 +79,7 @@ impl DemoTool {
         viewport: Viewport,
         before_future: Box<dyn GpuFuture>,
     ) -> Box<dyn GpuFuture> {
-        // self.update_render_unit(context).unwrap();
-        let render_object = self.resource_repository.load_root_document(context);
-        if let Ok(render_object) = render_object {
-            let mut changed = true;
-
-            if let Some(old_object) = &self.render_object {
-                changed = !Arc::ptr_eq(&render_object, old_object);
-            }
-            if changed {
-                self.render_object = Some(render_object.clone());
-                self.render_unit =
-                    Some(RenderUnit::new(context, &self.render_target, render_object));
-            }
-        }
+        self.update_render_unit(context);
 
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
@@ -121,22 +113,25 @@ impl DemoTool {
             .set_viewport(0, [viewport.clone()]);
 
         if let Some(render_unit) = &mut self.render_unit {
-            render_unit.uniform_values = {
-                let model_to_camera = Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0))
-                    * Mat4::from_rotation_y(elapsed);
-                let camera_to_projection = Mat4::perspective_infinite_lh(
-                    PI / 2.0,
-                    viewport.dimensions[0] / viewport.dimensions[1],
-                    0.1,
-                );
-                let model_to_projection = camera_to_projection * model_to_camera;
+            // TODO: https://docs.rs/glam/latest/glam/f32/struct.Mat4.html#method.look_to_lh
+            let model_to_camera =
+                Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
+            let camera_to_projection = Mat4::perspective_infinite_lh(
+                PI / 2.0,
+                viewport.dimensions[0] / viewport.dimensions[1],
+                0.1,
+            );
+            let model_to_projection = camera_to_projection * model_to_camera;
 
-                ContextUniforms {
-                    model_to_projection,
-                    model_to_camera,
-                }
-            };
-            render_unit.render(context, &mut builder, MaterialStepType::Solid);
+            self.controls.globals.model_to_projection = model_to_projection;
+            self.controls.globals.model_to_camera = model_to_camera;
+
+            render_unit.render(
+                context,
+                &mut builder,
+                MaterialStepType::Solid,
+                &self.controls.globals,
+            );
         }
 
         builder.end_render_pass().unwrap();

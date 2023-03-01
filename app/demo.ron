@@ -1,10 +1,14 @@
 RonObject(
+	id: "1",
 	mesh_path: "app/naty/File.blend",
-	// mesh_selector: "Cube",
 	texture_path: "app/naty/Albedo.png",
-	//texture_path: "app/naty/Eye_Brows.001.png",
+	// texture_path: "app/naty/grid.png",
 	vertex_shader: "app/vs.glsl",
 	fragment_shader: "app/fs.glsl",
 	depth_test: true,
 	depth_write: true,
+	uniforms: {
+		"color": [1.0, 1.0, 1.0, 1.0],
+		"extrude": [0.0]
+	}
 )

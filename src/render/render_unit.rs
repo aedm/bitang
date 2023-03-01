@@ -1,15 +1,17 @@
-use crate::render::material::{MaterialStep, MaterialStepType, MATERIAL_STEP_COUNT};
+use crate::control::controls::Globals;
+use crate::render::material::{
+    MaterialStep, MaterialStepType, Shader, ShaderKind, MATERIAL_STEP_COUNT,
+};
 use crate::render::mesh::Mesh;
 use crate::render::render_target::RenderTarget;
-use crate::render::shader::{Shader, ShaderKind};
-use crate::render::shader_context::ContextUniforms;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Vertex3};
 use std::array;
+use std::mem::size_of;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
-use vulkano::descriptor_set::layout::{DescriptorSetLayout, DescriptorType};
+use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::memory::allocator::MemoryUsage;
 use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
@@ -20,14 +22,13 @@ use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineBindPoint, StateMode
 use vulkano::render_pass::Subpass;
 use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
 
-type UniformBufferPool = CpuBufferPool<ContextUniforms>;
+// TODO: use a dynamically sized ring buffer for uniforms instead
+const MAX_UNIFORMS_F32_COUNT: usize = 1024;
+type UniformBufferPool = CpuBufferPool<[f32; MAX_UNIFORMS_F32_COUNT]>;
 
 pub struct RenderUnit {
     render_object: Arc<RenderObject>,
-    // TODO: use render pass instead
-    render_target: Arc<RenderTarget>,
     steps: [Option<RenderUnitStep>; MATERIAL_STEP_COUNT],
-    pub uniform_values: ContextUniforms,
 }
 
 struct RenderUnitStep {
@@ -38,7 +39,6 @@ struct RenderUnitStep {
 
 struct ShaderUniformStorage {
     uniform_buffer_pool: UniformBufferPool,
-    persistent_descriptor_set: Option<Arc<PersistentDescriptorSet>>,
 }
 
 impl RenderUnit {
@@ -56,16 +56,9 @@ impl RenderUnit {
             }
         });
 
-        let uniform_values = ContextUniforms {
-            model_to_projection: Default::default(),
-            model_to_camera: Default::default(),
-        };
-
         RenderUnit {
             render_object,
-            render_target: render_target.clone(),
             steps,
-            uniform_values,
         }
     }
 
@@ -74,6 +67,7 @@ impl RenderUnit {
         context: &VulkanContext,
         builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
         material_step_type: MaterialStepType,
+        globals: &Globals,
     ) {
         let index = material_step_type as usize;
         match (
@@ -86,7 +80,7 @@ impl RenderUnit {
                     builder,
                     material_step,
                     &self.render_object.mesh,
-                    &self.uniform_values,
+                    globals,
                 );
             }
             (None, None) => {}
@@ -163,24 +157,24 @@ impl RenderUnitStep {
         builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
         material_step: &MaterialStep,
         mesh: &Mesh,
-        uniform_values: &ContextUniforms,
+        globals: &Globals,
     ) {
         let descriptor_set_layouts = self.pipeline.layout().set_layouts();
         let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
             context,
-            uniform_values,
             &material_step.vertex_shader,
             descriptor_set_layouts
                 .get(ShaderKind::Vertex as usize)
                 .unwrap(),
+            globals,
         );
         let fragment_descriptor_set = self.fragment_uniforms_storage.make_descriptor_set(
             context,
-            uniform_values,
             &material_step.fragment_shader,
             descriptor_set_layouts
                 .get(ShaderKind::Fragment as usize)
                 .unwrap(),
+            globals,
         );
 
         builder
@@ -215,50 +209,59 @@ impl ShaderUniformStorage {
         );
         ShaderUniformStorage {
             uniform_buffer_pool,
-            persistent_descriptor_set: None,
         }
     }
 
     fn make_descriptor_set(
         &self,
         context: &VulkanContext,
-        uniform_values: &ContextUniforms,
         shader: &Shader,
         layout: &Arc<DescriptorSetLayout>,
+        globals: &Globals,
     ) -> Arc<PersistentDescriptorSet> {
-        // TODO: avoid memory allocation
-        let descriptors: Vec<_> = layout
-            .bindings()
-            .iter()
-            .enumerate()
-            .map(|(_index, (k, v))| {
-                match v.descriptor_type {
-                    DescriptorType::UniformBuffer => {
-                        assert_eq!(*k, 0, "Uniform buffer must be bound to binding 0");
-                        // TODO: uniform mapping
-                        let uniform_buffer_subbuffer =
-                            self.uniform_buffer_pool.from_data(*uniform_values).unwrap();
-                        WriteDescriptorSet::buffer(*k, uniform_buffer_subbuffer)
-                    }
-                    DescriptorType::CombinedImageSampler => {
-                        let sampler = Sampler::new(
-                            context.context.device().clone(),
-                            SamplerCreateInfo {
-                                mag_filter: Filter::Linear,
-                                min_filter: Filter::Linear,
-                                address_mode: [SamplerAddressMode::Repeat; 3],
-                                // mipmap_mode: SamplerMipmapMode::Linear,
-                                ..Default::default()
-                            },
-                        )
-                        .unwrap();
-                        let texture = shader.textures[*k as usize - 1].clone();
-                        WriteDescriptorSet::image_view_sampler(*k, texture, sampler)
-                    }
-                    _ => panic!("Unsupported descriptor type: {:?}", v.descriptor_type),
+        // TODO: avoid memory allocation, maybe use tinyvec
+        let mut descriptors = vec![];
+
+        if shader.uniform_buffer_size > 0 {
+            // Fill uniform array
+            let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
+            for global_mapping in &shader.global_uniform_bindings {
+                let values = globals.get(global_mapping.global_type);
+                // TODO: store f32 offset instead of byte offset
+                let offset = global_mapping.offset / size_of::<f32>();
+                for (i, value) in values.iter().enumerate() {
+                    uniform_values[offset + i] = *value;
                 }
-            })
-            .collect();
+            }
+            for local_mapping in &shader.local_uniform_bindings {
+                for i in 0..local_mapping.f32_count {
+                    uniform_values[local_mapping.f32_offset + i] =
+                        local_mapping.control.get_value(i, 0.0);
+                }
+            }
+            let _value_count = shader.uniform_buffer_size / size_of::<f32>();
+            let uniform_buffer_subbuffer =
+                self.uniform_buffer_pool.from_data(uniform_values).unwrap();
+            descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
+        }
+
+        for texture_binding in &shader.texture_bindings {
+            let sampler = Sampler::new(
+                context.context.device().clone(),
+                SamplerCreateInfo {
+                    mag_filter: Filter::Linear,
+                    min_filter: Filter::Linear,
+                    address_mode: [SamplerAddressMode::Repeat; 3],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            descriptors.push(WriteDescriptorSet::image_view_sampler(
+                texture_binding.descriptor_set_binding,
+                texture_binding.texture.clone(),
+                sampler,
+            ));
+        }
 
         let persistent_descriptor_set = PersistentDescriptorSet::new(
             &context.descriptor_set_allocator,

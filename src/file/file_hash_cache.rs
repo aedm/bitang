@@ -1,35 +1,46 @@
 use ahash::AHasher;
 use anyhow::{Context, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
-use std::mem;
 use std::path::PathBuf;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
+use std::{env, mem};
 
-pub type FileContentHash = u64;
+pub type ContentHash = u64;
 
-pub struct FileHashCache {
-    cache_map: HashMap<PathBuf, FileContentHash>,
-    watcher: RecommendedWatcher,
+#[derive(Clone)]
+pub struct FileCacheEntry {
+    pub hash: ContentHash,
+    pub content: Option<Vec<u8>>,
+}
+
+pub struct FileCache {
+    current_dir: PathBuf,
+    cache_map: HashMap<PathBuf, FileCacheEntry>,
+
+    // Listening for file changes
+    file_watcher: RecommendedWatcher,
     file_change_events: Receiver<Result<notify::Event, notify::Error>>,
-
-    // Load cycle state
     watched_paths: HashSet<PathBuf>,
+
+    // Stores every path during the current document loading cycle
     new_watched_paths: HashSet<PathBuf>,
 }
 
-impl FileHashCache {
-    pub fn new() -> Self {
+impl FileCache {
+    pub fn new() -> Result<Self> {
         let (sender, receiver) = std::sync::mpsc::channel();
         let watcher = notify::recommended_watcher(sender).unwrap();
-        Self {
+        Ok(Self {
             cache_map: HashMap::new(),
-            watcher,
+            file_watcher: watcher,
             file_change_events: receiver,
             watched_paths: HashSet::new(),
             new_watched_paths: HashSet::new(),
-        }
+            current_dir: env::current_dir()?,
+        })
     }
 
     pub fn start_load_cycle(&mut self) -> bool {
@@ -38,7 +49,7 @@ impl FileHashCache {
             match res {
                 Ok(event) => {
                     for path in event.paths {
-                        println!("Removing file: {:?}", path);
+                        println!("File change: {:?}", path);
                         self.cache_map.remove(&path);
                     }
                     has_changes = true;
@@ -51,23 +62,44 @@ impl FileHashCache {
 
     pub fn end_load_cycle(&mut self) -> Result<()> {
         for path in self.watched_paths.difference(&self.new_watched_paths) {
-            self.watcher.unwatch(path)?;
+            self.file_watcher.unwatch(path)?;
         }
         for path in self.new_watched_paths.difference(&self.watched_paths) {
-            self.watcher.watch(path, RecursiveMode::NonRecursive)?;
+            self.file_watcher.watch(path, RecursiveMode::NonRecursive)?;
         }
         self.watched_paths = mem::take(&mut self.new_watched_paths);
         Ok(())
     }
 
-    pub fn get(&mut self, path: &PathBuf) -> Result<(FileContentHash, Option<Vec<u8>>)> {
-        if let Some(hash) = self.cache_map.get(path) {
-            Ok((*hash, None))
+    pub fn get(&mut self, path: &str, store_content: bool) -> Result<FileCacheEntry> {
+        let absolute_path = self.to_absolute_path(path);
+        self.new_watched_paths.insert(absolute_path.clone());
+        let result = match self.cache_map.entry(absolute_path.clone()) {
+            Vacant(e) => {
+                let source = std::fs::read(absolute_path)
+                    .with_context(|| anyhow::format_err!("Failed to read file: '{path}'"))?;
+                let hash = hash_content(&source);
+                let entry = FileCacheEntry {
+                    hash,
+                    content: store_content.then(|| source.clone()),
+                };
+                e.insert(entry);
+                FileCacheEntry {
+                    hash,
+                    content: Some(source),
+                }
+            }
+            Occupied(e) => (*e.get()).clone(),
+        };
+        Ok(result)
+    }
+
+    fn to_absolute_path(&self, path: &str) -> PathBuf {
+        let path = std::path::Path::new(path);
+        if path.is_absolute() {
+            path.to_path_buf()
         } else {
-            self.new_watched_paths.insert(path.clone());
-            let source = std::fs::read(path)?;
-            let hash = hash_content(&source);
-            Ok((hash, Some(source)))
+            self.current_dir.join(path)
         }
     }
 }

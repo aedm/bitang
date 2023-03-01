@@ -1,21 +1,23 @@
+use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
-use crate::file::blend_loader::{load_blend_buffer, load_blend_file};
-use crate::file::file_hash_cache::FileHashCache;
-use crate::file::shader_cache::ShaderModuleCache;
-use crate::render::material::{Material, MaterialStep};
+use crate::file::blend_loader::load_blend_buffer;
+use crate::file::file_hash_cache::FileCache;
+use crate::file::shader_loader::{ShaderCache, ShaderCacheValue, ShaderCompilationResult};
+use crate::render::material::{
+    LocalUniformMapping, Material, MaterialStep, Shader, TextureBinding,
+};
 use crate::render::mesh::Mesh;
-use crate::render::shader::{Shader, ShaderKind};
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
-use crate::types::Object;
 use anyhow::{anyhow, Result};
+use glam::Vec4;
 use serde::Deserialize;
+use serde::Serialize;
+use std::array;
 use std::cell::RefCell;
-use std::env;
+use std::collections::HashMap;
 use std::io::Cursor;
-use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
@@ -23,10 +25,10 @@ use vulkano::command_buffer::{
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
-use vulkano::shader::ShaderModule;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RonObject {
+    id: String,
     mesh_path: String,
     texture_path: String,
     // mesh_selector: String,
@@ -34,118 +36,97 @@ pub struct RonObject {
     fragment_shader: String,
     depth_test: bool,
     depth_write: bool,
+    uniforms: HashMap<String, Vec<f32>>,
 }
 
 pub struct ResourceRepository {
-    current_dir: PathBuf,
-
-    file_hash_cache: Rc<RefCell<FileHashCache>>,
+    file_hash_cache: Rc<RefCell<FileCache>>,
 
     texture_cache: BinaryFileCache<Arc<Texture>>,
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
-    vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
-    fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     root_ron_file_cache: BinaryFileCache<Arc<RonObject>>,
+
+    shader_cache: ShaderCache,
+    // vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
+    // fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
+    pub controls: Controls,
 
     cached_root: Option<Arc<RenderObject>>,
 }
 
 impl ResourceRepository {
     pub fn try_new() -> Result<Self> {
-        let file_hash_cache = Rc::new(RefCell::new(FileHashCache::new()));
+        let file_hash_cache = Rc::new(RefCell::new(FileCache::new()?));
 
         Ok(Self {
-            current_dir: env::current_dir()?,
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
             mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
-            vertex_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
-                load_shader_module(context, content, shaderc::ShaderKind::Vertex)
-            }),
-            fragment_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
-                load_shader_module(context, content, shaderc::ShaderKind::Fragment)
-            }),
+            // vertex_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
+            //     load_shader_module(context, content, shaderc::ShaderKind::Vertex)
+            // }),
+            // fragment_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
+            //     load_shader_module(context, content, shaderc::ShaderKind::Fragment)
+            // }),
+            shader_cache: ShaderCache::new(&file_hash_cache),
             root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_ron_file),
             file_hash_cache,
             cached_root: None,
+            controls: Controls::new(),
         })
     }
 
-    pub fn load_root_document(&mut self, context: &VulkanContext) -> Result<Arc<RenderObject>> {
-        let mut has_changes = self.file_hash_cache.borrow_mut().start_load_cycle();
+    pub fn load_root_document(
+        &mut self,
+        context: &VulkanContext,
+        controls: &mut Controls,
+    ) -> Result<Arc<RenderObject>> {
+        let has_changes = self.file_hash_cache.borrow_mut().start_load_cycle();
         if !has_changes {
             if let Some(cached_root) = &self.cached_root {
                 return Ok(cached_root.clone());
             }
         }
-        let result = Arc::new(self.load_render_object(context)?);
+        let result = Arc::new(self.load_render_object(context, controls)?);
         self.cached_root = Some(result.clone());
         self.file_hash_cache.borrow_mut().end_load_cycle()?;
         Ok(result)
     }
 
     pub fn get_texture(&mut self, context: &VulkanContext, path: &str) -> Result<&Arc<Texture>> {
-        let path = self.to_absolute_path(path);
         self.texture_cache.get_or_load(context, &path)
     }
 
     pub fn get_mesh(&mut self, context: &VulkanContext, path: &str) -> Result<&Arc<Mesh>> {
-        let path = self.to_absolute_path(path);
         self.mesh_cache.get_or_load(context, &path)
     }
 
-    pub fn get_vertex_shader(
+    pub fn load_render_object(
         &mut self,
         context: &VulkanContext,
-        path: &str,
-    ) -> Result<&Arc<ShaderModule>> {
-        let path = self.to_absolute_path(path);
-        self.vertex_shader_cache.get_or_load(context, &path)
-    }
-
-    pub fn get_fragment_shader(
-        &mut self,
-        context: &VulkanContext,
-        path: &str,
-    ) -> Result<&Arc<ShaderModule>> {
-        let path = self.to_absolute_path(path);
-        self.fragment_shader_cache.get_or_load(context, &path)
-    }
-
-    pub fn load_render_object(&mut self, context: &VulkanContext) -> Result<RenderObject> {
-        // let source = std::fs::read_to_string("app/demo.ron")?;
-        // let object = ron::from_str::<RonObject>(&source)?;
+        controls: &mut Controls,
+    ) -> Result<RenderObject> {
         let object = self
             .root_ron_file_cache
-            .get_or_load(context, &PathBuf::from("app/demo.ron"))?
+            .get_or_load(context, "app/demo.ron")?
             .clone();
+
+        // Set uniforms
+        for (uniform_name, uniform_value) in &object.uniforms {
+            if uniform_value.is_empty() {
+                return Err(anyhow!(
+                    "Uniform '{}' has no values. Object id '{}'",
+                    uniform_name,
+                    object.id
+                ));
+            }
+            let control_id = Self::make_control_id_for_object(&object.id, uniform_name);
+            let value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
+            controls.get_control(&control_id).set_scalar(value);
+        }
 
         let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
         let texture = self.get_texture(context, &object.texture_path)?.clone();
-
-        let vs = self
-            .get_vertex_shader(context, &object.vertex_shader)?
-            .clone();
-        let fs = self
-            .get_fragment_shader(context, &object.fragment_shader)?
-            .clone();
-
-        let vertex_shader = Shader {
-            shader_module: vs,
-            textures: vec![],
-        };
-
-        let fragment_shader = Shader {
-            shader_module: fs,
-            textures: vec![texture],
-        };
-
-        let solid_step = MaterialStep {
-            vertex_shader,
-            fragment_shader,
-            depth_test: object.depth_test,
-            depth_write: object.depth_write,
-        };
-
+        let solid_step = self.make_material_step(context, controls, &object, &texture)?;
         let material = Material {
             passes: [None, None, Some(solid_step)],
         };
@@ -156,16 +137,79 @@ impl ResourceRepository {
             position: Default::default(),
             rotation: Default::default(),
         };
-
         Ok(render_object)
     }
 
-    fn to_absolute_path(&self, path: &str) -> PathBuf {
-        let path = std::path::Path::new(path);
-        if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            self.current_dir.join(path)
+    fn make_material_step(
+        &mut self,
+        context: &VulkanContext,
+        controls: &mut Controls,
+        object: &Arc<RonObject>,
+        texture: &Arc<Texture>,
+    ) -> Result<MaterialStep> {
+        let shaders = self.shader_cache.get_or_load(
+            context,
+            &object.vertex_shader,
+            &object.fragment_shader,
+        )?;
+
+        let vertex_shader = Self::make_shader(controls, &object, &shaders.vertex_shader, &texture);
+        let fragment_shader =
+            Self::make_shader(controls, &object, &shaders.fragment_shader, &texture);
+
+        let material_step = MaterialStep {
+            vertex_shader,
+            fragment_shader,
+            depth_test: object.depth_test,
+            depth_write: object.depth_write,
+        };
+        Ok(material_step)
+    }
+
+    fn make_control_id_for_object(object_id: &str, uniform_name: &str) -> String {
+        format!("ob/{}/{}", object_id, uniform_name)
+    }
+
+    fn make_shader(
+        controls: &mut Controls,
+        object: &RonObject,
+        compilation_result: &ShaderCompilationResult,
+        texture: &Arc<Texture>,
+    ) -> Shader {
+        let local_mapping = compilation_result
+            .local_uniform_bindings
+            .iter()
+            .map(|binding| {
+                let control_id = Self::make_control_id_for_object(&object.id, &binding.name);
+                let control = controls.get_control(&control_id);
+                LocalUniformMapping {
+                    control,
+                    f32_count: binding.f32_count,
+                    f32_offset: binding.f32_offset,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        // Bind all samplers to the same texture for now
+        let texture_bindings = compilation_result
+            .texture_bindings
+            .iter()
+            .map(|binding| {
+                let control_id = format!("ob/{}/{}", &object.id, binding.name);
+                let control = controls.get_control(&control_id);
+                TextureBinding {
+                    texture: texture.clone(),
+                    descriptor_set_binding: binding.binding,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Shader {
+            shader_module: compilation_result.module.clone(),
+            texture_bindings,
+            local_uniform_bindings: local_mapping,
+            global_uniform_bindings: compilation_result.global_uniform_bindings.clone(),
+            uniform_buffer_size: compilation_result.uniform_buffer_size,
         }
     }
 }
@@ -222,34 +266,7 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
     Ok(ImageView::new_default(image)?)
 }
 
-fn load_shader_module(
-    context: &VulkanContext,
-    content: &[u8],
-    kind: shaderc::ShaderKind,
-) -> Result<Arc<ShaderModule>> {
-    let source = std::str::from_utf8(content)?;
-    let header = std::fs::read_to_string("app/header.glsl")?;
-    let combined = format!("{header}\n{source}");
-
-    let compiler = shaderc::Compiler::new().unwrap();
-
-    // let input_file_name = path.to_str().ok_or(anyhow!("Invalid file name"))?;
-    let spirv = compiler.compile_into_spirv(&combined, kind, "input_file_name", "main", None)?;
-    let spirv_binary = spirv.as_binary_u8();
-
-    // let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
-    // let _ep = &reflect.enumerate_entry_points().unwrap()[0];
-    // println!("SPIRV Metadata: {:#?}", ep);
-
-    // println!("Shader '{path:?}' SPIRV size: {}", spirv_binary.len());
-
-    let module =
-        unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) };
-
-    Ok(module?)
-}
-
-pub fn load_ron_file(context: &VulkanContext, content: &[u8]) -> Result<Arc<RonObject>> {
+pub fn load_ron_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<RonObject>> {
     let object = ron::from_str::<RonObject>(std::str::from_utf8(content)?)?;
     Ok(Arc::new(object))
 }
