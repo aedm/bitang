@@ -3,8 +3,8 @@ layout (location = 1) in vec3 v_normal;
 layout (location = 0) out vec4 f_color;
 
 layout (set = 1, binding = 0) uniform Uniforms {
-    mat4 g_model_to_projection;
-    mat4 g_model_to_camera;
+    mat4 g_projection_from_model;
+    mat4 g_camera_from_model;
     vec4 color;
 } u;
 

@@ -113,18 +113,27 @@ impl DemoTool {
             .set_viewport(0, [viewport.clone()]);
 
         if let Some(render_unit) = &mut self.render_unit {
-            // TODO: https://docs.rs/glam/latest/glam/f32/struct.Mat4.html#method.look_to_lh
-            let model_to_camera =
-                Mat4::from_translation(Vec3::new(0.0, 0.0, 3.0)) * Mat4::from_rotation_y(elapsed);
-            let camera_to_projection = Mat4::perspective_infinite_lh(
+            // We use a left-handed, y-up coordinate system.
+            // Vulkan uses y-down, so we need to flip it back.
+            let camera_from_world = Mat4::look_at_lh(
+                Vec3::new(0.0, 0.0, -3.0),
+                Vec3::new(0.0, 0.0, 0.0),
+                Vec3::new(0.0, -1.0, 0.0),
+            );
+            let world_from_model = Mat4::from_rotation_y(elapsed);
+
+            // Vulkan uses a [0,1] depth range, ideal for infinite far plane
+            let projection_from_camera = Mat4::perspective_infinite_lh(
                 PI / 2.0,
                 viewport.dimensions[0] / viewport.dimensions[1],
                 0.1,
             );
-            let model_to_projection = camera_to_projection * model_to_camera;
+            let projection_from_model =
+                projection_from_camera * camera_from_world * world_from_model;
+            let camera_from_model = camera_from_world * world_from_model;
 
-            self.controls.globals.model_to_projection = model_to_projection;
-            self.controls.globals.model_to_camera = model_to_camera;
+            self.controls.globals.projection_from_model = projection_from_model;
+            self.controls.globals.camera_from_model = camera_from_model;
 
             render_unit.render(
                 context,
