@@ -3,7 +3,6 @@ use crate::render::vulkan_window::VulkanContext;
 use anyhow::{Context, Result};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::rc::Rc;
 
 type LoaderFunc<T> = fn(&VulkanContext, &[u8]) -> Result<T>;

@@ -3,10 +3,9 @@ use crate::file::file_hash_cache::{hash_content, ContentHash, FileCache, FileCac
 use crate::render::material::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{Context, Error, Result};
-use spirv_reflect::types::{ReflectDescriptorType, ReflectResourceType};
+use spirv_reflect::types::ReflectDescriptorType;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::buffer::BufferContents;

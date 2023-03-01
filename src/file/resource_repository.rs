@@ -1,20 +1,16 @@
-use crate::control::controls::{Controls, GlobalType};
+use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::ShaderCache;
-use crate::render::material::{
-    GlobalUniformMapping, Material, MaterialStep, Shader, TextureBinding,
-};
+use crate::render::material::{Material, MaterialStep, Shader, TextureBinding};
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
 use anyhow::Result;
 use serde::Deserialize;
 use std::cell::RefCell;
-use std::env;
 use std::io::Cursor;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::command_buffer::{
@@ -23,7 +19,6 @@ use vulkano::command_buffer::{
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
-use vulkano::shader::ShaderModule;
 
 #[derive(Debug, Deserialize)]
 pub struct RonObject {

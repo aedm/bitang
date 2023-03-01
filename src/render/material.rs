@@ -1,6 +1,5 @@
-use crate::control::controls::{Control, ControlValue, GlobalType};
+use crate::control::controls::{Control, GlobalType};
 use crate::render::Texture;
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::shader::ShaderModule;

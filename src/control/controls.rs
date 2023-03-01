@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use anyhow::Result;
-use glam::{Mat4, Vec4};
+use glam::{Mat4};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;

@@ -11,7 +11,7 @@ use std::mem::size_of;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
-use vulkano::descriptor_set::layout::{DescriptorSetLayout, DescriptorType};
+use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::memory::allocator::MemoryUsage;
 use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
@@ -22,6 +22,7 @@ use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineBindPoint, StateMode
 use vulkano::render_pass::Subpass;
 use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
 
+// TODO: use a dynamically sized ring buffer for uniforms instead
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 type UniformBufferPool = CpuBufferPool<[f32; MAX_UNIFORMS_F32_COUNT]>;
 
@@ -232,7 +233,7 @@ impl ShaderUniformStorage {
                     uniform_values[offset + i] = *value;
                 }
             }
-            let value_count = shader.uniform_buffer_size / size_of::<f32>();
+            let _value_count = shader.uniform_buffer_size / size_of::<f32>();
             let uniform_buffer_subbuffer =
                 self.uniform_buffer_pool.from_data(uniform_values).unwrap();
             descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
@@ -245,7 +246,6 @@ impl ShaderUniformStorage {
                     mag_filter: Filter::Linear,
                     min_filter: Filter::Linear,
                     address_mode: [SamplerAddressMode::Repeat; 3],
-                    // mipmap_mode: SamplerMipmapMode::Linear,
                     ..Default::default()
                 },
             )
@@ -256,40 +256,6 @@ impl ShaderUniformStorage {
                 sampler,
             ));
         }
-
-        // let descriptors: Vec<_> = layout
-        //     .bindings()
-        //     .iter()
-        //     .enumerate()
-        //     .map(|(_index, (k, v))| {
-        //         match v.descriptor_type {
-        //             DescriptorType::UniformBuffer => {
-        //                 // assert_eq!(*k, 0, "Uniform buffer must be bound to binding 0");
-        //                 // // TODO: uniform mapping
-        //                 // let uniform_buffer_subbuffer =
-        //                 //     self.uniform_buffer_pool.from_data(*uniform_values).unwrap();
-        //                 // WriteDescriptorSet::buffer(*k, uniform_buffer_subbuffer)
-        //             }
-        //             DescriptorType::CombinedImageSampler => {
-        //                 let sampler = Sampler::new(
-        //                     context.context.device().clone(),
-        //                     SamplerCreateInfo {
-        //                         mag_filter: Filter::Linear,
-        //                         min_filter: Filter::Linear,
-        //                         address_mode: [SamplerAddressMode::Repeat; 3],
-        //                         // mipmap_mode: SamplerMipmapMode::Linear,
-        //                         ..Default::default()
-        //                     },
-        //                 )
-        //                 .unwrap();
-        //                 // TODO: use the precalculated texture binding instead of *k
-        //                 let texture = shader.texture_bindings[*k as usize - 1].texture.clone();
-        //                 WriteDescriptorSet::image_view_sampler(*k, texture, sampler)
-        //             }
-        //             _ => panic!("Unsupported descriptor type: {:?}", v.descriptor_type),
-        //         }
-        //     })
-        //     .collect();
 
         let persistent_descriptor_set = PersistentDescriptorSet::new(
             &context.descriptor_set_allocator,
