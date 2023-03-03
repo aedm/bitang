@@ -14,11 +14,3 @@ pub struct Object {
     pub scale: [f32; 3],
     pub mesh: Mesh,
 }
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct VertexV3 {
-    pub pos: [f32; 4],
-    pub color: [f32; 4],
-    pub tex_coord: [f32; 2],
-}

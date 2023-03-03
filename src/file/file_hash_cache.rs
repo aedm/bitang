@@ -43,7 +43,7 @@ impl FileCache {
         })
     }
 
-    pub fn start_load_cycle(&mut self) -> bool {
+    pub fn handle_file_changes(&mut self) -> bool {
         let mut has_changes = false;
         for res in self.file_change_events.try_iter() {
             match res {
@@ -60,11 +60,13 @@ impl FileCache {
         has_changes
     }
 
-    pub fn end_load_cycle(&mut self) -> Result<()> {
+    pub fn update_watchers(&mut self) -> Result<()> {
         for path in self.watched_paths.difference(&self.new_watched_paths) {
+            println!("Unwatching: {:?}", path);
             self.file_watcher.unwatch(path)?;
         }
         for path in self.new_watched_paths.difference(&self.watched_paths) {
+            println!("Watching: {:?}", path);
             self.file_watcher.watch(path, RecursiveMode::NonRecursive)?;
         }
         self.watched_paths = mem::take(&mut self.new_watched_paths);

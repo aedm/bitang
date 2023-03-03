@@ -1,37 +1,59 @@
+use crate::control::RcHashRef;
 use anyhow::anyhow;
 use anyhow::Result;
 use glam::Mat4;
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ops::Deref;
+use std::collections::{HashMap, HashSet};
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-use std::slice;
+use std::{mem, slice};
 
+#[derive(Default)]
 pub struct Controls {
     pub controls_by_id: HashMap<String, Rc<Control>>,
     pub globals: Globals,
+
+    pub used_controls: Vec<Rc<Control>>,
+    used_control_collector: HashSet<RcHashRef<Control>>,
 }
 
 impl Controls {
     pub fn new() -> Self {
-        Self {
-            controls_by_id: HashMap::new(),
-            globals: Globals::default(),
-        }
+        Self::default()
     }
 
     pub fn get_control(&mut self, id: &str) -> Rc<Control> {
         if let Some(x) = self.controls_by_id.get(id) {
+            self.used_control_collector.insert(RcHashRef(x.clone()));
             return x.clone();
         }
-        let control = Rc::new(Control::new());
+        let control = Rc::new(Control::new(id));
         self.controls_by_id.insert(id.to_string(), control.clone());
+        self.used_control_collector
+            .insert(RcHashRef(control.clone()));
         control
+    }
+
+    pub fn start_load_cycle(&mut self) {
+        self.used_control_collector.clear();
+    }
+
+    pub fn finish_load_cycle(&mut self) {
+        self.used_controls = mem::take(&mut self.used_control_collector)
+            .into_iter()
+            .map(|x| x.0.clone())
+            .collect();
+        self.used_controls.sort_by(|a, b| a.id.cmp(&b.id));
+        println!(
+            "Used controls: {:?}",
+            self.used_controls.iter().map(|x| &x.id).collect::<Vec<_>>()
+        );
     }
 }
 
 pub struct Control {
-    value: RefCell<ControlValue>,
+    pub id: String,
+    pub value: RefCell<ControlValue>,
 }
 
 pub enum ControlValue {
@@ -40,8 +62,9 @@ pub enum ControlValue {
 }
 
 impl Control {
-    pub fn new() -> Self {
+    pub fn new(id: &str) -> Self {
         Self {
+            id: id.to_string(),
             value: RefCell::new(ControlValue::Scalars([0.0; 4])),
         }
     }

@@ -61,12 +61,6 @@ impl ResourceRepository {
         Ok(Self {
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
             mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
-            // vertex_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
-            //     load_shader_module(context, content, shaderc::ShaderKind::Vertex)
-            // }),
-            // fragment_shader_cache: BinaryFileCache::new(&file_hash_cache, |context, content| {
-            //     load_shader_module(context, content, shaderc::ShaderKind::Fragment)
-            // }),
             shader_cache: ShaderCache::new(&file_hash_cache),
             root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_ron_file),
             file_hash_cache,
@@ -80,16 +74,23 @@ impl ResourceRepository {
         context: &VulkanContext,
         controls: &mut Controls,
     ) -> Result<Arc<RenderObject>> {
-        let has_changes = self.file_hash_cache.borrow_mut().start_load_cycle();
-        if !has_changes {
-            if let Some(cached_root) = &self.cached_root {
-                return Ok(cached_root.clone());
+        let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
+        match (has_file_changes, &self.cached_root) {
+            (false, Some(cached_root)) => Ok(cached_root.clone()),
+            _ => {
+                controls.start_load_cycle();
+                let result = self
+                    .load_render_object(context, controls)
+                    .and_then(|render_object| {
+                        let render_object = Arc::new(render_object);
+                        self.cached_root = Some(render_object.clone());
+                        Ok(render_object)
+                    });
+                controls.finish_load_cycle();
+                self.file_hash_cache.borrow_mut().update_watchers()?;
+                result
             }
         }
-        let result = Arc::new(self.load_render_object(context, controls)?);
-        self.cached_root = Some(result.clone());
-        self.file_hash_cache.borrow_mut().end_load_cycle()?;
-        Ok(result)
     }
 
     pub fn get_texture(&mut self, context: &VulkanContext, path: &str) -> Result<&Arc<Texture>> {
@@ -121,7 +122,7 @@ impl ResourceRepository {
             }
             let control_id = Self::make_control_id_for_object(&object.id, uniform_name);
             let value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
-            controls.get_control(&control_id).set_scalar(value);
+            // controls.get_control(&control_id).set_scalar(value);
         }
 
         let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
@@ -194,13 +195,9 @@ impl ResourceRepository {
         let texture_bindings = compilation_result
             .texture_bindings
             .iter()
-            .map(|binding| {
-                let control_id = format!("ob/{}/{}", &object.id, binding.name);
-                let control = controls.get_control(&control_id);
-                TextureBinding {
-                    texture: texture.clone(),
-                    descriptor_set_binding: binding.binding,
-                }
+            .map(|binding| TextureBinding {
+                texture: texture.clone(),
+                descriptor_set_binding: binding.binding,
             })
             .collect::<Vec<_>>();
 
