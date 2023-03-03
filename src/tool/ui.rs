@@ -1,6 +1,9 @@
 use crate::render::vulkan_window::VulkanContext;
 use egui_winit_vulkano::Gui;
+use std::ops::DerefMut;
 
+use crate::control::controls::ControlValue::Scalars;
+use crate::control::controls::Controls;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
@@ -50,21 +53,36 @@ impl Ui {
         before_future: Box<dyn GpuFuture>,
         target_image: SwapchainImageView,
         bottom_panel_height: f32,
+        controls: &mut Controls,
     ) -> Box<dyn GpuFuture> {
+        // Mutably borrow all used control values upfront before building the UI
+        let mut controls = controls
+            .used_controls
+            .iter_mut()
+            .map(|c| (c.id.as_str(), c.value.borrow_mut()))
+            .collect::<Vec<_>>();
+
         self.gui.immediate_ui(|gui| {
             let ctx = gui.context();
             egui::TopBottomPanel::bottom("my_panel")
                 .height_range(bottom_panel_height..=bottom_panel_height)
                 .show(&ctx, |ui| {
-                    ui.with_layout(
-                        egui::Layout::top_down_justified(egui::Align::Center),
-                        |ui| {
-                            ui.add_space(5.0);
-                            let _ = ui.button("Some button");
-                            let _ = ui.button("Another button");
-                            ui.allocate_space(ui.available_size());
-                        },
-                    );
+                    ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
+                        ui.add_space(5.0);
+
+                        // Add UI for each control value
+                        for control in &mut controls {
+                            // Add label
+                            ui.label(control.0);
+
+                            if let Scalars(scalars) = control.1.deref_mut() {
+                                for i in 0..4 {
+                                    let _ = ui.add(egui::Slider::new(&mut scalars[i], 0.0..=1.0));
+                                }
+                            }
+                        }
+                        ui.allocate_space(ui.available_size());
+                    });
                     // ui.label("Hello World!");
                 });
         });

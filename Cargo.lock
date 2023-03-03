@@ -154,6 +154,7 @@ dependencies = [
  "egui_winit_vulkano",
  "glam",
  "image",
+ "itertools",
  "notify",
  "ron",
  "serde",
@@ -963,6 +964,15 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "itertools"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
 ]
 
 [[package]]

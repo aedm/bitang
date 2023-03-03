@@ -182,9 +182,13 @@ impl VulkanApp for DemoTool {
         );
 
         // Render UI
-        let gui_finished_future =
-            self.ui
-                .render(context, app_finished_future, target_image, ui_height);
+        let gui_finished_future = self.ui.render(
+            context,
+            app_finished_future,
+            target_image,
+            ui_height,
+            &mut self.controls,
+        );
 
         renderer.present(gui_finished_future, true);
     }
