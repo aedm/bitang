@@ -2,7 +2,7 @@ use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileCache;
-use crate::file::shader_loader::{ShaderCache, ShaderCacheValue, ShaderCompilationResult};
+use crate::file::shader_loader::{ShaderCache, ShaderCompilationResult};
 use crate::render::material::{
     LocalUniformMapping, Material, MaterialStep, Shader, TextureBinding,
 };
@@ -10,7 +10,7 @@ use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
 use anyhow::{anyhow, Result};
-use glam::Vec4;
+
 use serde::Deserialize;
 use serde::Serialize;
 use std::array;
@@ -120,8 +120,8 @@ impl ResourceRepository {
                     object.id
                 ));
             }
-            let control_id = Self::make_control_id_for_object(&object.id, uniform_name);
-            let value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
+            let _control_id = Self::make_control_id_for_object(&object.id, uniform_name);
+            let _value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
             // controls.get_control(&control_id).set_scalar(value);
         }
 

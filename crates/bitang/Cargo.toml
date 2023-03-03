@@ -1,0 +1,51 @@
+[package]
+name = "bitang"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { version = "1.0.66", features = ["backtrace"] }
+itertools = "0.10.5"
+
+egui_winit_vulkano = "0.22.0"
+egui = "*"
+egui-winit = "*"
+winit = "*"
+
+vulkano = "0.32.3"
+vulkano-shaders = "0.32.0"
+vulkano-win = "0.32.0"
+vulkano-util = "0.32"
+shaderc = "*"
+spirv-reflect = "0.2.3"
+glam = { version = "0.22", features = ["bytemuck"] }
+bytemuck = "1.8.0"
+
+serde = { version = "*", features = ["derive"] }
+notify = "5.1.0"
+ron = "0.8.0"
+blend = "0.6.1"
+image = "0.24.4"
+ahash = "0.8.3"
+
+[profile.dev.package.image]
+opt-level = 'z'
+#debug = false
+#debug-assertions = false
+#overflow-checks = false
+
+[profile.dev.package.vulkano]
+opt-level = 1
+
+[profile.dev.package.vulkano-shaders]
+opt-level = 1
+
+[profile.dev.package.shaderc]
+opt-level = 1
+
+#[profile.release]
+#opt-level = 3
+#strip = true
+#debug = 0

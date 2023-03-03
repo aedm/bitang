@@ -1,4 +1,4 @@
-use crate::control::controls::{Controls, Globals};
+use crate::control::controls::{Controls};
 use crate::file::resource_repository::ResourceRepository;
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::RenderTarget;
