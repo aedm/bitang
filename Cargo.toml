@@ -4,40 +4,10 @@ members = [
     "crates/bitang_utils",
 ]
 
-[profile.dev.package.image]
-opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-incremental = false
-codegen-units = 16
-
-[profile.dev.package.vulkano]
-opt-level = 1
-
-[profile.dev.package.vulkano-shaders]
-opt-level = 1
-
-[profile.dev.package.shaderc]
-opt-level = 3
-
-[profile.dev.package.bitang_utils]
-opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-incremental = false
-codegen-units = 16
-
-#[profile.release]
-#opt-level = 3
-#strip = true
-#debug = 0
-
 [profile.dev.package."*"]
-opt-level = 3
-debug = false
-debug-assertions = false
+opt-level = 2
 overflow-checks = false
-incremental = false
-codegen-units = 16
+
+[profile.dev.package.bitang]
+opt-level = 0
+overflow-checks = true
