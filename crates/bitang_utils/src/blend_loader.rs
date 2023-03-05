@@ -1,6 +1,9 @@
 use anyhow::Context;
 use anyhow::Result;
 use blend::{Blend, Instance};
+use image::RgbaImage;
+use std::io::Cursor;
+use std::time::Instant;
 
 pub type Vertex = ([f32; 3], [f32; 3], [f32; 2]);
 pub type Face = [Vertex; 3];
@@ -131,6 +134,7 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
 }
 
 fn load_blend(blend: Blend) -> Result<Object> {
+    let now = Instant::now();
     let mut objects = Vec::new();
 
     for obj in blend.get_by_code(*b"OB") {
@@ -182,6 +186,7 @@ fn load_blend(blend: Blend) -> Result<Object> {
             // println!("NAME {}: VALUE {:?}", field.0, field.1);
         }
     }
+    println!("load_blend() finished in {:?}", now.elapsed());
 
     objects.into_iter().next().context("No object found")
 }
@@ -189,4 +194,15 @@ fn load_blend(blend: Blend) -> Result<Object> {
 pub fn load_blend_buffer(buffer: &[u8]) -> Result<Object> {
     let blend = Blend::new(buffer);
     load_blend(blend)
+}
+
+pub fn load_image(content: &[u8]) -> Result<RgbaImage> {
+    println!("load_image() started...");
+    let now = Instant::now();
+    let image = image::io::Reader::new(Cursor::new(content))
+        .with_guessed_format()?
+        .decode()?
+        .to_rgba8();
+    println!("load_image() finished in {:?}", now.elapsed());
+    Ok(image)
 }

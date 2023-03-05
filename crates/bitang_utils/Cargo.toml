@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 blend = "0.6.1"
 anyhow = { version = "1.0.66", features = ["backtrace"] }
-
+image = "0.24.4"
