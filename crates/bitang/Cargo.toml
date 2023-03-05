@@ -1,0 +1,32 @@
+[package]
+name = "bitang"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bitang_utils = { path = "../bitang_utils" }
+anyhow = { version = "1.0.66", features = ["backtrace"] }
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
+
+egui_winit_vulkano = "0.22.0"
+egui-winit = "0.20.1"
+winit = "0.27.5"
+egui = "0.20.1"
+
+vulkano = "0.32.3"
+vulkano-shaders = "0.32.0"
+vulkano-win = "0.32.0"
+vulkano-util = "0.32"
+shaderc = "*"
+spirv-reflect = "0.2.3"
+glam = { version = "0.22", features = ["bytemuck"] }
+bytemuck = "1.8.0"
+
+serde = { version = "*", features = ["derive"] }
+notify = "5.1.0"
+ron = "0.8.0"
+image = "0.24.4"
+ahash = "0.8.3"

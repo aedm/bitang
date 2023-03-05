@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use tracing::{debug, info};
 
 type LoaderFunc<T> = fn(&VulkanContext, &[u8]) -> Result<T>;
 
@@ -29,11 +30,13 @@ impl<T> BinaryFileCache<T> {
         if self.resource_cache.contains_key(&hash) {
             Ok(self.resource_cache.get(&hash).unwrap())
         } else {
+            let now = std::time::Instant::now();
             let source = match content {
                 Some(source) => source,
                 None => std::fs::read(path)?,
             };
             let resource = (self.loader_func)(context, &source)?;
+            info!("Loading {} took {:?}", path, now.elapsed());
             self.resource_cache.insert(hash, resource);
             self.resource_cache
                 .get(&hash)

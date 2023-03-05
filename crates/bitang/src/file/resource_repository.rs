@@ -1,8 +1,7 @@
 use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
-use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileCache;
-use crate::file::shader_loader::{ShaderCache, ShaderCacheValue, ShaderCompilationResult};
+use crate::file::shader_loader::{ShaderCache, ShaderCompilationResult};
 use crate::render::material::{
     LocalUniformMapping, Material, MaterialStep, Shader, TextureBinding,
 };
@@ -10,7 +9,8 @@ use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
 use anyhow::{anyhow, Result};
-use glam::Vec4;
+
+use bitang_utils::blend_loader::load_blend_buffer;
 use serde::Deserialize;
 use serde::Serialize;
 use std::array;
@@ -19,6 +19,8 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Instant;
+use tracing::{info, instrument};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 };
@@ -69,6 +71,8 @@ impl ResourceRepository {
         })
     }
 
+    // #[instrument(skip(self, context))]
+    #[instrument(skip_all)]
     pub fn load_root_document(
         &mut self,
         context: &VulkanContext,
@@ -78,6 +82,7 @@ impl ResourceRepository {
         match (has_file_changes, &self.cached_root) {
             (false, Some(cached_root)) => Ok(cached_root.clone()),
             _ => {
+                let now = std::time::Instant::now();
                 controls.start_load_cycle();
                 let result = self
                     .load_render_object(context, controls)
@@ -88,15 +93,18 @@ impl ResourceRepository {
                     });
                 controls.finish_load_cycle();
                 self.file_hash_cache.borrow_mut().update_watchers()?;
+                info!("Loading took {:?}", now.elapsed());
                 result
             }
         }
     }
 
+    #[instrument(skip(self, context))]
     pub fn get_texture(&mut self, context: &VulkanContext, path: &str) -> Result<&Arc<Texture>> {
         self.texture_cache.get_or_load(context, &path)
     }
 
+    #[instrument(skip(self, context))]
     pub fn get_mesh(&mut self, context: &VulkanContext, path: &str) -> Result<&Arc<Mesh>> {
         self.mesh_cache.get_or_load(context, &path)
     }
@@ -120,8 +128,8 @@ impl ResourceRepository {
                     object.id
                 ));
             }
-            let control_id = Self::make_control_id_for_object(&object.id, uniform_name);
-            let value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
+            let _control_id = Self::make_control_id_for_object(&object.id, uniform_name);
+            let _value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
             // controls.get_control(&control_id).set_scalar(value);
         }
 
@@ -141,6 +149,7 @@ impl ResourceRepository {
         Ok(render_object)
     }
 
+    #[instrument(skip_all)]
     fn make_material_step(
         &mut self,
         context: &VulkanContext,
@@ -171,6 +180,7 @@ impl ResourceRepository {
         format!("ob/{}/{}", object_id, uniform_name)
     }
 
+    #[instrument(skip_all)]
     fn make_shader(
         controls: &mut Controls,
         object: &RonObject,
@@ -211,6 +221,7 @@ impl ResourceRepository {
     }
 }
 
+#[instrument(skip_all)]
 fn load_mesh(context: &VulkanContext, content: &[u8]) -> Result<Arc<Mesh>> {
     let blend_file = load_blend_buffer(content)?;
     let vertices = blend_file
@@ -229,11 +240,11 @@ fn load_mesh(context: &VulkanContext, content: &[u8]) -> Result<Arc<Mesh>> {
     Ok(Arc::new(Mesh::try_new(context, vertices)?))
 }
 
+#[instrument(skip_all)]
 fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>> {
-    let rgba = image::io::Reader::new(Cursor::new(content))
-        .with_guessed_format()?
-        .decode()?
-        .to_rgba8();
+    let now = Instant::now();
+    let rgba = image::load_from_memory(content)?.to_rgba8();
+    info!("Decoded image in {:?}", now.elapsed());
     let dimensions = ImageDimensions::Dim2d {
         width: rgba.dimensions().0,
         height: rgba.dimensions().0,
@@ -263,6 +274,7 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
     Ok(ImageView::new_default(image)?)
 }
 
+#[instrument(skip_all)]
 pub fn load_ron_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<RonObject>> {
     let object = ron::from_str::<RonObject>(std::str::from_utf8(content)?)?;
     Ok(Arc::new(object))

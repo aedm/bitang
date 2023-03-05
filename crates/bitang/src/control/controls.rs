@@ -4,7 +4,7 @@ use anyhow::Result;
 use glam::Mat4;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref};
 use std::rc::Rc;
 use std::{mem, slice};
 
