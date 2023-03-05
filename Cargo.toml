@@ -1,4 +1,28 @@
 [workspace]
 members = [
     "crates/bitang",
+    "crates/bitang_utils",
 ]
+
+[profile.dev.package.image]
+opt-level = 'z'
+#debug = false
+#debug-assertions = false
+#overflow-checks = false
+
+[profile.dev.package.vulkano]
+opt-level = 1
+
+[profile.dev.package.vulkano-shaders]
+opt-level = 1
+
+[profile.dev.package.shaderc]
+opt-level = 1
+
+[profile.dev.package.bitang_utils]
+opt-level = 2
+
+#[profile.release]
+#opt-level = 3
+#strip = true
+#debug = 0

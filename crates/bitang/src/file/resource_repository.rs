@@ -1,6 +1,5 @@
 use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
-use crate::file::blend_loader::load_blend_buffer;
 use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::{ShaderCache, ShaderCompilationResult};
 use crate::render::material::{
@@ -11,6 +10,7 @@ use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
 use anyhow::{anyhow, Result};
 
+use bitang_utils::blend_loader::load_blend_buffer;
 use serde::Deserialize;
 use serde::Serialize;
 use std::array;

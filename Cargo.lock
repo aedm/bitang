@@ -147,7 +147,7 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "anyhow",
- "blend",
+ "bitang_utils",
  "bytemuck",
  "egui",
  "egui-winit",
@@ -165,6 +165,14 @@ dependencies = [
  "vulkano-util",
  "vulkano-win",
  "winit",
+]
+
+[[package]]
+name = "bitang_utils"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "blend",
 ]
 
 [[package]]
