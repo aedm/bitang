@@ -99,11 +99,8 @@ impl RenderUnitStep {
         let fragment_uniforms_storage = ShaderUniformStorage::new(context);
 
         let depth = if material_step.depth_test || material_step.depth_write {
-            let compare_op = if material_step.depth_test {
-                CompareOp::Less
-            } else {
-                CompareOp::Always
-            };
+            let compare_op =
+                if material_step.depth_test { CompareOp::Less } else { CompareOp::Always };
             Some(DepthState {
                 enable_dynamic: false,
                 compare_op: StateMode::Fixed(compare_op),

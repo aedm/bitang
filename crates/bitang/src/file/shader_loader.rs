@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
+use tracing::{debug, info, instrument, trace};
 use vulkano::buffer::BufferContents;
 use vulkano::shader::ShaderModule;
 
@@ -100,16 +101,22 @@ impl ShaderCache {
         Ok(self.shader_cache.get(&key).unwrap())
     }
 
+    #[instrument(skip(context, source))]
     fn compile_shader_module(
         context: &VulkanContext,
         source: &str,
         path: &str,
         kind: shaderc::ShaderKind,
     ) -> Result<ShaderCompilationResult> {
+        let now = std::time::Instant::now();
         let compiler = shaderc::Compiler::new().unwrap();
         let spirv = compiler.compile_into_spirv(&source, kind, path, "main", None)?;
         let spirv_binary = spirv.as_binary_u8();
-        println!("Shader '{path:?}' SPIRV size: {}", spirv_binary.len());
+        info!(
+            "compiled in {:?}, SPIRV size: {}.",
+            now.elapsed(),
+            spirv_binary.len()
+        );
 
         // Extract metadata from SPIRV
         let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
@@ -188,7 +195,7 @@ impl ShaderCache {
                     )
                 }
                 None => {
-                    println!("WARNING: No uniform block found in '{:?}'", path);
+                    trace!("WARNING: No uniform block found in '{:?}'", path);
                     (vec![], vec![], 0)
                 }
             };
@@ -204,10 +211,30 @@ impl ShaderCache {
             uniform_buffer_size,
         };
 
-        println!("Shader '{path}' ({kind:?}) compiled successfully.");
-        println!("Local uniforms: {:#?}", result.local_uniform_bindings);
-        println!("Global uniforms: {:#?}", result.global_uniform_bindings);
-        println!("Textures: {:#?}", result.texture_bindings);
+        debug!(
+            "Local uniforms: {:?}",
+            result
+                .local_uniform_bindings
+                .iter()
+                .map(|u| &u.name)
+                .collect::<Vec<_>>()
+        );
+        debug!(
+            "Global uniforms: {:?}",
+            result
+                .global_uniform_bindings
+                .iter()
+                .map(|u| u.global_type)
+                .collect::<Vec<_>>()
+        );
+        debug!(
+            "Textures: {:?}",
+            result
+                .texture_bindings
+                .iter()
+                .map(|u| &u.name)
+                .collect::<Vec<_>>()
+        );
         Ok(result)
     }
 

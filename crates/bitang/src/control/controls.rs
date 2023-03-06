@@ -4,9 +4,10 @@ use anyhow::Result;
 use glam::Mat4;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::ops::{Deref};
+use std::ops::Deref;
 use std::rc::Rc;
 use std::{mem, slice};
+use tracing::debug;
 
 #[derive(Default)]
 pub struct Controls {
@@ -44,7 +45,7 @@ impl Controls {
             .map(|x| x.0.clone())
             .collect();
         self.used_controls.sort_by(|a, b| a.id.cmp(&b.id));
-        println!(
+        debug!(
             "Used controls: {:?}",
             self.used_controls.iter().map(|x| &x.id).collect::<Vec<_>>()
         );
