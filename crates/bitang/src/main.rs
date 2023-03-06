@@ -7,12 +7,20 @@ use crate::render::vulkan_window::VulkanWindow;
 use crate::tool::demo_tool::DemoTool;
 use anyhow::Result;
 use tracing::{debug, info};
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::{fmt, EnvFilter};
 
 fn main() -> Result<()> {
     // Set up tracing
-    tracing_subscriber::fmt::init();
-    debug!("Starting up DEBUG");
-    info!("Starting up INFO");
+    let fmt_layer = fmt::layer().with_target(false);
+    let filter_layer = EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new(if cfg!(debug_assertions) { "trace" } else { "info" }))
+        .unwrap();
+    tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(fmt_layer)
+        .init();
+    info!("Starting Bitang");
 
     let window = VulkanWindow::new();
     let app = DemoTool::new(&window.context, &window.event_loop)?;

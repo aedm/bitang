@@ -7,6 +7,7 @@ use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::{env, mem};
+use tracing::{debug, error, trace};
 
 pub type ContentHash = u64;
 
@@ -49,24 +50,32 @@ impl FileCache {
             match res {
                 Ok(event) => {
                     for path in event.paths {
-                        println!("File change: {:?}", path);
+                        debug!("File change detected: {:?}", path);
                         self.cache_map.remove(&path);
                     }
                     has_changes = true;
                 }
-                Err(e) => println!("watch error: {:?}", e),
+                Err(e) => error!("watch error: {:?}", e),
             }
         }
         has_changes
     }
 
+    fn path_format(path: &PathBuf) -> String {
+        path.to_str().unwrap().replace("\\", "/")
+    }
+
     pub fn update_watchers(&mut self) -> Result<()> {
         for path in self.watched_paths.difference(&self.new_watched_paths) {
-            println!("Unwatching: {:?}", path);
+            if let Some(path) = path.to_str() {
+                trace!("Unwatching: {:?}", path.replace("\\", "/"));
+            }
             self.file_watcher.unwatch(path)?;
         }
         for path in self.new_watched_paths.difference(&self.watched_paths) {
-            println!("Watching: {:?}", path);
+            if let Some(path) = path.to_str() {
+                trace!("Watching: {:?}", path.replace("\\", "/"));
+            }
             self.file_watcher.watch(path, RecursiveMode::NonRecursive)?;
         }
         self.watched_paths = mem::take(&mut self.new_watched_paths);

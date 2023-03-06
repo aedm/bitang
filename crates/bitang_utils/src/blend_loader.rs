@@ -40,12 +40,8 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     let mut index_count = 0;
     let mut face_indice_count = 0;
     for face in &faces {
-        // println!("-- face {:?}", face);
         let len = face.get_i32("totloop");
-        // println!("-- totloop {len}");
-
         let mut indexi = 1;
-
         while indexi < len {
             face_indice_count += 3;
             indexi += 2;
@@ -57,15 +53,11 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     let mut verts_array_buff = vec![0f32; face_indice_count * 3];
 
     for face in &faces {
-        // println!("-- face {:?}", face);
         let len = face.get_i32("totloop");
         let start = face.get_i32("loopstart");
-        // println!("-- totloop {len}");
-        // println!("-- loopstart {start}");
         let mut indexi = 1;
 
         while indexi < len {
-            // println!("-- indexi {:?}", indexi);
             let mut index;
 
             for l in 0..3 {
@@ -77,7 +69,6 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
 
                 let v = loops[index as usize].get_i32("v");
                 let vert = &verts[v as usize];
-                // println!("-- vert {:?}", vert);
 
                 let co = vert.get_f32_vec("co");
                 // Blend files use right-handed, z-up coordinates.
@@ -139,7 +130,7 @@ fn load_blend(blend: Blend) -> Result<Object> {
 
     for obj in blend.get_by_code(*b"OB") {
         let name = obj.get("id").get_string("name");
-        println!("-- name {name:?}");
+        // println!("-- name {name:?}");
         if name != "OBHead_Low" {
             continue;
         }
@@ -175,19 +166,17 @@ fn load_blend(blend: Blend) -> Result<Object> {
             }
         }
 
-        for (name, _value) in &obj.fields {
-            if obj.is_valid(name) {
-                // println!(" -- NAME {}: VALUE {:?}", name, value);
-                // if name == "data" {
-                //     println!(" -- NAME {}: VALUE {:?}", name, value);
-                //     println!(" + {:#?}", obj.get("drawdata").fields.get("first").unwrap());
-                // }
-            }
-            // println!("NAME {}: VALUE {:?}", field.0, field.1);
-        }
+        // for (name, _value) in &obj.fields {
+        //     if obj.is_valid(name) {
+        //         // println!(" -- NAME {}: VALUE {:?}", name, value);
+        //         // if name == "data" {
+        //         //     println!(" -- NAME {}: VALUE {:?}", name, value);
+        //         //     println!(" + {:#?}", obj.get("drawdata").fields.get("first").unwrap());
+        //         // }
+        //     }
+        //     // println!("NAME {}: VALUE {:?}", field.0, field.1);
+        // }
     }
-    println!("load_blend() finished in {:?}", now.elapsed());
-
     objects.into_iter().next().context("No object found")
 }
 
@@ -197,12 +186,10 @@ pub fn load_blend_buffer(buffer: &[u8]) -> Result<Object> {
 }
 
 pub fn load_image(content: &[u8]) -> Result<RgbaImage> {
-    println!("load_image() started...");
     let now = Instant::now();
     let image = image::io::Reader::new(Cursor::new(content))
         .with_guessed_format()?
         .decode()?
         .to_rgba8();
-    println!("load_image() finished in {:?}", now.elapsed());
     Ok(image)
 }

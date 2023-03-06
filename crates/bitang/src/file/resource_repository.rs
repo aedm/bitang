@@ -72,7 +72,7 @@ impl ResourceRepository {
     }
 
     // #[instrument(skip(self, context))]
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "load")]
     pub fn load_root_document(
         &mut self,
         context: &VulkanContext,
@@ -149,7 +149,6 @@ impl ResourceRepository {
         Ok(render_object)
     }
 
-    #[instrument(skip_all)]
     fn make_material_step(
         &mut self,
         context: &VulkanContext,
