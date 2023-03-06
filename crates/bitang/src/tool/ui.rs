@@ -55,42 +55,39 @@ impl Ui {
         bottom_panel_height: f32,
         controls: &mut Controls,
     ) -> Box<dyn GpuFuture> {
-        // Mutably borrow all used control values upfront before building the UI
-        let mut controls = controls
-            .used_controls
-            .iter_mut()
-            .map(|c| (c.id.as_str(), c.value.borrow_mut()))
-            .collect::<Vec<_>>();
-
         self.gui.immediate_ui(|gui| {
             let ctx = gui.context();
             egui::TopBottomPanel::bottom("my_panel")
                 .height_range(bottom_panel_height..=bottom_panel_height)
                 .show(&ctx, |ui| {
-                    ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
-                        ui.add_space(5.0);
-
-                        // Add UI for each control value
-                        for control in &mut controls {
-                            // Add label
-                            ui.label(control.0);
-
-                            if let Scalars(scalars) = control.1.deref_mut() {
-                                for i in 0..4 {
-                                    let _ = ui.add(egui::Slider::new(&mut scalars[i], 0.0..=1.0));
-                                }
-                            }
-                        }
-                        ui.allocate_space(ui.available_size());
-                    });
-                    // ui.label("Hello World!");
+                    ui.add_space(5.0);
+                    Self::paint_controls(ui, controls);
                 });
         });
-
-        self.render_gui(context, before_future, target_image)
+        self.render_to_swapchain(context, before_future, target_image)
     }
 
-    fn render_gui(
+    fn paint_controls(ui: &mut egui::Ui, controls: &mut Controls) {
+        // An iterator that mutably borrows all used control values
+        let mut controls = controls
+            .used_controls
+            .iter_mut()
+            .map(|c| (c.id.as_str(), c.value.borrow_mut()));
+
+        ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
+            for mut control in &mut controls {
+                ui.label(control.0);
+                if let Scalars(scalars) = control.1.deref_mut() {
+                    for i in 0..4 {
+                        let _ = ui.add(egui::Slider::new(&mut scalars[i], 0.0..=1.0));
+                    }
+                }
+            }
+            ui.allocate_space(ui.available_size());
+        });
+    }
+
+    fn render_to_swapchain(
         &mut self,
         context: &VulkanContext,
         before_future: Box<dyn GpuFuture>,

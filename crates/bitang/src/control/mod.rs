@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use std::rc::Rc;
 
+pub mod bezier_spline;
 pub mod controls;
 
 pub struct RcHashRef<T>(Rc<T>);
