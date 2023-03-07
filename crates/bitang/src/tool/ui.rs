@@ -1,4 +1,6 @@
 use crate::render::vulkan_window::VulkanContext;
+use egui::plot::{Legend, LinkedAxisGroup, Plot, PlotBounds};
+use egui::Align;
 use egui_winit_vulkano::Gui;
 use std::ops::DerefMut;
 
@@ -16,6 +18,7 @@ use winit::{event::WindowEvent, event_loop::EventLoop};
 pub struct Ui {
     pub gui: Gui,
     pub subpass: Subpass,
+    spline_axes: LinkedAxisGroup,
 }
 
 impl Ui {
@@ -43,8 +46,13 @@ impl Ui {
             context.gfx_queue.clone(),
             subpass.clone(),
         );
+        let spline_axes = LinkedAxisGroup::new(true, true);
 
-        Ui { gui, subpass }
+        Ui {
+            gui,
+            subpass,
+            spline_axes,
+        }
     }
 
     pub fn render(
@@ -55,13 +63,21 @@ impl Ui {
         bottom_panel_height: f32,
         controls: &mut Controls,
     ) -> Box<dyn GpuFuture> {
+        let pixels_per_point = 1.15f32;
+        let bottom_panel_height = bottom_panel_height / pixels_per_point;
+        let spline_axes = &mut self.spline_axes;
         self.gui.immediate_ui(|gui| {
             let ctx = gui.context();
+            ctx.set_pixels_per_point(pixels_per_point);
             egui::TopBottomPanel::bottom("my_panel")
                 .height_range(bottom_panel_height..=bottom_panel_height)
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
-                    Self::paint_controls(ui, controls);
+                    ui.columns(2, |columns| {
+                        let [left_ui, right_ui] = columns else { panic!("Column count mismatch") };
+                        Self::paint_controls(left_ui, controls);
+                        Self::paint_spline_editor(right_ui, spline_axes);
+                    });
                 });
         });
         self.render_to_swapchain(context, before_future, target_image)
@@ -74,7 +90,8 @@ impl Ui {
             .iter_mut()
             .map(|c| (c.id.as_str(), c.value.borrow_mut()));
 
-        ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
+        ui.label("Controls");
+        ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             for mut control in &mut controls {
                 ui.label(control.0);
                 if let Scalars(scalars) = control.1.deref_mut() {
@@ -83,7 +100,28 @@ impl Ui {
                     }
                 }
             }
-            ui.allocate_space(ui.available_size());
+        });
+    }
+
+    fn paint_spline_editor(ui: &mut egui::Ui, spline_axes: &mut LinkedAxisGroup) {
+        // let mut spline_axes = spline_axes.clone();
+        // spline_axes.set(PlotBounds::from_min_max([-1.0, -1.0], [10.0, 10.0]]));
+        ui.label("Spline editor");
+        let mut plot = Plot::new("lines_demo")
+            .legend(Legend::default())
+            .include_x(-2.0)
+            .include_x(2.0)
+            .include_y(-3.0)
+            .include_y(5.0)
+            .allow_boxed_zoom(false)
+            // .auto_bounds_y()
+            // .auto_bounds_x()
+            .allow_drag(false)
+            // .link_axis(spline_axes)
+            .allow_zoom(false)
+            .allow_scroll(false);
+        plot.show(ui, |plot_ui| {
+            plot_ui.set_plot_bounds(PlotBounds::from_min_max([2.0, -1.0], [10.0, 10.0]));
         });
     }
 

@@ -46,7 +46,7 @@ impl VulkanWindow {
         let window_descriptor = WindowDescriptor {
             title: "bitang".to_string(),
             width: 1000.,
-            height: 720.,
+            height: 920.,
             ..WindowDescriptor::default()
         };
 
