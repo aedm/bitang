@@ -18,7 +18,6 @@ use winit::{event::WindowEvent, event_loop::EventLoop};
 pub struct Ui {
     pub gui: Gui,
     pub subpass: Subpass,
-    spline_axes: LinkedAxisGroup,
 }
 
 impl Ui {
@@ -48,11 +47,7 @@ impl Ui {
         );
         let spline_axes = LinkedAxisGroup::new(true, true);
 
-        Ui {
-            gui,
-            subpass,
-            spline_axes,
-        }
+        Ui { gui, subpass }
     }
 
     pub fn render(
@@ -65,7 +60,6 @@ impl Ui {
     ) -> Box<dyn GpuFuture> {
         let pixels_per_point = 1.15f32;
         let bottom_panel_height = bottom_panel_height / pixels_per_point;
-        let spline_axes = &mut self.spline_axes;
         self.gui.immediate_ui(|gui| {
             let ctx = gui.context();
             ctx.set_pixels_per_point(pixels_per_point);
@@ -76,7 +70,7 @@ impl Ui {
                     ui.columns(2, |columns| {
                         let [left_ui, right_ui] = columns else { panic!("Column count mismatch") };
                         Self::paint_controls(left_ui, controls);
-                        Self::paint_spline_editor(right_ui, spline_axes);
+                        Self::paint_spline_editor(right_ui);
                     });
                 });
         });
@@ -103,25 +97,16 @@ impl Ui {
         });
     }
 
-    fn paint_spline_editor(ui: &mut egui::Ui, spline_axes: &mut LinkedAxisGroup) {
-        // let mut spline_axes = spline_axes.clone();
-        // spline_axes.set(PlotBounds::from_min_max([-1.0, -1.0], [10.0, 10.0]]));
+    fn paint_spline_editor(ui: &mut egui::Ui) {
         ui.label("Spline editor");
         let mut plot = Plot::new("lines_demo")
             .legend(Legend::default())
-            .include_x(-2.0)
-            .include_x(2.0)
-            .include_y(-3.0)
-            .include_y(5.0)
             .allow_boxed_zoom(false)
-            // .auto_bounds_y()
-            // .auto_bounds_x()
             .allow_drag(false)
-            // .link_axis(spline_axes)
             .allow_zoom(false)
             .allow_scroll(false);
         plot.show(ui, |plot_ui| {
-            plot_ui.set_plot_bounds(PlotBounds::from_min_max([2.0, -1.0], [10.0, 10.0]));
+            plot_ui.set_plot_bounds(PlotBounds::from_min_max([-2.0, -1.0], [10.0, 10.0]));
         });
     }
 
