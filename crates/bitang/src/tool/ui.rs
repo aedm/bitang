@@ -1,11 +1,12 @@
 use crate::render::vulkan_window::VulkanContext;
-use egui::plot::{Legend, LinkedAxisGroup, Plot, PlotBounds};
-use egui::Align;
+use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, PlotBounds};
+use egui::{Align, Color32};
 use egui_winit_vulkano::Gui;
 use std::ops::DerefMut;
 
 use crate::control::controls::ControlValue::Scalars;
 use crate::control::controls::Controls;
+use crate::tool::spline_editor::SplineEditor;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
@@ -18,6 +19,7 @@ use winit::{event::WindowEvent, event_loop::EventLoop};
 pub struct Ui {
     pub gui: Gui,
     pub subpass: Subpass,
+    spline_editor: SplineEditor,
 }
 
 impl Ui {
@@ -45,9 +47,13 @@ impl Ui {
             context.gfx_queue.clone(),
             subpass.clone(),
         );
-        let spline_axes = LinkedAxisGroup::new(true, true);
+        let spline_editor = SplineEditor::new();
 
-        Ui { gui, subpass }
+        Ui {
+            gui,
+            subpass,
+            spline_editor,
+        }
     }
 
     pub fn render(
@@ -60,6 +66,7 @@ impl Ui {
     ) -> Box<dyn GpuFuture> {
         let pixels_per_point = 1.15f32;
         let bottom_panel_height = bottom_panel_height / pixels_per_point;
+        let spline_editor = &mut self.spline_editor;
         self.gui.immediate_ui(|gui| {
             let ctx = gui.context();
             ctx.set_pixels_per_point(pixels_per_point);
@@ -70,7 +77,8 @@ impl Ui {
                     ui.columns(2, |columns| {
                         let [left_ui, right_ui] = columns else { panic!("Column count mismatch") };
                         Self::paint_controls(left_ui, controls);
-                        Self::paint_spline_editor(right_ui);
+                        // Self::paint_spline_editor(right_ui);
+                        spline_editor.paint(right_ui);
                     });
                 });
         });
@@ -94,19 +102,6 @@ impl Ui {
                     }
                 }
             }
-        });
-    }
-
-    fn paint_spline_editor(ui: &mut egui::Ui) {
-        ui.label("Spline editor");
-        let mut plot = Plot::new("lines_demo")
-            .legend(Legend::default())
-            .allow_boxed_zoom(false)
-            .allow_drag(false)
-            .allow_zoom(false)
-            .allow_scroll(false);
-        plot.show(ui, |plot_ui| {
-            plot_ui.set_plot_bounds(PlotBounds::from_min_max([-2.0, -1.0], [10.0, 10.0]));
         });
     }
 
