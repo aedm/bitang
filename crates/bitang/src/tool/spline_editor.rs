@@ -70,18 +70,16 @@ impl SplineEditor {
             plot_ui.line(line);
         });
 
-        // if x.response.clicked() {
-        //     println!("Clicked");
-        //     self.min_x -= 1.0;
-        // }
-        let dy = ui.input().scroll_delta.y;
-        if dy != 0.0 {
-            let zoom_diff = dy * -0.005;
-            if ui.input().modifiers.ctrl {
-                self.zoom.x += zoom_diff;
-            } else {
-                self.zoom.y += zoom_diff;
-            }
+        // Horizontal zoom
+        let zoom_x_delta = ui.input().scroll_delta.y * -0.005;
+        if zoom_x_delta != 0.0 {
+            self.zoom.x += zoom_x_delta;
+        }
+
+        // Vertical zoom
+        let zoom_y_delta = (ui.input().zoom_delta() - 1.0) * -1.0;
+        if zoom_y_delta != 0.0 {
+            self.zoom.y += zoom_y_delta;
         }
     }
 }
