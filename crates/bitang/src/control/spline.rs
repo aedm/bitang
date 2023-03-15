@@ -58,13 +58,9 @@ impl Spline {
             return p1.value;
         }
 
-        let (tangent1, tangent2) = if index_after > 1 && index_after < self.points.len() - 1 {
-            let tangent1 = Self::calculate_tangent(p0, p2);
-            let tangent2 = Self::calculate_tangent(p1, p3);
-            (tangent1, tangent2)
-        } else {
-            (0.0, 0.0)
-        };
+        let tangent1 = if index_after > 1 { Self::calculate_tangent(p0, p2) } else { 0.0 };
+        let tangent2 =
+            if index_after < self.points.len() - 1 { Self::calculate_tangent(p1, p3) } else { 0.0 };
 
         let ft = (time - p1.time) / dt;
         let ea = p1.value;
