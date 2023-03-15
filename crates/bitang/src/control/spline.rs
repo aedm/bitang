@@ -17,12 +17,24 @@ impl Spline {
         Self { points: Vec::new() }
     }
 
+    fn calculate_tangent(before: &SplinePoint, after: &SplinePoint) -> f32 {
+        let dt = after.time - before.time;
+        if dt < f32::EPSILON {
+            return 0.0;
+        }
+        (after.value - before.value) / dt
+    }
+
     pub fn get_value(&self, time: f32) -> f32 {
         if self.points.is_empty() {
             return 0.0;
         }
 
-        let res = self.points.binary_search_by_key(&time, |p| p.time);
+        // let res = self.points.binary_search_by_key(&time, |p| p.time);
+        let res = self
+            .points
+            .binary_search_by(|p| p.time.partial_cmp(&time).unwrap());
+
         let index_after = match res {
             Ok(index) => index,
             Err(index) => index,
@@ -36,37 +48,29 @@ impl Spline {
         }
 
         // https://en.wikipedia.org/wiki/Centripetal_Catmull%E2%80%93Rom_spline
-        let p0 = &self.points[max(index_after - 2, 0)];
-        let p1 = &self.points[max(index_after - 1, 0)];
+        let p0 = &self.points[index_after.saturating_sub(2)];
+        let p1 = &self.points[index_after.saturating_sub(1)];
         let p2 = &self.points[index_after];
-        let p3 = &self.points[min(index_after, self.points.len() - 1)];
+        let p3 = &self.points[min(index_after + 1, self.points.len() - 1)];
 
-        let t0 = p0.time;
-        let t1 = p1.time;
-        let t2 = p2.time;
-        let t3 = p3.time;
-        let t = time;
+        let dt = p2.time - p1.time;
+        if dt < f32::EPSILON {
+            return p1.value;
+        }
 
-        let a1 = (t1 - t) / (t1 - t0) * p0.value + (t - t0) / (t1 - t0) * p1.value;
-        let a2 = (t2 - t) / (t2 - t1) * p1.value + (t - t1) / (t2 - t1) * p2.value;
-        let a3 = (t3 - t) / (t3 - t2) * p2.value + (t - t2) / (t3 - t2) * p3.value;
-        let b1 = (t2 - t) / (t2 - t0) * a1 + (t - t0) / (t2 - t0) * a2;
-        let b2 = (t3 - t) / (t3 - t1) * a2 + (t - t1) / (t3 - t1) * a3;
-        let c = (t2 - t) / (t2 - t1) * b1 + (t - t1) / (t2 - t1) * b2;
+        let (tangent1, tangent2) = if index_after > 1 && index_after < self.points.len() - 1 {
+            let tangent1 = Self::calculate_tangent(p0, p2);
+            let tangent2 = Self::calculate_tangent(p1, p3);
+            (tangent1, tangent2)
+        } else {
+            (0.0, 0.0)
+        };
 
-        //
-        // let a1 = (p1.time - time) / (p1.time - p0.time) * p0.value
-        //     + (time - p0.time) / (p1.time - p0.time) * p1.value;
-        // let a2 = (p2.time - time) / (p2.time - p1.time) * p1.value
-        //     + (time - p1.time) / (p2.time - p1.time) * p2.value;
-        // let a3 = (p3.time - time) / (p3.time - p2.time) * p2.value
-        //     + (time - p2.time) / (p3.time - p2.time) * p3.value;
-        // let b1 = (p2.time - time) / (p2.time - p0.time) * a1
-        //     + (time - p0.time) / (p2.time - p0.time) * a2;
-        // let b2 = (p3.time - time) / (p3.time - p1.time) * a2
-        //     + (time - p1.time) / (p3.time - p1.time) * a3;
-        // let c = (p2.time - time) / (p2.time - p1.time) * b1
-        //     + (time - p1.time) / (p2.time - p1.time) * b2;
-        c
+        let ft = (time - p1.time) / dt;
+        let ea = p1.value;
+        let eb = dt * tangent1;
+        let ec = 3.0 * (p2.value - p1.value) - dt * (2.0 * tangent1 + tangent2);
+        let ed = -2.0 * (p2.value - p1.value) + dt * (tangent1 + tangent2);
+        ea + ft * eb + ft * ft * ec + ft * ft * ft * ed
     }
 }
