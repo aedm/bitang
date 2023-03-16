@@ -20,6 +20,7 @@ pub struct Ui {
     pub gui: Gui,
     pub subpass: Subpass,
     spline_editor: SplineEditor,
+    time: f32,
 }
 
 impl Ui {
@@ -53,6 +54,7 @@ impl Ui {
             gui,
             subpass,
             spline_editor,
+            time: 5.0,
         }
     }
 
@@ -74,11 +76,9 @@ impl Ui {
                 .height_range(bottom_panel_height..=bottom_panel_height)
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
-                    ui.columns(2, |columns| {
-                        let [left_ui, right_ui] = columns else { panic!("Column count mismatch") };
-                        Self::paint_controls(left_ui, controls);
-                        // Self::paint_spline_editor(right_ui);
-                        spline_editor.paint(right_ui);
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                        Self::paint_controls(ui, controls);
+                        spline_editor.paint(ui, &mut self.time);
                     });
                 });
         });
@@ -92,13 +92,23 @@ impl Ui {
             .iter_mut()
             .map(|c| (c.id.as_str(), c.value.borrow_mut()));
 
-        ui.label("Controls");
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             for mut control in &mut controls {
                 ui.label(control.0);
                 if let Scalars(scalars) = control.1.deref_mut() {
                     for i in 0..4 {
-                        let _ = ui.add(egui::Slider::new(&mut scalars[i], 0.0..=1.0));
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                            ui.add_sized(
+                                [310.0, 0.0],
+                                egui::Slider::new(&mut scalars[i], 0.0..=1.0),
+                            );
+
+                            if ui.button("~").clicked() {
+                                println!("spline");
+                            }
+                            let mut is_spline = false;
+                            ui.checkbox(&mut is_spline, "")
+                        });
                     }
                 }
             }

@@ -1,5 +1,5 @@
 use crate::control::spline::{Spline, SplinePoint};
-use egui::plot::{Legend, Line, Plot, PlotBounds};
+use egui::plot::{Legend, Line, Plot, PlotBounds, PlotPoint};
 use egui::{emath, Color32, InputState, Response};
 use glam::Vec2;
 use std::cell::RefCell;
@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 enum SplineEditorState {
     Idle,
-    Drag,
+    Pan,
     PointMove { index: usize },
 }
 
@@ -17,6 +17,7 @@ pub struct SplineEditor {
     zoom: Vec2,
     state: SplineEditorState,
     spline: Option<Rc<RefCell<Spline>>>,
+    selected_index: Option<usize>,
 }
 
 impl SplineEditor {
@@ -44,6 +45,7 @@ impl SplineEditor {
             zoom: Vec2::new(1.0, 1.0),
             state: SplineEditorState::Idle,
             spline: Some(Rc::new(RefCell::new(spline))),
+            selected_index: None,
         }
     }
 
@@ -61,7 +63,7 @@ impl SplineEditor {
         f32::exp(zoom) / 100.0
     }
 
-    pub fn paint(&mut self, ui: &mut egui::Ui) {
+    pub fn paint(&mut self, ui: &mut egui::Ui, time: &mut f32) {
         let pixel_width = ui.available_size().x.ceil() as isize;
 
         let screen_size = ui.available_size();
@@ -74,9 +76,7 @@ impl SplineEditor {
         let max_y = self.center_y + (screen_size.y * pixel_size.y) / 2.0;
         let min_y = self.center_y - (screen_size.y * pixel_size.y) / 2.0;
 
-        ui.label("Spline editor");
         let mut plot = Plot::new("spline_editor")
-            .legend(Legend::default())
             .show_x(false)
             .show_y(false)
             .include_x(self.min_x as f64)
@@ -88,15 +88,24 @@ impl SplineEditor {
             .allow_zoom(false)
             .allow_scroll(false);
         let mut hover_index = None;
-        let x = plot.show(ui, |plot_ui| {
+        let mut pointer_coordinate = None;
+        let plot_response = plot.show(ui, |plot_ui| {
             plot_ui.set_plot_bounds(PlotBounds::from_min_max(
                 [self.min_x as f64, min_y as f64],
                 [max_x as f64, max_y as f64],
             ));
-            hover_index = self.draw_spline(plot_ui, pixel_width);
+            (hover_index, pointer_coordinate) =
+                self.draw_spline(plot_ui, pixel_width, time, screen_size);
         });
 
-        self.handle_events(&ui.input(), &x.response, &pixel_size, hover_index);
+        self.handle_events(
+            &ui.input(),
+            &plot_response.response,
+            &pixel_size,
+            hover_index,
+            pointer_coordinate,
+            time,
+        );
     }
 
     // Returns the index of the hovered point
@@ -104,9 +113,11 @@ impl SplineEditor {
         &mut self,
         plot_ui: &mut egui::plot::PlotUi,
         pixel_width: isize,
-    ) -> Option<usize> {
+        time: &mut f32,
+        screen_size: egui::Vec2,
+    ) -> (Option<usize>, Option<PlotPoint>) {
         if self.spline.is_none() {
-            return None;
+            return (None, None);
         }
         let spline = self.spline.as_ref().unwrap().borrow();
 
@@ -121,8 +132,11 @@ impl SplineEditor {
         );
 
         // Find hovered point
-        let hover_index = if plot_ui.plot_hovered() {
-            plot_ui.pointer_coordinate().and_then(|c| {
+        let pointer_coordinate = plot_ui.pointer_coordinate();
+        let hover_index = if let SplineEditorState::PointMove { index } = self.state {
+            Some(index)
+        } else if plot_ui.plot_hovered() {
+            pointer_coordinate.and_then(|c| {
                 spline.points.iter().position(|p| {
                     c.x >= p.time as f64 - hover_xs
                         && c.x <= p.time as f64 + hover_xs
@@ -133,6 +147,40 @@ impl SplineEditor {
         } else {
             None
         };
+
+        // Draw time
+        let time_dy = (screen_size.y * pixel_size.y) as f64;
+        let points = vec![
+            [*time as f64, self.center_y as f64 - time_dy],
+            [*time as f64, self.center_y as f64 + time_dy],
+        ];
+        plot_ui.line(
+            Line::new(points)
+                .color(Color32::from_rgb(150, 0, 150))
+                .width(1.0),
+        );
+
+        // Draw points
+        for (index, point) in spline.points.iter().enumerate() {
+            let x = point.time as f64;
+            let y = point.value as f64;
+            let points = vec![
+                [x - hover_xs, y - hover_ys],
+                [x + hover_xs, y - hover_ys],
+                [x + hover_xs, y + hover_ys],
+                [x - hover_xs, y + hover_ys],
+                [x - hover_xs, y - hover_ys],
+            ];
+            let mut rect = Line::new(points).name("circle");
+            let rect = if Some(index) == self.selected_index {
+                rect.color(Color32::from_rgb(255, 255, 255)).width(2.0)
+            } else if Some(index) == hover_index {
+                rect.color(Color32::from_rgb(220, 220, 220)).width(1.0)
+            } else {
+                rect.color(Color32::from_rgb(150, 150, 150)).width(1.0)
+            };
+            plot_ui.line(rect);
+        }
 
         // Draw spline
         let points = (0..=pixel_width)
@@ -148,27 +196,7 @@ impl SplineEditor {
             .name("circle");
         plot_ui.line(line);
 
-        // Draw points
-        for (index, point) in spline.points.iter().enumerate() {
-            let x = point.time as f64;
-            let y = point.value as f64;
-            let points = vec![
-                [x - hover_xs, y - hover_ys],
-                [x + hover_xs, y - hover_ys],
-                [x + hover_xs, y + hover_ys],
-                [x - hover_xs, y + hover_ys],
-                [x - hover_xs, y - hover_ys],
-            ];
-            let mut rect = Line::new(points);
-            let rect = if Some(index) == hover_index {
-                rect.color(Color32::from_rgb(255, 255, 255)).width(2.0)
-            } else {
-                rect.color(Color32::from_rgb(150, 150, 150)).width(1.0)
-            };
-            plot_ui.line(rect);
-        }
-
-        hover_index
+        (hover_index, pointer_coordinate)
     }
 
     fn handle_events(
@@ -177,6 +205,8 @@ impl SplineEditor {
         response: &egui::Response,
         pixel_size: &Vec2,
         hover_index: Option<usize>,
+        pointer_coordinate: Option<PlotPoint>,
+        time: &mut f32,
     ) {
         if let Some(hover) = response.hover_pos() {
             let hover = hover - response.rect.min;
@@ -203,16 +233,31 @@ impl SplineEditor {
 
         match self.state {
             SplineEditorState::Idle => {
+                // Right click: pan
                 if response.hovered() && input.pointer.secondary_clicked() {
-                    self.state = SplineEditorState::Drag;
+                    self.state = SplineEditorState::Pan;
                 }
-                if let Some(index) = hover_index {
-                    if input.pointer.primary_clicked() {
+
+                // Left click: select point
+                if input.pointer.primary_clicked() {
+                    if let Some(index) = hover_index {
                         self.state = SplineEditorState::PointMove { index };
+                        self.selected_index = Some(index);
+                    }
+                }
+
+                // Left click: set time if no point is selected
+                if response.hovered()
+                    && input.pointer.primary_down()
+                    && (!input.pointer.primary_clicked() || hover_index.is_none())
+                {
+                    if let Some(pointer_coordinate) = pointer_coordinate {
+                        *time = pointer_coordinate.x as f32;
+                        self.selected_index = None;
                     }
                 }
             }
-            SplineEditorState::Drag => {
+            SplineEditorState::Pan => {
                 self.min_x -= input.pointer.delta().x * Self::calculate_pixel_size(self.zoom.x);
                 self.center_y += input.pointer.delta().y * Self::calculate_pixel_size(self.zoom.y);
                 if !input.pointer.secondary_down() {
