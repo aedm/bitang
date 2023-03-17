@@ -77,15 +77,15 @@ impl Ui {
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                        Self::paint_controls(ui, controls);
-                        spline_editor.paint(ui, &mut self.time);
+                        Self::draw_control_value_sliders(ui, controls);
+                        spline_editor.draw(ui, &mut self.time);
                     });
                 });
         });
         self.render_to_swapchain(context, before_future, target_image)
     }
 
-    fn paint_controls(ui: &mut egui::Ui, controls: &mut Controls) {
+    fn draw_control_value_sliders(ui: &mut egui::Ui, controls: &mut Controls) {
         // An iterator that mutably borrows all used control values
         let mut controls = controls
             .used_controls

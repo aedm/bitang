@@ -30,7 +30,6 @@ impl Spline {
             return 0.0;
         }
 
-        // let res = self.points.binary_search_by_key(&time, |p| p.time);
         let res = self
             .points
             .binary_search_by(|p| p.time.partial_cmp(&time).unwrap());

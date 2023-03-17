@@ -63,7 +63,7 @@ impl SplineEditor {
         f32::exp(zoom) / 100.0
     }
 
-    pub fn paint(&mut self, ui: &mut egui::Ui, time: &mut f32) {
+    pub fn draw(&mut self, ui: &mut egui::Ui, time: &mut f32) {
         let pixel_width = ui.available_size().x.ceil() as isize;
 
         let screen_size = ui.available_size();
@@ -76,36 +76,100 @@ impl SplineEditor {
         let max_y = self.center_y + (screen_size.y * pixel_size.y) / 2.0;
         let min_y = self.center_y - (screen_size.y * pixel_size.y) / 2.0;
 
-        let mut plot = Plot::new("spline_editor")
-            .show_x(false)
-            .show_y(false)
-            .include_x(self.min_x as f64)
-            .include_x(max_x as f64)
-            .include_y(min_y as f64)
-            .include_y(max_y as f64)
-            .allow_boxed_zoom(false)
-            .allow_drag(false)
-            .allow_zoom(false)
-            .allow_scroll(false);
-        let mut hover_index = None;
-        let mut pointer_coordinate = None;
-        let plot_response = plot.show(ui, |plot_ui| {
-            plot_ui.set_plot_bounds(PlotBounds::from_min_max(
-                [self.min_x as f64, min_y as f64],
-                [max_x as f64, max_y as f64],
-            ));
-            (hover_index, pointer_coordinate) =
-                self.draw_spline(plot_ui, pixel_width, time, screen_size);
+        ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+            self.draw_info(ui, time);
+            let mut plot = Plot::new("spline_editor")
+                .show_x(false)
+                .show_y(false)
+                .include_x(self.min_x as f64)
+                .include_x(max_x as f64)
+                .include_y(min_y as f64)
+                .include_y(max_y as f64)
+                .allow_boxed_zoom(false)
+                .allow_drag(false)
+                .allow_zoom(false)
+                .allow_scroll(false);
+            let mut hover_index = None;
+            let mut pointer_coordinate = None;
+            let plot_response = plot.show(ui, |plot_ui| {
+                plot_ui.set_plot_bounds(PlotBounds::from_min_max(
+                    [self.min_x as f64, min_y as f64],
+                    [max_x as f64, max_y as f64],
+                ));
+                (hover_index, pointer_coordinate) =
+                    self.draw_spline(plot_ui, pixel_width, time, screen_size);
+            });
+
+            self.handle_events(
+                &ui.input(),
+                &plot_response.response,
+                &pixel_size,
+                hover_index,
+                pointer_coordinate,
+                time,
+            );
+        });
+    }
+
+    // Info about on the top
+    fn draw_info(&mut self, ui: &mut egui::Ui, time: &mut f32) {
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+            if let Some(spline) = self.spline.as_mut() {
+                let mut spline = spline.borrow_mut();
+
+                // Add new point
+                if ui
+                    .button("Add point")
+                    .on_hover_text("Adds a new point at the current time")
+                    .clicked()
+                {
+                    let value = spline.get_value(*time);
+
+                    let res = spline
+                        .points
+                        .binary_search_by(|p| p.time.partial_cmp(time).unwrap());
+
+                    let index_after = match res {
+                        Ok(index) => index,
+                        Err(index) => index,
+                    };
+
+                    spline.points.insert(
+                        index_after,
+                        SplinePoint {
+                            time: *time,
+                            value,
+                            is_linear_after: false,
+                        },
+                    );
+                    self.selected_index = Some(index_after);
+                }
+
+                // Remove point
+                if let Some(index) = self.selected_index {
+                    if ui
+                        .button("Remove point")
+                        .on_hover_text("Removes the selected point")
+                        .clicked()
+                    {
+                        spline.points.remove(index);
+                        self.selected_index = if index > 0 { Some(index - 1) } else { None };
+                    } else {
+                        let point = &mut spline.points[index];
+                        ui.horizontal(|ui| {
+                            ui.label("Time:");
+                            ui.add(egui::DragValue::new(&mut point.time).speed(0.01));
+                            ui.label("Value:");
+                            ui.add(egui::DragValue::new(&mut point.value).speed(0.01));
+                        });
+                    }
+                }
+            }
+            ui.label(" ");
         });
 
-        self.handle_events(
-            &ui.input(),
-            &plot_response.response,
-            &pixel_size,
-            hover_index,
-            pointer_coordinate,
-            time,
-        );
+        // if let Some(spline) = self.spline.as_mut() {
+        //     let mut spline = spline.borrow_mut();
     }
 
     // Returns the index of the hovered point
