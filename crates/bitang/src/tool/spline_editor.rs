@@ -51,6 +51,7 @@ impl SplineEditor {
 
     pub fn set_spline(&mut self, spline: &Rc<RefCell<Spline>>) {
         self.spline = Some(spline.clone());
+        self.selected_index = None;
         match self.state {
             SplineEditorState::PointMove { .. } => {
                 self.state = SplineEditorState::Idle;
