@@ -11,3 +11,7 @@ overflow-checks = false
 [profile.dev.package.bitang]
 opt-level = 0
 overflow-checks = true
+
+[profile.dev.package.egui]
+opt-level = 0
+overflow-checks = true

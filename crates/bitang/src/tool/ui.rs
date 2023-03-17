@@ -1,9 +1,12 @@
 use crate::render::vulkan_window::VulkanContext;
+use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, PlotBounds};
+use egui::{Align, Color32};
 use egui_winit_vulkano::Gui;
 use std::ops::DerefMut;
 
 use crate::control::controls::ControlValue::Scalars;
 use crate::control::controls::Controls;
+use crate::tool::spline_editor::SplineEditor;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
@@ -16,6 +19,8 @@ use winit::{event::WindowEvent, event_loop::EventLoop};
 pub struct Ui {
     pub gui: Gui,
     pub subpass: Subpass,
+    spline_editor: SplineEditor,
+    time: f32,
 }
 
 impl Ui {
@@ -43,8 +48,14 @@ impl Ui {
             context.gfx_queue.clone(),
             subpass.clone(),
         );
+        let spline_editor = SplineEditor::new();
 
-        Ui { gui, subpass }
+        Ui {
+            gui,
+            subpass,
+            spline_editor,
+            time: 5.0,
+        }
     }
 
     pub fn render(
@@ -55,42 +66,56 @@ impl Ui {
         bottom_panel_height: f32,
         controls: &mut Controls,
     ) -> Box<dyn GpuFuture> {
-        // Mutably borrow all used control values upfront before building the UI
-        let mut controls = controls
-            .used_controls
-            .iter_mut()
-            .map(|c| (c.id.as_str(), c.value.borrow_mut()))
-            .collect::<Vec<_>>();
-
+        let pixels_per_point = 1.15f32;
+        let bottom_panel_height = bottom_panel_height / pixels_per_point;
+        let spline_editor = &mut self.spline_editor;
         self.gui.immediate_ui(|gui| {
             let ctx = gui.context();
+            ctx.set_pixels_per_point(pixels_per_point);
             egui::TopBottomPanel::bottom("my_panel")
                 .height_range(bottom_panel_height..=bottom_panel_height)
                 .show(&ctx, |ui| {
-                    ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
-                        ui.add_space(5.0);
-
-                        // Add UI for each control value
-                        for control in &mut controls {
-                            // Add label
-                            ui.label(control.0);
-
-                            if let Scalars(scalars) = control.1.deref_mut() {
-                                for i in 0..4 {
-                                    let _ = ui.add(egui::Slider::new(&mut scalars[i], 0.0..=1.0));
-                                }
-                            }
-                        }
-                        ui.allocate_space(ui.available_size());
+                    ui.add_space(5.0);
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                        Self::draw_control_value_sliders(ui, controls);
+                        spline_editor.draw(ui, &mut self.time);
                     });
-                    // ui.label("Hello World!");
                 });
         });
-
-        self.render_gui(context, before_future, target_image)
+        self.render_to_swapchain(context, before_future, target_image)
     }
 
-    fn render_gui(
+    fn draw_control_value_sliders(ui: &mut egui::Ui, controls: &mut Controls) {
+        // An iterator that mutably borrows all used control values
+        let mut controls = controls
+            .used_controls
+            .iter_mut()
+            .map(|c| (c.id.as_str(), c.value.borrow_mut()));
+
+        ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+            for mut control in &mut controls {
+                ui.label(control.0);
+                if let Scalars(scalars) = control.1.deref_mut() {
+                    for i in 0..4 {
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                            ui.add_sized(
+                                [310.0, 0.0],
+                                egui::Slider::new(&mut scalars[i], 0.0..=1.0),
+                            );
+
+                            if ui.button("~").clicked() {
+                                println!("spline");
+                            }
+                            let mut is_spline = false;
+                            ui.checkbox(&mut is_spline, "")
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    fn render_to_swapchain(
         &mut self,
         context: &VulkanContext,
         before_future: Box<dyn GpuFuture>,
