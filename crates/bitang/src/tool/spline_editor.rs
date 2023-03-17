@@ -167,9 +167,6 @@ impl SplineEditor {
             }
             ui.label(" ");
         });
-
-        // if let Some(spline) = self.spline.as_mut() {
-        //     let mut spline = spline.borrow_mut();
     }
 
     // Returns the index of the hovered point
