@@ -15,7 +15,3 @@ overflow-checks = true
 [profile.dev.package.egui]
 opt-level = 0
 overflow-checks = true
-
-#[patch.crates-io]
-#egui = { path = "crates/egui-patch/crates/egui" }
-
