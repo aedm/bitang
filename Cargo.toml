@@ -16,6 +16,6 @@ overflow-checks = true
 opt-level = 0
 overflow-checks = true
 
-[patch.crates-io]
-egui = { path = "crates/egui-patch/crates/egui" }
+#[patch.crates-io]
+#egui = { path = "crates/egui-patch/crates/egui" }
 
