@@ -8,6 +8,7 @@ use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Vertex3};
 use std::array;
 use std::mem::size_of;
+use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
@@ -233,7 +234,7 @@ impl ShaderUniformStorage {
             for local_mapping in &shader.local_uniform_bindings {
                 for i in 0..local_mapping.f32_count {
                     uniform_values[local_mapping.f32_offset + i] =
-                        local_mapping.control.get_value(i, 0.0);
+                        local_mapping.control.components[i].borrow().deref().value;
                 }
             }
             let _value_count = shader.uniform_buffer_size / size_of::<f32>();

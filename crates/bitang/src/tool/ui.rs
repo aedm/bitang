@@ -2,7 +2,8 @@ use crate::render::vulkan_window::VulkanContext;
 use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, PlotBounds};
 use egui::{Align, Color32};
 use egui_winit_vulkano::Gui;
-use std::ops::DerefMut;
+use std::array;
+use std::ops::{Deref, DerefMut};
 
 use crate::control::controls::ControlValue::Scalars;
 use crate::control::controls::Controls;
@@ -87,29 +88,27 @@ impl Ui {
 
     fn draw_control_value_sliders(ui: &mut egui::Ui, controls: &mut Controls) {
         // An iterator that mutably borrows all used control values
-        let mut controls = controls
-            .used_controls
-            .iter_mut()
-            .map(|c| (c.id.as_str(), c.value.borrow_mut()));
+        let mut controls = controls.used_controls.iter_mut().map(|c| {
+            let b: [_; 4] = array::from_fn(|i| c.components[i].borrow_mut());
+            (c.id.as_str(), b)
+        });
 
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             for mut control in &mut controls {
                 ui.label(control.0);
-                if let Scalars(scalars) = control.1.deref_mut() {
-                    for i in 0..4 {
-                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                            ui.add_sized(
-                                [310.0, 0.0],
-                                egui::Slider::new(&mut scalars[i], 0.0..=1.0),
-                            );
+                for i in 0..4 {
+                    let component = control.1[i].deref_mut();
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                        ui.add_sized(
+                            [310.0, 0.0],
+                            egui::Slider::new(&mut component.value, 0.0..=1.0),
+                        );
 
-                            if ui.button("~").clicked() {
-                                println!("spline");
-                            }
-                            let mut is_spline = false;
-                            ui.checkbox(&mut is_spline, "")
-                        });
-                    }
+                        if ui.button("~").clicked() {
+                            println!("spline");
+                        }
+                        ui.checkbox(&mut component.use_spline, "")
+                    });
                 }
             }
         });
