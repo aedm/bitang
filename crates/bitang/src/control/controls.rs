@@ -1,36 +1,56 @@
 use crate::control::spline::Spline;
 use crate::control::RcHashRef;
+use crate::file::load_controls;
 use anyhow::anyhow;
 use anyhow::Result;
 use glam::Mat4;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::rc::Rc;
 use std::{array, mem, slice};
-use tracing::debug;
+use tracing::{debug, error};
 
-#[derive(Default)]
-pub struct Controls {
-    pub controls_by_id: HashMap<String, Rc<Control>>,
+pub struct ControlsAndGlobals {
+    pub controls: Controls,
     pub globals: Globals,
 
     pub used_controls: Vec<Rc<Control>>,
     used_control_collector: HashSet<RcHashRef<Control>>,
 }
 
-impl Controls {
+#[derive(Serialize, Deserialize, Default)]
+pub struct Controls {
+    pub by_id: HashMap<String, Rc<Control>>,
+}
+
+impl ControlsAndGlobals {
     pub fn new() -> Self {
-        Self::default()
+        let controls = {
+            match load_controls() {
+                Ok(controls) => controls,
+                Err(err) => {
+                    error!("Failed to load controls: {}", err);
+                    Controls::default()
+                }
+            }
+        };
+        ControlsAndGlobals {
+            controls,
+            globals: Default::default(),
+            used_controls: vec![],
+            used_control_collector: Default::default(),
+        }
     }
 
     pub fn get_control(&mut self, id: &str) -> Rc<Control> {
-        if let Some(x) = self.controls_by_id.get(id) {
+        if let Some(x) = self.controls.by_id.get(id) {
             self.used_control_collector.insert(RcHashRef(x.clone()));
             return x.clone();
         }
         let control = Rc::new(Control::new(id));
-        self.controls_by_id.insert(id.to_string(), control.clone());
+        self.controls.by_id.insert(id.to_string(), control.clone());
         self.used_control_collector
             .insert(RcHashRef(control.clone()));
         control
@@ -53,21 +73,17 @@ impl Controls {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Control {
     pub id: String,
-    // pub value: RefCell<ControlValue>,
     pub components: RefCell<[ControlComponent; 4]>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct ControlComponent {
     pub value: f32,
     pub spline: Spline,
     pub use_spline: bool,
-}
-
-pub enum ControlValue {
-    Scalars([f32; 4]),
-    Splines(),
 }
 
 impl Control {
@@ -91,14 +107,6 @@ impl Control {
             }
         }
     }
-
-    // pub fn get_value(&self, index: usize) -> f32 {
-    //     self.components[index].borrow().deref().value
-    // }
-    //
-    // pub fn set_scalar(&self, value: [f32; 4]) {
-    //     *self.value.borrow_mut() = ControlValue::Scalars(value);
-    // }
 }
 
 impl ControlComponent {

@@ -1,4 +1,4 @@
-use crate::control::controls::Controls;
+use crate::control::controls::ControlsAndGlobals;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::{ShaderCache, ShaderCompilationResult};
@@ -51,7 +51,7 @@ pub struct ResourceRepository {
     shader_cache: ShaderCache,
     // vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     // fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
-    pub controls: Controls,
+    pub controls: ControlsAndGlobals,
 
     cached_root: Option<Arc<RenderObject>>,
 }
@@ -67,7 +67,7 @@ impl ResourceRepository {
             root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_ron_file),
             file_hash_cache,
             cached_root: None,
-            controls: Controls::new(),
+            controls: ControlsAndGlobals::new(),
         })
     }
 
@@ -76,7 +76,7 @@ impl ResourceRepository {
     pub fn load_root_document(
         &mut self,
         context: &VulkanContext,
-        controls: &mut Controls,
+        controls: &mut ControlsAndGlobals,
     ) -> Result<Arc<RenderObject>> {
         let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
         match (has_file_changes, &self.cached_root) {
@@ -112,7 +112,7 @@ impl ResourceRepository {
     pub fn load_render_object(
         &mut self,
         context: &VulkanContext,
-        controls: &mut Controls,
+        controls: &mut ControlsAndGlobals,
     ) -> Result<RenderObject> {
         let object = self
             .root_ron_file_cache
@@ -152,7 +152,7 @@ impl ResourceRepository {
     fn make_material_step(
         &mut self,
         context: &VulkanContext,
-        controls: &mut Controls,
+        controls: &mut ControlsAndGlobals,
         object: &Arc<RonObject>,
         texture: &Arc<Texture>,
     ) -> Result<MaterialStep> {
@@ -181,7 +181,7 @@ impl ResourceRepository {
 
     #[instrument(skip_all)]
     fn make_shader(
-        controls: &mut Controls,
+        controls: &mut ControlsAndGlobals,
         object: &RonObject,
         compilation_result: &ShaderCompilationResult,
         texture: &Arc<Texture>,

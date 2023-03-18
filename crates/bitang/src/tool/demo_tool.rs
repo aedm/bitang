@@ -1,4 +1,4 @@
-use crate::control::controls::Controls;
+use crate::control::controls::ControlsAndGlobals;
 use crate::file::resource_repository::ResourceRepository;
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::RenderTarget;
@@ -30,14 +30,14 @@ pub struct DemoTool {
     resource_repository: ResourceRepository,
     render_unit: Option<RenderUnit>,
     render_object: Option<Arc<RenderObject>>,
-    controls: Controls,
+    controls: ControlsAndGlobals,
     time: f32,
 }
 
 impl DemoTool {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let mut resource_repository = ResourceRepository::try_new()?;
-        let mut controls = Controls::new();
+        let mut controls = ControlsAndGlobals::new();
         let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
 
         let render_object = resource_repository.load_root_document(context, &mut controls)?;

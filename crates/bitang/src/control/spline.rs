@@ -1,11 +1,14 @@
 use glam::Vec2;
+use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
 
 // Plain Catmull-Rom spline ffs
+#[derive(Serialize, Deserialize)]
 pub struct Spline {
     pub points: Vec<SplinePoint>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct SplinePoint {
     pub time: f32,
     pub value: f32,

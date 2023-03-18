@@ -5,9 +5,10 @@ use egui_winit_vulkano::Gui;
 use std::array;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
+use tracing::error;
 
-use crate::control::controls::ControlValue::Scalars;
-use crate::control::controls::{Control, Controls};
+use crate::control::controls::{Control, ControlsAndGlobals};
+use crate::file::save_controls;
 use crate::tool::spline_editor::SplineEditor;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
@@ -64,7 +65,7 @@ impl Ui {
         before_future: Box<dyn GpuFuture>,
         target_image: SwapchainImageView,
         bottom_panel_height: f32,
-        controls: &mut Controls,
+        controls_and_globals: &mut ControlsAndGlobals,
         time: &mut f32,
     ) -> Box<dyn GpuFuture> {
         let pixels_per_point = 1.15f32;
@@ -73,30 +74,44 @@ impl Ui {
         self.gui.immediate_ui(|gui| {
             let ctx = gui.context();
             ctx.set_pixels_per_point(pixels_per_point);
-            egui::TopBottomPanel::bottom("my_panel")
+            egui::TopBottomPanel::bottom("ui_root")
                 .height_range(bottom_panel_height..=bottom_panel_height)
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                         if let Some((control, component_index)) =
-                            Self::draw_control_value_sliders(ui, controls)
+                            Self::draw_control_value_sliders(ui, controls_and_globals)
                         {
                             spline_editor.set_control(control, component_index);
                         }
                         spline_editor.draw(ui, time);
                     });
                 });
+            Self::handle_hotkeys(ctx, controls_and_globals);
         });
         self.render_to_swapchain(context, before_future, target_image)
+    }
+
+    fn handle_hotkeys(ctx: egui::Context, controls: &mut ControlsAndGlobals) {
+        // Save
+        if ctx
+            .input_mut()
+            .consume_key(egui::Modifiers::CTRL, egui::Key::S)
+        {
+            println!("Saving");
+            if let Err(err) = save_controls(&controls.controls) {
+                error!("Failed to save controls: {}", err);
+            }
+        }
     }
 
     // Returns the spline that was activated
     fn draw_control_value_sliders<'a>(
         ui: &mut egui::Ui,
-        controls: &'a mut Controls,
+        controls_and_globals: &'a mut ControlsAndGlobals,
     ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
-        let mut controls_borrow = controls.used_controls.iter_mut().map(|c| {
+        let mut controls_borrow = controls_and_globals.used_controls.iter_mut().map(|c| {
             // let b: [_; 4] = array::from_fn(|i| c.components.borrow_mut());
             (c.id.as_str(), c.components.borrow_mut())
         });
@@ -124,7 +139,10 @@ impl Ui {
         });
 
         selected.and_then(|(control_index, component_index)| {
-            Some((&controls.used_controls[control_index], component_index))
+            Some((
+                &controls_and_globals.used_controls[control_index],
+                component_index,
+            ))
         })
     }
 
