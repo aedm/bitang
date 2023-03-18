@@ -56,7 +56,7 @@ impl Controls {
 pub struct Control {
     pub id: String,
     // pub value: RefCell<ControlValue>,
-    pub components: [RefCell<ControlComponent>; 4],
+    pub components: RefCell<[ControlComponent; 4]>,
 }
 
 pub struct ControlComponent {
@@ -75,13 +75,20 @@ impl Control {
         Self {
             id: id.to_string(),
             // value: RefCell::new(ControlValue::Scalars([0.0; 4])),
-            components: array::from_fn(|_| {
-                RefCell::new(ControlComponent {
-                    value: 0.0,
-                    spline: Spline::new(),
-                    use_spline: false,
-                })
-            }),
+            components: RefCell::new(array::from_fn(|_| ControlComponent {
+                value: 0.0,
+                spline: Spline::new(),
+                use_spline: false,
+            })),
+        }
+    }
+
+    pub fn evaluate_splines(&self, time: f32) {
+        let mut components = self.components.borrow_mut();
+        for component in components.iter_mut() {
+            if component.use_spline {
+                component.value = component.spline.get_value(time);
+            }
         }
     }
 

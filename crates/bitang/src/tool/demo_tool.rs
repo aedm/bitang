@@ -31,6 +31,7 @@ pub struct DemoTool {
     render_unit: Option<RenderUnit>,
     render_object: Option<Arc<RenderObject>>,
     controls: Controls,
+    time: f32,
 }
 
 impl DemoTool {
@@ -52,6 +53,7 @@ impl DemoTool {
             render_unit: Some(render_unit),
             render_object: Some(render_object),
             controls,
+            time: 5.0,
         };
         Ok(demo_tool)
     }
@@ -82,6 +84,11 @@ impl DemoTool {
         self.update_render_unit(context);
 
         let elapsed = self.start_time.elapsed().as_secs_f32();
+
+        // Evaluate control splines
+        for control in &mut self.controls.used_controls {
+            control.evaluate_splines(self.time);
+        }
 
         // let dimensions = target_image.dimensions().width_height();
         let framebuffer = Framebuffer::new(
@@ -188,6 +195,7 @@ impl VulkanApp for DemoTool {
             target_image,
             ui_height,
             &mut self.controls,
+            &mut self.time,
         );
 
         renderer.present(gui_finished_future, true);

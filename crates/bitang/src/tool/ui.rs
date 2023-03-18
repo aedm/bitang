@@ -4,9 +4,10 @@ use egui::{Align, Color32};
 use egui_winit_vulkano::Gui;
 use std::array;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 use crate::control::controls::ControlValue::Scalars;
-use crate::control::controls::Controls;
+use crate::control::controls::{Control, Controls};
 use crate::tool::spline_editor::SplineEditor;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
@@ -21,7 +22,6 @@ pub struct Ui {
     pub gui: Gui,
     pub subpass: Subpass,
     spline_editor: SplineEditor,
-    time: f32,
 }
 
 impl Ui {
@@ -55,7 +55,6 @@ impl Ui {
             gui,
             subpass,
             spline_editor,
-            time: 5.0,
         }
     }
 
@@ -66,6 +65,7 @@ impl Ui {
         target_image: SwapchainImageView,
         bottom_panel_height: f32,
         controls: &mut Controls,
+        time: &mut f32,
     ) -> Box<dyn GpuFuture> {
         let pixels_per_point = 1.15f32;
         let bottom_panel_height = bottom_panel_height / pixels_per_point;
@@ -78,40 +78,54 @@ impl Ui {
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                        Self::draw_control_value_sliders(ui, controls);
-                        spline_editor.draw(ui, &mut self.time);
+                        if let Some((control, component_index)) =
+                            Self::draw_control_value_sliders(ui, controls)
+                        {
+                            spline_editor.set_control(control, component_index);
+                        }
+                        spline_editor.draw(ui, time);
                     });
                 });
         });
         self.render_to_swapchain(context, before_future, target_image)
     }
 
-    fn draw_control_value_sliders(ui: &mut egui::Ui, controls: &mut Controls) {
+    // Returns the spline that was activated
+    fn draw_control_value_sliders<'a>(
+        ui: &mut egui::Ui,
+        controls: &'a mut Controls,
+    ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
-        let mut controls = controls.used_controls.iter_mut().map(|c| {
-            let b: [_; 4] = array::from_fn(|i| c.components[i].borrow_mut());
-            (c.id.as_str(), b)
+        let mut controls_borrow = controls.used_controls.iter_mut().map(|c| {
+            // let b: [_; 4] = array::from_fn(|i| c.components.borrow_mut());
+            (c.id.as_str(), c.components.borrow_mut())
         });
+        let mut selected = None;
 
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-            for mut control in &mut controls {
+            for (control_index, mut control) in controls_borrow.enumerate() {
                 ui.label(control.0);
+                let components = control.1.as_mut();
                 for i in 0..4 {
-                    let component = control.1[i].deref_mut();
+                    let component = &mut components[i];
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                         ui.add_sized(
-                            [310.0, 0.0],
+                            [330.0, 0.0],
                             egui::Slider::new(&mut component.value, 0.0..=1.0),
                         );
 
                         if ui.button("~").clicked() {
-                            println!("spline");
+                            selected = Some((control_index, i));
                         }
                         ui.checkbox(&mut component.use_spline, "")
                     });
                 }
             }
         });
+
+        selected.and_then(|(control_index, component_index)| {
+            Some((&controls.used_controls[control_index], component_index))
+        })
     }
 
     fn render_to_swapchain(

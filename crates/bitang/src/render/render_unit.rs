@@ -232,9 +232,9 @@ impl ShaderUniformStorage {
                 }
             }
             for local_mapping in &shader.local_uniform_bindings {
+                let components = local_mapping.control.components.borrow();
                 for i in 0..local_mapping.f32_count {
-                    uniform_values[local_mapping.f32_offset + i] =
-                        local_mapping.control.components[i].borrow().deref().value;
+                    uniform_values[local_mapping.f32_offset + i] = components[i].value;
                 }
             }
             let _value_count = shader.uniform_buffer_size / size_of::<f32>();
