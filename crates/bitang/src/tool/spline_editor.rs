@@ -24,31 +24,12 @@ pub struct SplineEditor {
 
 impl SplineEditor {
     pub fn new() -> Self {
-        let mut control = Control::new("spline_test");
-        let component = &mut control.components.get_mut()[0];
-        let spline = &mut component.spline;
-        spline.points.push(SplinePoint {
-            time: 0.0,
-            value: 0.0,
-            is_linear_after: false,
-        });
-        spline.points.push(SplinePoint {
-            time: 3.0,
-            value: 5.0,
-            is_linear_after: false,
-        });
-        spline.points.push(SplinePoint {
-            time: 7.0,
-            value: -2.0,
-            is_linear_after: false,
-        });
-
         Self {
             center_y: 0.0,
             min_x: -2.0,
             zoom: Vec2::new(1.0, 1.0),
             state: SplineEditorState::Idle,
-            control: Some(Rc::new(control)),
+            control: None,
             component_index: 0,
             selected_index: None,
         }
@@ -103,8 +84,8 @@ impl SplineEditor {
                     [self.min_x as f64, min_y as f64],
                     [max_x as f64, max_y as f64],
                 ));
-                (hover_index, pointer_coordinate) =
-                    self.draw_spline(plot_ui, pixel_width, time, screen_size);
+                self.paint_time_cursor(plot_ui, *time, screen_size);
+                (hover_index, pointer_coordinate) = self.draw_spline(plot_ui, pixel_width);
             });
 
             self.handle_events(
@@ -177,16 +158,35 @@ impl SplineEditor {
         });
     }
 
+    fn paint_time_cursor(
+        &self,
+        plot_ui: &mut egui::plot::PlotUi,
+        time: f32,
+        screen_size: egui::Vec2,
+    ) {
+        // Draw time
+        let time_dy = (screen_size.y * Self::calculate_pixel_size(self.zoom.y)) as f64;
+        let points = vec![
+            [time as f64, self.center_y as f64 - time_dy],
+            [time as f64, self.center_y as f64 + time_dy],
+        ];
+        plot_ui.line(
+            Line::new(points)
+                .color(Color32::from_rgb(150, 0, 150))
+                .width(1.0),
+        );
+    }
+
     // Returns the index of the hovered point
     fn draw_spline(
         &mut self,
         plot_ui: &mut egui::plot::PlotUi,
         pixel_width: isize,
-        time: &mut f32,
-        screen_size: egui::Vec2,
     ) -> (Option<usize>, Option<PlotPoint>) {
+        let pointer_coordinate = plot_ui.pointer_coordinate();
+
         if self.control.is_none() {
-            return (None, None);
+            return (None, pointer_coordinate);
         }
         let components = self.control.as_ref().unwrap().components.borrow();
         let spline = &components[self.component_index].spline;
@@ -202,7 +202,6 @@ impl SplineEditor {
         );
 
         // Find hovered point
-        let pointer_coordinate = plot_ui.pointer_coordinate();
         let hover_index = if let SplineEditorState::PointMove { index } = self.state {
             Some(index)
         } else if plot_ui.plot_hovered() {
@@ -217,18 +216,6 @@ impl SplineEditor {
         } else {
             None
         };
-
-        // Draw time
-        let time_dy = (screen_size.y * pixel_size.y) as f64;
-        let points = vec![
-            [*time as f64, self.center_y as f64 - time_dy],
-            [*time as f64, self.center_y as f64 + time_dy],
-        ];
-        plot_ui.line(
-            Line::new(points)
-                .color(Color32::from_rgb(150, 0, 150))
-                .width(1.0),
-        );
 
         // Draw points
         for (index, point) in spline.points.iter().enumerate() {
