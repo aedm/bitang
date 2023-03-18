@@ -1,3 +1,4 @@
+use crate::control::controls::Control;
 use crate::control::spline::{Spline, SplinePoint};
 use egui::plot::{Legend, Line, Plot, PlotBounds, PlotPoint};
 use egui::{emath, Color32, InputState, Response};
@@ -16,13 +17,16 @@ pub struct SplineEditor {
     min_x: f32,
     zoom: Vec2,
     state: SplineEditorState,
-    spline: Option<Rc<RefCell<Spline>>>,
+    control: Option<Rc<Control>>,
+    component_index: usize,
     selected_index: Option<usize>,
 }
 
 impl SplineEditor {
     pub fn new() -> Self {
-        let mut spline = Spline::new();
+        let mut control = Control::new("spline_test");
+        let component = &mut control.components.get_mut()[0];
+        let spline = &mut component.spline;
         spline.points.push(SplinePoint {
             time: 0.0,
             value: 0.0,
@@ -44,13 +48,15 @@ impl SplineEditor {
             min_x: -2.0,
             zoom: Vec2::new(1.0, 1.0),
             state: SplineEditorState::Idle,
-            spline: Some(Rc::new(RefCell::new(spline))),
+            control: Some(Rc::new(control)),
+            component_index: 0,
             selected_index: None,
         }
     }
 
-    pub fn set_spline(&mut self, spline: &Rc<RefCell<Spline>>) {
-        self.spline = Some(spline.clone());
+    pub fn set_control(&mut self, control: &Rc<Control>, component_index: usize) {
+        self.control = Some(control.clone());
+        self.component_index = component_index;
         self.selected_index = None;
         match self.state {
             SplineEditorState::PointMove { .. } => {
@@ -115,8 +121,9 @@ impl SplineEditor {
     // Info about on the top
     fn draw_info(&mut self, ui: &mut egui::Ui, time: &mut f32) {
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-            if let Some(spline) = self.spline.as_mut() {
-                let mut spline = spline.borrow_mut();
+            if let Some(control) = self.control.as_mut() {
+                let components = &mut control.components.borrow_mut();
+                let spline = &mut components[self.component_index].spline;
 
                 // Add new point
                 if ui
@@ -178,10 +185,11 @@ impl SplineEditor {
         time: &mut f32,
         screen_size: egui::Vec2,
     ) -> (Option<usize>, Option<PlotPoint>) {
-        if self.spline.is_none() {
+        if self.control.is_none() {
             return (None, None);
         }
-        let spline = self.spline.as_ref().unwrap().borrow();
+        let components = self.control.as_ref().unwrap().components.borrow();
+        let spline = &components[self.component_index].spline;
 
         let pixel_size = Vec2::new(
             Self::calculate_pixel_size(self.zoom.x),
@@ -327,8 +335,9 @@ impl SplineEditor {
                 }
             }
             SplineEditorState::PointMove { index } => {
-                if let Some(spline) = self.spline.as_mut() {
-                    let mut spline = spline.borrow_mut();
+                if let Some(control) = self.control.as_mut() {
+                    let mut components = control.components.borrow_mut();
+                    let mut spline = &mut components[self.component_index].spline;
                     let point = spline.points.get_mut(index).unwrap();
                     point.time += input.pointer.delta().x * Self::calculate_pixel_size(self.zoom.x);
                     point.value -=

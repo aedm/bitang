@@ -1,3 +1,4 @@
+use crate::control::spline::Spline;
 use crate::control::RcHashRef;
 use anyhow::anyhow;
 use anyhow::Result;
@@ -6,7 +7,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::rc::Rc;
-use std::{mem, slice};
+use std::{array, mem, slice};
 use tracing::debug;
 
 #[derive(Default)]
@@ -54,7 +55,14 @@ impl Controls {
 
 pub struct Control {
     pub id: String,
-    pub value: RefCell<ControlValue>,
+    // pub value: RefCell<ControlValue>,
+    pub components: RefCell<[ControlComponent; 4]>,
+}
+
+pub struct ControlComponent {
+    pub value: f32,
+    pub spline: Spline,
+    pub use_spline: bool,
 }
 
 pub enum ControlValue {
@@ -66,19 +74,38 @@ impl Control {
     pub fn new(id: &str) -> Self {
         Self {
             id: id.to_string(),
-            value: RefCell::new(ControlValue::Scalars([0.0; 4])),
+            // value: RefCell::new(ControlValue::Scalars([0.0; 4])),
+            components: RefCell::new(array::from_fn(|_| ControlComponent {
+                value: 0.0,
+                spline: Spline::new(),
+                use_spline: false,
+            })),
         }
     }
 
-    pub fn get_value(&self, index: usize, _time: f32) -> f32 {
-        match self.value.borrow().deref() {
-            ControlValue::Scalars(x) => x[index],
-            ControlValue::Splines() => 0.0,
+    pub fn evaluate_splines(&self, time: f32) {
+        let mut components = self.components.borrow_mut();
+        for component in components.iter_mut() {
+            if component.use_spline {
+                component.value = component.spline.get_value(time);
+            }
         }
     }
 
-    pub fn set_scalar(&self, value: [f32; 4]) {
-        *self.value.borrow_mut() = ControlValue::Scalars(value);
+    // pub fn get_value(&self, index: usize) -> f32 {
+    //     self.components[index].borrow().deref().value
+    // }
+    //
+    // pub fn set_scalar(&self, value: [f32; 4]) {
+    //     *self.value.borrow_mut() = ControlValue::Scalars(value);
+    // }
+}
+
+impl ControlComponent {
+    pub fn update(&mut self, time: f32) {
+        if self.use_spline {
+            self.value = self.spline.get_value(time);
+        }
     }
 }
 
