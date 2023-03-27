@@ -27,7 +27,7 @@ pub struct ShaderCacheValue {
 #[derive(Debug)]
 pub struct ShaderCompilationResult {
     pub module: Arc<ShaderModule>,
-    pub texture_bindings: Vec<ShaderCompilationTextureBinding>,
+    pub samplers: Vec<ShaderCompilationSampler>,
     pub global_uniform_bindings: Vec<GlobalUniformMapping>,
     pub local_uniform_bindings: Vec<ShaderCompilationLocalUniform>,
     pub uniform_buffer_size: usize,
@@ -35,7 +35,7 @@ pub struct ShaderCompilationResult {
 
 // Metadata of a texture binding extracted from the compiled shader
 #[derive(Debug)]
-pub struct ShaderCompilationTextureBinding {
+pub struct ShaderCompilationSampler {
     pub name: String,
     pub binding: u32,
 }
@@ -140,14 +140,14 @@ impl ShaderCache {
             .find(|ds| ds.set == descriptor_set_index)
             .unwrap();
 
-        // Find all texture bindings
-        let texture_bindings = descriptor_set
+        // Find all samplers
+        let samplers = descriptor_set
             .bindings
             .iter()
             .filter(|binding| {
                 binding.descriptor_type == ReflectDescriptorType::CombinedImageSampler
             })
-            .map(|binding| ShaderCompilationTextureBinding {
+            .map(|binding| ShaderCompilationSampler {
                 name: binding.name.clone(),
                 binding: binding.binding,
             })
@@ -205,7 +205,7 @@ impl ShaderCache {
 
         let result = ShaderCompilationResult {
             module,
-            texture_bindings,
+            samplers,
             local_uniform_bindings,
             global_uniform_bindings,
             uniform_buffer_size,
@@ -229,11 +229,7 @@ impl ShaderCache {
         );
         debug!(
             "Textures: {:?}",
-            result
-                .texture_bindings
-                .iter()
-                .map(|u| &u.name)
-                .collect::<Vec<_>>()
+            result.samplers.iter().map(|u| &u.name).collect::<Vec<_>>()
         );
         Ok(result)
     }

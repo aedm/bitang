@@ -26,8 +26,8 @@ pub struct Pass {
 impl Pass {
     pub fn new(
         context: &VulkanContext,
-        render_targets: &[Arc<RenderTarget>],
-        objects: &[Arc<RenderObject>],
+        render_targets: Vec<Arc<RenderTarget>>,
+        objects: Vec<Arc<RenderObject>>,
     ) -> Result<Pass> {
         // let render_pass = vulkano::single_pass_renderpass!(
         //     context.context.device().clone(),
@@ -50,7 +50,7 @@ impl Pass {
         // )
         // .unwrap();
 
-        let render_pass = Self::make_vulkan_render_pass(render_targets)?;
+        let render_pass = Self::make_vulkan_render_pass(&render_targets)?;
         let render_units = objects
             .iter()
             .map(|object| RenderUnit::new(context, &render_pass, object))
@@ -58,8 +58,8 @@ impl Pass {
 
         Ok(Pass {
             vulkan_render_pass: render_pass,
-            render_targets: render_targets.to_vec(),
-            objects: objects.to_vec(),
+            render_targets,
+            objects,
             render_units,
         })
     }

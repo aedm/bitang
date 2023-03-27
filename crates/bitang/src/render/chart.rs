@@ -7,22 +7,24 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct Chart {
+    id: String,
     camera: Camera,
     render_targets: Vec<Arc<RenderTarget>>,
-    passes: Vec<Arc<Pass>>,
+    passes: Vec<Pass>,
     // render_object: Arc<RenderObject>,
     // render_unit: Option<RenderUnit>,
 }
 
 impl Chart {
-    fn new(
+    pub fn new(
+        id: &str,
         controls: &mut ControlsAndGlobals,
-        prefix: &str,
         render_targets: Vec<Arc<RenderTarget>>,
-        passes: Vec<Arc<Pass>>,
+        passes: Vec<Pass>,
         // render_object: &Arc<RenderObject>,
     ) -> Self {
         Chart {
+            id: id.to_string(),
             camera: Camera::new(controls, &format!("{prefix}/camera")),
             render_targets,
             passes,

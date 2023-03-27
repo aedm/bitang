@@ -3,7 +3,7 @@ use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::{ShaderCache, ShaderCompilationResult};
 use crate::render::material::{
-    LocalUniformMapping, Material, MaterialStep, Shader, TextureBinding,
+    LocalUniformMapping, Material, MaterialStep, SamplerBinding, Shader,
 };
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
@@ -150,74 +150,8 @@ impl ResourceRepository {
     //     Ok(render_object)
     // }
 
-    fn make_material_step(
-        &mut self,
-        context: &VulkanContext,
-        controls: &mut ControlsAndGlobals,
-        object: &Arc<chart_file::Object>,
-        texture: &Arc<Texture>,
-    ) -> Result<MaterialStep> {
-        let shaders = self.shader_cache.get_or_load(
-            context,
-            &object.vertex_shader,
-            &object.fragment_shader,
-        )?;
-
-        let vertex_shader = Self::make_shader(controls, &object, &shaders.vertex_shader, &texture);
-        let fragment_shader =
-            Self::make_shader(controls, &object, &shaders.fragment_shader, &texture);
-
-        let material_step = MaterialStep {
-            vertex_shader,
-            fragment_shader,
-            depth_test: object.depth_test,
-            depth_write: object.depth_write,
-        };
-        Ok(material_step)
-    }
-
     fn make_control_id_for_object(object_id: &str, uniform_name: &str) -> String {
         format!("ob/{}/{}", object_id, uniform_name)
-    }
-
-    #[instrument(skip_all)]
-    fn make_shader(
-        controls: &mut ControlsAndGlobals,
-        object: &chart_file::Object,
-        compilation_result: &ShaderCompilationResult,
-        texture: &Arc<Texture>,
-    ) -> Shader {
-        let local_mapping = compilation_result
-            .local_uniform_bindings
-            .iter()
-            .map(|binding| {
-                let control_id = Self::make_control_id_for_object(&object.id, &binding.name);
-                let control = controls.get_control(&control_id);
-                LocalUniformMapping {
-                    control,
-                    f32_count: binding.f32_count,
-                    f32_offset: binding.f32_offset,
-                }
-            })
-            .collect::<Vec<_>>();
-
-        // Bind all samplers to the same texture for now
-        let texture_bindings = compilation_result
-            .texture_bindings
-            .iter()
-            .map(|binding| TextureBinding {
-                texture: texture.clone(),
-                descriptor_set_binding: binding.binding,
-            })
-            .collect::<Vec<_>>();
-
-        Shader {
-            shader_module: compilation_result.module.clone(),
-            texture_bindings,
-            local_uniform_bindings: local_mapping,
-            global_uniform_bindings: compilation_result.global_uniform_bindings.clone(),
-            uniform_buffer_size: compilation_result.uniform_buffer_size,
-        }
     }
 }
 

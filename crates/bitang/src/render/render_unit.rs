@@ -243,7 +243,7 @@ impl ShaderUniformStorage {
             descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
         }
 
-        for texture_binding in &shader.texture_bindings {
+        for texture_binding in &shader.sampler_bindings {
             let sampler = Sampler::new(
                 context.context.device().clone(),
                 SamplerCreateInfo {

@@ -1,4 +1,5 @@
 use crate::control::controls::{Control, GlobalType};
+use crate::render::render_target::RenderTarget;
 use crate::render::Texture;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -33,15 +34,21 @@ pub enum ShaderKind {
 #[derive(Clone)]
 pub struct Shader {
     pub shader_module: Arc<ShaderModule>,
-    pub texture_bindings: Vec<TextureBinding>,
+    pub sampler_bindings: Vec<SamplerBinding>,
     pub global_uniform_bindings: Vec<GlobalUniformMapping>,
     pub local_uniform_bindings: Vec<LocalUniformMapping>,
     pub uniform_buffer_size: usize,
 }
 
 #[derive(Clone)]
-pub struct TextureBinding {
-    pub texture: Arc<Texture>,
+pub enum SamplerSource {
+    Texture(Arc<Texture>),
+    RenderTarget(Arc<RenderTarget>),
+}
+
+#[derive(Clone)]
+pub struct SamplerBinding {
+    pub sampler_source: SamplerSource,
     pub descriptor_set_binding: u32,
 }
 
