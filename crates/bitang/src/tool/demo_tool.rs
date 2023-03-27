@@ -1,7 +1,7 @@
 use crate::control::controls::ControlsAndGlobals;
 use crate::file::resource_repository::ResourceRepository;
 use crate::render::material::MaterialStepType;
-use crate::render::render_target::RenderTarget;
+use crate::render::render_target::{Pass, RenderTarget, RenderTargetRole};
 use crate::render::render_unit::RenderUnit;
 use crate::render::vulkan_window::{VulkanApp, VulkanContext};
 use crate::render::RenderObject;
@@ -24,12 +24,13 @@ use winit::event::WindowEvent;
 use winit::event_loop::EventLoop;
 
 pub struct DemoTool {
-    render_target: Arc<RenderTarget>,
+    render_target: Arc<Pass>,
     ui: Ui,
     start_time: Instant,
     resource_repository: ResourceRepository,
-    render_unit: Option<RenderUnit>,
+    // render_unit: Option<RenderUnit>,
     render_object: Option<Arc<RenderObject>>,
+    pass: Pass,
     controls: ControlsAndGlobals,
     time: f32,
 }
@@ -38,10 +39,13 @@ impl DemoTool {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let mut resource_repository = ResourceRepository::try_new()?;
         let mut controls = ControlsAndGlobals::new();
-        let render_target = Arc::new(RenderTarget::from_framebuffer(&context));
 
+        // let render_target = Arc::new(Pass::new(&context));
+        let render_target =
+            RenderTarget::from_swapchain(RenderTargetRole::Color, context.swapchain_format)?;
         let render_object = resource_repository.load_root_document(context, &mut controls)?;
-        let render_unit = RenderUnit::new(context, &render_target, render_object.clone());
+        // let render_unit = RenderUnit::new(context, &render_target, render_object.clone());
+        let pass = Pass::new(context, &render_object, MaterialStepType::Opaque);
 
         let ui = Ui::new(context, event_loop);
 
@@ -50,7 +54,7 @@ impl DemoTool {
             ui,
             start_time: Instant::now(),
             resource_repository,
-            render_unit: Some(render_unit),
+            // render_unit: Some(render_unit),
             render_object: Some(render_object),
             controls,
             time: 5.0,
@@ -92,7 +96,7 @@ impl DemoTool {
 
         // let dimensions = target_image.dimensions().width_height();
         let framebuffer = Framebuffer::new(
-            self.render_target.render_pass.clone(),
+            self.render_target.vulkan_render_pass.clone(),
             FramebufferCreateInfo {
                 attachments: vec![target_image, depth_image],
                 ..Default::default()

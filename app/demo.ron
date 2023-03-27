@@ -1,4 +1,4 @@
-RonObject(
+RenderObject(
 	id: "1",
 	mesh_path: "app/naty/File.blend",
 	texture_path: "app/naty/Albedo.png",

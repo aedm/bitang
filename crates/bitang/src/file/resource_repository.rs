@@ -10,6 +10,8 @@ use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
 use anyhow::{anyhow, Result};
 
+use crate::file::chart_file;
+use crate::render::chart::Chart;
 use bitang_utils::blend_loader::load_blend_buffer;
 use serde::Deserialize;
 use serde::Serialize;
@@ -28,25 +30,12 @@ use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RonObject {
-    id: String,
-    mesh_path: String,
-    texture_path: String,
-    // mesh_selector: String,
-    vertex_shader: String,
-    fragment_shader: String,
-    depth_test: bool,
-    depth_write: bool,
-    uniforms: HashMap<String, Vec<f32>>,
-}
-
 pub struct ResourceRepository {
     file_hash_cache: Rc<RefCell<FileCache>>,
 
     texture_cache: BinaryFileCache<Arc<Texture>>,
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
-    root_ron_file_cache: BinaryFileCache<Arc<RonObject>>,
+    root_ron_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
 
     shader_cache: ShaderCache,
     // vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
@@ -64,7 +53,7 @@ impl ResourceRepository {
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
             mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
             shader_cache: ShaderCache::new(&file_hash_cache),
-            root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_ron_file),
+            root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
             file_hash_cache,
             cached_root: None,
             controls: ControlsAndGlobals::new(),
@@ -85,7 +74,7 @@ impl ResourceRepository {
                 let now = std::time::Instant::now();
                 controls.start_load_cycle();
                 let result = self
-                    .load_render_object(context, controls)
+                    .load_root_chart(context, controls)
                     .and_then(|render_object| {
                         let render_object = Arc::new(render_object);
                         self.cached_root = Some(render_object.clone());
@@ -109,51 +98,63 @@ impl ResourceRepository {
         self.mesh_cache.get_or_load(context, &path)
     }
 
-    pub fn load_render_object(
+    pub fn load_root_chart(
         &mut self,
         context: &VulkanContext,
         controls: &mut ControlsAndGlobals,
-    ) -> Result<RenderObject> {
-        let object = self
+    ) -> Result<Chart> {
+        let chart = self
             .root_ron_file_cache
-            .get_or_load(context, "app/demo.ron")?
+            .get_or_load(context, "test-chart/chart.ron")?
             .clone();
-
-        // Set uniforms
-        for (uniform_name, uniform_value) in &object.uniforms {
-            if uniform_value.is_empty() {
-                return Err(anyhow!(
-                    "Uniform '{}' has no values. Object id '{}'",
-                    uniform_name,
-                    object.id
-                ));
-            }
-            let _control_id = Self::make_control_id_for_object(&object.id, uniform_name);
-            let _value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
-            // controls.get_control(&control_id).set_scalar(value);
-        }
-
-        let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
-        let texture = self.get_texture(context, &object.texture_path)?.clone();
-        let solid_step = self.make_material_step(context, controls, &object, &texture)?;
-        let material = Material {
-            passes: [None, None, Some(solid_step)],
-        };
-
-        let render_object = RenderObject {
-            mesh,
-            material,
-            position: Default::default(),
-            rotation: Default::default(),
-        };
-        Ok(render_object)
+        let c2 = chart.load(context, self, controls);
     }
+
+    // pub fn load_root_chart(
+    //     &mut self,
+    //     context: &VulkanContext,
+    //     controls: &mut ControlsAndGlobals,
+    // ) -> Result<RenderObject> {
+    //     let chart = self
+    //         .root_ron_file_cache
+    //         .get_or_load(context, "test-chart/chart.ron")?
+    //         .clone();
+    //
+    //     // Set uniforms
+    //     for (uniform_name, uniform_value) in &object.uniforms {
+    //         if uniform_value.is_empty() {
+    //             return Err(anyhow!(
+    //                 "Uniform '{}' has no values. Object id '{}'",
+    //                 uniform_name,
+    //                 object.id
+    //             ));
+    //         }
+    //         let _control_id = Self::make_control_id_for_object(&object.id, uniform_name);
+    //         let _value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
+    //         // controls.get_control(&control_id).set_scalar(value);
+    //     }
+    //
+    //     let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
+    //     let texture = self.get_texture(context, &object.texture_path)?.clone();
+    //     let solid_step = self.make_material_step(context, controls, &object, &texture)?;
+    //     let material = Material {
+    //         passes: [None, None, Some(solid_step)],
+    //     };
+    //
+    //     let render_object = RenderObject {
+    //         mesh,
+    //         material,
+    //         position: Default::default(),
+    //         rotation: Default::default(),
+    //     };
+    //     Ok(render_object)
+    // }
 
     fn make_material_step(
         &mut self,
         context: &VulkanContext,
         controls: &mut ControlsAndGlobals,
-        object: &Arc<RonObject>,
+        object: &Arc<chart_file::Object>,
         texture: &Arc<Texture>,
     ) -> Result<MaterialStep> {
         let shaders = self.shader_cache.get_or_load(
@@ -182,7 +183,7 @@ impl ResourceRepository {
     #[instrument(skip_all)]
     fn make_shader(
         controls: &mut ControlsAndGlobals,
-        object: &RonObject,
+        object: &chart_file::Object,
         compilation_result: &ShaderCompilationResult,
         texture: &Arc<Texture>,
     ) -> Shader {
@@ -274,7 +275,7 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
 }
 
 #[instrument(skip_all)]
-pub fn load_ron_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<RonObject>> {
-    let object = ron::from_str::<RonObject>(std::str::from_utf8(content)?)?;
-    Ok(Arc::new(object))
+pub fn load_chart_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<chart_file::Chart>> {
+    let chart = ron::from_str::<chart_file::Chart>(std::str::from_utf8(content)?)?;
+    Ok(Arc::new(chart))
 }

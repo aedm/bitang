@@ -1,3 +1,4 @@
+pub mod chart;
 pub mod material;
 pub mod mesh;
 pub mod render_target;

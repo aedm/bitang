@@ -3,7 +3,7 @@ use crate::render::material::{
     MaterialStep, MaterialStepType, Shader, ShaderKind, MATERIAL_STEP_COUNT,
 };
 use crate::render::mesh::Mesh;
-use crate::render::render_target::RenderTarget;
+use crate::render::render_target::Pass;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Vertex3};
 use std::array;
@@ -45,20 +45,20 @@ struct ShaderUniformStorage {
 impl RenderUnit {
     pub fn new(
         context: &VulkanContext,
-        render_target: &Arc<RenderTarget>,
-        render_object: Arc<RenderObject>,
+        render_pass: &Arc<vulkano::render_pass::RenderPass>,
+        render_object: &Arc<RenderObject>,
     ) -> RenderUnit {
         let steps = array::from_fn(|index| {
             let material_step = &render_object.material.passes[index];
             if let Some(material_step) = material_step {
-                Some(RenderUnitStep::new(context, render_target, material_step))
+                Some(RenderUnitStep::new(context, render_pass, material_step))
             } else {
                 None
             }
         });
 
         RenderUnit {
-            render_object,
+            render_object: render_object.clone(),
             steps,
         }
     }
@@ -93,7 +93,7 @@ impl RenderUnit {
 impl RenderUnitStep {
     pub fn new(
         context: &VulkanContext,
-        render_target: &RenderTarget,
+        render_pass: &Arc<vulkano::render_pass::RenderPass>,
         material_step: &MaterialStep,
     ) -> RenderUnitStep {
         let vertex_uniforms_storage = ShaderUniformStorage::new(context);
@@ -138,7 +138,7 @@ impl RenderUnitStep {
                 (),
             )
             .depth_stencil_state(depth_stencil_state)
-            .render_pass(Subpass::from(render_target.render_pass.clone(), 0).unwrap())
+            .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
             .build(context.context.device().clone())
             .unwrap();
 
