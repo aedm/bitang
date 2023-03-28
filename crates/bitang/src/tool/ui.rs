@@ -1,4 +1,4 @@
-use crate::render::vulkan_window::VulkanContext;
+use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, PlotBounds};
 use egui::{Align, Color32};
 use egui_winit_vulkano::Gui;
@@ -7,7 +7,7 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use tracing::error;
 
-use crate::control::controls::{Control, ControlsAndGlobals};
+use crate::control::controls::{Control, Controls};
 use crate::file::save_controls;
 use crate::tool::spline_editor::SplineEditor;
 use vulkano::command_buffer::{
@@ -61,11 +61,10 @@ impl Ui {
 
     pub fn render(
         &mut self,
-        context: &VulkanContext,
+        context: &RenderContext,
         before_future: Box<dyn GpuFuture>,
-        target_image: SwapchainImageView,
         bottom_panel_height: f32,
-        controls_and_globals: &mut ControlsAndGlobals,
+        controls_and_globals: &mut Controls,
         time: &mut f32,
     ) -> Box<dyn GpuFuture> {
         let pixels_per_point = 1.15f32;
@@ -89,10 +88,10 @@ impl Ui {
                 });
             Self::handle_hotkeys(ctx, controls_and_globals);
         });
-        self.render_to_swapchain(context, before_future, target_image)
+        self.render_to_swapchain(context, before_future)
     }
 
-    fn handle_hotkeys(ctx: egui::Context, controls: &mut ControlsAndGlobals) {
+    fn handle_hotkeys(ctx: egui::Context, controls: &mut Controls) {
         // Save
         if ctx
             .input_mut()
@@ -108,7 +107,7 @@ impl Ui {
     // Returns the spline that was activated
     fn draw_control_value_sliders<'a>(
         ui: &mut egui::Ui,
-        controls_and_globals: &'a mut ControlsAndGlobals,
+        controls_and_globals: &'a mut Controls,
     ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
         let mut controls_borrow = controls_and_globals.used_controls.iter_mut().map(|c| {
@@ -148,9 +147,8 @@ impl Ui {
 
     fn render_to_swapchain(
         &mut self,
-        context: &VulkanContext,
+        context: &RenderContext,
         before_future: Box<dyn GpuFuture>,
-        target_image: SwapchainImageView,
     ) -> Box<dyn GpuFuture> {
         let mut builder = AutoCommandBufferBuilder::primary(
             &context.command_buffer_allocator,
@@ -159,6 +157,7 @@ impl Ui {
         )
         .unwrap();
 
+        let target_image = context.swapchain_image.clone();
         let dimensions = target_image.dimensions().width_height();
         let framebuffer = Framebuffer::new(
             self.subpass.render_pass().clone(),

@@ -2,7 +2,7 @@ use crate::control::controls::Globals;
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::RenderTargetSizeConstraint::Static;
 use crate::render::render_unit::RenderUnit;
-use crate::render::vulkan_window::VulkanContext;
+use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
 use std::sync::Arc;
@@ -11,6 +11,7 @@ use vulkano::command_buffer::{
 };
 use vulkano::format::Format;
 use vulkano::image::{AttachmentImage, ImageLayout, ImageViewAbstract, SampleCount};
+use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
     RenderPassCreateInfo, StoreOp, SubpassDescription,
@@ -64,13 +65,7 @@ impl Pass {
         })
     }
 
-    pub fn render(
-        &self,
-        context: &VulkanContext,
-        builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-        material_step_type: MaterialStepType,
-        globals: &Globals,
-    ) {
+    pub fn render(&self, context: &RenderContext, material_step_type: MaterialStepType) {
         let attachments = self
             .render_targets
             .iter()
@@ -93,7 +88,8 @@ impl Pass {
         .unwrap();
 
         let clear_values = vec![Some([0.03, 0.03, 0.03, 1.0].into()), Some(1f32.into())];
-        builder
+        context
+            .command_builder
             .begin_render_pass(
                 RenderPassBeginInfo {
                     clear_values,
@@ -102,16 +98,18 @@ impl Pass {
                 SubpassContents::Inline,
             )
             .unwrap()
-            .set_viewport(0, [viewport.clone()]);
+            // TODO: generate actual viewport
+            .set_viewport(0, [context.screen_viewport.clone()]);
 
         for render_unit in &self.render_units {
-            render_unit.render(context, builder, material_step_type, globals);
+            render_unit.render(context, material_step_type);
         }
 
-        builder.end_render_pass().unwrap();
+        context.command_builder.end_render_pass().unwrap();
     }
 
     fn make_vulkan_render_pass(
+        context: &RenderContext,
         render_targets: &[Arc<RenderTarget>],
     ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
         let mut attachments = vec![];
@@ -159,8 +157,10 @@ impl Pass {
             subpasses,
             ..Default::default()
         };
-        let render_pass =
-            vulkano::render_pass::RenderPass::new(context.context.device().clone(), create_info)?;
+        let render_pass = vulkano::render_pass::RenderPass::new(
+            context.vulkan_context.context.device().clone(),
+            create_info,
+        )?;
         Ok(render_pass)
     }
 }
@@ -242,13 +242,16 @@ impl RenderTarget {
         })
     }
 
-    pub fn ensure_buffer(&mut self, context: &VulkanContext, screen_size: (u32, u32)) {
+    pub fn ensure_buffer(&mut self, context: &RenderContext) {
         let texture_size = match self.size {
             RenderTargetSizeConstraint::Static { width, height } => (width, height),
-            RenderTargetSizeConstraint::ScreenRelative { width, height } => (
-                (screen_size.0 as f32 * width) as u32,
-                (screen_size.1 as f32 * height) as u32,
-            ),
+            RenderTargetSizeConstraint::ScreenRelative { width, height } => {
+                let dimensions = &context.screen_viewport.dimensions;
+                (
+                    dimensions.width * width as u32,
+                    dimensions.height * height as u32,
+                )
+            }
         };
 
         // Skip if texture size is the same

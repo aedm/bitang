@@ -1,11 +1,14 @@
+use crate::control::controls::Globals;
 use std::sync::Arc;
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
+use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::device::Queue;
 use vulkano::format::Format;
 use vulkano::image::ImageUsage;
+use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::Surface;
-use vulkano_util::renderer::VulkanoWindowRenderer;
+use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
 use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},
@@ -25,6 +28,15 @@ pub struct VulkanContext {
     pub gfx_queue: Arc<Queue>,
 }
 
+pub struct RenderContext<'a> {
+    pub vulkan_context: &'a VulkanContext,
+    pub screen_buffer: SwapchainImageView,
+    pub depth_buffer: DeviceImageView,
+    pub screen_viewport: Viewport,
+    pub command_builder: &'a mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
+    pub globals: Globals,
+}
+
 pub struct VulkanWindow {
     pub context: VulkanContext,
     pub event_loop: EventLoop<()>,
@@ -32,7 +44,7 @@ pub struct VulkanWindow {
 }
 
 pub trait VulkanApp {
-    fn paint(&mut self, context: &VulkanContext, renderer: &mut VulkanoWindowRenderer);
+    fn paint(&mut self, context: &mut RenderContext, renderer: &mut VulkanoWindowRenderer);
     fn handle_window_event(&mut self, event: &WindowEvent);
 }
 
@@ -104,7 +116,17 @@ impl VulkanWindow {
                     }
                 }
                 Event::RedrawRequested(_) => {
-                    app.paint(&self.context, renderer);
+                    let target_image = renderer.swapchain_image_view();
+                    let depth_image = renderer.get_additional_image_view(1);
+                    let mut render_context = RenderContext {
+                        vulkan_context: &self.context,
+                        screen_buffer: target_image,
+                        screen_viewport: renderer.screen_viewport(),
+                        command_builder: &mut renderer.command_builder(),
+                        depth_buffer: depth_image,
+                        globals: Default::default(),
+                    };
+                    app.paint(&mut render_context, renderer);
                 }
                 Event::MainEventsCleared => {
                     renderer.window().request_redraw();

@@ -4,7 +4,7 @@ use crate::render::material::{
 };
 use crate::render::mesh::Mesh;
 use crate::render::render_target::Pass;
-use crate::render::vulkan_window::VulkanContext;
+use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::{RenderObject, Vertex3};
 use std::array;
 use std::mem::size_of;
@@ -63,26 +63,14 @@ impl RenderUnit {
         }
     }
 
-    pub fn render(
-        &self,
-        context: &VulkanContext,
-        builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-        material_step_type: MaterialStepType,
-        globals: &Globals,
-    ) {
+    pub fn render(&self, context: &RenderContext, material_step_type: MaterialStepType) {
         let index = material_step_type as usize;
         match (
             &self.steps[index],
             &self.render_object.material.passes[index],
         ) {
             (Some(component), Some(material_step)) => {
-                component.render(
-                    context,
-                    builder,
-                    material_step,
-                    &self.render_object.mesh,
-                    globals,
-                );
+                component.render(context, material_step, &self.render_object.mesh);
             }
             (None, None) => {}
             _ => panic!("RenderUnitStep and MaterialStep mismatch"),
@@ -149,14 +137,7 @@ impl RenderUnitStep {
         }
     }
 
-    pub fn render(
-        &self,
-        context: &VulkanContext,
-        builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-        material_step: &MaterialStep,
-        mesh: &Mesh,
-        globals: &Globals,
-    ) {
+    pub fn render(&self, context: &RenderContext, material_step: &MaterialStep, mesh: &Mesh) {
         let descriptor_set_layouts = self.pipeline.layout().set_layouts();
         let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
             context,
@@ -164,7 +145,6 @@ impl RenderUnitStep {
             descriptor_set_layouts
                 .get(ShaderKind::Vertex as usize)
                 .unwrap(),
-            globals,
         );
         let fragment_descriptor_set = self.fragment_uniforms_storage.make_descriptor_set(
             context,
@@ -172,10 +152,10 @@ impl RenderUnitStep {
             descriptor_set_layouts
                 .get(ShaderKind::Fragment as usize)
                 .unwrap(),
-            globals,
         );
 
-        builder
+        context
+            .command_builder
             .bind_pipeline_graphics(self.pipeline.clone())
             .bind_descriptor_sets(
                 PipelineBindPoint::Graphics,
@@ -212,10 +192,9 @@ impl ShaderUniformStorage {
 
     fn make_descriptor_set(
         &self,
-        context: &VulkanContext,
+        context: &RenderContext,
         shader: &Shader,
         layout: &Arc<DescriptorSetLayout>,
-        globals: &Globals,
     ) -> Arc<PersistentDescriptorSet> {
         // TODO: avoid memory allocation, maybe use tinyvec
         let mut descriptors = vec![];
@@ -224,7 +203,7 @@ impl ShaderUniformStorage {
             // Fill uniform array
             let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
             for global_mapping in &shader.global_uniform_bindings {
-                let values = globals.get(global_mapping.global_type);
+                let values = context.globals.get(global_mapping.global_type);
                 // TODO: store f32 offset instead of byte offset
                 let offset = global_mapping.offset / size_of::<f32>();
                 for (i, value) in values.iter().enumerate() {

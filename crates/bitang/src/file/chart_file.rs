@@ -1,4 +1,4 @@
-use crate::control::controls::ControlsAndGlobals;
+use crate::control::controls::Controls;
 use crate::file::resource_repository::ResourceRepository;
 use crate::file::shader_loader::ShaderCompilationResult;
 use crate::render;
@@ -68,7 +68,7 @@ impl Chart {
         context: &VulkanContext,
         id: &str,
         resource_repository: &mut ResourceRepository,
-        controls: &mut ControlsAndGlobals,
+        controls: &mut Controls,
     ) -> Result<render::chart::Chart> {
         let render_targets = self
             .render_targets
@@ -87,7 +87,8 @@ impl Chart {
 
         let render_targets = render_targets.into_values().collect::<Vec<_>>();
 
-        render::chart::Chart::new(id, controls, render_targets, passes);
+        let chart = render::chart::Chart::new(id, controls, render_targets, passes);
+        Ok(chart)
 
         // // Set uniforms
         // for (uniform_name, uniform_value) in &object.uniforms {
@@ -126,7 +127,7 @@ impl Pass {
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
         render_targets: &HashMap<String, Arc<render::render_target::RenderTarget>>,
-        controls: &mut ControlsAndGlobals,
+        controls: &mut Controls,
     ) -> Result<render::render_target::Pass> {
         let render_targets = self
             .render_targets
@@ -151,12 +152,15 @@ impl Pass {
 }
 
 impl RenderTarget {
-    pub fn load(&self, context: &VulkanContext) -> Result<render::render_target::RenderTarget> {
+    pub fn load(
+        &self,
+        context: &VulkanContext,
+    ) -> Result<Arc<render::render_target::RenderTarget>> {
         let size_constraint = self.size.load();
         let role = self.role.load();
         let render_target =
             render::render_target::RenderTarget::new(&self.id, role, size_constraint)?;
-        Ok(render_target)
+        Ok(Arc::new(render_target))
     }
 }
 
@@ -194,7 +198,7 @@ impl Object {
         control_prefix: &str,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
-        controls: &mut ControlsAndGlobals,
+        controls: &mut Controls,
         render_targets: &HashMap<String, Arc<render::render_target::RenderTarget>>,
     ) -> Result<render::RenderObject> {
         let mesh = resource_repository
@@ -244,7 +248,7 @@ impl Object {
         &self,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
-        controls: &mut ControlsAndGlobals,
+        controls: &mut Controls,
         control_prefix: &str,
         sampler_sources: &HashMap<String, SamplerSource>,
     ) -> Result<MaterialStep> {
@@ -279,7 +283,7 @@ impl Object {
 
 #[instrument(skip_all)]
 fn make_shader(
-    controls: &mut ControlsAndGlobals,
+    controls: &mut Controls,
     control_prefix: &str,
     compilation_result: &ShaderCompilationResult,
     sampler_sources: &HashMap<String, SamplerSource>,

@@ -1,4 +1,4 @@
-use crate::control::controls::ControlsAndGlobals;
+use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::{ShaderCache, ShaderCompilationResult};
@@ -40,9 +40,9 @@ pub struct ResourceRepository {
     pub shader_cache: ShaderCache,
     // vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     // fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
-    pub controls: ControlsAndGlobals,
+    pub controls: Controls,
 
-    cached_root: Option<Arc<RenderObject>>,
+    cached_root: Option<Arc<Chart>>,
 }
 
 impl ResourceRepository {
@@ -56,17 +56,16 @@ impl ResourceRepository {
             root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
             file_hash_cache,
             cached_root: None,
-            controls: ControlsAndGlobals::new(),
+            controls: Controls::new(),
         })
     }
 
-    // #[instrument(skip(self, context))]
     #[instrument(skip_all, name = "load")]
     pub fn load_root_document(
         &mut self,
         context: &VulkanContext,
-        controls: &mut ControlsAndGlobals,
-    ) -> Result<Arc<RenderObject>> {
+        controls: &mut Controls,
+    ) -> Result<Arc<Chart>> {
         let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
         match (has_file_changes, &self.cached_root) {
             (false, Some(cached_root)) => Ok(cached_root.clone()),
@@ -101,7 +100,7 @@ impl ResourceRepository {
     pub fn load_root_chart(
         &mut self,
         context: &VulkanContext,
-        controls: &mut ControlsAndGlobals,
+        controls: &mut Controls,
     ) -> Result<Chart> {
         let chart = self
             .root_ron_file_cache

@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::shader::ShaderModule;
 
-#[derive(Copy, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum MaterialStepType {
     EarlyDepth = 0,
     Shadow = 1,
