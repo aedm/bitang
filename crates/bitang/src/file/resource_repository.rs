@@ -37,7 +37,7 @@ pub struct ResourceRepository {
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
     root_ron_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
 
-    shader_cache: ShaderCache,
+    pub shader_cache: ShaderCache,
     // vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     // fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     pub controls: ControlsAndGlobals,

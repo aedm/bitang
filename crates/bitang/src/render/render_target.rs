@@ -74,8 +74,15 @@ impl Pass {
         let attachments = self
             .render_targets
             .iter()
-            .map(|target| target.image.clone())
-            .collect::<Vec<_>>();
+            .map(|target| {
+                target
+                    .image
+                    .and_then(|image| image.view.clone())
+                    .with_context(|| {
+                        anyhow!("Render target {} has no image view", target.id.as_str())
+                    })
+            })
+            .collect::<Result<Vec<_>>>()?;
         let framebuffer = Framebuffer::new(
             self.vulkan_render_pass.clone(),
             FramebufferCreateInfo {
@@ -85,6 +92,7 @@ impl Pass {
         )
         .unwrap();
 
+        let clear_values = vec![Some([0.03, 0.03, 0.03, 1.0].into()), Some(1f32.into())];
         builder
             .begin_render_pass(
                 RenderPassBeginInfo {
@@ -243,15 +251,18 @@ impl RenderTarget {
             ),
         };
 
-        //! Skip if texture size is the same
+        // Skip if texture size is the same
         if let Some(image) = &self.image {
             if image.texture_size == texture_size {
                 return;
             }
         }
 
-        let texture =
-            AttachmentImage::sampled(context.context.memory_allocator(), [texture_size.0, texture_size.1], self.format)?;
+        let texture = AttachmentImage::sampled(
+            context.context.memory_allocator(),
+            [texture_size.0, texture_size.1],
+            self.format,
+        )?;
         let image_view = texture.view()?;
         self.image = Some(RenderTargetImage {
             image_view,

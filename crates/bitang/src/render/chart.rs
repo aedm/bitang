@@ -25,7 +25,7 @@ impl Chart {
     ) -> Self {
         Chart {
             id: id.to_string(),
-            camera: Camera::new(controls, &format!("{prefix}/camera")),
+            camera: Camera::new(controls, &format!("{id}/camera")),
             render_targets,
             passes,
             // render_object: render_object.clone(),

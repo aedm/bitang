@@ -2,7 +2,9 @@ use crate::control::controls::ControlsAndGlobals;
 use crate::file::resource_repository::ResourceRepository;
 use crate::file::shader_loader::ShaderCompilationResult;
 use crate::render;
-use crate::render::material::{LocalUniformMapping, SamplerBinding, SamplerSource, Shader};
+use crate::render::material::{
+    LocalUniformMapping, Material, MaterialStep, SamplerBinding, SamplerSource, Shader,
+};
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Result};
 use egui::plot::Text;
@@ -10,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::array;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::{info, instrument};
 
 #[derive(Debug, Deserialize)]
 pub struct Chart {
@@ -188,6 +191,7 @@ impl RenderTargetRole {
 impl Object {
     pub fn load(
         &self,
+        control_prefix: &str,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
         controls: &mut ControlsAndGlobals,
@@ -196,13 +200,11 @@ impl Object {
         let mesh = resource_repository
             .get_mesh(context, &self.mesh_path)?
             .clone();
-        let vertex_shader = resource_repository.get_shader(context, &self.vertex_shader)?;
-        let fragment_shader = resource_repository.get_shader(context, &self.fragment_shader)?;
-        let textures = self
+        let sampler_sources = self
             .textures
             .iter()
             .map(|(name, texture_mapping)| {
-                let texture_bindig: SamplerSource = match texture_mapping {
+                let texture_binding: SamplerSource = match texture_mapping {
                     TextureMapping::File(path) => {
                         let texture = resource_repository.get_texture(context, path)?.clone();
                         SamplerSource::Texture(texture)
@@ -214,43 +216,65 @@ impl Object {
                         SamplerSource::RenderTarget(render_target.clone())
                     }
                 };
-                Ok((name.clone(), texture_bindig))
+                Ok((name.clone(), texture_binding))
             })
-            .collect::<Result<HashMap<String, Arc<render::texture::Texture>>>>()?;
-        let depth_test = self.depth_test;
-        let depth_write = self.depth_write;
+            .collect::<Result<HashMap<String, SamplerSource>>>()?;
+
+        let solid_step = self.make_material_step(
+            context,
+            resource_repository,
+            controls,
+            control_prefix,
+            &sampler_sources,
+        )?;
+        let material = Material {
+            passes: [None, None, Some(solid_step)],
+        };
+
         let object = render::RenderObject {
             mesh,
-            vertex_shader,
-            fragment_shader,
-            textures,
-            depth_test,
-            depth_write,
+            position: Default::default(),
+            rotation: Default::default(),
+            material,
         };
         Ok(object)
     }
-}
 
-pub fn make_material_step(
-    context: &VulkanContext,
-    controls: &mut ControlsAndGlobals,
-    object: &Arc<chart_file::Object>,
-    texture: &Arc<Texture>,
-) -> Result<MaterialStep> {
-    let shaders =
-        self.shader_cache
-            .get_or_load(context, &object.vertex_shader, &object.fragment_shader)?;
+    fn make_material_step(
+        &self,
+        context: &VulkanContext,
+        resource_repository: &mut ResourceRepository,
+        controls: &mut ControlsAndGlobals,
+        control_prefix: &str,
+        sampler_sources: &HashMap<String, SamplerSource>,
+    ) -> Result<MaterialStep> {
+        let shaders = resource_repository.shader_cache.get_or_load(
+            context,
+            &self.vertex_shader,
+            &self.fragment_shader,
+        )?;
 
-    let vertex_shader = Self::make_shader(controls, &object, &shaders.vertex_shader, &texture);
-    let fragment_shader = Self::make_shader(controls, &object, &shaders.fragment_shader, &texture);
+        let vertex_shader = make_shader(
+            controls,
+            control_prefix,
+            &shaders.vertex_shader,
+            sampler_sources,
+        );
+        let fragment_shader = make_shader(
+            controls,
+            control_prefix,
+            &shaders.fragment_shader,
+            sampler_sources,
+        );
 
-    let material_step = MaterialStep {
-        vertex_shader,
-        fragment_shader,
-        depth_test: object.depth_test,
-        depth_write: object.depth_write,
-    };
-    Ok(material_step)
+        let material_step = MaterialStep {
+            vertex_shader,
+            fragment_shader,
+            depth_test: self.depth_test,
+            depth_write: self.depth_write,
+        };
+        Ok(material_step)
+    }
 }
 
 #[instrument(skip_all)]
