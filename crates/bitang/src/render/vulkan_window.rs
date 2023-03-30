@@ -44,7 +44,7 @@ pub struct VulkanWindow {
 }
 
 pub trait VulkanApp {
-    fn paint(&mut self, context: &mut RenderContext, renderer: &mut VulkanoWindowRenderer);
+    fn paint(&mut self, context: &VulkanContext, renderer: &mut VulkanoWindowRenderer);
     fn handle_window_event(&mut self, event: &WindowEvent);
 }
 
@@ -116,17 +116,7 @@ impl VulkanWindow {
                     }
                 }
                 Event::RedrawRequested(_) => {
-                    let target_image = renderer.swapchain_image_view();
-                    let depth_image = renderer.get_additional_image_view(1);
-                    let mut render_context = RenderContext {
-                        vulkan_context: &self.context,
-                        screen_buffer: target_image,
-                        screen_viewport: renderer.screen_viewport(),
-                        command_builder: &mut renderer.command_builder(),
-                        depth_buffer: depth_image,
-                        globals: Default::default(),
-                    };
-                    app.paint(&mut render_context, renderer);
+                    app.paint(&self.context, renderer);
                 }
                 Event::MainEventsCleared => {
                     renderer.window().request_redraw();

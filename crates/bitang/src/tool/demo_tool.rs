@@ -33,19 +33,19 @@ pub struct DemoTool {
     // render_object: Option<Arc<RenderObject>>,
     chart: Arc<Chart>,
     // pass: Pass,
-    controls: Controls,
+    // controls: Controls,
     time: f32,
 }
 
 impl DemoTool {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let mut resource_repository = ResourceRepository::try_new()?;
-        let mut controls = Controls::new();
+        // let mut controls = Controls::new();
 
         // let render_target = Arc::new(Pass::new(&context));
         // let render_target =
         //     RenderTarget::from_swapchain(RenderTargetRole::Color, context.swapchain_format)?;
-        let chart = resource_repository.load_root_document(context, &mut controls)?;
+        let chart = resource_repository.load_root_document(context)?;
         // let render_unit = RenderUnit::new(context, &render_target, render_object.clone());
         // let pass = Pass::new(context, &render_object, MaterialStepType::Opaque);
 
@@ -57,7 +57,7 @@ impl DemoTool {
             start_time: Instant::now(),
             resource_repository,
             chart,
-            controls,
+            // controls,
             time: 5.0,
         };
         Ok(demo_tool)
@@ -81,14 +81,15 @@ impl DemoTool {
     pub fn draw(
         &mut self,
         context: &mut RenderContext,
-        before_future: Box<dyn GpuFuture>,
-    ) -> Box<dyn GpuFuture> {
+        // before_future: Box<dyn GpuFuture>,
+        // ) -> Box<dyn GpuFuture> {
+    ) {
         // self.update_render_unit(context);
 
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
         // Evaluate control splines
-        for control in &mut self.controls.used_controls {
+        for control in &mut self.resource_repository.controls.used_controls {
             control.evaluate_splines(self.time);
         }
 
@@ -102,12 +103,16 @@ impl DemoTool {
         // )
         // .unwrap();
 
-        let mut builder = AutoCommandBufferBuilder::primary(
-            &context.command_buffer_allocator,
-            context.context.graphics_queue().queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )
-        .unwrap();
+        // let mut builder = AutoCommandBufferBuilder::primary(
+        //     &context.vulkan_context.command_buffer_allocator,
+        //     context
+        //         .vulkan_context
+        //         .context
+        //         .graphics_queue()
+        //         .queue_family_index(),
+        //     CommandBufferUsage::OneTimeSubmit,
+        // )
+        // .unwrap();
 
         // let clear_values = vec![Some([0.03, 0.03, 0.03, 1.0].into()), Some(1f32.into())];
         // builder
@@ -146,47 +151,83 @@ impl DemoTool {
         self.chart.render(context);
 
         // builder.end_render_pass().unwrap();
-        let command_buffer = builder.build().unwrap();
-
-        let after_future = before_future
-            .then_execute(context.context.graphics_queue().clone(), command_buffer)
-            .unwrap()
-            .boxed();
-
-        after_future
+        // let command_buffer = builder.build().unwrap();
+        //
+        // let after_future = before_future
+        //     .then_execute(
+        //         context.vulkan_context.context.graphics_queue().clone(),
+        //         command_buffer,
+        //     )
+        //     .unwrap()
+        //     .boxed();
+        //
+        // after_future
     }
 }
 
 impl VulkanApp for DemoTool {
-    fn paint(&mut self, context: &mut RenderContext, renderer: &mut VulkanoWindowRenderer) {
+    fn paint(&mut self, vulkan_context: &VulkanContext, renderer: &mut VulkanoWindowRenderer) {
         let before_future = renderer.acquire().unwrap();
-        // let target_image = renderer.swapchain_image_view();
-        // let depth_image = renderer.get_additional_image_view(1);
+        let target_image = renderer.swapchain_image_view();
+        let depth_image = renderer.get_additional_image_view(1);
+
         let scale_factor = renderer.window().scale_factor() as f32;
 
-        let size = context.screen_buffer.dimensions();
+        let size = target_image.dimensions();
         let movie_height = (size.width() * 9 / 16) as i32;
         let ui_height = max(size.height() as i32 - movie_height, 0) as f32 / scale_factor;
 
-        let render_viewport = Viewport {
+        let screen_viewport = Viewport {
             origin: [0.0, 0.0],
             dimensions: [size.width() as f32, movie_height as f32],
             depth_range: 0.0..1.0,
         };
 
-        // Render app
-        let app_finished_future = self.draw(context, before_future);
+        let mut command_builder = AutoCommandBufferBuilder::primary(
+            &vulkan_context.command_buffer_allocator,
+            vulkan_context.context.graphics_queue().queue_family_index(),
+            CommandBufferUsage::OneTimeSubmit,
+        )
+        .unwrap();
 
-        // Render UI
-        let gui_finished_future = self.ui.render(
-            context,
-            app_finished_future,
-            ui_height,
-            &mut self.controls,
-            &mut self.time,
-        );
+        {
+            let mut context = RenderContext {
+                vulkan_context,
+                screen_buffer: target_image,
+                screen_viewport,
+                command_builder: &mut command_builder,
+                depth_buffer: depth_image,
+                globals: Default::default(),
+            };
 
-        renderer.present(gui_finished_future, true);
+            // Render app
+            // let app_finished_future =
+            self.draw(&mut context);
+
+            // Render UI
+            // let gui_finished_future =
+            self.ui.render(
+                &mut context,
+                // app_finished_future,
+                ui_height,
+                &mut self.resource_repository.controls,
+                &mut self.time,
+            );
+        }
+
+        let command_buffer = command_builder.build().unwrap();
+
+        let after_future = before_future
+            .then_execute(
+                vulkan_context.context.graphics_queue().clone(),
+                command_buffer,
+            )
+            .unwrap()
+            .boxed();
+
+        // after_future
+
+        renderer.present(after_future, true);
     }
 
     fn handle_window_event(&mut self, event: &WindowEvent) {

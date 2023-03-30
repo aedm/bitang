@@ -1,6 +1,6 @@
 use crate::control::controls::Globals;
 use crate::render::material::{
-    MaterialStep, MaterialStepType, Shader, ShaderKind, MATERIAL_STEP_COUNT,
+    MaterialStep, MaterialStepType, SamplerSource, Shader, ShaderKind, MATERIAL_STEP_COUNT,
 };
 use crate::render::mesh::Mesh;
 use crate::render::render_target::Pass;
@@ -14,6 +14,7 @@ use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
+use vulkano::image::ImageViewAbstract;
 use vulkano::memory::allocator::MemoryUsage;
 use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
@@ -63,7 +64,7 @@ impl RenderUnit {
         }
     }
 
-    pub fn render(&self, context: &RenderContext, material_step_type: MaterialStepType) {
+    pub fn render(&self, context: &mut RenderContext, material_step_type: MaterialStepType) {
         let index = material_step_type as usize;
         match (
             &self.steps[index],
@@ -137,7 +138,7 @@ impl RenderUnitStep {
         }
     }
 
-    pub fn render(&self, context: &RenderContext, material_step: &MaterialStep, mesh: &Mesh) {
+    pub fn render(&self, context: &mut RenderContext, material_step: &MaterialStep, mesh: &Mesh) {
         let descriptor_set_layouts = self.pipeline.layout().set_layouts();
         let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
             context,
@@ -223,8 +224,18 @@ impl ShaderUniformStorage {
         }
 
         for texture_binding in &shader.sampler_bindings {
+            let image_view: Arc<dyn ImageViewAbstract> = match &texture_binding.sampler_source {
+                SamplerSource::Texture(texture) => texture.clone(),
+                SamplerSource::RenderTarget(render_target) => render_target
+                    .image
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .image_view
+                    .clone(),
+            };
             let sampler = Sampler::new(
-                context.context.device().clone(),
+                context.vulkan_context.context.device().clone(),
                 SamplerCreateInfo {
                     mag_filter: Filter::Linear,
                     min_filter: Filter::Linear,
@@ -235,13 +246,13 @@ impl ShaderUniformStorage {
             .unwrap();
             descriptors.push(WriteDescriptorSet::image_view_sampler(
                 texture_binding.descriptor_set_binding,
-                texture_binding.texture.clone(),
+                image_view,
                 sampler,
             ));
         }
 
         let persistent_descriptor_set = PersistentDescriptorSet::new(
-            &context.descriptor_set_allocator,
+            &context.vulkan_context.descriptor_set_allocator,
             layout.clone(),
             descriptors,
         )

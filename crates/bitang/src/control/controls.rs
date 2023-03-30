@@ -15,10 +15,10 @@ use tracing::{debug, error};
 pub struct Controls {
     pub by_id: HashMap<String, Rc<Control>>,
 
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(skip)]
     pub used_controls: Vec<Rc<Control>>,
 
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(skip)]
     used_control_collector: HashSet<RcHashRef<Control>>,
 }
 

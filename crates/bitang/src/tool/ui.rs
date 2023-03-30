@@ -61,12 +61,13 @@ impl Ui {
 
     pub fn render(
         &mut self,
-        context: &RenderContext,
-        before_future: Box<dyn GpuFuture>,
+        context: &mut RenderContext,
+        // before_future: Box<dyn GpuFuture>,
         bottom_panel_height: f32,
         controls_and_globals: &mut Controls,
         time: &mut f32,
-    ) -> Box<dyn GpuFuture> {
+    ) {
+        // ) -> Box<dyn GpuFuture> {
         let pixels_per_point = 1.15f32;
         let bottom_panel_height = bottom_panel_height / pixels_per_point;
         let spline_editor = &mut self.spline_editor;
@@ -88,7 +89,7 @@ impl Ui {
                 });
             Self::handle_hotkeys(ctx, controls_and_globals);
         });
-        self.render_to_swapchain(context, before_future)
+        self.render_to_swapchain(context);
     }
 
     fn handle_hotkeys(ctx: egui::Context, controls: &mut Controls) {
@@ -98,7 +99,7 @@ impl Ui {
             .consume_key(egui::Modifiers::CTRL, egui::Key::S)
         {
             println!("Saving");
-            if let Err(err) = save_controls(&controls.controls) {
+            if let Err(err) = save_controls(&controls) {
                 error!("Failed to save controls: {}", err);
             }
         }
@@ -147,17 +148,18 @@ impl Ui {
 
     fn render_to_swapchain(
         &mut self,
-        context: &RenderContext,
-        before_future: Box<dyn GpuFuture>,
-    ) -> Box<dyn GpuFuture> {
-        let mut builder = AutoCommandBufferBuilder::primary(
-            &context.command_buffer_allocator,
-            context.context.graphics_queue().queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )
-        .unwrap();
+        context: &mut RenderContext,
+        // before_future: Box<dyn GpuFuture>,
+    ) {
+        // ) -> Box<dyn GpuFuture> {
+        // let mut builder = AutoCommandBufferBuilder::primary(
+        //     &context.command_buffer_allocator,
+        //     context.context.graphics_queue().queue_family_index(),
+        //     CommandBufferUsage::OneTimeSubmit,
+        // )
+        // .unwrap();
 
-        let target_image = context.swapchain_image.clone();
+        let target_image = context.screen_buffer.clone();
         let dimensions = target_image.dimensions().width_height();
         let framebuffer = Framebuffer::new(
             self.subpass.render_pass().clone(),
@@ -168,7 +170,8 @@ impl Ui {
         )
         .unwrap();
 
-        builder
+        context
+            .command_builder
             .begin_render_pass(
                 RenderPassBeginInfo {
                     clear_values: vec![None],
@@ -179,17 +182,20 @@ impl Ui {
             .unwrap();
 
         let gui_commands = self.gui.draw_on_subpass_image(dimensions);
-        builder.execute_commands(gui_commands).unwrap();
+        context
+            .command_builder
+            .execute_commands(gui_commands)
+            .unwrap();
 
-        builder.end_render_pass().unwrap();
-        let command_buffer = builder.build().unwrap();
+        context.command_builder.end_render_pass().unwrap();
+        // let command_buffer = builder.build().unwrap();
 
-        let after_future = before_future
-            .then_execute(context.context.graphics_queue().clone(), command_buffer)
-            .unwrap()
-            .boxed();
-
-        after_future
+        // let after_future = before_future
+        //     .then_execute(context.context.graphics_queue().clone(), command_buffer)
+        //     .unwrap()
+        //     .boxed();
+        //
+        // after_future
     }
 
     pub fn handle_window_event(&mut self, event: &WindowEvent) {

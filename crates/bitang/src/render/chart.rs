@@ -36,11 +36,11 @@ impl Chart {
 
     pub fn generate_render_sequence(&mut self, context: &VulkanContext) {}
 
-    pub fn render(&mut self, context: &RenderContext) {
-        for render_target in &mut self.render_targets {
-            render_target.ensure_buffer(context);
+    pub fn render(&self, context: &mut RenderContext) {
+        for render_target in &self.render_targets {
+            render_target.ensure_buffer(context).unwrap();
         }
-        for pass in &mut self.passes {
+        for pass in &self.passes {
             pass.render(context, MaterialStepType::Solid);
         }
     }

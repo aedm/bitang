@@ -5,12 +5,15 @@ use crate::render::render_unit::RenderUnit;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
+use std::cell::{Cell, RefCell};
 use std::sync::Arc;
+use tracing::error;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassContents,
 };
 use vulkano::format::Format;
-use vulkano::image::{AttachmentImage, ImageLayout, ImageViewAbstract, SampleCount};
+use vulkano::image::view::ImageView;
+use vulkano::image::{AttachmentImage, ImageAccess, ImageLayout, ImageViewAbstract, SampleCount};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
@@ -51,11 +54,11 @@ impl Pass {
         // )
         // .unwrap();
 
-        let render_pass = Self::make_vulkan_render_pass(&render_targets)?;
+        let render_pass = Self::make_vulkan_render_pass(context, &render_targets)?;
         let render_units = objects
             .iter()
             .map(|object| RenderUnit::new(context, &render_pass, object))
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Vec<_>>();
 
         Ok(Pass {
             vulkan_render_pass: render_pass,
@@ -65,19 +68,25 @@ impl Pass {
         })
     }
 
-    pub fn render(&self, context: &RenderContext, material_step_type: MaterialStepType) {
+    pub fn render(&self, context: &mut RenderContext, material_step_type: MaterialStepType) {
         let attachments = self
             .render_targets
             .iter()
             .map(|target| {
                 target
                     .image
-                    .and_then(|image| image.view.clone())
+                    .borrow()
+                    .as_ref()
+                    .and_then(|image| Some(image.image_view.clone()))
                     .with_context(|| {
                         anyhow!("Render target {} has no image view", target.id.as_str())
                     })
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>();
+        let Ok(attachments) = attachments else {
+            error!("Failed to get render target attachments");
+            return;
+        };
         let framebuffer = Framebuffer::new(
             self.vulkan_render_pass.clone(),
             FramebufferCreateInfo {
@@ -109,7 +118,7 @@ impl Pass {
     }
 
     fn make_vulkan_render_pass(
-        context: &RenderContext,
+        context: &VulkanContext,
         render_targets: &[Arc<RenderTarget>],
     ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
         let mut attachments = vec![];
@@ -142,7 +151,6 @@ impl Pass {
                         ..Default::default()
                     });
                 }
-                RenderTargetRole::Other => {}
             }
         }
 
@@ -157,10 +165,8 @@ impl Pass {
             subpasses,
             ..Default::default()
         };
-        let render_pass = vulkano::render_pass::RenderPass::new(
-            context.vulkan_context.context.device().clone(),
-            create_info,
-        )?;
+        let render_pass =
+            vulkano::render_pass::RenderPass::new(context.context.device().clone(), create_info)?;
         Ok(render_pass)
     }
 }
@@ -175,7 +181,7 @@ pub enum RenderTargetSizeConstraint {
     ScreenRelative { width: f32, height: f32 },
 }
 
-struct RenderTargetImage {
+pub struct RenderTargetImage {
     pub image_view: Arc<dyn ImageViewAbstract>,
     pub texture: Option<Arc<AttachmentImage>>,
     pub texture_size: (u32, u32),
@@ -187,7 +193,7 @@ pub struct RenderTarget {
     pub format: Format,
     pub size_constraint: RenderTargetSizeConstraint,
     pub role: RenderTargetRole,
-    pub image: Option<RenderTargetImage>,
+    pub image: RefCell<Option<RenderTargetImage>>,
 }
 
 impl RenderTarget {
@@ -196,7 +202,6 @@ impl RenderTarget {
         let id = match role {
             RenderTargetRole::Color => "screen",
             RenderTargetRole::Depth => "screen_depth",
-            RenderTargetRole::Other => panic!("Other render target cannot come from swapchain"),
         };
         Arc::new(RenderTarget {
             is_swapchain: true,
@@ -207,18 +212,18 @@ impl RenderTarget {
                 height: 1.0,
             },
             role,
-            image: None,
+            image: RefCell::new(None),
         })
     }
 
     pub fn update_swapchain_image(&mut self, image_view: &Arc<dyn ImageViewAbstract>) {
         // TODO: check if format is the same
-        self.image_view = Some(RenderTargetImage {
+        *self.image.borrow_mut() = Some(RenderTargetImage {
             image_view: image_view.clone(),
             texture: None,
             texture_size: (
-                image_view.dimensions().width,
-                image_view.dimensions().height,
+                image_view.dimensions().width(),
+                image_view.dimensions().height(),
             ),
         });
     }
@@ -238,39 +243,39 @@ impl RenderTarget {
             format,
             size_constraint,
             role,
-            image: None,
+            image: RefCell::new(None),
         })
     }
 
-    pub fn ensure_buffer(&mut self, context: &RenderContext) {
-        let texture_size = match self.size {
+    pub fn ensure_buffer(&self, context: &RenderContext) -> Result<()> {
+        let texture_size = match self.size_constraint {
             RenderTargetSizeConstraint::Static { width, height } => (width, height),
             RenderTargetSizeConstraint::ScreenRelative { width, height } => {
                 let dimensions = &context.screen_viewport.dimensions;
                 (
-                    dimensions.width * width as u32,
-                    dimensions.height * height as u32,
+                    (dimensions[0] * width) as u32,
+                    (dimensions[1] * height) as u32,
                 )
             }
         };
 
         // Skip if texture size is the same
-        if let Some(image) = &self.image {
+        if let Some(image) = self.image.borrow().as_ref() {
             if image.texture_size == texture_size {
-                return;
+                return Ok(());
             }
         }
 
         let texture = AttachmentImage::sampled(
-            context.context.memory_allocator(),
+            context.vulkan_context.context.memory_allocator(),
             [texture_size.0, texture_size.1],
             self.format,
         )?;
-        let image_view = texture.view()?;
-        self.image = Some(RenderTargetImage {
-            image_view,
+        *self.image.borrow_mut() = Some(RenderTargetImage {
+            image_view: ImageView::new_default(texture.clone())?,
             texture: Some(texture),
             texture_size,
         });
+        Ok(())
     }
 }

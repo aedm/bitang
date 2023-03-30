@@ -10,7 +10,7 @@ use crate::render::vulkan_window::VulkanContext;
 use crate::render::{RenderObject, Texture, Vertex3};
 use anyhow::{anyhow, Result};
 
-use crate::file::chart_file;
+use crate::file::{chart_file, load_controls};
 use crate::render::chart::Chart;
 use bitang_utils::blend_loader::load_blend_buffer;
 use serde::Deserialize;
@@ -56,30 +56,24 @@ impl ResourceRepository {
             root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
             file_hash_cache,
             cached_root: None,
-            controls: Controls::new(),
+            controls: load_controls()?,
         })
     }
 
     #[instrument(skip_all, name = "load")]
-    pub fn load_root_document(
-        &mut self,
-        context: &VulkanContext,
-        controls: &mut Controls,
-    ) -> Result<Arc<Chart>> {
+    pub fn load_root_document(&mut self, context: &VulkanContext) -> Result<Arc<Chart>> {
         let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
         match (has_file_changes, &self.cached_root) {
             (false, Some(cached_root)) => Ok(cached_root.clone()),
             _ => {
                 let now = std::time::Instant::now();
-                controls.start_load_cycle();
-                let result = self
-                    .load_root_chart(context, controls)
-                    .and_then(|render_object| {
-                        let render_object = Arc::new(render_object);
-                        self.cached_root = Some(render_object.clone());
-                        Ok(render_object)
-                    });
-                controls.finish_load_cycle();
+                self.controls.start_load_cycle();
+                let result = self.load_root_chart(context).and_then(|render_object| {
+                    let render_object = Arc::new(render_object);
+                    self.cached_root = Some(render_object.clone());
+                    Ok(render_object)
+                });
+                self.controls.finish_load_cycle();
                 self.file_hash_cache.borrow_mut().update_watchers()?;
                 info!("Loading took {:?}", now.elapsed());
                 result
@@ -97,16 +91,13 @@ impl ResourceRepository {
         self.mesh_cache.get_or_load(context, &path)
     }
 
-    pub fn load_root_chart(
-        &mut self,
-        context: &VulkanContext,
-        controls: &mut Controls,
-    ) -> Result<Chart> {
+    pub fn load_root_chart(&mut self, context: &VulkanContext) -> Result<Chart> {
+        let folder = "app/test-chart";
         let chart = self
             .root_ron_file_cache
-            .get_or_load(context, "test-chart/chart.ron")?
+            .get_or_load(context, &format!("{folder}/chart.ron"))?
             .clone();
-        let c2 = chart.load(context, self, controls);
+        chart.load(context, folder, self)
     }
 
     // pub fn load_root_chart(

@@ -23,8 +23,8 @@ pub struct Chart {
 #[derive(Debug, Deserialize)]
 pub struct RenderTarget {
     pub id: String,
-    pub format: String,
     pub size: RenderTargetSize,
+    pub role: RenderTargetRole,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,26 +68,38 @@ impl Chart {
         context: &VulkanContext,
         id: &str,
         resource_repository: &mut ResourceRepository,
-        controls: &mut Controls,
     ) -> Result<render::chart::Chart> {
-        let render_targets = self
+        let render_targets_by_id = self
             .render_targets
             .iter()
             .map(|render_target| {
-                let render_target = render_target.load(context)?;
-                Ok((render_target.id.clone(), render_target))
+                let render_target = render_target.load();
+                (render_target.id.clone(), render_target)
             })
-            .collect::<Result<HashMap<String, Arc<render::render_target::RenderTarget>>>>()?;
+            .collect::<HashMap<String, Arc<render::render_target::RenderTarget>>>();
 
+        let control_prefix = format!("charts/{id}");
         let passes = self
             .passes
             .iter()
-            .map(|pass| pass.load(context, resource_repository, &render_targets, controls))
+            .map(|pass| {
+                pass.load(
+                    context,
+                    resource_repository,
+                    &render_targets_by_id,
+                    &control_prefix,
+                )
+            })
             .collect::<Result<Vec<_>>>()?;
 
-        let render_targets = render_targets.into_values().collect::<Vec<_>>();
+        let render_targets = render_targets_by_id.into_values().collect::<Vec<_>>();
 
-        let chart = render::chart::Chart::new(id, controls, render_targets, passes);
+        let chart = render::chart::Chart::new(
+            id,
+            &mut resource_repository.controls,
+            render_targets,
+            passes,
+        );
         Ok(chart)
 
         // // Set uniforms
@@ -126,14 +138,14 @@ impl Pass {
         &self,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
-        render_targets: &HashMap<String, Arc<render::render_target::RenderTarget>>,
-        controls: &mut Controls,
+        render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
+        control_prefix: &str,
     ) -> Result<render::render_target::Pass> {
         let render_targets = self
             .render_targets
             .iter()
             .map(|render_target_id| {
-                render_targets
+                render_targets_by_id
                     .get(render_target_id)
                     .and_then(|render_target| Some(render_target.clone()))
                     .with_context(|| anyhow!("Render target '{}' not found", render_target_id))
@@ -143,7 +155,14 @@ impl Pass {
         let objects = self
             .objects
             .iter()
-            .map(|object| object.load(context, resource_repository, controls))
+            .map(|object| {
+                object.load(
+                    control_prefix,
+                    context,
+                    resource_repository,
+                    render_targets_by_id,
+                )
+            })
             .collect::<Result<Vec<_>>>()?;
 
         let pass = render::render_target::Pass::new(context, render_targets, objects)?;
@@ -152,15 +171,10 @@ impl Pass {
 }
 
 impl RenderTarget {
-    pub fn load(
-        &self,
-        context: &VulkanContext,
-    ) -> Result<Arc<render::render_target::RenderTarget>> {
+    pub fn load(&self) -> Arc<render::render_target::RenderTarget> {
         let size_constraint = self.size.load();
         let role = self.role.load();
-        let render_target =
-            render::render_target::RenderTarget::new(&self.id, role, size_constraint)?;
-        Ok(Arc::new(render_target))
+        render::render_target::RenderTarget::new(&self.id, role, size_constraint)
     }
 }
 
@@ -198,9 +212,8 @@ impl Object {
         control_prefix: &str,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
-        controls: &mut Controls,
         render_targets: &HashMap<String, Arc<render::render_target::RenderTarget>>,
-    ) -> Result<render::RenderObject> {
+    ) -> Result<Arc<render::RenderObject>> {
         let mesh = resource_repository
             .get_mesh(context, &self.mesh_path)?
             .clone();
@@ -227,7 +240,6 @@ impl Object {
         let solid_step = self.make_material_step(
             context,
             resource_repository,
-            controls,
             control_prefix,
             &sampler_sources,
         )?;
@@ -241,14 +253,13 @@ impl Object {
             rotation: Default::default(),
             material,
         };
-        Ok(object)
+        Ok(Arc::new(object))
     }
 
     fn make_material_step(
         &self,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
-        controls: &mut Controls,
         control_prefix: &str,
         sampler_sources: &HashMap<String, SamplerSource>,
     ) -> Result<MaterialStep> {
@@ -259,17 +270,17 @@ impl Object {
         )?;
 
         let vertex_shader = make_shader(
-            controls,
+            &mut resource_repository.controls,
             control_prefix,
             &shaders.vertex_shader,
             sampler_sources,
-        );
+        )?;
         let fragment_shader = make_shader(
-            controls,
+            &mut resource_repository.controls,
             control_prefix,
             &shaders.fragment_shader,
             sampler_sources,
-        );
+        )?;
 
         let material_step = MaterialStep {
             vertex_shader,
@@ -287,7 +298,7 @@ fn make_shader(
     control_prefix: &str,
     compilation_result: &ShaderCompilationResult,
     sampler_sources: &HashMap<String, SamplerSource>,
-) -> Shader {
+) -> Result<Shader> {
     let local_mapping = compilation_result
         .local_uniform_bindings
         .iter()
@@ -309,21 +320,21 @@ fn make_shader(
             let sampler_source = sampler_sources
                 .get(&sampler.name)
                 .and_then(|sampler_source| Some(sampler_source.clone()))
-                .context(format!("Sampler binding '{}' not found", sampler.name))?;
-            SamplerBinding {
+                .with_context(|| format!("Sampler binding '{}' not found", sampler.name))?;
+            Ok(SamplerBinding {
                 sampler_source,
                 descriptor_set_binding: sampler.binding,
-            }
+            })
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<SamplerBinding>>>()?;
 
-    Shader {
+    Ok(Shader {
         shader_module: compilation_result.module.clone(),
         sampler_bindings,
         local_uniform_bindings: local_mapping,
         global_uniform_bindings: compilation_result.global_uniform_bindings.clone(),
         uniform_buffer_size: compilation_result.uniform_buffer_size,
-    }
+    })
 }
 
 // pub fn load_root_chart(
