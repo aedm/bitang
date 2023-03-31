@@ -1,9 +1,8 @@
 use crate::control::controls::Control;
-use crate::control::spline::{Spline, SplinePoint};
-use egui::plot::{Legend, Line, Plot, PlotBounds, PlotPoint};
-use egui::{emath, Color32, InputState, Response};
+use crate::control::spline::SplinePoint;
+use egui::plot::{Line, Plot, PlotBounds, PlotPoint};
+use egui::{Color32, InputState};
 use glam::Vec2;
-use std::cell::RefCell;
 use std::rc::Rc;
 
 enum SplineEditorState {
@@ -66,7 +65,7 @@ impl SplineEditor {
 
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             self.draw_info(ui, time);
-            let mut plot = Plot::new("spline_editor")
+            let plot = Plot::new("spline_editor")
                 .show_x(false)
                 .show_y(false)
                 .include_x(self.min_x as f64)
@@ -228,7 +227,7 @@ impl SplineEditor {
                 [x - hover_xs, y + hover_ys],
                 [x - hover_xs, y - hover_ys],
             ];
-            let mut rect = Line::new(points).name("circle");
+            let rect = Line::new(points).name("circle");
             let rect = if Some(index) == self.selected_index {
                 rect.color(Color32::from_rgb(255, 255, 255)).width(2.0)
             } else if Some(index) == hover_index {
@@ -324,7 +323,7 @@ impl SplineEditor {
             SplineEditorState::PointMove { index } => {
                 if let Some(control) = self.control.as_mut() {
                     let mut components = control.components.borrow_mut();
-                    let mut spline = &mut components[self.component_index].spline;
+                    let spline = &mut components[self.component_index].spline;
                     let point = spline.points.get_mut(index).unwrap();
                     point.time += input.pointer.delta().x * Self::calculate_pixel_size(self.zoom.x);
                     point.value -=

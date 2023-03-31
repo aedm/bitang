@@ -1,22 +1,13 @@
-use crate::render::vulkan_window::VulkanContext;
-use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, PlotBounds};
-use egui::{Align, Color32};
+use crate::control::controls::{Control, Controls};
+use crate::file::save_controls;
+use crate::render::vulkan_window::{RenderContext, VulkanContext};
+use crate::tool::spline_editor::SplineEditor;
 use egui_winit_vulkano::Gui;
-use std::array;
-use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use tracing::error;
-
-use crate::control::controls::{Control, ControlsAndGlobals};
-use crate::file::save_controls;
-use crate::tool::spline_editor::SplineEditor;
-use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
-};
+use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::image::ImageViewAbstract;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
-use vulkano::sync::GpuFuture;
-use vulkano_util::renderer::SwapchainImageView;
 use winit::{event::WindowEvent, event_loop::EventLoop};
 
 pub struct Ui {
@@ -61,13 +52,12 @@ impl Ui {
 
     pub fn render(
         &mut self,
-        context: &VulkanContext,
-        before_future: Box<dyn GpuFuture>,
-        target_image: SwapchainImageView,
+        context: &mut RenderContext,
         bottom_panel_height: f32,
-        controls_and_globals: &mut ControlsAndGlobals,
+        controls: &mut Controls,
         time: &mut f32,
-    ) -> Box<dyn GpuFuture> {
+    ) {
+        // ) -> Box<dyn GpuFuture> {
         let pixels_per_point = 1.15f32;
         let bottom_panel_height = bottom_panel_height / pixels_per_point;
         let spline_editor = &mut self.spline_editor;
@@ -80,26 +70,26 @@ impl Ui {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                         if let Some((control, component_index)) =
-                            Self::draw_control_value_sliders(ui, controls_and_globals)
+                            Self::draw_control_value_sliders(ui, controls)
                         {
                             spline_editor.set_control(control, component_index);
                         }
                         spline_editor.draw(ui, time);
                     });
                 });
-            Self::handle_hotkeys(ctx, controls_and_globals);
+            Self::handle_hotkeys(ctx, controls);
         });
-        self.render_to_swapchain(context, before_future, target_image)
+        self.render_to_swapchain(context);
     }
 
-    fn handle_hotkeys(ctx: egui::Context, controls: &mut ControlsAndGlobals) {
+    fn handle_hotkeys(ctx: egui::Context, controls: &mut Controls) {
         // Save
         if ctx
             .input_mut()
             .consume_key(egui::Modifiers::CTRL, egui::Key::S)
         {
             println!("Saving");
-            if let Err(err) = save_controls(&controls.controls) {
+            if let Err(err) = save_controls(&controls) {
                 error!("Failed to save controls: {}", err);
             }
         }
@@ -108,13 +98,13 @@ impl Ui {
     // Returns the spline that was activated
     fn draw_control_value_sliders<'a>(
         ui: &mut egui::Ui,
-        controls_and_globals: &'a mut ControlsAndGlobals,
+        controls: &'a mut Controls,
     ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
-        let mut controls_borrow = controls_and_globals.used_controls.iter_mut().map(|c| {
-            // let b: [_; 4] = array::from_fn(|i| c.components.borrow_mut());
-            (c.id.as_str(), c.components.borrow_mut())
-        });
+        let controls_borrow = controls
+            .used_controls
+            .iter_mut()
+            .map(|c| (c.id.as_str(), c.components.borrow_mut()));
         let mut selected = None;
 
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
@@ -139,26 +129,12 @@ impl Ui {
         });
 
         selected.and_then(|(control_index, component_index)| {
-            Some((
-                &controls_and_globals.used_controls[control_index],
-                component_index,
-            ))
+            Some((&controls.used_controls[control_index], component_index))
         })
     }
 
-    fn render_to_swapchain(
-        &mut self,
-        context: &VulkanContext,
-        before_future: Box<dyn GpuFuture>,
-        target_image: SwapchainImageView,
-    ) -> Box<dyn GpuFuture> {
-        let mut builder = AutoCommandBufferBuilder::primary(
-            &context.command_buffer_allocator,
-            context.context.graphics_queue().queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )
-        .unwrap();
-
+    fn render_to_swapchain(&mut self, context: &mut RenderContext) {
+        let target_image = context.screen_buffer.clone();
         let dimensions = target_image.dimensions().width_height();
         let framebuffer = Framebuffer::new(
             self.subpass.render_pass().clone(),
@@ -169,7 +145,8 @@ impl Ui {
         )
         .unwrap();
 
-        builder
+        context
+            .command_builder
             .begin_render_pass(
                 RenderPassBeginInfo {
                     clear_values: vec![None],
@@ -180,17 +157,12 @@ impl Ui {
             .unwrap();
 
         let gui_commands = self.gui.draw_on_subpass_image(dimensions);
-        builder.execute_commands(gui_commands).unwrap();
+        context
+            .command_builder
+            .execute_commands(gui_commands)
+            .unwrap();
 
-        builder.end_render_pass().unwrap();
-        let command_buffer = builder.build().unwrap();
-
-        let after_future = before_future
-            .then_execute(context.context.graphics_queue().clone(), command_buffer)
-            .unwrap()
-            .boxed();
-
-        after_future
+        context.command_builder.end_render_pass().unwrap();
     }
 
     pub fn handle_window_event(&mut self, event: &WindowEvent) {

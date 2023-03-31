@@ -1,22 +1,15 @@
-use crate::control::controls::ControlsAndGlobals;
+use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::file_hash_cache::FileCache;
-use crate::file::shader_loader::{ShaderCache, ShaderCompilationResult};
-use crate::render::material::{
-    LocalUniformMapping, Material, MaterialStep, Shader, TextureBinding,
-};
+use crate::file::shader_loader::ShaderCache;
+use crate::file::{chart_file, load_controls};
+use crate::render::chart::Chart;
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::VulkanContext;
-use crate::render::{RenderObject, Texture, Vertex3};
-use anyhow::{anyhow, Result};
-
+use crate::render::{Texture, Vertex3};
+use anyhow::Result;
 use bitang_utils::blend_loader::load_blend_buffer;
-use serde::Deserialize;
-use serde::Serialize;
-use std::array;
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io::Cursor;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -28,32 +21,16 @@ use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RonObject {
-    id: String,
-    mesh_path: String,
-    texture_path: String,
-    // mesh_selector: String,
-    vertex_shader: String,
-    fragment_shader: String,
-    depth_test: bool,
-    depth_write: bool,
-    uniforms: HashMap<String, Vec<f32>>,
-}
-
 pub struct ResourceRepository {
     file_hash_cache: Rc<RefCell<FileCache>>,
-
     texture_cache: BinaryFileCache<Arc<Texture>>,
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
-    root_ron_file_cache: BinaryFileCache<Arc<RonObject>>,
+    root_ron_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
 
-    shader_cache: ShaderCache,
-    // vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
-    // fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
-    pub controls: ControlsAndGlobals,
+    pub shader_cache: ShaderCache,
+    pub controls: Controls,
 
-    cached_root: Option<Arc<RenderObject>>,
+    cached_root: Option<Arc<Chart>>,
 }
 
 impl ResourceRepository {
@@ -64,34 +41,27 @@ impl ResourceRepository {
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
             mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
             shader_cache: ShaderCache::new(&file_hash_cache),
-            root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_ron_file),
+            root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
             file_hash_cache,
             cached_root: None,
-            controls: ControlsAndGlobals::new(),
+            controls: load_controls()?,
         })
     }
 
-    // #[instrument(skip(self, context))]
     #[instrument(skip_all, name = "load")]
-    pub fn load_root_document(
-        &mut self,
-        context: &VulkanContext,
-        controls: &mut ControlsAndGlobals,
-    ) -> Result<Arc<RenderObject>> {
+    pub fn load_root_document(&mut self, context: &VulkanContext) -> Result<Arc<Chart>> {
         let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
         match (has_file_changes, &self.cached_root) {
             (false, Some(cached_root)) => Ok(cached_root.clone()),
             _ => {
                 let now = std::time::Instant::now();
-                controls.start_load_cycle();
-                let result = self
-                    .load_render_object(context, controls)
-                    .and_then(|render_object| {
-                        let render_object = Arc::new(render_object);
-                        self.cached_root = Some(render_object.clone());
-                        Ok(render_object)
-                    });
-                controls.finish_load_cycle();
+                self.controls.start_load_cycle();
+                let result = self.load_root_chart(context).and_then(|chart| {
+                    let chart = Arc::new(chart);
+                    self.cached_root = Some(chart.clone());
+                    Ok(chart)
+                });
+                self.controls.finish_load_cycle();
                 self.file_hash_cache.borrow_mut().update_watchers()?;
                 info!("Loading took {:?}", now.elapsed());
                 result
@@ -109,114 +79,14 @@ impl ResourceRepository {
         self.mesh_cache.get_or_load(context, &path)
     }
 
-    pub fn load_render_object(
-        &mut self,
-        context: &VulkanContext,
-        controls: &mut ControlsAndGlobals,
-    ) -> Result<RenderObject> {
-        let object = self
+    pub fn load_root_chart(&mut self, context: &VulkanContext) -> Result<Chart> {
+        let root_folder = "app";
+        let chart_folder = "test-chart";
+        let chart = self
             .root_ron_file_cache
-            .get_or_load(context, "app/demo.ron")?
+            .get_or_load(context, &format!("{root_folder}/{chart_folder}/chart.ron"))?
             .clone();
-
-        // Set uniforms
-        for (uniform_name, uniform_value) in &object.uniforms {
-            if uniform_value.is_empty() {
-                return Err(anyhow!(
-                    "Uniform '{}' has no values. Object id '{}'",
-                    uniform_name,
-                    object.id
-                ));
-            }
-            let _control_id = Self::make_control_id_for_object(&object.id, uniform_name);
-            let _value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
-            // controls.get_control(&control_id).set_scalar(value);
-        }
-
-        let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
-        let texture = self.get_texture(context, &object.texture_path)?.clone();
-        let solid_step = self.make_material_step(context, controls, &object, &texture)?;
-        let material = Material {
-            passes: [None, None, Some(solid_step)],
-        };
-
-        let render_object = RenderObject {
-            mesh,
-            material,
-            position: Default::default(),
-            rotation: Default::default(),
-        };
-        Ok(render_object)
-    }
-
-    fn make_material_step(
-        &mut self,
-        context: &VulkanContext,
-        controls: &mut ControlsAndGlobals,
-        object: &Arc<RonObject>,
-        texture: &Arc<Texture>,
-    ) -> Result<MaterialStep> {
-        let shaders = self.shader_cache.get_or_load(
-            context,
-            &object.vertex_shader,
-            &object.fragment_shader,
-        )?;
-
-        let vertex_shader = Self::make_shader(controls, &object, &shaders.vertex_shader, &texture);
-        let fragment_shader =
-            Self::make_shader(controls, &object, &shaders.fragment_shader, &texture);
-
-        let material_step = MaterialStep {
-            vertex_shader,
-            fragment_shader,
-            depth_test: object.depth_test,
-            depth_write: object.depth_write,
-        };
-        Ok(material_step)
-    }
-
-    fn make_control_id_for_object(object_id: &str, uniform_name: &str) -> String {
-        format!("ob/{}/{}", object_id, uniform_name)
-    }
-
-    #[instrument(skip_all)]
-    fn make_shader(
-        controls: &mut ControlsAndGlobals,
-        object: &RonObject,
-        compilation_result: &ShaderCompilationResult,
-        texture: &Arc<Texture>,
-    ) -> Shader {
-        let local_mapping = compilation_result
-            .local_uniform_bindings
-            .iter()
-            .map(|binding| {
-                let control_id = Self::make_control_id_for_object(&object.id, &binding.name);
-                let control = controls.get_control(&control_id);
-                LocalUniformMapping {
-                    control,
-                    f32_count: binding.f32_count,
-                    f32_offset: binding.f32_offset,
-                }
-            })
-            .collect::<Vec<_>>();
-
-        // Bind all samplers to the same texture for now
-        let texture_bindings = compilation_result
-            .texture_bindings
-            .iter()
-            .map(|binding| TextureBinding {
-                texture: texture.clone(),
-                descriptor_set_binding: binding.binding,
-            })
-            .collect::<Vec<_>>();
-
-        Shader {
-            shader_module: compilation_result.module.clone(),
-            texture_bindings,
-            local_uniform_bindings: local_mapping,
-            global_uniform_bindings: compilation_result.global_uniform_bindings.clone(),
-            uniform_buffer_size: compilation_result.uniform_buffer_size,
-        }
+        chart.load(context, chart_folder, self)
     }
 }
 
@@ -274,7 +144,7 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
 }
 
 #[instrument(skip_all)]
-pub fn load_ron_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<RonObject>> {
-    let object = ron::from_str::<RonObject>(std::str::from_utf8(content)?)?;
-    Ok(Arc::new(object))
+pub fn load_chart_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<chart_file::Chart>> {
+    let chart = ron::from_str::<chart_file::Chart>(std::str::from_utf8(content)?)?;
+    Ok(Arc::new(chart))
 }

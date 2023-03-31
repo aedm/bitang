@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use tracing::{debug, info};
+use tracing::{info};
 
 type LoaderFunc<T> = fn(&VulkanContext, &[u8]) -> Result<T>;
 

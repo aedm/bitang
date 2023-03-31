@@ -1,56 +1,34 @@
 use crate::control::spline::Spline;
 use crate::control::RcHashRef;
-use crate::file::load_controls;
 use anyhow::anyhow;
 use anyhow::Result;
 use glam::Mat4;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
 use std::rc::Rc;
 use std::{array, mem, slice};
-use tracing::{debug, error};
-
-pub struct ControlsAndGlobals {
-    pub controls: Controls,
-    pub globals: Globals,
-
-    pub used_controls: Vec<Rc<Control>>,
-    used_control_collector: HashSet<RcHashRef<Control>>,
-}
+use tracing::debug;
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct Controls {
     pub by_id: HashMap<String, Rc<Control>>,
+
+    #[serde(skip)]
+    pub used_controls: Vec<Rc<Control>>,
+
+    #[serde(skip)]
+    used_control_collector: HashSet<RcHashRef<Control>>,
 }
 
-impl ControlsAndGlobals {
-    pub fn new() -> Self {
-        let controls = {
-            match load_controls() {
-                Ok(controls) => controls,
-                Err(err) => {
-                    error!("Failed to load controls: {}", err);
-                    Controls::default()
-                }
-            }
-        };
-        ControlsAndGlobals {
-            controls,
-            globals: Default::default(),
-            used_controls: vec![],
-            used_control_collector: Default::default(),
-        }
-    }
-
+impl Controls {
     pub fn get_control(&mut self, id: &str) -> Rc<Control> {
-        if let Some(x) = self.controls.by_id.get(id) {
+        if let Some(x) = self.by_id.get(id) {
             self.used_control_collector.insert(RcHashRef(x.clone()));
             return x.clone();
         }
         let control = Rc::new(Control::new(id));
-        self.controls.by_id.insert(id.to_string(), control.clone());
+        self.by_id.insert(id.to_string(), control.clone());
         self.used_control_collector
             .insert(RcHashRef(control.clone()));
         control
@@ -105,14 +83,6 @@ impl Control {
             if component.use_spline {
                 component.value = component.spline.get_value(time);
             }
-        }
-    }
-}
-
-impl ControlComponent {
-    pub fn update(&mut self, time: f32) {
-        if self.use_spline {
-            self.value = self.spline.get_value(time);
         }
     }
 }

@@ -1,19 +1,16 @@
-use crate::control::controls::Globals;
 use crate::render::material::{
-    MaterialStep, MaterialStepType, Shader, ShaderKind, MATERIAL_STEP_COUNT,
+    MaterialStep, MaterialStepType, SamplerSource, Shader, ShaderKind, MATERIAL_STEP_COUNT,
 };
 use crate::render::mesh::Mesh;
-use crate::render::render_target::RenderTarget;
-use crate::render::vulkan_window::VulkanContext;
+use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::{RenderObject, Vertex3};
 use std::array;
 use std::mem::size_of;
-use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
-use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
+use vulkano::image::ImageViewAbstract;
 use vulkano::memory::allocator::MemoryUsage;
 use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
@@ -45,44 +42,32 @@ struct ShaderUniformStorage {
 impl RenderUnit {
     pub fn new(
         context: &VulkanContext,
-        render_target: &Arc<RenderTarget>,
-        render_object: Arc<RenderObject>,
+        render_pass: &Arc<vulkano::render_pass::RenderPass>,
+        render_object: &Arc<RenderObject>,
     ) -> RenderUnit {
         let steps = array::from_fn(|index| {
             let material_step = &render_object.material.passes[index];
             if let Some(material_step) = material_step {
-                Some(RenderUnitStep::new(context, render_target, material_step))
+                Some(RenderUnitStep::new(context, render_pass, material_step))
             } else {
                 None
             }
         });
 
         RenderUnit {
-            render_object,
+            render_object: render_object.clone(),
             steps,
         }
     }
 
-    pub fn render(
-        &self,
-        context: &VulkanContext,
-        builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-        material_step_type: MaterialStepType,
-        globals: &Globals,
-    ) {
+    pub fn render(&self, context: &mut RenderContext, material_step_type: MaterialStepType) {
         let index = material_step_type as usize;
         match (
             &self.steps[index],
             &self.render_object.material.passes[index],
         ) {
             (Some(component), Some(material_step)) => {
-                component.render(
-                    context,
-                    builder,
-                    material_step,
-                    &self.render_object.mesh,
-                    globals,
-                );
+                component.render(context, material_step, &self.render_object.mesh);
             }
             (None, None) => {}
             _ => panic!("RenderUnitStep and MaterialStep mismatch"),
@@ -93,7 +78,7 @@ impl RenderUnit {
 impl RenderUnitStep {
     pub fn new(
         context: &VulkanContext,
-        render_target: &RenderTarget,
+        render_pass: &Arc<vulkano::render_pass::RenderPass>,
         material_step: &MaterialStep,
     ) -> RenderUnitStep {
         let vertex_uniforms_storage = ShaderUniformStorage::new(context);
@@ -138,7 +123,7 @@ impl RenderUnitStep {
                 (),
             )
             .depth_stencil_state(depth_stencil_state)
-            .render_pass(Subpass::from(render_target.render_pass.clone(), 0).unwrap())
+            .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
             .build(context.context.device().clone())
             .unwrap();
 
@@ -149,14 +134,7 @@ impl RenderUnitStep {
         }
     }
 
-    pub fn render(
-        &self,
-        context: &VulkanContext,
-        builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-        material_step: &MaterialStep,
-        mesh: &Mesh,
-        globals: &Globals,
-    ) {
+    pub fn render(&self, context: &mut RenderContext, material_step: &MaterialStep, mesh: &Mesh) {
         let descriptor_set_layouts = self.pipeline.layout().set_layouts();
         let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
             context,
@@ -164,7 +142,6 @@ impl RenderUnitStep {
             descriptor_set_layouts
                 .get(ShaderKind::Vertex as usize)
                 .unwrap(),
-            globals,
         );
         let fragment_descriptor_set = self.fragment_uniforms_storage.make_descriptor_set(
             context,
@@ -172,10 +149,10 @@ impl RenderUnitStep {
             descriptor_set_layouts
                 .get(ShaderKind::Fragment as usize)
                 .unwrap(),
-            globals,
         );
 
-        builder
+        context
+            .command_builder
             .bind_pipeline_graphics(self.pipeline.clone())
             .bind_descriptor_sets(
                 PipelineBindPoint::Graphics,
@@ -212,10 +189,9 @@ impl ShaderUniformStorage {
 
     fn make_descriptor_set(
         &self,
-        context: &VulkanContext,
+        context: &RenderContext,
         shader: &Shader,
         layout: &Arc<DescriptorSetLayout>,
-        globals: &Globals,
     ) -> Arc<PersistentDescriptorSet> {
         // TODO: avoid memory allocation, maybe use tinyvec
         let mut descriptors = vec![];
@@ -224,7 +200,7 @@ impl ShaderUniformStorage {
             // Fill uniform array
             let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
             for global_mapping in &shader.global_uniform_bindings {
-                let values = globals.get(global_mapping.global_type);
+                let values = context.globals.get(global_mapping.global_type);
                 // TODO: store f32 offset instead of byte offset
                 let offset = global_mapping.offset / size_of::<f32>();
                 for (i, value) in values.iter().enumerate() {
@@ -243,9 +219,19 @@ impl ShaderUniformStorage {
             descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
         }
 
-        for texture_binding in &shader.texture_bindings {
+        for texture_binding in &shader.sampler_bindings {
+            let image_view: Arc<dyn ImageViewAbstract> = match &texture_binding.sampler_source {
+                SamplerSource::Texture(texture) => texture.clone(),
+                SamplerSource::RenderTarget(render_target) => render_target
+                    .image
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .image_view
+                    .clone(),
+            };
             let sampler = Sampler::new(
-                context.context.device().clone(),
+                context.vulkan_context.context.device().clone(),
                 SamplerCreateInfo {
                     mag_filter: Filter::Linear,
                     min_filter: Filter::Linear,
@@ -256,13 +242,13 @@ impl ShaderUniformStorage {
             .unwrap();
             descriptors.push(WriteDescriptorSet::image_view_sampler(
                 texture_binding.descriptor_set_binding,
-                texture_binding.texture.clone(),
+                image_view,
                 sampler,
             ));
         }
 
         let persistent_descriptor_set = PersistentDescriptorSet::new(
-            &context.descriptor_set_allocator,
+            &context.vulkan_context.descriptor_set_allocator,
             layout.clone(),
             descriptors,
         )

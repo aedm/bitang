@@ -1,11 +1,16 @@
+use crate::control::controls::Globals;
+use crate::render::render_target::{RenderTarget, RenderTargetRole};
+use std::collections::HashMap;
 use std::sync::Arc;
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
+use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::device::Queue;
 use vulkano::format::Format;
 use vulkano::image::ImageUsage;
+use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::Surface;
-use vulkano_util::renderer::VulkanoWindowRenderer;
+use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
 use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},
@@ -23,6 +28,16 @@ pub struct VulkanContext {
     pub swapchain_format: Format,
     pub surface: Arc<Surface>,
     pub gfx_queue: Arc<Queue>,
+    pub swapchain_render_targets_by_id: HashMap<String, Arc<RenderTarget>>,
+}
+
+pub struct RenderContext<'a> {
+    pub vulkan_context: &'a VulkanContext,
+    pub screen_buffer: SwapchainImageView,
+    pub depth_buffer: DeviceImageView,
+    pub screen_viewport: Viewport,
+    pub command_builder: &'a mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
+    pub globals: Globals,
 }
 
 pub struct VulkanWindow {
@@ -50,8 +65,11 @@ impl VulkanWindow {
             ..WindowDescriptor::default()
         };
 
+        const SCREEN_COLOR_FORMAT: Format = Format::B8G8R8A8_SRGB;
+        const DEPTH_FORMAT: Format = Format::D16_UNORM;
+
         windows.create_window(&event_loop, &vulkano_context, &window_descriptor, |ci| {
-            ci.image_format = Some(Format::B8G8R8A8_SRGB)
+            ci.image_format = Some(SCREEN_COLOR_FORMAT)
         });
 
         let renderer = windows.get_primary_renderer_mut().unwrap();
@@ -63,6 +81,15 @@ impl VulkanWindow {
                 ..ImageUsage::empty()
             },
         );
+
+        let screen_render_target =
+            RenderTarget::from_swapchain(RenderTargetRole::Color, SCREEN_COLOR_FORMAT);
+        let depth_render_target =
+            RenderTarget::from_swapchain(RenderTargetRole::Depth, DEPTH_FORMAT);
+        let swapchain_render_targets_by_id = HashMap::from([
+            (screen_render_target.id.clone(), screen_render_target),
+            (depth_render_target.id.clone(), depth_render_target),
+        ]);
 
         let command_buffer_allocator = StandardCommandBufferAllocator::new(
             vulkano_context.device().clone(),
@@ -78,6 +105,7 @@ impl VulkanWindow {
             swapchain_format: renderer.swapchain_format(),
             surface: renderer.surface(),
             gfx_queue: renderer.graphics_queue(),
+            swapchain_render_targets_by_id,
         };
 
         Self {
