@@ -63,7 +63,7 @@ impl Ui {
         &mut self,
         context: &mut RenderContext,
         bottom_panel_height: f32,
-        controls_and_globals: &mut Controls,
+        controls: &mut Controls,
         time: &mut f32,
     ) {
         // ) -> Box<dyn GpuFuture> {
@@ -79,14 +79,14 @@ impl Ui {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                         if let Some((control, component_index)) =
-                            Self::draw_control_value_sliders(ui, controls_and_globals)
+                            Self::draw_control_value_sliders(ui, controls)
                         {
                             spline_editor.set_control(control, component_index);
                         }
                         spline_editor.draw(ui, time);
                     });
                 });
-            Self::handle_hotkeys(ctx, controls_and_globals);
+            Self::handle_hotkeys(ctx, controls);
         });
         self.render_to_swapchain(context);
     }
@@ -107,10 +107,10 @@ impl Ui {
     // Returns the spline that was activated
     fn draw_control_value_sliders<'a>(
         ui: &mut egui::Ui,
-        controls_and_globals: &'a mut Controls,
+        controls: &'a mut Controls,
     ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
-        let mut controls_borrow = controls_and_globals
+        let mut controls_borrow = controls
             .used_controls
             .iter_mut()
             .map(|c| (c.id.as_str(), c.components.borrow_mut()));
@@ -138,10 +138,7 @@ impl Ui {
         });
 
         selected.and_then(|(control_index, component_index)| {
-            Some((
-                &controls_and_globals.used_controls[control_index],
-                component_index,
-            ))
+            Some((&controls.used_controls[control_index], component_index))
         })
     }
 
