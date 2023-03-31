@@ -107,25 +107,27 @@ impl Ui {
             .map(|c| (c.id.as_str(), c.components.borrow_mut()));
         let mut selected = None;
 
-        ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-            for (control_index, mut control) in controls_borrow.enumerate() {
-                ui.label(control.0);
-                let components = control.1.as_mut();
-                for i in 0..4 {
-                    let component = &mut components[i];
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                        ui.add_sized(
-                            [330.0, 0.0],
-                            egui::Slider::new(&mut component.value, 0.0..=1.0),
-                        );
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                for (control_index, mut control) in controls_borrow.enumerate() {
+                    ui.label(control.0);
+                    let components = control.1.as_mut();
+                    for i in 0..4 {
+                        let component = &mut components[i];
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                            ui.add_sized(
+                                [330.0, 0.0],
+                                egui::Slider::new(&mut component.value, 0.0..=1.0),
+                            );
 
-                        if ui.button("~").clicked() {
-                            selected = Some((control_index, i));
-                        }
-                        ui.checkbox(&mut component.use_spline, "")
-                    });
+                            if ui.button("~").clicked() {
+                                selected = Some((control_index, i));
+                            }
+                            ui.checkbox(&mut component.use_spline, "")
+                        });
+                    }
                 }
-            }
+            })
         });
 
         selected.and_then(|(control_index, component_index)| {
