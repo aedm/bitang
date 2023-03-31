@@ -6,10 +6,9 @@ use glam::Mat4;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
 use std::rc::Rc;
 use std::{array, mem, slice};
-use tracing::{debug, error};
+use tracing::debug;
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct Controls {
@@ -84,14 +83,6 @@ impl Control {
             if component.use_spline {
                 component.value = component.spline.get_value(time);
             }
-        }
-    }
-}
-
-impl ControlComponent {
-    pub fn update(&mut self, time: f32) {
-        if self.use_spline {
-            self.value = self.spline.get_value(time);
         }
     }
 }

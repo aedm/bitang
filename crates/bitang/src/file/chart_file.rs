@@ -7,12 +7,10 @@ use crate::render::material::{
 };
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Result};
-use egui::plot::Text;
-use serde::{Deserialize, Serialize};
-use std::array;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 pub struct Chart {

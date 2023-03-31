@@ -61,10 +61,6 @@ impl FileCache {
         has_changes
     }
 
-    fn path_format(path: &PathBuf) -> String {
-        path.to_str().unwrap().replace("\\", "/")
-    }
-
     pub fn update_watchers(&mut self) -> Result<()> {
         for path in self.watched_paths.difference(&self.new_watched_paths) {
             if let Some(path) = path.to_str() {

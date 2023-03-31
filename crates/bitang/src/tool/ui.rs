@@ -1,22 +1,13 @@
-use crate::render::vulkan_window::{RenderContext, VulkanContext};
-use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, PlotBounds};
-use egui::{Align, Color32};
-use egui_winit_vulkano::Gui;
-use std::array;
-use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
-use tracing::error;
-
 use crate::control::controls::{Control, Controls};
 use crate::file::save_controls;
+use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::tool::spline_editor::SplineEditor;
-use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
-};
+use egui_winit_vulkano::Gui;
+use std::rc::Rc;
+use tracing::error;
+use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::image::ImageViewAbstract;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
-use vulkano::sync::GpuFuture;
-use vulkano_util::renderer::SwapchainImageView;
 use winit::{event::WindowEvent, event_loop::EventLoop};
 
 pub struct Ui {
@@ -110,7 +101,7 @@ impl Ui {
         controls: &'a mut Controls,
     ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
-        let mut controls_borrow = controls
+        let controls_borrow = controls
             .used_controls
             .iter_mut()
             .map(|c| (c.id.as_str(), c.components.borrow_mut()));

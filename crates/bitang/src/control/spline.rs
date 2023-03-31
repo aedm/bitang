@@ -1,6 +1,5 @@
-use glam::Vec2;
 use serde::{Deserialize, Serialize};
-use std::cmp::{max, min};
+use std::cmp::min;
 
 // Plain Catmull-Rom spline ffs
 #[derive(Serialize, Deserialize)]

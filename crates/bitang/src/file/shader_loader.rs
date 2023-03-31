@@ -10,7 +10,6 @@ use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 use tracing::{debug, info, instrument, trace};
-use vulkano::buffer::BufferContents;
 use vulkano::shader::ShaderModule;
 
 #[derive(Hash, PartialEq, Eq, Clone)]

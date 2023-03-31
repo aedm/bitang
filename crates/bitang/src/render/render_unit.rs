@@ -1,17 +1,13 @@
-use crate::control::controls::Globals;
 use crate::render::material::{
     MaterialStep, MaterialStepType, SamplerSource, Shader, ShaderKind, MATERIAL_STEP_COUNT,
 };
 use crate::render::mesh::Mesh;
-use crate::render::render_target::Pass;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::{RenderObject, Vertex3};
 use std::array;
 use std::mem::size_of;
-use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
-use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::image::ImageViewAbstract;

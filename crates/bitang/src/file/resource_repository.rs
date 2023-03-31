@@ -1,24 +1,15 @@
 use crate::control::controls::Controls;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::file_hash_cache::FileCache;
-use crate::file::shader_loader::{ShaderCache, ShaderCompilationResult};
-use crate::render::material::{
-    LocalUniformMapping, Material, MaterialStep, SamplerBinding, Shader,
-};
-use crate::render::mesh::Mesh;
-use crate::render::vulkan_window::VulkanContext;
-use crate::render::{RenderObject, Texture, Vertex3};
-use anyhow::{anyhow, Result};
-
+use crate::file::shader_loader::ShaderCache;
 use crate::file::{chart_file, load_controls};
 use crate::render::chart::Chart;
+use crate::render::mesh::Mesh;
+use crate::render::vulkan_window::VulkanContext;
+use crate::render::{Texture, Vertex3};
+use anyhow::Result;
 use bitang_utils::blend_loader::load_blend_buffer;
-use serde::Deserialize;
-use serde::Serialize;
-use std::array;
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io::Cursor;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -32,14 +23,11 @@ use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 
 pub struct ResourceRepository {
     file_hash_cache: Rc<RefCell<FileCache>>,
-
     texture_cache: BinaryFileCache<Arc<Texture>>,
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
     root_ron_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
 
     pub shader_cache: ShaderCache,
-    // vertex_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
-    // fragment_shader_cache: BinaryFileCache<Arc<ShaderModule>>,
     pub controls: Controls,
 
     cached_root: Option<Arc<Chart>>,
@@ -99,10 +87,6 @@ impl ResourceRepository {
             .get_or_load(context, &format!("{root_folder}/{chart_folder}/chart.ron"))?
             .clone();
         chart.load(context, chart_folder, self)
-    }
-
-    fn make_control_id_for_object(object_id: &str, uniform_name: &str) -> String {
-        format!("ob/{}/{}", object_id, uniform_name)
     }
 }
 

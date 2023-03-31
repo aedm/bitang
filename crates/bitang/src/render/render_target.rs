@@ -1,20 +1,15 @@
-use crate::control::controls::Globals;
 use crate::render::material::MaterialStepType;
-use crate::render::render_target::RenderTargetSizeConstraint::Static;
 use crate::render::render_unit::RenderUnit;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::sync::Arc;
-use tracing::{debug, error};
-use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassContents,
-};
+use tracing::error;
+use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
-use vulkano::image::{AttachmentImage, ImageAccess, ImageLayout, ImageViewAbstract, SampleCount};
-use vulkano::pipeline::graphics::viewport::Viewport;
+use vulkano::image::{AttachmentImage, ImageLayout, ImageViewAbstract, SampleCount};
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
     RenderPassCreateInfo, StoreOp, SubpassDescription,

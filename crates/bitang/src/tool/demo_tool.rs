@@ -1,27 +1,17 @@
-use crate::control::controls::Controls;
 use crate::file::resource_repository::ResourceRepository;
-use crate::render::chart::Chart;
-use crate::render::material::MaterialStepType;
-use crate::render::render_target::{Pass, RenderTarget, RenderTargetRole};
-use crate::render::render_unit::RenderUnit;
 use crate::render::vulkan_window::{RenderContext, VulkanApp, VulkanContext};
-use crate::render::RenderObject;
 use crate::tool::ui::Ui;
 use anyhow::Result;
 use glam::{Mat4, Vec3};
 use std::cmp::max;
 use std::f32::consts::PI;
-use std::sync::Arc;
 use std::time::Instant;
 use tracing::error;
-use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
-};
+use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::image::ImageViewAbstract;
 use vulkano::pipeline::graphics::viewport::Viewport;
-use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo};
 use vulkano::sync::GpuFuture;
-use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
+use vulkano_util::renderer::VulkanoWindowRenderer;
 use winit::event::WindowEvent;
 use winit::event_loop::EventLoop;
 

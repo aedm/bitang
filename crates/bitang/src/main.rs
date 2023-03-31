@@ -6,7 +6,7 @@ mod tool;
 use crate::render::vulkan_window::VulkanWindow;
 use crate::tool::demo_tool::DemoTool;
 use anyhow::Result;
-use tracing::{debug, info};
+use tracing::{info};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
