@@ -12,8 +12,6 @@ pub struct Chart {
     camera: Camera,
     render_targets: Vec<Arc<RenderTarget>>,
     passes: Vec<Pass>,
-    // render_object: Arc<RenderObject>,
-    // render_unit: Option<RenderUnit>,
 }
 
 impl Chart {
@@ -22,19 +20,14 @@ impl Chart {
         controls: &mut Controls,
         render_targets: Vec<Arc<RenderTarget>>,
         passes: Vec<Pass>,
-        // render_object: &Arc<RenderObject>,
     ) -> Self {
         Chart {
             id: id.to_string(),
             camera: Camera::new(controls, &format!("{id}/camera")),
             render_targets,
             passes,
-            // render_object: render_object.clone(),
-            // render_unit: None,
         }
     }
-
-    pub fn generate_render_sequence(&mut self, context: &VulkanContext) {}
 
     pub fn render(&self, context: &mut RenderContext) {
         for render_target in &self.render_targets {

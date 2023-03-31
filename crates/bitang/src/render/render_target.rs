@@ -33,27 +33,6 @@ impl Pass {
         render_targets: Vec<Arc<RenderTarget>>,
         objects: Vec<Arc<RenderObject>>,
     ) -> Result<Pass> {
-        // let render_pass = vulkano::single_pass_renderpass!(
-        //     context.context.device().clone(),
-        //     attachments: {
-        //         color: {
-        //             load: Clear,
-        //             store: Store,
-        //             format: context.swapchain_format,
-        //             samples: 1,
-        //         },
-        //         depth: {
-        //             load: Clear,
-        //             store: DontCare,
-        //             format: Format::D16_UNORM,
-        //             samples: 1,
-        //         }
-        //     },
-        //     pass:
-        //         { color: [color], depth_stencil: {depth} }
-        // )
-        // .unwrap();
-
         let render_pass = Self::make_vulkan_render_pass(context, &render_targets)?;
         let render_units = objects
             .iter()

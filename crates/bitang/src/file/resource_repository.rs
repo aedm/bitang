@@ -101,46 +101,6 @@ impl ResourceRepository {
         chart.load(context, chart_folder, self)
     }
 
-    // pub fn load_root_chart(
-    //     &mut self,
-    //     context: &VulkanContext,
-    //     controls: &mut ControlsAndGlobals,
-    // ) -> Result<RenderObject> {
-    //     let chart = self
-    //         .root_ron_file_cache
-    //         .get_or_load(context, "test-chart/chart.ron")?
-    //         .clone();
-    //
-    //     // Set uniforms
-    //     for (uniform_name, uniform_value) in &object.uniforms {
-    //         if uniform_value.is_empty() {
-    //             return Err(anyhow!(
-    //                 "Uniform '{}' has no values. Object id '{}'",
-    //                 uniform_name,
-    //                 object.id
-    //             ));
-    //         }
-    //         let _control_id = Self::make_control_id_for_object(&object.id, uniform_name);
-    //         let _value: [f32; 4] = array::from_fn(|i| uniform_value[i % uniform_value.len()]);
-    //         // controls.get_control(&control_id).set_scalar(value);
-    //     }
-    //
-    //     let mesh = self.get_mesh(context, &object.mesh_path)?.clone();
-    //     let texture = self.get_texture(context, &object.texture_path)?.clone();
-    //     let solid_step = self.make_material_step(context, controls, &object, &texture)?;
-    //     let material = Material {
-    //         passes: [None, None, Some(solid_step)],
-    //     };
-    //
-    //     let render_object = RenderObject {
-    //         mesh,
-    //         material,
-    //         position: Default::default(),
-    //         rotation: Default::default(),
-    //     };
-    //     Ok(render_object)
-    // }
-
     fn make_control_id_for_object(object_id: &str, uniform_name: &str) -> String {
         format!("ob/{}/{}", object_id, uniform_name)
     }

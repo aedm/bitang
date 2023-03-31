@@ -26,66 +26,28 @@ use winit::event::WindowEvent;
 use winit::event_loop::EventLoop;
 
 pub struct DemoTool {
-    // render_target: Arc<Pass>,
     ui: Ui,
     start_time: Instant,
     resource_repository: ResourceRepository,
-    // render_unit: Option<RenderUnit>,
-    // render_object: Option<Arc<RenderObject>>,
-    // chart: Arc<Chart>,
-    // pass: Pass,
-    // controls: Controls,
     time: f32,
 }
 
 impl DemoTool {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let mut resource_repository = ResourceRepository::try_new()?;
-        // let mut controls = Controls::new();
-
-        // let render_target = Arc::new(Pass::new(&context));
-        // let render_target =
-        //     RenderTarget::from_swapchain(RenderTargetRole::Color, context.swapchain_format)?;
         let _ = resource_repository.load_root_document(context)?;
-        // let render_unit = RenderUnit::new(context, &render_target, render_object.clone());
-        // let pass = Pass::new(context, &render_object, MaterialStepType::Opaque);
-
         let ui = Ui::new(context, event_loop);
 
         let demo_tool = DemoTool {
-            // render_target,
             ui,
             start_time: Instant::now(),
             resource_repository,
-            // chart,
-            // controls,
             time: 5.0,
         };
         Ok(demo_tool)
     }
 
-    // fn update_render_unit(&mut self, context: &VulkanContext) {
-    //     let render_object = self
-    //         .resource_repository
-    //         .load_root_document(context, &mut self.controls);
-    //     if let Ok(render_object) = render_object {
-    //         if let Some(old_object) = &self.render_object {
-    //             if Arc::ptr_eq(&render_object, old_object) {
-    //                 return;
-    //             }
-    //         }
-    //         self.render_object = Some(render_object.clone());
-    //         self.render_unit = Some(RenderUnit::new(context, &self.render_target, render_object));
-    //     }
-    // }
-
-    pub fn draw(
-        &mut self,
-        context: &mut RenderContext,
-        // before_future: Box<dyn GpuFuture>,
-        // ) -> Box<dyn GpuFuture> {
-    ) {
-        // self.update_render_unit(context);
+    pub fn draw(&mut self, context: &mut RenderContext) {
         let Ok(chart) = self
             .resource_repository
             .load_root_document(context.vulkan_context) else {
@@ -99,39 +61,6 @@ impl DemoTool {
         for control in &mut self.resource_repository.controls.used_controls {
             control.evaluate_splines(self.time);
         }
-
-        // let dimensions = target_image.dimensions().width_height();
-        // let framebuffer = Framebuffer::new(
-        //     self.render_target.vulkan_render_pass.clone(),
-        //     FramebufferCreateInfo {
-        //         attachments: vec![target_image, depth_image],
-        //         ..Default::default()
-        //     },
-        // )
-        // .unwrap();
-
-        // let mut builder = AutoCommandBufferBuilder::primary(
-        //     &context.vulkan_context.command_buffer_allocator,
-        //     context
-        //         .vulkan_context
-        //         .context
-        //         .graphics_queue()
-        //         .queue_family_index(),
-        //     CommandBufferUsage::OneTimeSubmit,
-        // )
-        // .unwrap();
-
-        // let clear_values = vec![Some([0.03, 0.03, 0.03, 1.0].into()), Some(1f32.into())];
-        // builder
-        //     .begin_render_pass(
-        //         RenderPassBeginInfo {
-        //             clear_values,
-        //             ..RenderPassBeginInfo::framebuffer(framebuffer)
-        //         },
-        //         SubpassContents::Inline,
-        //     )
-        //     .unwrap()
-        //     .set_viewport(0, [viewport.clone()]);
 
         let viewport = &context.screen_viewport;
         // We use a left-handed, y-up coordinate system.
@@ -156,19 +85,6 @@ impl DemoTool {
         context.globals.camera_from_model = camera_from_model;
 
         chart.render(context);
-
-        // builder.end_render_pass().unwrap();
-        // let command_buffer = builder.build().unwrap();
-        //
-        // let after_future = before_future
-        //     .then_execute(
-        //         context.vulkan_context.context.graphics_queue().clone(),
-        //         command_buffer,
-        //     )
-        //     .unwrap()
-        //     .boxed();
-        //
-        // after_future
     }
 }
 
@@ -219,14 +135,11 @@ impl VulkanApp for DemoTool {
             };
 
             // Render app
-            // let app_finished_future =
             self.draw(&mut context);
 
             // Render UI
-            // let gui_finished_future =
             self.ui.render(
                 &mut context,
-                // app_finished_future,
                 ui_height,
                 &mut self.resource_repository.controls,
                 &mut self.time,
@@ -242,8 +155,6 @@ impl VulkanApp for DemoTool {
             )
             .unwrap()
             .boxed();
-
-        // after_future
 
         renderer.present(after_future, true);
     }

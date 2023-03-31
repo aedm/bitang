@@ -23,24 +23,6 @@ pub struct Controls {
 }
 
 impl Controls {
-    // pub fn new() -> Self {
-    //     let controls = {
-    //         match load_controls() {
-    //             Ok(controls) => controls,
-    //             Err(err) => {
-    //                 error!("Failed to load controls: {}", err);
-    //                 Controls::default()
-    //             }
-    //         }
-    //     };
-    //     Controls {
-    //         controls,
-    //         globals: Default::default(),
-    //         used_controls: vec![],
-    //         used_control_collector: Default::default(),
-    //     }
-    // }
-
     pub fn get_control(&mut self, id: &str) -> Rc<Control> {
         if let Some(x) = self.by_id.get(id) {
             self.used_control_collector.insert(RcHashRef(x.clone()));

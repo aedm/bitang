@@ -62,7 +62,6 @@ impl Ui {
     pub fn render(
         &mut self,
         context: &mut RenderContext,
-        // before_future: Box<dyn GpuFuture>,
         bottom_panel_height: f32,
         controls_and_globals: &mut Controls,
         time: &mut f32,
@@ -111,10 +110,10 @@ impl Ui {
         controls_and_globals: &'a mut Controls,
     ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
-        let mut controls_borrow = controls_and_globals.used_controls.iter_mut().map(|c| {
-            // let b: [_; 4] = array::from_fn(|i| c.components.borrow_mut());
-            (c.id.as_str(), c.components.borrow_mut())
-        });
+        let mut controls_borrow = controls_and_globals
+            .used_controls
+            .iter_mut()
+            .map(|c| (c.id.as_str(), c.components.borrow_mut()));
         let mut selected = None;
 
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
@@ -146,19 +145,7 @@ impl Ui {
         })
     }
 
-    fn render_to_swapchain(
-        &mut self,
-        context: &mut RenderContext,
-        // before_future: Box<dyn GpuFuture>,
-    ) {
-        // ) -> Box<dyn GpuFuture> {
-        // let mut builder = AutoCommandBufferBuilder::primary(
-        //     &context.command_buffer_allocator,
-        //     context.context.graphics_queue().queue_family_index(),
-        //     CommandBufferUsage::OneTimeSubmit,
-        // )
-        // .unwrap();
-
+    fn render_to_swapchain(&mut self, context: &mut RenderContext) {
         let target_image = context.screen_buffer.clone();
         let dimensions = target_image.dimensions().width_height();
         let framebuffer = Framebuffer::new(
@@ -188,14 +175,6 @@ impl Ui {
             .unwrap();
 
         context.command_builder.end_render_pass().unwrap();
-        // let command_buffer = builder.build().unwrap();
-
-        // let after_future = before_future
-        //     .then_execute(context.context.graphics_queue().clone(), command_buffer)
-        //     .unwrap()
-        //     .boxed();
-        //
-        // after_future
     }
 
     pub fn handle_window_event(&mut self, event: &WindowEvent) {
