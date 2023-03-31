@@ -7,7 +7,7 @@ use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
 use std::cell::{Cell, RefCell};
 use std::sync::Arc;
-use tracing::error;
+use tracing::{debug, error};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassContents,
 };
@@ -79,13 +79,16 @@ impl Pass {
                     .as_ref()
                     .and_then(|image| Some(image.image_view.clone()))
                     .with_context(|| {
-                        anyhow!("Render target {} has no image view", target.id.as_str())
+                        anyhow!("Render target '{}' has no image view", target.id.as_str())
                     })
             })
             .collect::<Result<Vec<_>>>();
-        let Ok(attachments) = attachments else {
-            error!("Failed to get render target attachments");
-            return;
+        let attachments = match attachments {
+            Ok(attachments) => attachments,
+            Err(err) => {
+                error!("Failed to get render target attachments: {}", err);
+                return;
+            }
         };
         let framebuffer = Framebuffer::new(
             self.vulkan_render_pass.clone(),
@@ -96,7 +99,15 @@ impl Pass {
         )
         .unwrap();
 
-        let clear_values = vec![Some([0.03, 0.03, 0.03, 1.0].into()), Some(1f32.into())];
+        let clear_values = self
+            .render_targets
+            .iter()
+            .map(|target| match target.role {
+                RenderTargetRole::Color => Some([0.03, 0.03, 0.03, 1.0].into()),
+                RenderTargetRole::Depth => Some(1f32.into()),
+            })
+            .collect::<Vec<_>>();
+        // debug!("Clear values: {:?}", clear_values);
         context
             .command_builder
             .begin_render_pass(
@@ -128,9 +139,9 @@ impl Pass {
             attachments.push(AttachmentDescription {
                 format: Some(render_target.format),
                 samples: SampleCount::Sample1, // TODO
-                load_op: LoadOp::Load,
+                load_op: LoadOp::Clear,
                 store_op: StoreOp::Store,
-                stencil_load_op: LoadOp::Load,
+                stencil_load_op: LoadOp::Clear,
                 stencil_store_op: StoreOp::Store,
                 initial_layout: ImageLayout::General,
                 final_layout: ImageLayout::General,
@@ -216,15 +227,15 @@ impl RenderTarget {
         })
     }
 
-    pub fn update_swapchain_image(&mut self, image_view: &Arc<dyn ImageViewAbstract>) {
+    pub fn update_swapchain_image(&self, image_view: Arc<dyn ImageViewAbstract>) {
         // TODO: check if format is the same
         *self.image.borrow_mut() = Some(RenderTargetImage {
-            image_view: image_view.clone(),
             texture: None,
             texture_size: (
                 image_view.dimensions().width(),
                 image_view.dimensions().height(),
             ),
+            image_view,
         });
     }
 

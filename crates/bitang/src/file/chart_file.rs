@@ -78,18 +78,10 @@ impl Chart {
             })
             .collect::<HashMap<String, Arc<render::render_target::RenderTarget>>>();
 
-        let control_prefix = format!("charts/{id}");
         let passes = self
             .passes
             .iter()
-            .map(|pass| {
-                pass.load(
-                    context,
-                    resource_repository,
-                    &render_targets_by_id,
-                    &control_prefix,
-                )
-            })
+            .map(|pass| pass.load(context, resource_repository, &render_targets_by_id, id))
             .collect::<Result<Vec<_>>>()?;
 
         let render_targets = render_targets_by_id.into_values().collect::<Vec<_>>();
@@ -147,6 +139,7 @@ impl Pass {
             .map(|render_target_id| {
                 render_targets_by_id
                     .get(render_target_id)
+                    .or_else(|| context.swapchain_render_targets_by_id.get(render_target_id))
                     .and_then(|render_target| Some(render_target.clone()))
                     .with_context(|| anyhow!("Render target '{}' not found", render_target_id))
             })

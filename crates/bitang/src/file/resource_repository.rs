@@ -68,10 +68,10 @@ impl ResourceRepository {
             _ => {
                 let now = std::time::Instant::now();
                 self.controls.start_load_cycle();
-                let result = self.load_root_chart(context).and_then(|render_object| {
-                    let render_object = Arc::new(render_object);
-                    self.cached_root = Some(render_object.clone());
-                    Ok(render_object)
+                let result = self.load_root_chart(context).and_then(|chart| {
+                    let chart = Arc::new(chart);
+                    self.cached_root = Some(chart.clone());
+                    Ok(chart)
                 });
                 self.controls.finish_load_cycle();
                 self.file_hash_cache.borrow_mut().update_watchers()?;
@@ -92,12 +92,13 @@ impl ResourceRepository {
     }
 
     pub fn load_root_chart(&mut self, context: &VulkanContext) -> Result<Chart> {
-        let folder = "app/test-chart";
+        let root_folder = "app";
+        let chart_folder = "test-chart";
         let chart = self
             .root_ron_file_cache
-            .get_or_load(context, &format!("{folder}/chart.ron"))?
+            .get_or_load(context, &format!("{root_folder}/{chart_folder}/chart.ron"))?
             .clone();
-        chart.load(context, folder, self)
+        chart.load(context, chart_folder, self)
     }
 
     // pub fn load_root_chart(

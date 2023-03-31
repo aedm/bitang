@@ -13,6 +13,7 @@ use std::cmp::max;
 use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time::Instant;
+use tracing::error;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
 };
@@ -31,7 +32,7 @@ pub struct DemoTool {
     resource_repository: ResourceRepository,
     // render_unit: Option<RenderUnit>,
     // render_object: Option<Arc<RenderObject>>,
-    chart: Arc<Chart>,
+    // chart: Arc<Chart>,
     // pass: Pass,
     // controls: Controls,
     time: f32,
@@ -45,7 +46,7 @@ impl DemoTool {
         // let render_target = Arc::new(Pass::new(&context));
         // let render_target =
         //     RenderTarget::from_swapchain(RenderTargetRole::Color, context.swapchain_format)?;
-        let chart = resource_repository.load_root_document(context)?;
+        let _ = resource_repository.load_root_document(context)?;
         // let render_unit = RenderUnit::new(context, &render_target, render_object.clone());
         // let pass = Pass::new(context, &render_object, MaterialStepType::Opaque);
 
@@ -56,7 +57,7 @@ impl DemoTool {
             ui,
             start_time: Instant::now(),
             resource_repository,
-            chart,
+            // chart,
             // controls,
             time: 5.0,
         };
@@ -85,6 +86,12 @@ impl DemoTool {
         // ) -> Box<dyn GpuFuture> {
     ) {
         // self.update_render_unit(context);
+        let Ok(chart) = self
+            .resource_repository
+            .load_root_document(context.vulkan_context) else {
+            error!("Failed to load root document");
+            return;
+        };
 
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
@@ -148,7 +155,7 @@ impl DemoTool {
         context.globals.projection_from_model = projection_from_model;
         context.globals.camera_from_model = camera_from_model;
 
-        self.chart.render(context);
+        chart.render(context);
 
         // builder.end_render_pass().unwrap();
         // let command_buffer = builder.build().unwrap();
@@ -189,6 +196,17 @@ impl VulkanApp for DemoTool {
             CommandBufferUsage::OneTimeSubmit,
         )
         .unwrap();
+
+        vulkan_context
+            .swapchain_render_targets_by_id
+            .get("screen")
+            .unwrap()
+            .update_swapchain_image(target_image.clone());
+        vulkan_context
+            .swapchain_render_targets_by_id
+            .get("screen_depth")
+            .unwrap()
+            .update_swapchain_image(depth_image.clone());
 
         {
             let mut context = RenderContext {
