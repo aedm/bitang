@@ -17,6 +17,7 @@ Chart(
 	],
 	passes: [
 		Pass(
+			id: "1",
 			render_targets: ["color", "depth"],
 			objects: [
 				Object(
@@ -34,6 +35,7 @@ Chart(
 			],
 		),
 		Pass(
+			id: "2",
 			render_targets: [
 				"screen",
 				"screen_depth"

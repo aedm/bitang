@@ -16,6 +16,7 @@ use vulkano::render_pass::{
 };
 
 pub struct Pass {
+    pub id: String,
     pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     pub render_targets: Vec<Arc<RenderTarget>>,
     pub objects: Vec<Arc<RenderObject>>,
@@ -25,6 +26,7 @@ pub struct Pass {
 impl Pass {
     pub fn new(
         context: &VulkanContext,
+        id: &str,
         render_targets: Vec<Arc<RenderTarget>>,
         objects: Vec<Arc<RenderObject>>,
     ) -> Result<Pass> {
@@ -35,6 +37,7 @@ impl Pass {
             .collect::<Vec<_>>();
 
         Ok(Pass {
+            id: id.to_string(),
             vulkan_render_pass: render_pass,
             render_targets,
             objects,

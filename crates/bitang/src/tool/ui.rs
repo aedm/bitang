@@ -1,5 +1,6 @@
 use crate::control::controls::{Control, Controls};
 use crate::file::save_controls;
+use crate::render::chart::Chart;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::tool::spline_editor::SplineEditor;
 use egui_winit_vulkano::Gui;
@@ -50,11 +51,12 @@ impl Ui {
         }
     }
 
-    pub fn render(
+    pub fn draw(
         &mut self,
         context: &mut RenderContext,
         bottom_panel_height: f32,
         controls: &mut Controls,
+        chart: &Chart,
         time: &mut f32,
     ) {
         // ) -> Box<dyn GpuFuture> {
@@ -69,8 +71,10 @@ impl Ui {
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                        Self::draw_chart_selector(ui, chart);
+                        Self::draw_control_group_selector(ui, chart);
                         if let Some((control, component_index)) =
-                            Self::draw_control_value_sliders(ui, controls)
+                            Self::draw_control_sliders(ui, controls)
                         {
                             spline_editor.set_control(control, component_index);
                         }
@@ -95,8 +99,35 @@ impl Ui {
         }
     }
 
+    fn draw_chart_selector(ui: &mut egui::Ui, chart: &Chart) {
+        ui.push_id("chart_selector", |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                    ui.label("Charts");
+                    ui.toggle_value(&mut true, &chart.id);
+                })
+            });
+        });
+    }
+
+    fn draw_control_group_selector(ui: &mut egui::Ui, chart: &Chart) {
+        ui.push_id("control_group_selector", |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                    ui.label("Passes");
+                    for pass in &chart.passes {
+                        ui.toggle_value(&mut false, format!("Pass '{}' Camera", pass.id));
+                        for object in &pass.objects {
+                            ui.toggle_value(&mut false, format!("- Object '{}'", object.id));
+                        }
+                    }
+                })
+            });
+        });
+    }
+
     // Returns the spline that was activated
-    fn draw_control_value_sliders<'a>(
+    fn draw_control_sliders<'a>(
         ui: &mut egui::Ui,
         controls: &'a mut Controls,
     ) -> Option<(&'a Rc<Control>, usize)> {

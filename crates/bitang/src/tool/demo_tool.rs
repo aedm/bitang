@@ -1,4 +1,5 @@
 use crate::file::resource_repository::ResourceRepository;
+use crate::render::chart::Chart;
 use crate::render::vulkan_window::{RenderContext, VulkanApp, VulkanContext};
 use crate::tool::ui::Ui;
 use anyhow::Result;
@@ -37,14 +38,7 @@ impl DemoTool {
         Ok(demo_tool)
     }
 
-    pub fn draw(&mut self, context: &mut RenderContext) {
-        let Ok(chart) = self
-            .resource_repository
-            .load_root_document(context.vulkan_context) else {
-            error!("Failed to load root document");
-            return;
-        };
-
+    pub fn draw(&mut self, context: &mut RenderContext, chart: &Chart) {
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
         // Evaluate control splines
@@ -80,6 +74,13 @@ impl DemoTool {
 
 impl VulkanApp for DemoTool {
     fn paint(&mut self, vulkan_context: &VulkanContext, renderer: &mut VulkanoWindowRenderer) {
+        let Ok(chart) = self
+            .resource_repository
+            .load_root_document(vulkan_context) else {
+            error!("Failed to load root document");
+            return;
+        };
+
         let before_future = renderer.acquire().unwrap();
         let target_image = renderer.swapchain_image_view();
         let depth_image = renderer.get_additional_image_view(1);
@@ -125,13 +126,14 @@ impl VulkanApp for DemoTool {
             };
 
             // Render app
-            self.draw(&mut context);
+            self.draw(&mut context, &chart);
 
             // Render UI
-            self.ui.render(
+            self.ui.draw(
                 &mut context,
                 ui_height,
                 &mut self.resource_repository.controls,
+                &chart,
                 &mut self.time,
             );
         }

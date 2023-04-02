@@ -29,6 +29,7 @@ pub type Texture = ImageView<ImmutableImage>;
 
 #[derive(Clone)]
 pub struct RenderObject {
+    pub id: String,
     pub mesh: Arc<Mesh>,
     pub position: Vec3,
     pub rotation: Vec3,

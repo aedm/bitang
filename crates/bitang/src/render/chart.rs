@@ -6,10 +6,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct Chart {
-    id: String,
+    pub id: String,
     camera: Camera,
     render_targets: Vec<Arc<RenderTarget>>,
-    passes: Vec<Pass>,
+    pub passes: Vec<Pass>,
 }
 
 impl Chart {

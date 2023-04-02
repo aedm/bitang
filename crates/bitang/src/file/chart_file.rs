@@ -39,6 +39,7 @@ pub enum RenderTargetRole {
 
 #[derive(Debug, Deserialize)]
 pub struct Pass {
+    pub id: String,
     pub render_targets: Vec<String>,
     pub objects: Vec<Object>,
 }
@@ -127,7 +128,7 @@ impl Pass {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let pass = render::render_target::Pass::new(context, render_targets, objects)?;
+        let pass = render::render_target::Pass::new(context, &self.id, render_targets, objects)?;
         Ok(pass)
     }
 }
@@ -210,6 +211,7 @@ impl Object {
         };
 
         let object = render::RenderObject {
+            id: self.id.clone(),
             mesh,
             position: Default::default(),
             rotation: Default::default(),
