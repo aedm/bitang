@@ -90,15 +90,6 @@ impl Controls {
             self.used_controls_list.push(control.clone());
             self.used_controls_root.borrow_mut().insert(control);
         }
-
-        // debug!(
-        //     "Used controls: {:?}",
-        //     self.used_controls_root
-        //         .borrow()
-        //         .iter()
-        //         .map(|x| &x.id)
-        //         .collect::<Vec<_>>()
-        // );
     }
 }
 

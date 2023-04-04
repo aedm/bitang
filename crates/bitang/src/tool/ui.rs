@@ -75,11 +75,8 @@ impl Ui {
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                        // Self::draw_chart_selector(ui, chart);
-                        // Self::draw_control_group_selector(ui, chart);
                         Self::draw_control_tree(ui, controls, selected_control_prefix);
                         ui.separator();
-
                         if let Some((control, component_index)) =
                             Self::draw_control_sliders(ui, controls, selected_control_prefix)
                         {
