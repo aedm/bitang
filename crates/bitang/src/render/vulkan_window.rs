@@ -11,6 +11,7 @@ use vulkano::image::ImageUsage;
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::Surface;
 use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
+use vulkano_util::window::WindowMode;
 use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},
@@ -60,8 +61,9 @@ impl VulkanWindow {
         let mut windows = VulkanoWindows::default();
         let window_descriptor = WindowDescriptor {
             title: "bitang".to_string(),
-            width: 1000.,
-            height: 920.,
+            width: 1280.,
+            height: 1000.,
+            // mode: WindowMode::BorderlessFullscreen,
             ..WindowDescriptor::default()
         };
 
