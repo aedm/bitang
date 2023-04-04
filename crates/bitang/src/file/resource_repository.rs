@@ -1,4 +1,5 @@
 use crate::control::controls::Controls;
+use crate::control::ControlId;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::ShaderCache;
@@ -44,7 +45,7 @@ impl ResourceRepository {
             root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
             file_hash_cache,
             cached_root: None,
-            controls: load_controls()?,
+            controls: load_controls(),
         })
     }
 
@@ -86,7 +87,7 @@ impl ResourceRepository {
             .root_ron_file_cache
             .get_or_load(context, &format!("{root_folder}/{chart_folder}/chart.ron"))?
             .clone();
-        chart.load(context, chart_folder, self)
+        chart.load(chart_folder, context, &ControlId::default(), self)
     }
 }
 

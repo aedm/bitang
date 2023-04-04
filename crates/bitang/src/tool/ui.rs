@@ -1,4 +1,5 @@
-use crate::control::controls::{Control, Controls};
+use crate::control::controls::{Control, Controls, UsedControlsNode};
+use crate::control::{ControlId, ControlIdPartType};
 use crate::file::save_controls;
 use crate::render::chart::Chart;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
@@ -15,6 +16,7 @@ pub struct Ui {
     pub gui: Gui,
     pub subpass: Subpass,
     spline_editor: SplineEditor,
+    selected_control_prefix: ControlId,
 }
 
 impl Ui {
@@ -48,6 +50,7 @@ impl Ui {
             gui,
             subpass,
             spline_editor,
+            selected_control_prefix: ControlId::default(),
         }
     }
 
@@ -63,6 +66,7 @@ impl Ui {
         let pixels_per_point = 1.15f32;
         let bottom_panel_height = bottom_panel_height / pixels_per_point;
         let spline_editor = &mut self.spline_editor;
+        let selected_control_prefix = &mut self.selected_control_prefix;
         self.gui.immediate_ui(|gui| {
             let ctx = gui.context();
             ctx.set_pixels_per_point(pixels_per_point);
@@ -71,10 +75,13 @@ impl Ui {
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                        Self::draw_chart_selector(ui, chart);
-                        Self::draw_control_group_selector(ui, chart);
+                        // Self::draw_chart_selector(ui, chart);
+                        // Self::draw_control_group_selector(ui, chart);
+                        Self::draw_control_tree(ui, controls, selected_control_prefix);
+                        ui.separator();
+
                         if let Some((control, component_index)) =
-                            Self::draw_control_sliders(ui, controls)
+                            Self::draw_control_sliders(ui, controls, selected_control_prefix)
                         {
                             spline_editor.set_control(control, component_index);
                         }
@@ -92,57 +99,95 @@ impl Ui {
             .input_mut()
             .consume_key(egui::Modifiers::CTRL, egui::Key::S)
         {
-            println!("Saving");
             if let Err(err) = save_controls(&controls) {
                 error!("Failed to save controls: {}", err);
             }
         }
     }
 
-    fn draw_chart_selector(ui: &mut egui::Ui, chart: &Chart) {
-        ui.push_id("chart_selector", |ui| {
+    fn draw_control_tree(
+        ui: &mut egui::Ui,
+        controls: &mut Controls,
+        selected_control_prefix: &mut ControlId,
+    ) {
+        ui.push_id("control_tree", |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                    ui.set_min_width(150.0);
                     ui.label("Charts");
-                    ui.toggle_value(&mut true, &chart.id);
-                })
-            });
-        });
-    }
-
-    fn draw_control_group_selector(ui: &mut egui::Ui, chart: &Chart) {
-        ui.push_id("control_group_selector", |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                    ui.label("Passes");
-                    for pass in &chart.passes {
-                        ui.toggle_value(&mut false, format!("Pass '{}' Camera", pass.id));
-                        for object in &pass.objects {
-                            ui.toggle_value(&mut false, format!("- Object '{}'", object.id));
-                        }
+                    for root in &controls.used_controls_root.borrow().children {
+                        Self::draw_control_tree_node(ui, &root.borrow(), selected_control_prefix);
                     }
                 })
             });
         });
     }
 
+    fn draw_control_tree_node(
+        ui: &mut egui::Ui,
+        node: &UsedControlsNode,
+        selected_control_prefix: &mut ControlId,
+    ) {
+        let id_str = format!("{}", node.id_prefix);
+        let id = ui.make_persistent_id(&id_str);
+        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
+            .show_header(ui, |ui| {
+                let selected = selected_control_prefix == &node.id_prefix;
+                let mut new_selected = selected;
+                let control_id_part = &node.id_prefix.parts.last().unwrap();
+                let icon = match control_id_part.part_type {
+                    ControlIdPartType::Chart => '📈',
+                    ControlIdPartType::Pass => '📦',
+                    ControlIdPartType::Camera => '📷',
+                    ControlIdPartType::Object => '📝',
+                    ControlIdPartType::Value => '📊',
+                };
+                ui.toggle_value(
+                    &mut new_selected,
+                    format!("{} {}", icon, control_id_part.name),
+                );
+                if new_selected && !selected {
+                    *selected_control_prefix = node.id_prefix.clone();
+                }
+            })
+            .body(|ui| {
+                for child in &node.children {
+                    let child = child.borrow();
+                    if !child.children.is_empty() {
+                        Self::draw_control_tree_node(ui, &child, selected_control_prefix);
+                    }
+                }
+            });
+    }
+
     // Returns the spline that was activated
     fn draw_control_sliders<'a>(
         ui: &mut egui::Ui,
         controls: &'a mut Controls,
+        selected_control_prefix: &mut ControlId,
     ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
+        let trim_parts = selected_control_prefix.parts.len();
         let controls_borrow = controls
-            .used_controls
+            .used_controls_list
             .iter_mut()
-            .map(|c| (c.id.as_str(), c.components.borrow_mut()));
+            .enumerate()
+            .filter(|(_, c)| c.id.parts.starts_with(&selected_control_prefix.parts))
+            .map(|(index, c)| {
+                let name = c.id.parts[trim_parts..]
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect::<Vec<_>>()
+                    .join("/");
+                (index, name, c.components.borrow_mut())
+            });
         let mut selected = None;
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                for (control_index, mut control) in controls_borrow.enumerate() {
-                    ui.label(control.0);
-                    let components = control.1.as_mut();
+                for (control_index, control_name, mut control) in controls_borrow {
+                    ui.label(&control_name);
+                    let components = control.as_mut();
                     for i in 0..4 {
                         let component = &mut components[i];
                         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
@@ -151,7 +196,7 @@ impl Ui {
                                 egui::Slider::new(&mut component.value, 0.0..=1.0),
                             );
 
-                            if ui.button("~").clicked() {
+                            if ui.button("✏").clicked() {
                                 selected = Some((control_index, i));
                             }
                             ui.checkbox(&mut component.use_spline, "")
@@ -162,7 +207,7 @@ impl Ui {
         });
 
         selected.and_then(|(control_index, component_index)| {
-            Some((&controls.used_controls[control_index], component_index))
+            Some((&controls.used_controls_list[control_index], component_index))
         })
     }
 

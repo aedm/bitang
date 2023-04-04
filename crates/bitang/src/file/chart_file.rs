@@ -1,4 +1,5 @@
 use crate::control::controls::Controls;
+use crate::control::{ControlId, ControlIdPartType};
 use crate::file::resource_repository::ResourceRepository;
 use crate::file::shader_loader::ShaderCompilationResult;
 use crate::render;
@@ -64,10 +65,12 @@ pub enum TextureMapping {
 impl Chart {
     pub fn load(
         &self,
-        context: &VulkanContext,
         id: &str,
+        context: &VulkanContext,
+        control_prefix: &ControlId,
         resource_repository: &mut ResourceRepository,
     ) -> Result<render::chart::Chart> {
+        let control_prefix = control_prefix.add(ControlIdPartType::Chart, id);
         let render_targets_by_id = self
             .render_targets
             .iter()
@@ -80,13 +83,21 @@ impl Chart {
         let passes = self
             .passes
             .iter()
-            .map(|pass| pass.load(context, resource_repository, &render_targets_by_id, id))
+            .map(|pass| {
+                pass.load(
+                    context,
+                    resource_repository,
+                    &render_targets_by_id,
+                    &control_prefix,
+                )
+            })
             .collect::<Result<Vec<_>>>()?;
 
         let render_targets = render_targets_by_id.into_values().collect::<Vec<_>>();
 
         let chart = render::chart::Chart::new(
             id,
+            &control_prefix,
             &mut resource_repository.controls,
             render_targets,
             passes,
@@ -101,8 +112,9 @@ impl Pass {
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
         render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
-        control_prefix: &str,
+        control_prefix: &ControlId,
     ) -> Result<render::render_target::Pass> {
+        let control_prefix = control_prefix.add(ControlIdPartType::Pass, &self.id);
         let render_targets = self
             .render_targets
             .iter()
@@ -120,7 +132,7 @@ impl Pass {
             .iter()
             .map(|object| {
                 object.load(
-                    control_prefix,
+                    &control_prefix,
                     context,
                     resource_repository,
                     render_targets_by_id,
@@ -172,11 +184,12 @@ impl RenderTargetRole {
 impl Object {
     pub fn load(
         &self,
-        control_prefix: &str,
+        control_prefix: &ControlId,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
         render_targets: &HashMap<String, Arc<render::render_target::RenderTarget>>,
     ) -> Result<Arc<render::RenderObject>> {
+        let control_prefix = control_prefix.add(ControlIdPartType::Object, &self.id);
         let mesh = resource_repository
             .get_mesh(context, &self.mesh_path)?
             .clone();
@@ -203,7 +216,7 @@ impl Object {
         let solid_step = self.make_material_step(
             context,
             resource_repository,
-            control_prefix,
+            &control_prefix,
             &sampler_sources,
         )?;
         let material = Material {
@@ -224,7 +237,7 @@ impl Object {
         &self,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
-        control_prefix: &str,
+        control_prefix: &ControlId,
         sampler_sources: &HashMap<String, SamplerSource>,
     ) -> Result<MaterialStep> {
         let shaders = resource_repository.shader_cache.get_or_load(
@@ -259,7 +272,7 @@ impl Object {
 #[instrument(skip_all)]
 fn make_shader(
     controls: &mut Controls,
-    control_prefix: &str,
+    control_prefix: &ControlId,
     compilation_result: &ShaderCompilationResult,
     sampler_sources: &HashMap<String, SamplerSource>,
 ) -> Result<Shader> {
@@ -267,7 +280,7 @@ fn make_shader(
         .local_uniform_bindings
         .iter()
         .map(|binding| {
-            let control_id = format!("{control_prefix}/{}", binding.name);
+            let control_id = control_prefix.add(ControlIdPartType::Value, &binding.name);
             let control = controls.get_control(&control_id);
             LocalUniformMapping {
                 control,

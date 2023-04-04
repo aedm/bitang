@@ -17,11 +17,11 @@ Chart(
 	],
 	passes: [
 		Pass(
-			id: "1",
+			id: "pass1",
 			render_targets: ["color", "depth"],
 			objects: [
 				Object(
-					id: "1",
+					id: "object1",
 					mesh_path: "app/naty/File.blend",
 					vertex_shader: "app/vs.glsl",
 					fragment_shader: "app/fs.glsl",
@@ -35,22 +35,22 @@ Chart(
 			],
 		),
 		Pass(
-			id: "2",
+			id: "solid",
 			render_targets: [
 				"screen",
 				"screen_depth"
 			],
 			objects: [
 				Object(
-					id: "1",
+					id: "lajos",
 					mesh_path: "app/naty/File.blend",
 					vertex_shader: "app/vs.glsl",
 					fragment_shader: "app/fs.glsl",
 					depth_test: true,
 					depth_write: true,
 					textures: {
-						// "tex": File("app/naty/Albedo.png"),
-						"tex": RenderTargetId("color"),
+						"tex": File("app/naty/Albedo.png"),
+						//"tex": RenderTargetId("color"),
 					},
 				),
 			],

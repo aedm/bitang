@@ -1,5 +1,5 @@
 use crate::control::spline::Spline;
-use crate::control::RcHashRef;
+use crate::control::{ControlId, ControlIdPart, RcHashRef};
 use anyhow::anyhow;
 use anyhow::Result;
 use glam::Mat4;
@@ -10,25 +10,64 @@ use std::rc::Rc;
 use std::{array, mem, slice};
 use tracing::debug;
 
+#[derive(Default)]
+pub struct UsedControlsNode {
+    pub id_prefix: ControlId,
+    pub children: Vec<Rc<RefCell<UsedControlsNode>>>,
+    pub control: Option<Rc<Control>>,
+}
+
+impl UsedControlsNode {
+    fn insert(&mut self, control: Rc<Control>) {
+        for i in 0..self.id_prefix.parts.len() {
+            assert_eq!(self.id_prefix.parts[i], control.id.parts[i]);
+        }
+
+        if self.id_prefix.parts.len() == control.id.parts.len() {
+            self.control = Some(control);
+            return;
+        }
+
+        let child_prefix = control.id.prefix(self.id_prefix.parts.len() + 1);
+        if let Some(child) = self
+            .children
+            .iter_mut()
+            .find(|x| x.borrow().id_prefix == child_prefix)
+        {
+            child.borrow_mut().insert(control);
+        } else {
+            let child = Rc::new(RefCell::new(UsedControlsNode {
+                id_prefix: child_prefix,
+                ..UsedControlsNode::default()
+            }));
+            child.borrow_mut().insert(control);
+            self.children.push(child);
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Default)]
 pub struct Controls {
-    pub by_id: HashMap<String, Rc<Control>>,
+    pub by_id: HashMap<ControlId, Rc<Control>>,
 
     #[serde(skip)]
-    pub used_controls: Vec<Rc<Control>>,
+    pub used_controls_root: RefCell<UsedControlsNode>,
+
+    #[serde(skip)]
+    pub used_controls_list: Vec<Rc<Control>>,
 
     #[serde(skip)]
     used_control_collector: HashSet<RcHashRef<Control>>,
 }
 
 impl Controls {
-    pub fn get_control(&mut self, id: &str) -> Rc<Control> {
+    pub fn get_control(&mut self, id: &ControlId) -> Rc<Control> {
         if let Some(x) = self.by_id.get(id) {
             self.used_control_collector.insert(RcHashRef(x.clone()));
             return x.clone();
         }
-        let control = Rc::new(Control::new(id));
-        self.by_id.insert(id.to_string(), control.clone());
+        let control = Rc::new(Control::new(id.clone()));
+        self.by_id.insert(id.clone(), control.clone());
         self.used_control_collector
             .insert(RcHashRef(control.clone()));
         control
@@ -36,24 +75,36 @@ impl Controls {
 
     pub fn start_load_cycle(&mut self) {
         self.used_control_collector.clear();
+        self.used_controls_list.clear();
+        self.used_controls_root.borrow_mut().children.clear();
     }
 
     pub fn finish_load_cycle(&mut self) {
-        self.used_controls = mem::take(&mut self.used_control_collector)
+        let mut controls: Vec<_> = mem::take(&mut self.used_control_collector)
             .into_iter()
             .map(|x| x.0.clone())
             .collect();
-        self.used_controls.sort_by(|a, b| a.id.cmp(&b.id));
-        debug!(
-            "Used controls: {:?}",
-            self.used_controls.iter().map(|x| &x.id).collect::<Vec<_>>()
-        );
+        controls.sort_by(|a, b| a.id.cmp(&b.id));
+
+        for control in controls {
+            self.used_controls_list.push(control.clone());
+            self.used_controls_root.borrow_mut().insert(control);
+        }
+
+        // debug!(
+        //     "Used controls: {:?}",
+        //     self.used_controls_root
+        //         .borrow()
+        //         .iter()
+        //         .map(|x| &x.id)
+        //         .collect::<Vec<_>>()
+        // );
     }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Control {
-    pub id: String,
+    pub id: ControlId,
     pub components: RefCell<[ControlComponent; 4]>,
 }
 
@@ -65,9 +116,9 @@ pub struct ControlComponent {
 }
 
 impl Control {
-    pub fn new(id: &str) -> Self {
+    pub fn new(id: ControlId) -> Self {
         Self {
-            id: id.to_string(),
+            id,
             // value: RefCell::new(ControlValue::Scalars([0.0; 4])),
             components: RefCell::new(array::from_fn(|_| ControlComponent {
                 value: 0.0,

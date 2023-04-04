@@ -42,7 +42,7 @@ impl DemoTool {
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
         // Evaluate control splines
-        for control in &mut self.resource_repository.controls.used_controls {
+        for control in &mut self.resource_repository.controls.used_controls_list {
             control.evaluate_splines(self.time);
         }
 
@@ -90,6 +90,7 @@ impl VulkanApp for DemoTool {
         let size = target_image.dimensions();
         let movie_height = (size.width() * 9 / 16) as i32;
         let ui_height = max(size.height() as i32 - movie_height, 0) as f32 / scale_factor;
+        let draw_ui = ui_height > 0.0;
 
         let screen_viewport = Viewport {
             origin: [0.0, 0.0],
@@ -129,13 +130,15 @@ impl VulkanApp for DemoTool {
             self.draw(&mut context, &chart);
 
             // Render UI
-            self.ui.draw(
-                &mut context,
-                ui_height,
-                &mut self.resource_repository.controls,
-                &chart,
-                &mut self.time,
-            );
+            if draw_ui {
+                self.ui.draw(
+                    &mut context,
+                    ui_height,
+                    &mut self.resource_repository.controls,
+                    &chart,
+                    &mut self.time,
+                );
+            }
         }
 
         let command_buffer = command_builder.build().unwrap();

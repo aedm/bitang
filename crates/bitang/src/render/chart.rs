@@ -1,4 +1,5 @@
 use crate::control::controls::{Control, Controls};
+use crate::control::{ControlId, ControlIdPartType};
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::{Pass, RenderTarget};
 use crate::render::vulkan_window::RenderContext;
@@ -15,13 +16,17 @@ pub struct Chart {
 impl Chart {
     pub fn new(
         id: &str,
+        control_prefix: &ControlId,
         controls: &mut Controls,
         render_targets: Vec<Arc<RenderTarget>>,
         passes: Vec<Pass>,
     ) -> Self {
         Chart {
             id: id.to_string(),
-            camera: Camera::new(controls, &format!("{id}/camera")),
+            camera: Camera::new(
+                controls,
+                &control_prefix.add(ControlIdPartType::Camera, "camera"),
+            ),
             render_targets,
             passes,
         }
@@ -44,11 +49,12 @@ struct Camera {
 }
 
 impl Camera {
-    fn new(controls: &mut Controls, prefix: &str) -> Self {
+    fn new(controls: &mut Controls, control_prefix: &ControlId) -> Self {
         Camera {
-            position: controls.get_control(&format!("{prefix}/position")),
-            target: controls.get_control(&format!("{prefix}/target")),
-            up: controls.get_control(&format!("{prefix}/up")),
+            position: controls
+                .get_control(&control_prefix.add(ControlIdPartType::Value, "position")),
+            target: controls.get_control(&control_prefix.add(ControlIdPartType::Value, "target")),
+            up: controls.get_control(&control_prefix.add(ControlIdPartType::Value, "up")),
         }
     }
 }
