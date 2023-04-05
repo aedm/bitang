@@ -1,5 +1,5 @@
 use crate::control::spline::Spline;
-use crate::control::{ControlId, ControlIdPart, RcHashRef};
+use crate::control::{ControlId, RcHashRef};
 use anyhow::anyhow;
 use anyhow::Result;
 use glam::Mat4;
@@ -8,7 +8,6 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::{array, mem, slice};
-use tracing::debug;
 
 #[derive(Default)]
 pub struct UsedControlsNode {

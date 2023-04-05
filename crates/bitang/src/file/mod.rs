@@ -6,7 +6,6 @@ mod shader_loader;
 
 use crate::control::controls::Controls;
 use anyhow::{Context, Result};
-use serde::Serialize;
 use tracing::{error, info};
 
 pub fn save_controls(controls: &Controls) -> Result<()> {

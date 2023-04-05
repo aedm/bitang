@@ -137,7 +137,9 @@ impl ShaderCache {
             .descriptor_sets
             .iter()
             .find(|ds| ds.set == descriptor_set_index)
-            .unwrap();
+            .with_context(|| {
+                format!("Failed to find descriptor set {descriptor_set_index} in '{path}'")
+            })?;
 
         // Find all samplers
         let samplers = descriptor_set
