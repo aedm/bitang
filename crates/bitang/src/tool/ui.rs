@@ -59,7 +59,6 @@ impl Ui {
         context: &mut RenderContext,
         bottom_panel_height: f32,
         controls: &mut Controls,
-        chart: &Chart,
         time: &mut f32,
     ) {
         // ) -> Box<dyn GpuFuture> {

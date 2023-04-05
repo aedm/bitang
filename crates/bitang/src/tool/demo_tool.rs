@@ -135,7 +135,6 @@ impl VulkanApp for DemoTool {
                     &mut context,
                     ui_height,
                     &mut self.resource_repository.controls,
-                    &chart,
                     &mut self.time,
                 );
             }

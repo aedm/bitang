@@ -11,7 +11,6 @@ use vulkano::image::ImageUsage;
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::Surface;
 use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
-use vulkano_util::window::WindowMode;
 use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},

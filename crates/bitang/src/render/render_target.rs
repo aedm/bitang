@@ -10,6 +10,7 @@ use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{AttachmentImage, ImageLayout, ImageViewAbstract, SampleCount};
+use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
     RenderPassCreateInfo, StoreOp, SubpassDescription,
@@ -46,6 +47,37 @@ impl Pass {
     }
 
     pub fn render(&self, context: &mut RenderContext, material_step_type: MaterialStepType) {
+        if self.render_targets.is_empty() {
+            error!("Pass '{}' has no render targets", self.id);
+            return;
+        }
+
+        let size = {
+            let borrow = self.render_targets[0].image.borrow();
+            let Some(first_image) = borrow.as_ref() else {
+                error!("Render target '{}' has no image", self.render_targets[0].id);
+                return;
+            };
+            first_image.texture_size
+        };
+
+        for rt in &self.render_targets {
+            if rt.image.borrow().as_ref().unwrap().texture_size != size {
+                error!("Render targets in pass '{}' have different sizes", self.id);
+                return;
+            }
+        }
+
+        let viewport = if self.render_targets[0].is_swapchain {
+            context.screen_viewport.clone()
+        } else {
+            Viewport {
+                origin: [0.0, 0.0],
+                dimensions: [size.0 as f32, size.1 as f32],
+                depth_range: 0.0..1.0,
+            }
+        };
+
         let attachments = self
             .render_targets
             .iter()
@@ -96,7 +128,7 @@ impl Pass {
             )
             .unwrap()
             // TODO: generate actual viewport
-            .set_viewport(0, [context.screen_viewport.clone()]);
+            .set_viewport(0, [viewport]);
 
         for render_unit in &self.render_units {
             render_unit.render(context, material_step_type);
