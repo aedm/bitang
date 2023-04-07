@@ -1,5 +1,6 @@
 use crate::control::controls::Globals;
 use crate::render::render_target::{RenderTarget, RenderTargetRole};
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
@@ -52,7 +53,7 @@ pub trait VulkanApp {
 }
 
 impl VulkanWindow {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
         let event_loop = EventLoop::new();
 
         let vulkano_context = VulkanoContext::new(VulkanoConfig::default());
@@ -73,7 +74,9 @@ impl VulkanWindow {
             ci.image_format = Some(SCREEN_COLOR_FORMAT)
         });
 
-        let renderer = windows.get_primary_renderer_mut().unwrap();
+        let renderer = windows
+            .get_primary_renderer_mut()
+            .context("No primary renderer")?;
         renderer.add_additional_image_view(
             1,
             Format::D16_UNORM,
@@ -109,11 +112,11 @@ impl VulkanWindow {
             swapchain_render_targets_by_id,
         };
 
-        Self {
+        Ok(Self {
             windows,
             event_loop,
             context,
-        }
+        })
     }
 
     pub fn run(mut self, mut app: impl VulkanApp + 'static) {

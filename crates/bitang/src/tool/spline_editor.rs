@@ -184,10 +184,10 @@ impl SplineEditor {
     ) -> (Option<usize>, Option<PlotPoint>) {
         let pointer_coordinate = plot_ui.pointer_coordinate();
 
-        if self.control.is_none() {
+        let Some(control) = self.control.as_ref() else {
             return (None, pointer_coordinate);
-        }
-        let components = self.control.as_ref().unwrap().components.borrow();
+        };
+        let components = control.components.borrow();
         let spline = &components[self.component_index].spline;
 
         let pixel_size = Vec2::new(

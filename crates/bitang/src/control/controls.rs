@@ -72,7 +72,7 @@ impl Controls {
         control
     }
 
-    pub fn start_load_cycle(&mut self) {
+    pub fn reset_usage_collector(&mut self) {
         self.used_control_collector.clear();
         self.used_controls_list.clear();
         self.used_controls_root.borrow_mut().children.clear();

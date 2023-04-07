@@ -193,6 +193,7 @@ impl Object {
         let mesh = resource_repository
             .get_mesh(context, &self.mesh_path)?
             .clone();
+        resource_repository.get_blender_mesh(context, &self.mesh_path)?;
         let sampler_sources = self
             .textures
             .iter()

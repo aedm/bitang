@@ -3,6 +3,7 @@ use crate::control::{ControlId, ControlIdPartType};
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::{Pass, RenderTarget};
 use crate::render::vulkan_window::RenderContext;
+use anyhow::Result;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -32,13 +33,14 @@ impl Chart {
         }
     }
 
-    pub fn render(&self, context: &mut RenderContext) {
+    pub fn render(&self, context: &mut RenderContext) -> Result<()> {
         for render_target in &self.render_targets {
-            render_target.ensure_buffer(context).unwrap();
+            render_target.ensure_buffer(context)?;
         }
         for pass in &self.passes {
-            pass.render(context, MaterialStepType::Solid);
+            pass.render(context, MaterialStepType::Solid)?;
         }
+        Ok(())
     }
 }
 
