@@ -26,7 +26,6 @@ pub struct ResourceRepository {
     file_hash_cache: Rc<RefCell<FileCache>>,
     texture_cache: BinaryFileCache<Arc<Texture>>,
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
-    blender_cache: BinaryFileCache<Arc<russimp::scene::Scene>>,
     root_ron_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
 
     pub shader_cache: ShaderCache,
@@ -47,7 +46,6 @@ impl ResourceRepository {
         Ok(Self {
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
             mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
-            blender_cache: BinaryFileCache::new(&file_hash_cache, load_blender_file),
             shader_cache: ShaderCache::new(&file_hash_cache),
             root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
             file_hash_cache,
@@ -97,15 +95,6 @@ impl ResourceRepository {
         self.mesh_cache.get_or_load(context, &path)
     }
 
-    #[instrument(skip(self, context))]
-    pub fn get_blender_mesh(&mut self, context: &VulkanContext, path: &str) -> Result<()> {
-        let scene = self.blender_cache.get_or_load(context, &path)?;
-        for mesh in &scene.meshes {
-            // println!("Mesh: {:?}", mesh.name);
-        }
-        Ok(())
-    }
-
     pub fn load_root_chart(&mut self, context: &VulkanContext) -> Result<Chart> {
         let root_folder = "app";
         let chart_folder = "test-chart";
@@ -134,15 +123,6 @@ fn load_mesh(context: &VulkanContext, content: &[u8]) -> Result<Arc<Mesh>> {
         })
         .collect::<Vec<Vertex3>>();
     Ok(Arc::new(Mesh::try_new(context, vertices)?))
-}
-
-#[instrument(skip_all)]
-fn load_blender_file(
-    context: &VulkanContext,
-    content: &[u8],
-) -> Result<Arc<russimp::scene::Scene>> {
-    let scene = russimp::scene::Scene::from_buffer(content, vec![], "")?;
-    Ok(Arc::new(scene))
 }
 
 #[instrument(skip_all)]

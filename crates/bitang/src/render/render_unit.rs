@@ -135,7 +135,7 @@ impl RenderUnitStep {
                 (),
             )
             .depth_stencil_state(depth_stencil_state)
-            // unwrap is safe because every pass has one subpass
+            // Unwrap is safe: every pass has one subpass
             .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
             .build(context.context.device().clone())?;
 
@@ -231,7 +231,7 @@ impl ShaderUniformStorage {
                 }
             }
             let _value_count = shader.uniform_buffer_size / size_of::<f32>();
-            // unwrap is okay because we want to panic if we can't allocate
+            // Unwrap is okay: we want to panic if we can't allocate
             let uniform_buffer_subbuffer =
                 self.uniform_buffer_pool.from_data(uniform_values).unwrap();
             descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
@@ -244,7 +244,7 @@ impl ShaderUniformStorage {
                     .image
                     .borrow()
                     .as_ref()
-                    .unwrap() // unwrap is safe because we already checked it above
+                    .unwrap() // Unwrap is safe: we already checked it above
                     .image_view
                     .clone(),
             };

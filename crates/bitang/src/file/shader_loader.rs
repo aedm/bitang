@@ -97,7 +97,7 @@ impl ShaderCache {
             };
             self.shader_cache.insert(key.clone(), value);
         }
-        // Unwrap is safe because we just inserted the shader
+        // Unwrap is safe: we just inserted the shader
         Ok(self.shader_cache.get(&key).unwrap())
     }
 

@@ -113,6 +113,7 @@ impl SplineEditor {
                 {
                     let value = spline.get_value(*time);
 
+                    // Unwrap is safe: time is always a valid float
                     let res = spline
                         .points
                         .binary_search_by(|p| p.time.partial_cmp(time).unwrap());

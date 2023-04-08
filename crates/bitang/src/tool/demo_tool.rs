@@ -89,10 +89,12 @@ impl VulkanApp for DemoTool {
             // If the last loaded document is not the same as the current one
             if !Arc::ptr_eq(last_doc, &chart) {
                 self.has_render_failure = false;
+                self.last_loaded_root_doc = Some(chart.clone());
             }
         } else {
             // If there was no last loaded document
             self.has_render_failure = false;
+            self.last_loaded_root_doc = Some(chart.clone());
         }
 
         let before_future = renderer.acquire().unwrap();
@@ -142,7 +144,10 @@ impl VulkanApp for DemoTool {
 
             // If the last render failed, stop rendering until the user changes the document
             if !self.has_render_failure {
-                self.has_render_failure = self.draw(&mut context, &chart).is_err();
+                if let Err(err) = self.draw(&mut context, &chart) {
+                    error!("Render failed: {}", err);
+                    self.has_render_failure = true;
+                }
             }
 
             // Render UI

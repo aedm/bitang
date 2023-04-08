@@ -28,7 +28,7 @@ impl<T> BinaryFileCache<T> {
 
         // TODO: simplify when they fix if-let borrow leaks. https://github.com/rust-lang/rust/issues/21906
         if self.resource_cache.contains_key(&hash) {
-            // Unwrap is safe because we just checked that the key exists
+            // Unwrap is safe: we just checked that the key exists
             Ok(self.resource_cache.get(&hash).unwrap())
         } else {
             let now = std::time::Instant::now();

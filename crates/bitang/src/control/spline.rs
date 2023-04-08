@@ -32,7 +32,7 @@ impl Spline {
             return 0.0;
         }
 
-        // Unwrap is safe because time values are always valid floats
+        // Unwrap is safe: time is always a valid float
         let res = self
             .points
             .binary_search_by(|p| p.time.partial_cmp(&time).unwrap());
