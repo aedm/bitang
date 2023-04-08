@@ -5,7 +5,6 @@ use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
 use std::cell::RefCell;
 use std::sync::Arc;
-use tracing::error;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;

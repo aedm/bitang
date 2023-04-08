@@ -1,7 +1,6 @@
 use crate::control::controls::{Control, Controls, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::save_controls;
-use crate::render::chart::Chart;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;

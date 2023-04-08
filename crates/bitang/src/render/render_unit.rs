@@ -4,7 +4,7 @@ use crate::render::material::{
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::{RenderObject, Vertex3};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use std::mem::size_of;
 use std::sync::Arc;
 use std::{array, mem};

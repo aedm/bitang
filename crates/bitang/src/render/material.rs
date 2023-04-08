@@ -7,8 +7,8 @@ use vulkano::shader::ShaderModule;
 
 #[derive(Copy, Clone, Debug)]
 pub enum MaterialStepType {
-    EarlyDepth = 0,
-    Shadow = 1,
+    _EarlyDepth = 0,
+    _Shadow = 1,
     Solid = 2,
 }
 pub const MATERIAL_STEP_COUNT: usize = 3;

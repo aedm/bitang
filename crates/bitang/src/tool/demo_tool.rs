@@ -2,7 +2,7 @@ use crate::file::resource_repository::ResourceRepository;
 use crate::render::chart::Chart;
 use crate::render::vulkan_window::{RenderContext, VulkanApp, VulkanContext};
 use crate::tool::ui::Ui;
-use anyhow::{anyhow, Result};
+use anyhow::{Result};
 use glam::{Mat4, Vec3};
 use std::cmp::max;
 use std::f32::consts::PI;
