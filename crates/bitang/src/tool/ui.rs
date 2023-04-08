@@ -2,6 +2,7 @@ use crate::control::controls::{Control, Controls, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::save_controls;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
+use crate::tool::demo_tool::UiState;
 use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;
 use egui_winit_vulkano::Gui;
@@ -58,7 +59,7 @@ impl Ui {
         context: &mut RenderContext,
         bottom_panel_height: f32,
         controls: &mut Controls,
-        time: &mut f32,
+        ui_state: &mut UiState,
     ) {
         // ) -> Box<dyn GpuFuture> {
         let pixels_per_point = 1.15f32;
@@ -80,15 +81,15 @@ impl Ui {
                         {
                             spline_editor.set_control(control, component_index);
                         }
-                        spline_editor.draw(ui, time);
+                        spline_editor.draw(ui, &mut ui_state.time);
                     });
                 });
-            Self::handle_hotkeys(ctx, controls);
+            Self::handle_hotkeys(ctx, controls, ui_state);
         });
         self.render_to_swapchain(context);
     }
 
-    fn handle_hotkeys(ctx: egui::Context, controls: &mut Controls) {
+    fn handle_hotkeys(ctx: egui::Context, controls: &mut Controls, ui_state: &mut UiState) {
         // Save
         if ctx
             .input_mut()
@@ -97,6 +98,14 @@ impl Ui {
             if let Err(err) = save_controls(&controls) {
                 error!("Failed to save controls: {}", err);
             }
+        }
+
+        // Play
+        if ctx
+            .input_mut()
+            .consume_key(egui::Modifiers::NONE, egui::Key::Space)
+        {
+            ui_state.is_playing = !ui_state.is_playing;
         }
     }
 

@@ -2,12 +2,12 @@ use crate::file::resource_repository::ResourceRepository;
 use crate::render::chart::Chart;
 use crate::render::vulkan_window::{RenderContext, VulkanApp, VulkanContext};
 use crate::tool::ui::Ui;
-use anyhow::{Result};
+use anyhow::Result;
 use glam::{Mat4, Vec3};
 use std::cmp::max;
 use std::f32::consts::PI;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tracing::error;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::image::ImageViewAbstract;
@@ -21,9 +21,16 @@ pub struct DemoTool {
     ui: Ui,
     start_time: Instant,
     resource_repository: ResourceRepository,
-    time: f32,
     has_render_failure: bool,
     last_loaded_root_doc: Option<Arc<Chart>>,
+    ui_state: UiState,
+    play_start_time: Instant,
+    last_eval_time: f32,
+}
+
+pub struct UiState {
+    pub time: f32,
+    pub is_playing: bool,
 }
 
 impl DemoTool {
@@ -32,13 +39,20 @@ impl DemoTool {
         let root_doc = resource_repository.load_root_document(context);
         let ui = Ui::new(context, event_loop)?;
 
+        let ui_state = UiState {
+            time: 5.0,
+            is_playing: false,
+        };
+
         let demo_tool = DemoTool {
             ui,
             start_time: Instant::now(),
             resource_repository,
-            time: 5.0,
+            ui_state,
             has_render_failure: root_doc.is_none(),
             last_loaded_root_doc: root_doc,
+            play_start_time: Instant::now(),
+            last_eval_time: -1.0,
         };
         Ok(demo_tool)
     }
@@ -46,9 +60,16 @@ impl DemoTool {
     pub fn draw(&mut self, context: &mut RenderContext, chart: &Chart) -> Result<()> {
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
+        if self.ui_state.is_playing {
+            self.ui_state.time = self.play_start_time.elapsed().as_secs_f32();
+        }
+
         // Evaluate control splines
-        for control in &mut self.resource_repository.controls.used_controls_list {
-            control.evaluate_splines(self.time);
+        if self.last_eval_time != self.ui_state.time {
+            self.last_eval_time = self.ui_state.time;
+            for control in &mut self.resource_repository.controls.used_controls_list {
+                control.evaluate_splines(self.ui_state.time);
+            }
         }
 
         let viewport = &context.screen_viewport;
@@ -150,14 +171,21 @@ impl VulkanApp for DemoTool {
                 }
             }
 
+            let is_playing = self.ui_state.is_playing;
+
             // Render UI
             if draw_ui {
                 self.ui.draw(
                     &mut context,
                     ui_height,
                     &mut self.resource_repository.controls,
-                    &mut self.time,
+                    &mut self.ui_state,
                 );
+            }
+
+            // Start playing
+            if self.ui_state.is_playing && !is_playing {
+                self.play_start_time = Instant::now() - Duration::from_secs_f32(self.ui_state.time);
             }
         }
 
