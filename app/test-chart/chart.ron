@@ -43,14 +43,14 @@ Chart(
 			objects: [
 				Object(
 					id: "lajos",
-					//mesh_path: "app/kocka.blend",
-					mesh_path: "app/naty/File.blend",
+					mesh_path: "app/kocka301.blend",
+					// mesh_path: "app/naty/File.blend",
 					vertex_shader: "app/vs.glsl",
 					fragment_shader: "app/fs.glsl",
 					depth_test: true,
 					depth_write: true,
 					textures: {
-						// "tex": File("app/naty/Albedo.png"),
+						//"tex": File("app/naty/Albedo.png"),
 						"tex": RenderTargetId("color"),
 					},
 				),

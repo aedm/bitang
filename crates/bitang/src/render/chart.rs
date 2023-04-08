@@ -3,12 +3,13 @@ use crate::control::{ControlId, ControlIdPartType};
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::{Pass, RenderTarget};
 use crate::render::vulkan_window::RenderContext;
+use anyhow::Result;
 use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct Chart {
     pub id: String,
-    camera: Camera,
+    _camera: Camera,
     render_targets: Vec<Arc<RenderTarget>>,
     pub passes: Vec<Pass>,
 }
@@ -23,7 +24,7 @@ impl Chart {
     ) -> Self {
         Chart {
             id: id.to_string(),
-            camera: Camera::new(
+            _camera: Camera::new(
                 controls,
                 &control_prefix.add(ControlIdPartType::Camera, "camera"),
             ),
@@ -32,29 +33,30 @@ impl Chart {
         }
     }
 
-    pub fn render(&self, context: &mut RenderContext) {
+    pub fn render(&self, context: &mut RenderContext) -> Result<()> {
         for render_target in &self.render_targets {
-            render_target.ensure_buffer(context).unwrap();
+            render_target.ensure_buffer(context)?;
         }
         for pass in &self.passes {
-            pass.render(context, MaterialStepType::Solid);
+            pass.render(context, MaterialStepType::Solid)?;
         }
+        Ok(())
     }
 }
 
 struct Camera {
-    position: Rc<Control>,
-    target: Rc<Control>,
-    up: Rc<Control>,
+    _position: Rc<Control>,
+    _target: Rc<Control>,
+    _up: Rc<Control>,
 }
 
 impl Camera {
     fn new(controls: &mut Controls, control_prefix: &ControlId) -> Self {
         Camera {
-            position: controls
+            _position: controls
                 .get_control(&control_prefix.add(ControlIdPartType::Value, "position")),
-            target: controls.get_control(&control_prefix.add(ControlIdPartType::Value, "target")),
-            up: controls.get_control(&control_prefix.add(ControlIdPartType::Value, "up")),
+            _target: controls.get_control(&control_prefix.add(ControlIdPartType::Value, "target")),
+            _up: controls.get_control(&control_prefix.add(ControlIdPartType::Value, "up")),
         }
     }
 }

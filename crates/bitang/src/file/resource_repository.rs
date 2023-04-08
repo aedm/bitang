@@ -14,7 +14,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 };
@@ -32,7 +32,12 @@ pub struct ResourceRepository {
     pub controls: Controls,
 
     cached_root: Option<Arc<Chart>>,
+    last_load_time: Instant,
+    is_first_load: bool,
 }
+
+// If loading fails, we want to retry periodically.
+const LOAD_RETRY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
 
 impl ResourceRepository {
     pub fn try_new() -> Result<Self> {
@@ -46,28 +51,38 @@ impl ResourceRepository {
             file_hash_cache,
             cached_root: None,
             controls: load_controls(),
+            last_load_time: Instant::now() - LOAD_RETRY_INTERVAL,
+            is_first_load: true,
         })
     }
 
     #[instrument(skip_all, name = "load")]
-    pub fn load_root_document(&mut self, context: &VulkanContext) -> Result<Arc<Chart>> {
+    pub fn load_root_document(&mut self, context: &VulkanContext) -> Option<Arc<Chart>> {
         let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
-        match (has_file_changes, &self.cached_root) {
-            (false, Some(cached_root)) => Ok(cached_root.clone()),
-            _ => {
-                let now = std::time::Instant::now();
-                self.controls.start_load_cycle();
-                let result = self.load_root_chart(context).and_then(|chart| {
-                    let chart = Arc::new(chart);
-                    self.cached_root = Some(chart.clone());
-                    Ok(chart)
-                });
-                self.controls.finish_load_cycle();
-                self.file_hash_cache.borrow_mut().update_watchers()?;
-                info!("Loading took {:?}", now.elapsed());
-                result
-            }
+        if has_file_changes
+            || (self.cached_root.is_none() && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
+        {
+            let now = Instant::now();
+            self.controls.reset_usage_collector();
+            let result = self.load_root_chart(context);
+            self.file_hash_cache.borrow_mut().update_watchers();
+            match result {
+                Ok(chart) => {
+                    self.cached_root = Some(Arc::new(chart));
+                    self.controls.finish_load_cycle();
+                    info!("Loading took {:?}", now.elapsed());
+                }
+                Err(err) => {
+                    if self.is_first_load || has_file_changes {
+                        error!("Error loading root document: {:?}", err);
+                    }
+                    self.cached_root = None;
+                }
+            };
+            self.last_load_time = Instant::now();
+            self.is_first_load = false;
         }
+        self.cached_root.clone()
     }
 
     #[instrument(skip(self, context))]
@@ -136,10 +151,8 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
         &mut cbb,
     )?;
     let _fut = cbb
-        .build()
-        .unwrap()
-        .execute(context.context.graphics_queue().clone())
-        .unwrap();
+        .build()?
+        .execute(context.context.graphics_queue().clone())?;
 
     Ok(ImageView::new_default(image)?)
 }

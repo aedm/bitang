@@ -33,7 +33,7 @@ pub struct FileCache {
 impl FileCache {
     pub fn new() -> Result<Self> {
         let (sender, receiver) = std::sync::mpsc::channel();
-        let watcher = notify::recommended_watcher(sender).unwrap();
+        let watcher = notify::recommended_watcher(sender)?;
         Ok(Self {
             cache_map: HashMap::new(),
             file_watcher: watcher,
@@ -61,21 +61,21 @@ impl FileCache {
         has_changes
     }
 
-    pub fn update_watchers(&mut self) -> Result<()> {
+    pub fn update_watchers(&mut self) {
+        // Best effort: if a file is missing, creating a watcher will fail
         for path in self.watched_paths.difference(&self.new_watched_paths) {
             if let Some(path) = path.to_str() {
                 trace!("Unwatching: {:?}", path.replace("\\", "/"));
             }
-            self.file_watcher.unwatch(path)?;
+            let _ = self.file_watcher.unwatch(path);
         }
         for path in self.new_watched_paths.difference(&self.watched_paths) {
             if let Some(path) = path.to_str() {
                 trace!("Watching: {:?}", path.replace("\\", "/"));
             }
-            self.file_watcher.watch(path, RecursiveMode::NonRecursive)?;
+            let _ = self.file_watcher.watch(path, RecursiveMode::NonRecursive);
         }
         self.watched_paths = mem::take(&mut self.new_watched_paths);
-        Ok(())
     }
 
     pub fn get(&mut self, path: &str, store_content: bool) -> Result<FileCacheEntry> {

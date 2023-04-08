@@ -1,9 +1,9 @@
 use crate::control::controls::{Control, Controls, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::save_controls;
-use crate::render::chart::Chart;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::tool::spline_editor::SplineEditor;
+use anyhow::Result;
 use egui_winit_vulkano::Gui;
 use std::rc::Rc;
 use tracing::error;
@@ -20,7 +20,7 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Ui {
+    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<Ui> {
         let render_pass = vulkano::single_pass_renderpass!(
             context.context.device().clone(),
             attachments: {
@@ -33,9 +33,8 @@ impl Ui {
             },
             pass:
                 { color: [color], depth_stencil: {} }
-        )
-        .unwrap();
-        let subpass = Subpass::from(render_pass, 0).unwrap();
+        )?;
+        let subpass = Subpass::from(render_pass, 0).unwrap(); // unwrap is okay here
 
         let gui = Gui::new_with_subpass(
             event_loop,
@@ -46,12 +45,12 @@ impl Ui {
         );
         let spline_editor = SplineEditor::new();
 
-        Ui {
+        Ok(Ui {
             gui,
             subpass,
             spline_editor,
             selected_control_prefix: ControlId::default(),
-        }
+        })
     }
 
     pub fn draw(
@@ -130,6 +129,7 @@ impl Ui {
             .show_header(ui, |ui| {
                 let selected = selected_control_prefix == &node.id_prefix;
                 let mut new_selected = selected;
+                // Unwrap is safe because we know that the prefix has at least one part
                 let control_id_part = &node.id_prefix.parts.last().unwrap();
                 let icon = match control_id_part.part_type {
                     ControlIdPartType::Chart => '📈',

@@ -2,7 +2,7 @@ use crate::control::controls::GlobalType;
 use crate::file::file_hash_cache::{hash_content, ContentHash, FileCache, FileCacheEntry};
 use crate::render::material::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
-use anyhow::{Context, Error, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use spirv_reflect::types::ReflectDescriptorType;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -97,6 +97,7 @@ impl ShaderCache {
             };
             self.shader_cache.insert(key.clone(), value);
         }
+        // Unwrap is safe: we just inserted the shader
         Ok(self.shader_cache.get(&key).unwrap())
     }
 
@@ -108,7 +109,7 @@ impl ShaderCache {
         kind: shaderc::ShaderKind,
     ) -> Result<ShaderCompilationResult> {
         let now = std::time::Instant::now();
-        let compiler = shaderc::Compiler::new().unwrap();
+        let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
         let spirv = compiler.compile_into_spirv(&source, kind, path, "main", None)?;
         let spirv_binary = spirv.as_binary_u8();
         info!(
@@ -118,7 +119,8 @@ impl ShaderCache {
         );
 
         // Extract metadata from SPIRV
-        let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary).unwrap();
+        let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary)
+            .map_err(|err| anyhow!("Failed to reflect SPIRV binary of shader '{path}': {err}"))?;
         let entry_point = reflect
             .enumerate_entry_points()
             .map_err(Error::msg)?

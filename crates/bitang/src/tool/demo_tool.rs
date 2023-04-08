@@ -2,10 +2,11 @@ use crate::file::resource_repository::ResourceRepository;
 use crate::render::chart::Chart;
 use crate::render::vulkan_window::{RenderContext, VulkanApp, VulkanContext};
 use crate::tool::ui::Ui;
-use anyhow::Result;
+use anyhow::{Result};
 use glam::{Mat4, Vec3};
 use std::cmp::max;
 use std::f32::consts::PI;
+use std::sync::Arc;
 use std::time::Instant;
 use tracing::error;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
@@ -21,24 +22,28 @@ pub struct DemoTool {
     start_time: Instant,
     resource_repository: ResourceRepository,
     time: f32,
+    has_render_failure: bool,
+    last_loaded_root_doc: Option<Arc<Chart>>,
 }
 
 impl DemoTool {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let mut resource_repository = ResourceRepository::try_new()?;
-        let _ = resource_repository.load_root_document(context)?;
-        let ui = Ui::new(context, event_loop);
+        let root_doc = resource_repository.load_root_document(context);
+        let ui = Ui::new(context, event_loop)?;
 
         let demo_tool = DemoTool {
             ui,
             start_time: Instant::now(),
             resource_repository,
             time: 5.0,
+            has_render_failure: root_doc.is_none(),
+            last_loaded_root_doc: root_doc,
         };
         Ok(demo_tool)
     }
 
-    pub fn draw(&mut self, context: &mut RenderContext, chart: &Chart) {
+    pub fn draw(&mut self, context: &mut RenderContext, chart: &Chart) -> Result<()> {
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
         // Evaluate control splines
@@ -68,18 +73,29 @@ impl DemoTool {
         context.globals.projection_from_model = projection_from_model;
         context.globals.camera_from_model = camera_from_model;
 
-        chart.render(context);
+        chart.render(context)
     }
 }
 
 impl VulkanApp for DemoTool {
     fn paint(&mut self, vulkan_context: &VulkanContext, renderer: &mut VulkanoWindowRenderer) {
-        let Ok(chart) = self
+        let Some(chart) = self
             .resource_repository
             .load_root_document(vulkan_context) else {
-            error!("Failed to load root document");
             return;
         };
+
+        if let Some(last_doc) = &self.last_loaded_root_doc {
+            // If the last loaded document is not the same as the current one
+            if !Arc::ptr_eq(last_doc, &chart) {
+                self.has_render_failure = false;
+                self.last_loaded_root_doc = Some(chart.clone());
+            }
+        } else {
+            // If there was no last loaded document
+            self.has_render_failure = false;
+            self.last_loaded_root_doc = Some(chart.clone());
+        }
 
         let before_future = renderer.acquire().unwrap();
         let target_image = renderer.swapchain_image_view();
@@ -126,8 +142,13 @@ impl VulkanApp for DemoTool {
                 globals: Default::default(),
             };
 
-            // Render app
-            self.draw(&mut context, &chart);
+            // If the last render failed, stop rendering until the user changes the document
+            if !self.has_render_failure {
+                if let Err(err) = self.draw(&mut context, &chart) {
+                    error!("Render failed: {}", err);
+                    self.has_render_failure = true;
+                }
+            }
 
             // Render UI
             if draw_ui {

@@ -5,7 +5,6 @@ use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
 use std::cell::RefCell;
 use std::sync::Arc;
-use tracing::error;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
@@ -35,7 +34,7 @@ impl Pass {
         let render_units = objects
             .iter()
             .map(|object| RenderUnit::new(context, &render_pass, object))
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(Pass {
             id: id.to_string(),
@@ -46,25 +45,35 @@ impl Pass {
         })
     }
 
-    pub fn render(&self, context: &mut RenderContext, material_step_type: MaterialStepType) {
+    pub fn render(
+        &self,
+        context: &mut RenderContext,
+        material_step_type: MaterialStepType,
+    ) -> Result<()> {
         if self.render_targets.is_empty() {
-            error!("Pass '{}' has no render targets", self.id);
-            return;
+            return Err(anyhow!("Pass '{}' has no render targets", self.id));
         }
 
-        let size = {
-            let borrow = self.render_targets[0].image.borrow();
-            let Some(first_image) = borrow.as_ref() else {
-                error!("Render target '{}' has no image", self.render_targets[0].id);
-                return;
-            };
-            first_image.texture_size
-        };
+        let size = self.render_targets[0]
+            .image
+            .borrow()
+            .as_ref()
+            .with_context(|| format!("Render target '{}' has no image", self.render_targets[0].id))?
+            .texture_size;
 
-        for rt in &self.render_targets {
-            if rt.image.borrow().as_ref().unwrap().texture_size != size {
-                error!("Render targets in pass '{}' have different sizes", self.id);
-                return;
+        for render_target in &self.render_targets {
+            if render_target
+                .image
+                .borrow()
+                .as_ref()
+                .with_context(|| format!("Render target '{}' has no image", render_target.id))?
+                .texture_size
+                != size
+            {
+                return Err(anyhow!(
+                    "Render targets in pass '{}' have different sizes",
+                    self.id
+                ));
             }
         }
 
@@ -91,22 +100,14 @@ impl Pass {
                         anyhow!("Render target '{}' has no image view", target.id.as_str())
                     })
             })
-            .collect::<Result<Vec<_>>>();
-        let attachments = match attachments {
-            Ok(attachments) => attachments,
-            Err(err) => {
-                error!("Failed to get render target attachments: {}", err);
-                return;
-            }
-        };
+            .collect::<Result<Vec<_>>>()?;
         let framebuffer = Framebuffer::new(
             self.vulkan_render_pass.clone(),
             FramebufferCreateInfo {
                 attachments,
                 ..Default::default()
             },
-        )
-        .unwrap();
+        )?;
 
         let clear_values = self
             .render_targets
@@ -116,7 +117,6 @@ impl Pass {
                 RenderTargetRole::Depth => Some(1f32.into()),
             })
             .collect::<Vec<_>>();
-        // debug!("Clear values: {:?}", clear_values);
         context
             .command_builder
             .begin_render_pass(
@@ -125,16 +125,16 @@ impl Pass {
                     ..RenderPassBeginInfo::framebuffer(framebuffer)
                 },
                 SubpassContents::Inline,
-            )
-            .unwrap()
+            )?
             // TODO: generate actual viewport
             .set_viewport(0, [viewport]);
 
         for render_unit in &self.render_units {
-            render_unit.render(context, material_step_type);
+            render_unit.render(context, material_step_type)?;
         }
 
-        context.command_builder.end_render_pass().unwrap();
+        context.command_builder.end_render_pass()?;
+        Ok(())
     }
 
     fn make_vulkan_render_pass(
