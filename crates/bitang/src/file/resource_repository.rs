@@ -1,11 +1,12 @@
-use crate::control::controls::Controls;
+use crate::control::controls::ControlRepository;
 use crate::control::ControlId;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::ShaderCache;
-use crate::file::{chart_file, load_controls};
+use crate::file::{chart_file, load_controls, project_file};
 use crate::render::chart::Chart;
 use crate::render::mesh::Mesh;
+use crate::render::project::Project;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{Texture, Vertex3};
 use anyhow::Result;
@@ -26,18 +27,25 @@ pub struct ResourceRepository {
     file_hash_cache: Rc<RefCell<FileCache>>,
     texture_cache: BinaryFileCache<Arc<Texture>>,
     mesh_cache: BinaryFileCache<Arc<Mesh>>,
-    root_ron_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
+    chart_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
+    project_file_cache: BinaryFileCache<Arc<project_file::Project>>,
 
     pub shader_cache: ShaderCache,
-    pub controls: Controls,
+    pub control_repository: Rc<RefCell<ControlRepository>>,
 
-    cached_root: Option<Arc<Chart>>,
+    cached_root: Option<Arc<Project>>,
     last_load_time: Instant,
     is_first_load: bool,
 }
 
 // If loading fails, we want to retry periodically.
 const LOAD_RETRY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+
+// The root folder for all content.
+const ROOT_FOLDER: &str = "content";
+const PROJECT_FILE_NAME: &str = "project.ron";
+const CHARTS_FOLDER: &str = "charts";
+const CHART_FILE_NAME: &str = "chart.ron";
 
 impl ResourceRepository {
     pub fn try_new() -> Result<Self> {
@@ -47,29 +55,30 @@ impl ResourceRepository {
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
             mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
             shader_cache: ShaderCache::new(&file_hash_cache),
-            root_ron_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
+            chart_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
+            project_file_cache: BinaryFileCache::new(&file_hash_cache, load_project_file),
             file_hash_cache,
             cached_root: None,
-            controls: load_controls(),
+            control_repository: Rc::new(load_controls()),
             last_load_time: Instant::now() - LOAD_RETRY_INTERVAL,
             is_first_load: true,
         })
     }
 
     #[instrument(skip_all, name = "load")]
-    pub fn load_root_document(&mut self, context: &VulkanContext) -> Option<Arc<Chart>> {
+    pub fn get_or_load_project(&mut self, context: &VulkanContext) -> Option<Arc<Project>> {
         let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
         if has_file_changes
             || (self.cached_root.is_none() && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
         {
             let now = Instant::now();
-            self.controls.reset_usage_collector();
-            let result = self.load_root_chart(context);
+            self.control_repository.reset_usage_collector();
+            let result = self.load_project(context);
             self.file_hash_cache.borrow_mut().update_watchers();
             match result {
-                Ok(chart) => {
-                    self.cached_root = Some(Arc::new(chart));
-                    self.controls.finish_load_cycle();
+                Ok(project) => {
+                    self.cached_root = Some(Arc::new(project));
+                    self.control_repository.finish_load_cycle();
                     info!("Loading took {:?}", now.elapsed());
                 }
                 Err(err) => {
@@ -95,14 +104,16 @@ impl ResourceRepository {
         self.mesh_cache.get_or_load(context, &path)
     }
 
-    pub fn load_root_chart(&mut self, context: &VulkanContext) -> Result<Chart> {
-        let root_folder = "app";
-        let chart_folder = "test-chart";
-        let chart = self
-            .root_ron_file_cache
-            .get_or_load(context, &format!("{root_folder}/{chart_folder}/chart.ron"))?
-            .clone();
-        chart.load(chart_folder, context, &ControlId::default(), self)
+    pub fn load_chart(&mut self, id: &str, context: &VulkanContext) -> Result<Chart> {
+        let path = format!("{ROOT_FOLDER}/{CHARTS_FOLDER}/{id}/{CHART_FILE_NAME}");
+        let chart = self.chart_file_cache.get_or_load(context, &path)?.clone();
+        chart.load(id, context, &ControlId::default(), self)
+    }
+
+    pub fn load_project(&mut self, context: &VulkanContext) -> Result<Project> {
+        let path = format!("{ROOT_FOLDER}/{PROJECT_FILE_NAME}");
+        let project = self.project_file_cache.get_or_load(context, &path)?.clone();
+        project.load(context, self)
     }
 }
 
@@ -161,4 +172,13 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
 pub fn load_chart_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<chart_file::Chart>> {
     let chart = ron::from_str::<chart_file::Chart>(std::str::from_utf8(content)?)?;
     Ok(Arc::new(chart))
+}
+
+#[instrument(skip_all)]
+pub fn load_project_file(
+    _context: &VulkanContext,
+    content: &[u8],
+) -> Result<Arc<project_file::Project>> {
+    let project = ron::from_str::<project_file::Project>(std::str::from_utf8(content)?)?;
+    Ok(Arc::new(project))
 }

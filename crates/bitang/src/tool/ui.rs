@@ -1,4 +1,4 @@
-use crate::control::controls::{Control, Controls, UsedControlsNode};
+use crate::control::controls::{Control, ControlSet, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::save_controls;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
@@ -58,7 +58,6 @@ impl Ui {
         &mut self,
         context: &mut RenderContext,
         bottom_panel_height: f32,
-        controls: &mut Controls,
         ui_state: &mut UiState,
     ) {
         // ) -> Box<dyn GpuFuture> {
@@ -74,30 +73,33 @@ impl Ui {
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                        Self::draw_control_tree(ui, controls, selected_control_prefix);
+                        Self::draw_control_tree(ui, ui_state, selected_control_prefix);
                         ui.separator();
-                        if let Some((control, component_index)) =
-                            Self::draw_control_sliders(ui, controls, selected_control_prefix)
-                        {
-                            spline_editor.set_control(control, component_index);
+                        if let Some(controls) = ui_state.get_control_set() {
+                            if let Some((control, component_index)) =
+                                Self::draw_control_sliders(ui, &controls, selected_control_prefix)
+                            {
+                                spline_editor.set_control(control, component_index);
+                            }
                         }
                         spline_editor.draw(ui, &mut ui_state.time);
                     });
                 });
-            Self::handle_hotkeys(ctx, controls, ui_state);
+            Self::handle_hotkeys(ctx, ui_state);
         });
         self.render_to_swapchain(context);
     }
 
-    fn handle_hotkeys(ctx: egui::Context, controls: &mut Controls, ui_state: &mut UiState) {
+    fn handle_hotkeys(ctx: egui::Context, ui_state: &mut UiState) {
         // Save
         if ctx
             .input_mut()
             .consume_key(egui::Modifiers::CTRL, egui::Key::S)
         {
-            if let Err(err) = save_controls(&controls) {
-                error!("Failed to save controls: {}", err);
-            }
+            // if let Err(err) = save_controls(&controls) {
+            //     error!("Failed to save controls: {}", err);
+            // }
+            unimplemented!("Saving controls is not implemented yet");
         }
 
         // Play
@@ -111,17 +113,28 @@ impl Ui {
 
     fn draw_control_tree(
         ui: &mut egui::Ui,
-        controls: &mut Controls,
+        ui_state: &mut UiState,
         selected_control_prefix: &mut ControlId,
     ) {
+        let Some(project) = &ui_state.project else {
+            return
+        };
+
         ui.push_id("control_tree", |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                     ui.set_min_width(150.0);
                     ui.label("Charts");
-                    for root in &controls.used_controls_root.borrow().children {
-                        Self::draw_control_tree_node(ui, &root.borrow(), selected_control_prefix);
+                    for (_name, chart) in &project.charts_by_name {
+                        Self::draw_control_tree_node(
+                            ui,
+                            &chart.controls.root_node.borrow(),
+                            selected_control_prefix,
+                        );
                     }
+                    // for root in &controls.used_controls_root.borrow().children {
+                    //     Self::draw_control_tree_node(ui, &root.borrow(), selected_control_prefix);
+                    // }
                 })
             });
         });
@@ -131,6 +144,7 @@ impl Ui {
         ui: &mut egui::Ui,
         node: &UsedControlsNode,
         selected_control_prefix: &mut ControlId,
+        ui_state: &mut UiState,
     ) {
         let id_str = format!("{}", node.id_prefix);
         let id = ui.make_persistent_id(&id_str);
@@ -153,6 +167,18 @@ impl Ui {
                 );
                 if new_selected && !selected {
                     *selected_control_prefix = node.id_prefix.clone();
+                    if let Some(project) = &ui_state.project {
+                        // Unwrap is safe because we know that the prefix has at least one part
+                        let first = selected_control_prefix.parts.first().unwrap();
+                        ui_state.selected_chart = if first.part_type == ControlIdPartType::Chart {
+                            project
+                                .charts_by_name
+                                .get(&first.name)
+                                .and_then(|c| Some(c.clone()))
+                        } else {
+                            None
+                        };
+                    }
                 }
             })
             .body(|ui| {
@@ -168,14 +194,14 @@ impl Ui {
     // Returns the spline that was activated
     fn draw_control_sliders<'a>(
         ui: &mut egui::Ui,
-        controls: &'a mut Controls,
+        controls: &'a ControlSet,
         selected_control_prefix: &mut ControlId,
     ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
         let trim_parts = selected_control_prefix.parts.len();
         let controls_borrow = controls
             .used_controls_list
-            .iter_mut()
+            .iter()
             .enumerate()
             .filter(|(_, c)| c.id.parts.starts_with(&selected_control_prefix.parts))
             .map(|(index, c)| {

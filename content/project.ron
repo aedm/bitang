@@ -1,0 +1,21 @@
+Project (
+	// charts: [
+	// 	Chart (
+	// 		name: "test-chart",
+	// 	),
+	// 	// Chart (
+	// 	// 	directory: "charts/test-chart2",
+	// 	// ),
+	// ],
+	cuts: [
+		Cut (
+			chart: "test-chart",
+			offset: 0,
+			start_time: 0,
+			end_time: 10,
+		),
+		// Scene (
+		// 	directory: "scenes/test-scene2",
+		// ),
+	],
+)

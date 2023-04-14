@@ -1,4 +1,4 @@
-use crate::control::controls::Controls;
+use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::resource_repository::ResourceRepository;
 use crate::file::shader_loader::ShaderCompilationResult;
@@ -10,6 +10,7 @@ use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 use tracing::instrument;
 
@@ -71,6 +72,8 @@ impl Chart {
         resource_repository: &mut ResourceRepository,
     ) -> Result<render::chart::Chart> {
         let control_prefix = control_prefix.add(ControlIdPartType::Chart, id);
+        let mut control_set_builder =
+            ControlSetBuilder::new(resource_repository.control_repository.clone());
         let render_targets_by_id = self
             .render_targets
             .iter()
@@ -98,7 +101,7 @@ impl Chart {
         let chart = render::chart::Chart::new(
             id,
             &control_prefix,
-            &mut resource_repository.controls,
+            &mut resource_repository.control_repository,
             render_targets,
             passes,
         );
@@ -247,13 +250,13 @@ impl Object {
         )?;
 
         let vertex_shader = make_shader(
-            &mut resource_repository.controls,
+            &mut resource_repository.control_repository,
             control_prefix,
             &shaders.vertex_shader,
             sampler_sources,
         )?;
         let fragment_shader = make_shader(
-            &mut resource_repository.controls,
+            &mut resource_repository.control_repository,
             control_prefix,
             &shaders.fragment_shader,
             sampler_sources,
@@ -271,7 +274,7 @@ impl Object {
 
 #[instrument(skip_all)]
 fn make_shader(
-    controls: &mut Controls,
+    control_set_builder: &mut ControlSetBuilder,
     control_prefix: &ControlId,
     compilation_result: &ShaderCompilationResult,
     sampler_sources: &HashMap<String, SamplerSource>,
@@ -281,7 +284,7 @@ fn make_shader(
         .iter()
         .map(|binding| {
             let control_id = control_prefix.add(ControlIdPartType::Value, &binding.name);
-            let control = controls.get_control(&control_id);
+            let control = control_set_builder.get_control(&control_id);
             LocalUniformMapping {
                 control,
                 f32_count: binding.f32_count,

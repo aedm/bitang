@@ -1,4 +1,4 @@
-use crate::control::controls::{Control, Controls};
+use crate::control::controls::{Control, ControlSet, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::{Pass, RenderTarget};
@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 pub struct Chart {
     pub id: String,
+    pub controls: ControlSet,
     _camera: Camera,
     render_targets: Vec<Arc<RenderTarget>>,
     pub passes: Vec<Pass>,
@@ -18,18 +19,21 @@ impl Chart {
     pub fn new(
         id: &str,
         control_prefix: &ControlId,
-        controls: &mut Controls,
+        mut control_set_builder: ControlSetBuilder,
         render_targets: Vec<Arc<RenderTarget>>,
         passes: Vec<Pass>,
     ) -> Self {
+        let _camera = Camera::new(
+            &mut control_set_builder,
+            &control_prefix.add(ControlIdPartType::Camera, "camera"),
+        );
+        let controls = control_set_builder.into_control_set();
         Chart {
             id: id.to_string(),
-            _camera: Camera::new(
-                controls,
-                &control_prefix.add(ControlIdPartType::Camera, "camera"),
-            ),
+            _camera,
             render_targets,
             passes,
+            controls,
         }
     }
 
@@ -51,12 +55,14 @@ struct Camera {
 }
 
 impl Camera {
-    fn new(controls: &mut Controls, control_prefix: &ControlId) -> Self {
+    fn new(control_set_builder: &mut ControlSetBuilder, control_prefix: &ControlId) -> Self {
         Camera {
-            _position: controls
+            _position: control_set_builder
                 .get_control(&control_prefix.add(ControlIdPartType::Value, "position")),
-            _target: controls.get_control(&control_prefix.add(ControlIdPartType::Value, "target")),
-            _up: controls.get_control(&control_prefix.add(ControlIdPartType::Value, "up")),
+            _target: control_set_builder
+                .get_control(&control_prefix.add(ControlIdPartType::Value, "target")),
+            _up: control_set_builder
+                .get_control(&control_prefix.add(ControlIdPartType::Value, "up")),
         }
     }
 }

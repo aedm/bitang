@@ -45,51 +45,90 @@ impl UsedControlsNode {
     }
 }
 
-#[derive(Serialize, Deserialize, Default)]
-pub struct Controls {
-    pub by_id: HashMap<ControlId, Rc<Control>>,
-
-    #[serde(skip)]
-    pub used_controls_root: RefCell<UsedControlsNode>,
-
-    #[serde(skip)]
-    pub used_controls_list: Vec<Rc<Control>>,
-
-    #[serde(skip)]
-    used_control_collector: HashSet<RcHashRef<Control>>,
+pub struct ControlSet {
+    all_controls: Vec<Rc<Control>>,
+    pub used_controls: Vec<Rc<Control>>,
+    pub root_node: RefCell<UsedControlsNode>,
 }
 
-impl Controls {
+pub struct ControlSetBuilder {
+    control_repository: Rc<RefCell<ControlRepository>>,
+    used_controls: HashSet<RcHashRef<Control>>,
+}
+
+impl ControlSetBuilder {
+    pub fn new(control_repository: Rc<RefCell<ControlRepository>>) -> Self {
+        Self {
+            control_repository,
+            used_controls: HashSet::new(),
+        }
+    }
+
+    pub fn into_control_set(self) -> ControlSet {
+        let mut root_node = UsedControlsNode::default();
+        let mut controls = vec![];
+        for control in &self.used_controls {
+            root_node.insert(control.0.clone());
+            controls.push(control.0.clone());
+        }
+        ControlSet {
+            all_controls: self.used_controls.values().collect(),
+            used_controls: controls,
+            root_node: RefCell::new(root_node),
+        }
+    }
+
     pub fn get_control(&mut self, id: &ControlId) -> Rc<Control> {
+        let control = self.control_repository.borrow_mut().get_control(id);
+        self.used_controls.insert(RcHashRef(control.clone()));
+        control
+    }
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct ControlRepository {
+    by_id: HashMap<ControlId, Rc<Control>>,
+    // #[serde(skip)]
+    // pub used_controls_root: RefCell<UsedControlsNode>,
+    //
+    // #[serde(skip)]
+    // pub used_controls_list: Vec<Rc<Control>>,
+    //
+    // #[serde(skip)]
+    // used_control_collector: HashSet<RcHashRef<Control>>,
+}
+
+impl ControlRepository {
+    fn get_control(&mut self, id: &ControlId) -> Rc<Control> {
         if let Some(x) = self.by_id.get(id) {
-            self.used_control_collector.insert(RcHashRef(x.clone()));
+            // self.used_control_collector.insert(RcHashRef(x.clone()));
             return x.clone();
         }
         let control = Rc::new(Control::new(id.clone()));
         self.by_id.insert(id.clone(), control.clone());
-        self.used_control_collector
-            .insert(RcHashRef(control.clone()));
+        // self.used_control_collector
+        //     .insert(RcHashRef(control.clone()));
         control
     }
 
-    pub fn reset_usage_collector(&mut self) {
-        self.used_control_collector.clear();
-        self.used_controls_list.clear();
-        self.used_controls_root.borrow_mut().children.clear();
-    }
+    // pub fn reset_usage_collector(&mut self) {
+    //     self.used_control_collector.clear();
+    //     self.used_controls_list.clear();
+    //     self.used_controls_root.borrow_mut().children.clear();
+    // }
 
-    pub fn finish_load_cycle(&mut self) {
-        let mut controls: Vec<_> = mem::take(&mut self.used_control_collector)
-            .into_iter()
-            .map(|x| x.0.clone())
-            .collect();
-        controls.sort_by(|a, b| a.id.cmp(&b.id));
-
-        for control in controls {
-            self.used_controls_list.push(control.clone());
-            self.used_controls_root.borrow_mut().insert(control);
-        }
-    }
+    // pub fn finish_load_cycle(&mut self) {
+    //     let mut controls: Vec<_> = mem::take(&mut self.used_control_collector)
+    //         .into_iter()
+    //         .map(|x| x.0.clone())
+    //         .collect();
+    //     controls.sort_by(|a, b| a.id.cmp(&b.id));
+    //
+    //     for control in controls {
+    //         self.used_controls_list.push(control.clone());
+    //         self.used_controls_root.borrow_mut().insert(control);
+    //     }
+    // }
 }
 
 #[derive(Serialize, Deserialize)]
