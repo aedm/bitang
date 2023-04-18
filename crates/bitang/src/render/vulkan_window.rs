@@ -3,6 +3,7 @@ use crate::render::render_target::{RenderTarget, RenderTargetRole};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::error;
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
@@ -16,10 +17,14 @@ use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},
 };
+use winit::dpi::PhysicalSize;
+use winit::window::Fullscreen;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
 };
+
+const START_IN_FULLSCREEN: bool = false;
 
 pub struct VulkanContext {
     // TODO: expand and remove
@@ -43,8 +48,9 @@ pub struct RenderContext<'a> {
 
 pub struct VulkanWindow {
     pub context: VulkanContext,
-    pub event_loop: EventLoop<()>,
+    pub event_loop: Option<EventLoop<()>>,
     windows: VulkanoWindows,
+    is_fullscreen: bool,
 }
 
 pub trait VulkanApp {
@@ -60,10 +66,9 @@ impl VulkanWindow {
 
         let mut windows = VulkanoWindows::default();
         let window_descriptor = WindowDescriptor {
-            title: "bitang".to_string(),
+            title: "Bitang".to_string(),
             width: 1280.,
             height: 1000.,
-            // mode: WindowMode::BorderlessFullscreen,
             ..WindowDescriptor::default()
         };
 
@@ -114,35 +119,84 @@ impl VulkanWindow {
 
         Ok(Self {
             windows,
-            event_loop,
+            event_loop: Some(event_loop),
             context,
+            is_fullscreen: false,
         })
     }
 
-    pub fn run(mut self, mut app: impl VulkanApp + 'static) {
-        self.event_loop.run(move |event, _, control_flow| {
-            let renderer = self.windows.get_primary_renderer_mut().unwrap();
-            match event {
-                Event::WindowEvent { event, window_id } if window_id == renderer.window().id() => {
-                    app.handle_window_event(&event);
-                    match event {
-                        WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                            renderer.resize();
-                        }
-                        WindowEvent::CloseRequested => {
-                            *control_flow = ControlFlow::Exit;
-                        }
-                        _ => (),
-                    }
+    fn toggle_fullscreen(&mut self) {
+        let renderer = self.windows.get_primary_renderer_mut().unwrap();
+        let window = renderer.window();
+        self.is_fullscreen = !self.is_fullscreen;
+        if self.is_fullscreen {
+            if let Some(monitor) = window.current_monitor() {
+                let video_mode = monitor
+                    .video_modes()
+                    .find(|mode| mode.size() == PhysicalSize::new(1920, 1080));
+                if let Some(video_mode) = video_mode {
+                    window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+                    window.set_cursor_visible(false);
+                } else {
+                    error!("Could not find 1920x1080 video mode");
                 }
-                Event::RedrawRequested(_) => {
-                    app.paint(&self.context, renderer);
-                }
-                Event::MainEventsCleared => {
-                    renderer.window().request_redraw();
-                }
-                _ => (),
+            } else {
+                error!("Could not find current monitor");
             }
+        } else {
+            window.set_fullscreen(None);
+            window.set_cursor_visible(true);
+        }
+    }
+
+    fn get_renderer(&mut self) -> &mut VulkanoWindowRenderer {
+        self.windows.get_primary_renderer_mut().unwrap()
+    }
+
+    pub fn run(mut self, mut app: impl VulkanApp + 'static) {
+        if START_IN_FULLSCREEN {
+            self.toggle_fullscreen();
+        }
+
+        let event_loop = self.event_loop.take().unwrap();
+        event_loop.run(move |event, _, control_flow| match event {
+            Event::WindowEvent { event, window_id }
+                if window_id == self.get_renderer().window().id() =>
+            {
+                app.handle_window_event(&event);
+                match event {
+                    WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                        self.get_renderer().resize();
+                    }
+                    WindowEvent::CloseRequested => {
+                        *control_flow = ControlFlow::Exit;
+                    }
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        if input.state == winit::event::ElementState::Pressed {
+                            match input.virtual_keycode {
+                                Some(winit::event::VirtualKeyCode::Escape) => {
+                                    *control_flow = ControlFlow::Exit;
+                                }
+                                Some(winit::event::VirtualKeyCode::F11) => {
+                                    self.toggle_fullscreen();
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            Event::RedrawRequested(_) => {
+                app.paint(
+                    &self.context,
+                    self.windows.get_primary_renderer_mut().unwrap(),
+                );
+            }
+            Event::MainEventsCleared => {
+                self.get_renderer().window().request_redraw();
+            }
+            _ => (),
         });
     }
 }
