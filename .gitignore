@@ -1,5 +1,5 @@
 crates/**/target
 target
 .idea
-content
 app
+app_old
