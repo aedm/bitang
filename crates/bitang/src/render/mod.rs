@@ -1,6 +1,7 @@
 pub mod chart;
 pub mod material;
 pub mod mesh;
+pub mod project;
 pub mod render_target;
 pub mod render_unit;
 pub mod vulkan_window;

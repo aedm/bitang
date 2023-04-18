@@ -1,4 +1,5 @@
 use crate::file::file_hash_cache::{ContentHash, FileCache, FileCacheEntry};
+use crate::file::ResourcePath;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{Context, Result};
 use std::cell::RefCell;
@@ -23,7 +24,7 @@ impl<T> BinaryFileCache<T> {
         }
     }
 
-    pub fn get_or_load(&mut self, context: &VulkanContext, path: &str) -> Result<&T> {
+    pub fn get_or_load(&mut self, context: &VulkanContext, path: &ResourcePath) -> Result<&T> {
         let FileCacheEntry { hash, content } = self.file_hash_cache.borrow_mut().get(path, true)?;
 
         // TODO: simplify when they fix if-let borrow leaks. https://github.com/rust-lang/rust/issues/21906
@@ -34,10 +35,10 @@ impl<T> BinaryFileCache<T> {
             let now = std::time::Instant::now();
             let source = match content {
                 Some(source) => source,
-                None => std::fs::read(path)?,
+                None => std::fs::read(path.to_string())?,
             };
             let resource = (self.loader_func)(context, &source)?;
-            info!("Loading {} took {:?}", path, now.elapsed());
+            info!("Loading {} took {:?}", &path.to_string(), now.elapsed());
             self.resource_cache.insert(hash, resource);
             self.resource_cache
                 .get(&hash)

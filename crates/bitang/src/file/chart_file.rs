@@ -1,7 +1,8 @@
-use crate::control::controls::Controls;
+use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::resource_repository::ResourceRepository;
 use crate::file::shader_loader::ShaderCompilationResult;
+use crate::file::ResourcePath;
 use crate::render;
 use crate::render::material::{
     LocalUniformMapping, Material, MaterialStep, SamplerBinding, SamplerSource, Shader,
@@ -12,6 +13,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::instrument;
+
+const COMMON_SHADER_FILE: &str = "common.glsl";
 
 #[derive(Debug, Deserialize)]
 pub struct Chart {
@@ -67,10 +70,14 @@ impl Chart {
         &self,
         id: &str,
         context: &VulkanContext,
-        control_prefix: &ControlId,
         resource_repository: &mut ResourceRepository,
+        path: &ResourcePath,
     ) -> Result<render::chart::Chart> {
-        let control_prefix = control_prefix.add(ControlIdPartType::Chart, id);
+        let control_id = ControlId::default().add(ControlIdPartType::Chart, id);
+        let mut control_set_builder = ControlSetBuilder::new(
+            control_id.clone(),
+            resource_repository.control_repository.clone(),
+        );
         let render_targets_by_id = self
             .render_targets
             .iter()
@@ -87,21 +94,18 @@ impl Chart {
                 pass.load(
                     context,
                     resource_repository,
+                    &mut control_set_builder,
                     &render_targets_by_id,
-                    &control_prefix,
+                    &control_id,
+                    path,
                 )
             })
             .collect::<Result<Vec<_>>>()?;
 
         let render_targets = render_targets_by_id.into_values().collect::<Vec<_>>();
 
-        let chart = render::chart::Chart::new(
-            id,
-            &control_prefix,
-            &mut resource_repository.controls,
-            render_targets,
-            passes,
-        );
+        let chart =
+            render::chart::Chart::new(id, &control_id, control_set_builder, render_targets, passes);
         Ok(chart)
     }
 }
@@ -111,8 +115,10 @@ impl Pass {
         &self,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
+        control_set_builder: &mut ControlSetBuilder,
         render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
         control_prefix: &ControlId,
+        path: &ResourcePath,
     ) -> Result<render::render_target::Pass> {
         let control_prefix = control_prefix.add(ControlIdPartType::Pass, &self.id);
         let render_targets = self
@@ -135,7 +141,9 @@ impl Pass {
                     &control_prefix,
                     context,
                     resource_repository,
+                    control_set_builder,
                     render_targets_by_id,
+                    path,
                 )
             })
             .collect::<Result<Vec<_>>>()?;
@@ -187,19 +195,23 @@ impl Object {
         control_prefix: &ControlId,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
+        control_set_builder: &mut ControlSetBuilder,
         render_targets: &HashMap<String, Arc<render::render_target::RenderTarget>>,
+        path: &ResourcePath,
     ) -> Result<Arc<render::RenderObject>> {
         let control_prefix = control_prefix.add(ControlIdPartType::Object, &self.id);
         let mesh = resource_repository
-            .get_mesh(context, &self.mesh_path)?
+            .get_mesh(context, &path.relative_path(&self.mesh_path))?
             .clone();
         let sampler_sources = self
             .textures
             .iter()
             .map(|(name, texture_mapping)| {
                 let texture_binding: SamplerSource = match texture_mapping {
-                    TextureMapping::File(path) => {
-                        let texture = resource_repository.get_texture(context, path)?.clone();
+                    TextureMapping::File(texture_path) => {
+                        let texture = resource_repository
+                            .get_texture(context, &path.relative_path(texture_path))?
+                            .clone();
                         SamplerSource::Texture(texture)
                     }
                     TextureMapping::RenderTargetId(id) => {
@@ -216,8 +228,10 @@ impl Object {
         let solid_step = self.make_material_step(
             context,
             resource_repository,
+            control_set_builder,
             &control_prefix,
             &sampler_sources,
+            path,
         )?;
         let material = Material {
             passes: [None, None, Some(solid_step)],
@@ -237,23 +251,26 @@ impl Object {
         &self,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
+        control_set_builder: &mut ControlSetBuilder,
         control_prefix: &ControlId,
         sampler_sources: &HashMap<String, SamplerSource>,
+        path: &ResourcePath,
     ) -> Result<MaterialStep> {
         let shaders = resource_repository.shader_cache.get_or_load(
             context,
-            &self.vertex_shader,
-            &self.fragment_shader,
+            &path.relative_path(&self.vertex_shader),
+            &path.relative_path(&self.fragment_shader),
+            &path.relative_path(COMMON_SHADER_FILE),
         )?;
 
         let vertex_shader = make_shader(
-            &mut resource_repository.controls,
+            control_set_builder,
             control_prefix,
             &shaders.vertex_shader,
             sampler_sources,
         )?;
         let fragment_shader = make_shader(
-            &mut resource_repository.controls,
+            control_set_builder,
             control_prefix,
             &shaders.fragment_shader,
             sampler_sources,
@@ -271,7 +288,7 @@ impl Object {
 
 #[instrument(skip_all)]
 fn make_shader(
-    controls: &mut Controls,
+    control_set_builder: &mut ControlSetBuilder,
     control_prefix: &ControlId,
     compilation_result: &ShaderCompilationResult,
     sampler_sources: &HashMap<String, SamplerSource>,
@@ -281,7 +298,7 @@ fn make_shader(
         .iter()
         .map(|binding| {
             let control_id = control_prefix.add(ControlIdPartType::Value, &binding.name);
-            let control = controls.get_control(&control_id);
+            let control = control_set_builder.get_control(&control_id);
             LocalUniformMapping {
                 control,
                 f32_count: binding.f32_count,

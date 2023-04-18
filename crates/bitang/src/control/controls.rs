@@ -1,13 +1,20 @@
 use crate::control::spline::Spline;
+use crate::control::ControlIdPartType::Chart;
 use crate::control::{ControlId, RcHashRef};
-use anyhow::anyhow;
+use crate::file::resource_repository::CHARTS_FOLDER;
+use crate::file::ROOT_FOLDER;
+use crate::render::project::Project;
 use anyhow::Result;
+use anyhow::{anyhow, Context};
 use glam::Mat4;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::{array, mem, slice};
+use std::{array, slice};
+use tracing::{debug, info, instrument, warn};
+
+const CONTROLS_FILE_NAME: &str = "controls.ron";
 
 #[derive(Default)]
 pub struct UsedControlsNode {
@@ -45,50 +52,115 @@ impl UsedControlsNode {
     }
 }
 
-#[derive(Serialize, Deserialize, Default)]
-pub struct Controls {
-    pub by_id: HashMap<ControlId, Rc<Control>>,
-
-    #[serde(skip)]
-    pub used_controls_root: RefCell<UsedControlsNode>,
-
-    #[serde(skip)]
-    pub used_controls_list: Vec<Rc<Control>>,
-
-    #[serde(skip)]
-    used_control_collector: HashSet<RcHashRef<Control>>,
+pub struct ControlSet {
+    pub used_controls: Vec<Rc<Control>>,
+    pub root_node: RefCell<UsedControlsNode>,
 }
 
-impl Controls {
+pub struct ControlSetBuilder {
+    control_repository: Rc<RefCell<ControlRepository>>,
+    used_controls: HashSet<RcHashRef<Control>>,
+    root_id: ControlId,
+}
+
+impl ControlSetBuilder {
+    pub fn new(root_id: ControlId, control_repository: Rc<RefCell<ControlRepository>>) -> Self {
+        Self {
+            root_id,
+            control_repository,
+            used_controls: HashSet::new(),
+        }
+    }
+
+    pub fn into_control_set(self) -> ControlSet {
+        let mut root_node = UsedControlsNode {
+            id_prefix: self.root_id,
+            ..UsedControlsNode::default()
+        };
+        let mut controls = vec![];
+        for control in &self.used_controls {
+            root_node.insert(control.0.clone());
+            controls.push(control.0.clone());
+        }
+        ControlSet {
+            used_controls: controls,
+            root_node: RefCell::new(root_node),
+        }
+    }
+
     pub fn get_control(&mut self, id: &ControlId) -> Rc<Control> {
+        let control = self.control_repository.borrow_mut().get_control(id);
+        self.used_controls.insert(RcHashRef(control.clone()));
+        control
+    }
+}
+
+// #[derive(Default)]
+pub struct ControlRepository {
+    by_id: HashMap<ControlId, Rc<Control>>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SerializedControls {
+    controls: Vec<Rc<Control>>,
+}
+
+impl ControlRepository {
+    fn get_control(&mut self, id: &ControlId) -> Rc<Control> {
         if let Some(x) = self.by_id.get(id) {
-            self.used_control_collector.insert(RcHashRef(x.clone()));
             return x.clone();
         }
         let control = Rc::new(Control::new(id.clone()));
         self.by_id.insert(id.clone(), control.clone());
-        self.used_control_collector
-            .insert(RcHashRef(control.clone()));
         control
     }
 
-    pub fn reset_usage_collector(&mut self) {
-        self.used_control_collector.clear();
-        self.used_controls_list.clear();
-        self.used_controls_root.borrow_mut().children.clear();
+    pub fn save_control_files(&self, project: &Project) -> Result<()> {
+        for chart in project.charts_by_id.values() {
+            let path = format!(
+                "{}/{}/{}/{}",
+                ROOT_FOLDER, CHARTS_FOLDER, chart.id, CONTROLS_FILE_NAME
+            );
+            let controls = self
+                .by_id
+                .iter()
+                .filter(|(id, _)| id.parts[0].part_type == Chart && id.parts[0].name == chart.id)
+                .map(|(_, x)| x.clone())
+                .collect();
+            let serialized = SerializedControls { controls };
+            let ron = ron::ser::to_string_pretty(&serialized, ron::ser::PrettyConfig::default())?;
+            std::fs::write(&path, ron)
+                .with_context(|| format!("Failed to write controls to '{}'.", path))?;
+            debug!("Saved controls to '{path}'.");
+        }
+        Ok(())
     }
 
-    pub fn finish_load_cycle(&mut self) {
-        let mut controls: Vec<_> = mem::take(&mut self.used_control_collector)
-            .into_iter()
-            .map(|x| x.0.clone())
-            .collect();
-        controls.sort_by(|a, b| a.id.cmp(&b.id));
-
-        for control in controls {
-            self.used_controls_list.push(control.clone());
-            self.used_controls_root.borrow_mut().insert(control);
+    #[instrument]
+    pub fn load_control_files() -> Result<Self> {
+        let mut by_id = HashMap::new();
+        let path = format!("{}/{}/", ROOT_FOLDER, CHARTS_FOLDER);
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                let chart_id = path.file_name().unwrap().to_str().unwrap();
+                let controls_path = format!(
+                    "{}/{}/{}/{}",
+                    ROOT_FOLDER, CHARTS_FOLDER, chart_id, CONTROLS_FILE_NAME
+                );
+                if let Ok(ron) = std::fs::read_to_string(&controls_path) {
+                    info!("Loading '{}'.", controls_path);
+                    let serialized: SerializedControls = ron::de::from_str(&ron)?;
+                    for control in serialized.controls {
+                        by_id.insert(control.id.clone(), control);
+                    }
+                } else {
+                    warn!("No controls file found at '{}'.", controls_path);
+                }
+            }
         }
+        Ok(Self { by_id })
     }
 }
 

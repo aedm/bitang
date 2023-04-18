@@ -1,3 +1,4 @@
+use crate::file::ResourcePath;
 use ahash::AHasher;
 use anyhow::{Context, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
@@ -78,13 +79,15 @@ impl FileCache {
         self.watched_paths = mem::take(&mut self.new_watched_paths);
     }
 
-    pub fn get(&mut self, path: &str, store_content: bool) -> Result<FileCacheEntry> {
-        let absolute_path = self.to_absolute_path(path);
+    pub fn get(&mut self, path: &ResourcePath, store_content: bool) -> Result<FileCacheEntry> {
+        let path_string = path.to_string();
+        let absolute_path = self.to_absolute_path(&path_string);
         self.new_watched_paths.insert(absolute_path.clone());
         let result = match self.cache_map.entry(absolute_path.clone()) {
             Vacant(e) => {
+                trace!("Reading file: '{path_string}'");
                 let source = std::fs::read(absolute_path)
-                    .with_context(|| anyhow::format_err!("Failed to read file: '{path}'"))?;
+                    .with_context(|| anyhow::format_err!("Failed to read file: '{path_string}'"))?;
                 let hash = hash_content(&source);
                 let entry = FileCacheEntry {
                     hash,

@@ -1,3 +1,5 @@
 crates/**/target
 target
 .idea
+app
+app_old
