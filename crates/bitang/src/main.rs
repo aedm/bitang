@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     info!("Starting Bitang");
 
     let window = VulkanWindow::new()?;
-    let app = DemoTool::new(&window.context, &window.event_loop)?;
+    let app = DemoTool::new(&window.context, window.event_loop.as_ref().unwrap())?;
     window.run(app);
     Ok(())
 }
