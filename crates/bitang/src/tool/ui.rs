@@ -173,7 +173,7 @@ impl Ui {
                 );
                 if new_selected && !selected {
                     *selected_control_prefix = node.id_prefix.clone();
-                    if let Some(project) = &ui_state.project {
+                    if ui_state.project.is_some() {
                         // Unwrap is safe because we know that the prefix has at least one part
                         let first = selected_control_prefix.parts.first().unwrap();
                         ui_state.selected_chart_id = if first.part_type == ControlIdPartType::Chart

@@ -12,7 +12,7 @@ use std::f32::consts::PI;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::{error, trace};
+use tracing::error;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::image::ImageViewAbstract;
 use vulkano::pipeline::graphics::viewport::Viewport;

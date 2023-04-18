@@ -8,7 +8,7 @@ use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::{env, mem};
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, error, trace};
 
 pub type ContentHash = u64;
 

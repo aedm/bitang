@@ -11,7 +11,6 @@ use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
 use tracing::instrument;
 

@@ -1,17 +1,10 @@
-use crate::control::{ControlId, ControlIdPartType};
 use crate::file::resource_repository::ResourceRepository;
-use crate::file::shader_loader::ShaderCompilationResult;
 use crate::render;
-use crate::render::material::{
-    LocalUniformMapping, Material, MaterialStep, SamplerBinding, SamplerSource, Shader,
-};
 use crate::render::vulkan_window::VulkanContext;
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::sync::Arc;
-use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 pub struct Project {

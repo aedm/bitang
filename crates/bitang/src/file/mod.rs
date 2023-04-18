@@ -5,10 +5,6 @@ mod project_file;
 pub mod resource_repository;
 mod shader_loader;
 
-use crate::control::controls::ControlRepository;
-use anyhow::{Context, Result};
-use tracing::{error, info, trace};
-
 // The root folder for all content.
 pub const ROOT_FOLDER: &str = "app";
 

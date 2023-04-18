@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::{array, mem, slice};
+use std::{array, slice};
 use tracing::{debug, info, instrument, warn};
 
 const CONTROLS_FILE_NAME: &str = "controls.ron";
@@ -53,7 +53,6 @@ impl UsedControlsNode {
 }
 
 pub struct ControlSet {
-    all_controls: Vec<Rc<Control>>,
     pub used_controls: Vec<Rc<Control>>,
     pub root_node: RefCell<UsedControlsNode>,
 }
@@ -84,7 +83,6 @@ impl ControlSetBuilder {
             controls.push(control.0.clone());
         }
         ControlSet {
-            all_controls: self.used_controls.iter().map(|x| x.0.clone()).collect(),
             used_controls: controls,
             root_node: RefCell::new(root_node),
         }
