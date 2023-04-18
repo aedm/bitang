@@ -3,7 +3,7 @@ use crate::control::ControlId;
 use crate::file::binary_file_cache::BinaryFileCache;
 use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::ShaderCache;
-use crate::file::{chart_file, load_controls, project_file};
+use crate::file::{chart_file, project_file, ResourcePath};
 use crate::render::chart::Chart;
 use crate::render::mesh::Mesh;
 use crate::render::project::Project;
@@ -12,6 +12,7 @@ use crate::render::{Texture, Vertex3};
 use anyhow::Result;
 use bitang_utils::blend_loader::load_blend_buffer;
 use std::cell::RefCell;
+use std::env::current_dir;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -41,15 +42,14 @@ pub struct ResourceRepository {
 // If loading fails, we want to retry periodically.
 const LOAD_RETRY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
 
-// The root folder for all content.
-const ROOT_FOLDER: &str = "content";
 const PROJECT_FILE_NAME: &str = "project.ron";
-const CHARTS_FOLDER: &str = "charts";
+pub const CHARTS_FOLDER: &str = "charts";
 const CHART_FILE_NAME: &str = "chart.ron";
 
 impl ResourceRepository {
     pub fn try_new() -> Result<Self> {
         let file_hash_cache = Rc::new(RefCell::new(FileCache::new()?));
+        let control_repository = ControlRepository::load_control_files()?;
 
         Ok(Self {
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
@@ -59,7 +59,7 @@ impl ResourceRepository {
             project_file_cache: BinaryFileCache::new(&file_hash_cache, load_project_file),
             file_hash_cache,
             cached_root: None,
-            control_repository: Rc::new(load_controls()),
+            control_repository: Rc::new(RefCell::new(control_repository)),
             last_load_time: Instant::now() - LOAD_RETRY_INTERVAL,
             is_first_load: true,
         })
@@ -72,13 +72,13 @@ impl ResourceRepository {
             || (self.cached_root.is_none() && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
         {
             let now = Instant::now();
-            self.control_repository.reset_usage_collector();
+            // self.control_repository.borrow_mut().reset_usage_collector();
             let result = self.load_project(context);
             self.file_hash_cache.borrow_mut().update_watchers();
             match result {
                 Ok(project) => {
                     self.cached_root = Some(Arc::new(project));
-                    self.control_repository.finish_load_cycle();
+                    // self.control_repository.finish_load_cycle();
                     info!("Loading took {:?}", now.elapsed());
                 }
                 Err(err) => {
@@ -95,23 +95,30 @@ impl ResourceRepository {
     }
 
     #[instrument(skip(self, context))]
-    pub fn get_texture(&mut self, context: &VulkanContext, path: &str) -> Result<&Arc<Texture>> {
-        self.texture_cache.get_or_load(context, &path)
+    pub fn get_texture(
+        &mut self,
+        context: &VulkanContext,
+        path: &ResourcePath,
+    ) -> Result<&Arc<Texture>> {
+        self.texture_cache.get_or_load(context, path)
     }
 
     #[instrument(skip(self, context))]
-    pub fn get_mesh(&mut self, context: &VulkanContext, path: &str) -> Result<&Arc<Mesh>> {
-        self.mesh_cache.get_or_load(context, &path)
+    pub fn get_mesh(&mut self, context: &VulkanContext, path: &ResourcePath) -> Result<&Arc<Mesh>> {
+        self.mesh_cache.get_or_load(context, path)
     }
 
     pub fn load_chart(&mut self, id: &str, context: &VulkanContext) -> Result<Chart> {
-        let path = format!("{ROOT_FOLDER}/{CHARTS_FOLDER}/{id}/{CHART_FILE_NAME}");
+        let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
+        // let current_directory = format!("{CHARTS_FOLDER}/{id}");
+        // let path = format!("/{current_directory}/{CHART_FILE_NAME}");
         let chart = self.chart_file_cache.get_or_load(context, &path)?.clone();
-        chart.load(id, context, &ControlId::default(), self)
+        chart.load(id, context, self, &path)
     }
 
     pub fn load_project(&mut self, context: &VulkanContext) -> Result<Project> {
-        let path = format!("{ROOT_FOLDER}/{PROJECT_FILE_NAME}");
+        let path = ResourcePath::new("", PROJECT_FILE_NAME);
+        // let path = format!("/{PROJECT_FILE_NAME}");
         let project = self.project_file_cache.get_or_load(context, &path)?.clone();
         project.load(context, self)
     }

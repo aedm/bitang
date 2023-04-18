@@ -1,17 +1,18 @@
-use crate::control::controls::ControlSet;
+use crate::control::controls::{ControlRepository, ControlSet};
 use crate::file::resource_repository::ResourceRepository;
 use crate::render::chart::Chart;
 use crate::render::project::Project;
 use crate::render::vulkan_window::{RenderContext, VulkanApp, VulkanContext};
 use crate::tool::ui::Ui;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use glam::{Mat4, Vec3};
+use std::cell::RefCell;
 use std::cmp::max;
 use std::f32::consts::PI;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::error;
+use tracing::{error, trace};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::image::ImageViewAbstract;
 use vulkano::pipeline::graphics::viewport::Viewport;
@@ -35,10 +36,11 @@ pub struct UiState {
     pub selected_chart_id: Option<String>,
     pub time: f32,
     pub is_playing: bool,
+    pub control_repository: Rc<RefCell<ControlRepository>>,
 }
 
 impl UiState {
-    pub fn get_chart(&self) -> Option<Arc<Chart>> {
+    pub fn get_chart(&self) -> Option<Rc<Chart>> {
         self.project.as_ref().and_then(|project| {
             self.selected_chart_id
                 .as_ref()
@@ -47,8 +49,9 @@ impl UiState {
         })
     }
 
-    pub fn get_control_set(&self) -> Option<Arc<ControlSet>> {
-        self.get_chart().and_then(|chart| chart.control_set.clone())
+    pub fn get_control_set(&self) -> Option<Rc<ControlSet>> {
+        self.get_chart()
+            .and_then(|chart| Some(chart.controls.clone()))
     }
 }
 
@@ -57,12 +60,14 @@ impl DemoTool {
         let mut resource_repository = ResourceRepository::try_new()?;
         let project = resource_repository.get_or_load_project(context);
         let ui = Ui::new(context, event_loop)?;
+        let has_render_failure = project.is_none();
 
         let ui_state = UiState {
             time: 5.0,
             is_playing: false,
             selected_chart_id: None,
             project,
+            control_repository: resource_repository.control_repository.clone(),
         };
 
         let demo_tool = DemoTool {
@@ -70,14 +75,24 @@ impl DemoTool {
             start_time: Instant::now(),
             resource_repository,
             ui_state,
-            has_render_failure: project.is_none(),
+            has_render_failure,
             play_start_time: Instant::now(),
             last_eval_time: -1.0,
         };
         Ok(demo_tool)
     }
 
-    pub fn draw(&mut self, context: &mut RenderContext, chart: &Chart) -> Result<()> {
+    pub fn draw(&mut self, context: &mut RenderContext) -> Result<()> {
+        let Some(project) = &self.ui_state.project else {
+            return Err(anyhow!("No project loaded"));
+        };
+        let Some(chart_id) = &self.ui_state.selected_chart_id else {
+            return Err(anyhow!("No chart selected"))
+        };
+        let Some(chart) = project.charts_by_id.get(chart_id) else {
+            return Err(anyhow!("No chart found"));
+        };
+
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
         if self.ui_state.is_playing {
@@ -86,13 +101,11 @@ impl DemoTool {
 
         // Evaluate control splines
         if self.last_eval_time != self.ui_state.time {
-            self.last_eval_time = self.ui_state.time;
-            for control in &mut self
-                .resource_repository
-                .control_repository
-                .used_controls_list
-            {
-                control.evaluate_splines(self.ui_state.time);
+            if let Some(control_set) = self.ui_state.get_control_set() {
+                self.last_eval_time = self.ui_state.time;
+                for control in &control_set.used_controls {
+                    control.evaluate_splines(self.ui_state.time);
+                }
             }
         }
 
@@ -189,14 +202,20 @@ impl VulkanApp for DemoTool {
 
             // If the last render failed, stop rendering until the user changes the document
             if !self.has_render_failure {
-                if let Some(project) = &self.ui_state.project {
-                    if let Some(chart_id) = &self.ui_state.selected_chart_id {
-                        if let Some(chart) = project.charts.get(&chart_id) {
-                            if let Err(err) = self.draw(&mut context, chart) {
-                                error!("Render failed: {}", err);
-                                self.has_render_failure = true;
-                            }
-                        }
+                // if let Some(project) = &self.ui_state.project {
+                //     if let Some(chart_id) = &self.ui_state.selected_chart_id {
+                //         if let Some(chart) = project.charts_by_id.get(chart_id) {
+                //             if let Err(err) = self.draw(&mut context, chart) {
+                //                 error!("Render failed: {}", err);
+                //                 self.has_render_failure = true;
+                //             }
+                //         }
+                //     }
+                // }
+                if self.ui_state.selected_chart_id.is_some() {
+                    if let Err(err) = self.draw(&mut context) {
+                        error!("Render failed: {}", err);
+                        self.has_render_failure = true;
                     }
                 }
             }
@@ -205,12 +224,7 @@ impl VulkanApp for DemoTool {
 
             // Render UI
             if draw_ui {
-                self.ui.draw(
-                    &mut context,
-                    ui_height,
-                    &mut self.resource_repository.control_repository,
-                    &mut self.ui_state,
-                );
+                self.ui.draw(&mut context, ui_height, &mut self.ui_state);
             }
 
             // Start playing

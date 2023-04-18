@@ -1,5 +1,6 @@
 use crate::control::controls::GlobalType;
 use crate::file::file_hash_cache::{hash_content, ContentHash, FileCache, FileCacheEntry};
+use crate::file::ResourcePath;
 use crate::render::material::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Error, Result};
@@ -65,10 +66,11 @@ impl ShaderCache {
     pub fn get_or_load(
         &mut self,
         context: &VulkanContext,
-        vs_path: &str,
-        fs_path: &str,
+        vs_path: &ResourcePath,
+        fs_path: &ResourcePath,
+        common_path: &ResourcePath,
     ) -> Result<&ShaderCacheValue> {
-        let header = self.load_source("app/header.glsl")?;
+        let header = self.load_source(common_path)?;
         let vs_source = format!("{header}\n{}", self.load_source(vs_path)?);
         let fs_source = format!("{header}\n{}", self.load_source(fs_path)?);
 
@@ -105,12 +107,13 @@ impl ShaderCache {
     fn compile_shader_module(
         context: &VulkanContext,
         source: &str,
-        path: &str,
+        path: &ResourcePath,
         kind: shaderc::ShaderKind,
     ) -> Result<ShaderCompilationResult> {
+        let path = path.to_string();
         let now = std::time::Instant::now();
         let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
-        let spirv = compiler.compile_into_spirv(&source, kind, path, "main", None)?;
+        let spirv = compiler.compile_into_spirv(&source, kind, &path, "main", None)?;
         let spirv_binary = spirv.as_binary_u8();
         info!(
             "compiled in {:?}, SPIRV size: {}.",
@@ -237,7 +240,7 @@ impl ShaderCache {
         Ok(result)
     }
 
-    fn load_source(&mut self, path: &str) -> Result<String> {
+    fn load_source(&mut self, path: &ResourcePath) -> Result<String> {
         let mut file_cache = self.file_hash_cache.borrow_mut();
         let FileCacheEntry {
             hash: _,

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 pub struct Chart {
     pub id: String,
-    pub controls: ControlSet,
+    pub controls: Rc<ControlSet>,
     _camera: Camera,
     render_targets: Vec<Arc<RenderTarget>>,
     pub passes: Vec<Pass>,
@@ -27,7 +27,7 @@ impl Chart {
             &mut control_set_builder,
             &control_prefix.add(ControlIdPartType::Camera, "camera"),
         );
-        let controls = control_set_builder.into_control_set();
+        let controls = Rc::new(control_set_builder.into_control_set());
         Chart {
             id: id.to_string(),
             _camera,

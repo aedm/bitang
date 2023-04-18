@@ -37,10 +37,9 @@ impl Project {
             .iter()
             .map(|&chart_name| {
                 let chart = resource_repository.load_chart(chart_name, context)?;
-                Ok((chart_name, Rc::new(chart)))
+                Ok((chart_name.clone(), Rc::new(chart)))
             })
             .collect::<Result<_>>()?;
-        let charts = charts_by_name.values().cloned().collect();
         let cuts = self
             .cuts
             .iter()
@@ -51,6 +50,9 @@ impl Project {
                 offset: cut.offset,
             })
             .collect();
-        Ok(render::project::Project { charts, cuts })
+        Ok(render::project::Project {
+            charts_by_id: charts_by_name,
+            cuts,
+        })
     }
 }

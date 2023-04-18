@@ -1,3 +1,4 @@
 crates/**/target
 target
 .idea
+content

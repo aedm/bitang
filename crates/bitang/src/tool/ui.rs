@@ -1,6 +1,5 @@
 use crate::control::controls::{Control, ControlSet, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::save_controls;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::tool::demo_tool::UiState;
 use crate::tool::spline_editor::SplineEditor;
@@ -96,10 +95,15 @@ impl Ui {
             .input_mut()
             .consume_key(egui::Modifiers::CTRL, egui::Key::S)
         {
-            // if let Err(err) = save_controls(&controls) {
-            //     error!("Failed to save controls: {}", err);
-            // }
-            unimplemented!("Saving controls is not implemented yet");
+            if let Some(project) = &ui_state.project {
+                if let Err(err) = ui_state
+                    .control_repository
+                    .borrow()
+                    .save_control_files(project)
+                {
+                    error!("Failed to save controls: {}", err);
+                }
+            }
         }
 
         // Play
@@ -119,17 +123,19 @@ impl Ui {
         let Some(project) = &ui_state.project else {
             return
         };
+        let project = project.clone();
 
         ui.push_id("control_tree", |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                     ui.set_min_width(150.0);
                     ui.label("Charts");
-                    for (_name, chart) in &project.charts_by_name {
+                    for (_name, chart) in &project.charts_by_id {
                         Self::draw_control_tree_node(
                             ui,
                             &chart.controls.root_node.borrow(),
                             selected_control_prefix,
+                            ui_state,
                         );
                     }
                     // for root in &controls.used_controls_root.borrow().children {
@@ -170,11 +176,9 @@ impl Ui {
                     if let Some(project) = &ui_state.project {
                         // Unwrap is safe because we know that the prefix has at least one part
                         let first = selected_control_prefix.parts.first().unwrap();
-                        ui_state.selected_chart = if first.part_type == ControlIdPartType::Chart {
-                            project
-                                .charts_by_name
-                                .get(&first.name)
-                                .and_then(|c| Some(c.clone()))
+                        ui_state.selected_chart_id = if first.part_type == ControlIdPartType::Chart
+                        {
+                            Some(first.name.clone())
                         } else {
                             None
                         };
@@ -185,7 +189,7 @@ impl Ui {
                 for child in &node.children {
                     let child = child.borrow();
                     if !child.children.is_empty() {
-                        Self::draw_control_tree_node(ui, &child, selected_control_prefix);
+                        Self::draw_control_tree_node(ui, &child, selected_control_prefix, ui_state);
                     }
                 }
             });
@@ -200,7 +204,7 @@ impl Ui {
         // An iterator that mutably borrows all used control values
         let trim_parts = selected_control_prefix.parts.len();
         let controls_borrow = controls
-            .used_controls_list
+            .used_controls
             .iter()
             .enumerate()
             .filter(|(_, c)| c.id.parts.starts_with(&selected_control_prefix.parts))
@@ -238,7 +242,7 @@ impl Ui {
         });
 
         selected.and_then(|(control_index, component_index)| {
-            Some((&controls.used_controls_list[control_index], component_index))
+            Some((&controls.used_controls[control_index], component_index))
         })
     }
 

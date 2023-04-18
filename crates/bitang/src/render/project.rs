@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct Project {
-    pub charts_by_name: HashMap<String, Rc<Chart>>,
+    pub charts_by_id: HashMap<String, Rc<Chart>>,
     pub cuts: Vec<Cut>,
 }
 
