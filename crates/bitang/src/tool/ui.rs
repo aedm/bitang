@@ -59,7 +59,6 @@ impl Ui {
         bottom_panel_height: f32,
         ui_state: &mut UiState,
     ) {
-        // ) -> Box<dyn GpuFuture> {
         let pixels_per_point = 1.15f32;
         let bottom_panel_height = bottom_panel_height / pixels_per_point;
         let spline_editor = &mut self.spline_editor;
@@ -138,9 +137,6 @@ impl Ui {
                             ui_state,
                         );
                     }
-                    // for root in &controls.used_controls_root.borrow().children {
-                    //     Self::draw_control_tree_node(ui, &root.borrow(), selected_control_prefix);
-                    // }
                 })
             });
         });

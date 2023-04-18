@@ -70,13 +70,11 @@ impl ResourceRepository {
             || (self.cached_root.is_none() && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
         {
             let now = Instant::now();
-            // self.control_repository.borrow_mut().reset_usage_collector();
             let result = self.load_project(context);
             self.file_hash_cache.borrow_mut().update_watchers();
             match result {
                 Ok(project) => {
                     self.cached_root = Some(Arc::new(project));
-                    // self.control_repository.finish_load_cycle();
                     info!("Loading took {:?}", now.elapsed());
                 }
                 Err(err) => {
@@ -108,15 +106,12 @@ impl ResourceRepository {
 
     pub fn load_chart(&mut self, id: &str, context: &VulkanContext) -> Result<Chart> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
-        // let current_directory = format!("{CHARTS_FOLDER}/{id}");
-        // let path = format!("/{current_directory}/{CHART_FILE_NAME}");
         let chart = self.chart_file_cache.get_or_load(context, &path)?.clone();
         chart.load(id, context, self, &path)
     }
 
     pub fn load_project(&mut self, context: &VulkanContext) -> Result<Project> {
         let path = ResourcePath::new("", PROJECT_FILE_NAME);
-        // let path = format!("/{PROJECT_FILE_NAME}");
         let project = self.project_file_cache.get_or_load(context, &path)?.clone();
         project.load(context, self)
     }

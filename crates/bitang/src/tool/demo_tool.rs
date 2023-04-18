@@ -202,16 +202,6 @@ impl VulkanApp for DemoTool {
 
             // If the last render failed, stop rendering until the user changes the document
             if !self.has_render_failure {
-                // if let Some(project) = &self.ui_state.project {
-                //     if let Some(chart_id) = &self.ui_state.selected_chart_id {
-                //         if let Some(chart) = project.charts_by_id.get(chart_id) {
-                //             if let Err(err) = self.draw(&mut context, chart) {
-                //                 error!("Render failed: {}", err);
-                //                 self.has_render_failure = true;
-                //             }
-                //         }
-                //     }
-                // }
                 if self.ui_state.selected_chart_id.is_some() {
                     if let Err(err) = self.draw(&mut context) {
                         error!("Render failed: {}", err);
