@@ -6,7 +6,7 @@ use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;
 use egui_winit_vulkano::Gui;
 use std::rc::Rc;
-use tracing::error;
+use tracing::{debug, error};
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::image::ImageViewAbstract;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
@@ -16,7 +16,6 @@ pub struct Ui {
     pub gui: Gui,
     pub subpass: Subpass,
     spline_editor: SplineEditor,
-    selected_control_prefix: ControlId,
 }
 
 impl Ui {
@@ -49,7 +48,6 @@ impl Ui {
             gui,
             subpass,
             spline_editor,
-            selected_control_prefix: ControlId::default(),
         })
     }
 
@@ -62,7 +60,6 @@ impl Ui {
         let pixels_per_point = 1.15f32;
         let bottom_panel_height = bottom_panel_height / pixels_per_point;
         let spline_editor = &mut self.spline_editor;
-        let selected_control_prefix = &mut self.selected_control_prefix;
         self.gui.immediate_ui(|gui| {
             let ctx = gui.context();
             ctx.set_pixels_per_point(pixels_per_point);
@@ -71,11 +68,11 @@ impl Ui {
                 .show(&ctx, |ui| {
                     ui.add_space(5.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                        Self::draw_control_tree(ui, ui_state, selected_control_prefix);
+                        Self::draw_control_tree(ui, ui_state);
                         ui.separator();
-                        if let Some(controls) = ui_state.get_control_set() {
+                        if let Some(controls) = ui_state.get_current_chart_control_set() {
                             if let Some((control, component_index)) =
-                                Self::draw_control_sliders(ui, &controls, selected_control_prefix)
+                                Self::draw_control_sliders(ui, ui_state, &controls)
                             {
                                 spline_editor.set_control(control, component_index);
                             }
@@ -114,11 +111,7 @@ impl Ui {
         }
     }
 
-    fn draw_control_tree(
-        ui: &mut egui::Ui,
-        ui_state: &mut UiState,
-        selected_control_prefix: &mut ControlId,
-    ) {
+    fn draw_control_tree(ui: &mut egui::Ui, ui_state: &mut UiState) {
         let Some(project) = &ui_state.project else {
             return
         };
@@ -129,11 +122,11 @@ impl Ui {
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                     ui.set_min_width(150.0);
                     ui.label("Charts");
+                    Self::draw_control_tree_project_node(ui, ui_state);
                     for (_name, chart) in &project.charts_by_id {
                         Self::draw_control_tree_node(
                             ui,
                             &chart.controls.root_node.borrow(),
-                            selected_control_prefix,
                             ui_state,
                         );
                     }
@@ -142,17 +135,28 @@ impl Ui {
         });
     }
 
-    fn draw_control_tree_node(
-        ui: &mut egui::Ui,
-        node: &UsedControlsNode,
-        selected_control_prefix: &mut ControlId,
-        ui_state: &mut UiState,
-    ) {
-        let id_str = format!("{}", node.id_prefix);
+    fn draw_control_tree_project_node(ui: &mut egui::Ui, ui_state: &mut UiState) {
+        let id = ui.make_persistent_id("node:project");
+        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
+            .show_header(ui, |ui| {
+                let selected = ui_state.selected_control_id.parts.is_empty();
+                let mut new_selected = selected;
+                ui.toggle_value(&mut new_selected, "📁 Project");
+                if new_selected && !selected {
+                    if ui_state.project.is_some() {
+                        ui_state.selected_control_id = ControlId::default();
+                    }
+                }
+            })
+            .body(|_ui| ());
+    }
+
+    fn draw_control_tree_node(ui: &mut egui::Ui, node: &UsedControlsNode, ui_state: &mut UiState) {
+        let id_str = format!("node:{}", node.id_prefix);
         let id = ui.make_persistent_id(&id_str);
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
             .show_header(ui, |ui| {
-                let selected = selected_control_prefix == &node.id_prefix;
+                let selected = ui_state.selected_control_id == node.id_prefix;
                 let mut new_selected = selected;
                 // Unwrap is safe because we know that the prefix has at least one part
                 let control_id_part = &node.id_prefix.parts.last().unwrap();
@@ -168,24 +172,14 @@ impl Ui {
                     format!("{} {}", icon, control_id_part.name),
                 );
                 if new_selected && !selected {
-                    *selected_control_prefix = node.id_prefix.clone();
-                    if ui_state.project.is_some() {
-                        // Unwrap is safe because we know that the prefix has at least one part
-                        let first = selected_control_prefix.parts.first().unwrap();
-                        ui_state.selected_chart_id = if first.part_type == ControlIdPartType::Chart
-                        {
-                            Some(first.name.clone())
-                        } else {
-                            None
-                        };
-                    }
+                    ui_state.selected_control_id = node.id_prefix.clone();
                 }
             })
             .body(|ui| {
                 for child in &node.children {
                     let child = child.borrow();
                     if !child.children.is_empty() {
-                        Self::draw_control_tree_node(ui, &child, selected_control_prefix, ui_state);
+                        Self::draw_control_tree_node(ui, &child, ui_state);
                     }
                 }
             });
@@ -194,16 +188,16 @@ impl Ui {
     // Returns the spline that was activated
     fn draw_control_sliders<'a>(
         ui: &mut egui::Ui,
+        ui_state: &mut UiState,
         controls: &'a ControlSet,
-        selected_control_prefix: &mut ControlId,
     ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
-        let trim_parts = selected_control_prefix.parts.len();
+        let trim_parts = ui_state.selected_control_id.parts.len();
         let controls_borrow = controls
             .used_controls
             .iter()
             .enumerate()
-            .filter(|(_, c)| c.id.parts.starts_with(&selected_control_prefix.parts))
+            .filter(|(_, c)| c.id.parts.starts_with(&ui_state.selected_control_id.parts))
             .map(|(index, c)| {
                 let name = c.id.parts[trim_parts..]
                     .iter()

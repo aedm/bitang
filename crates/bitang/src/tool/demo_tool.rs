@@ -1,4 +1,5 @@
 use crate::control::controls::{ControlRepository, ControlSet};
+use crate::control::{ControlId, ControlIdPartType};
 use crate::file::resource_repository::ResourceRepository;
 use crate::render::chart::Chart;
 use crate::render::project::Project;
@@ -33,7 +34,7 @@ pub struct DemoTool {
 
 pub struct UiState {
     pub project: Option<Arc<Project>>,
-    pub selected_chart_id: Option<String>,
+    pub selected_control_id: ControlId,
     pub time: f32,
     pub is_playing: bool,
     pub control_repository: Rc<RefCell<ControlRepository>>,
@@ -41,15 +42,18 @@ pub struct UiState {
 
 impl UiState {
     pub fn get_chart(&self) -> Option<Rc<Chart>> {
-        self.project.as_ref().and_then(|project| {
-            self.selected_chart_id
-                .as_ref()
-                .and_then(|chart_id| project.charts_by_id.get(chart_id))
-                .cloned()
-        })
+        let id_first = self.selected_control_id.parts.first();
+        if let Some(project) = &self.project {
+            if let Some(id_first) = id_first {
+                if id_first.part_type == ControlIdPartType::Chart {
+                    return project.charts_by_id.get(&id_first.name).cloned();
+                }
+            }
+        }
+        None
     }
 
-    pub fn get_control_set(&self) -> Option<Rc<ControlSet>> {
+    pub fn get_current_chart_control_set(&self) -> Option<Rc<ControlSet>> {
         self.get_chart()
             .and_then(|chart| Some(chart.controls.clone()))
     }
@@ -65,9 +69,9 @@ impl DemoTool {
         let ui_state = UiState {
             time: 5.0,
             is_playing: false,
-            selected_chart_id: None,
             project,
             control_repository: resource_repository.control_repository.clone(),
+            selected_control_id: ControlId::default(),
         };
 
         let demo_tool = DemoTool {
@@ -83,16 +87,13 @@ impl DemoTool {
     }
 
     pub fn draw(&mut self, context: &mut RenderContext) -> Result<()> {
-        let Some(project) = &self.ui_state.project else {
-            return Err(anyhow!("No project loaded"));
-        };
-        let Some(chart_id) = &self.ui_state.selected_chart_id else {
-            return Err(anyhow!("No chart selected"))
-        };
-        let Some(chart) = project.charts_by_id.get(chart_id) else {
-            return Err(anyhow!("No chart found"));
-        };
+        match self.ui_state.get_chart() {
+            Some(chart) => self.draw_chart(&chart, context),
+            None => self.draw_project(context),
+        }
+    }
 
+    fn draw_chart(&mut self, chart: &Chart, context: &mut RenderContext) -> Result<()> {
         let elapsed = self.start_time.elapsed().as_secs_f32();
 
         if self.ui_state.is_playing {
@@ -101,7 +102,7 @@ impl DemoTool {
 
         // Evaluate control splines
         if self.last_eval_time != self.ui_state.time {
-            if let Some(control_set) = self.ui_state.get_control_set() {
+            if let Some(control_set) = self.ui_state.get_current_chart_control_set() {
                 self.last_eval_time = self.ui_state.time;
                 for control in &control_set.used_controls {
                     control.evaluate_splines(self.ui_state.time);
@@ -132,6 +133,53 @@ impl DemoTool {
         context.globals.camera_from_model = camera_from_model;
 
         chart.render(context)
+    }
+
+    fn draw_project(&mut self, context: &mut RenderContext) -> Result<()> {
+        let Some(project) = &self.ui_state.project else {
+            return Err(anyhow!("No project loaded"));
+        };
+
+        let elapsed = self.start_time.elapsed().as_secs_f32();
+
+        if self.ui_state.is_playing {
+            self.ui_state.time = self.play_start_time.elapsed().as_secs_f32();
+        }
+
+        let viewport = &context.screen_viewport;
+        // We use a left-handed, y-up coordinate system.
+        // Vulkan uses y-down, so we need to flip it back.
+        let camera_from_world = Mat4::look_at_lh(
+            Vec3::new(0.0, 0.0, -3.0),
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(0.0, -1.0, 0.0),
+        );
+        let world_from_model = Mat4::from_rotation_y(elapsed);
+
+        // Vulkan uses a [0,1] depth range, ideal for infinite far plane
+        let projection_from_camera = Mat4::perspective_infinite_lh(
+            PI / 2.0,
+            viewport.dimensions[0] / viewport.dimensions[1],
+            0.1,
+        );
+        let projection_from_model = projection_from_camera * camera_from_world * world_from_model;
+        let camera_from_model = camera_from_world * world_from_model;
+
+        context.globals.projection_from_model = projection_from_model;
+        context.globals.camera_from_model = camera_from_model;
+
+        // Evaluate control splines and draw charts
+        let time = self.ui_state.time;
+        for cut in &project.cuts {
+            if cut.start_time <= time && time <= cut.end_time {
+                for control in &cut.chart.controls.used_controls {
+                    let chart_time = time - cut.start_time + cut.offset;
+                    control.evaluate_splines(chart_time);
+                }
+                cut.chart.render(context)?
+            }
+        }
+        Ok(())
     }
 }
 
@@ -202,11 +250,9 @@ impl VulkanApp for DemoTool {
 
             // If the last render failed, stop rendering until the user changes the document
             if !self.has_render_failure {
-                if self.ui_state.selected_chart_id.is_some() {
-                    if let Err(err) = self.draw(&mut context) {
-                        error!("Render failed: {}", err);
-                        self.has_render_failure = true;
-                    }
+                if let Err(err) = self.draw(&mut context) {
+                    error!("Render failed: {}", err);
+                    self.has_render_failure = true;
                 }
             }
 
@@ -219,7 +265,14 @@ impl VulkanApp for DemoTool {
 
             // Start playing
             if self.ui_state.is_playing && !is_playing {
-                self.play_start_time = Instant::now() - Duration::from_secs_f32(self.ui_state.time);
+                // Duration is always positive
+                if self.ui_state.time >= 0. {
+                    self.play_start_time =
+                        Instant::now() - Duration::from_secs_f32(self.ui_state.time);
+                } else {
+                    self.play_start_time =
+                        Instant::now() + Duration::from_secs_f32(-self.ui_state.time);
+                }
             }
         }
 
