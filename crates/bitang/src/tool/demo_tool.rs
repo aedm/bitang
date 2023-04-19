@@ -108,6 +108,7 @@ impl DemoTool {
                 }
             }
         }
+        context.globals.chart_time = self.ui_state.time;
         chart.render(context)
     }
 
@@ -120,10 +121,11 @@ impl DemoTool {
         let time = self.ui_state.time;
         for cut in &project.cuts {
             if cut.start_time <= time && time <= cut.end_time {
+                let chart_time = time - cut.start_time + cut.offset;
                 for control in &cut.chart.controls.used_controls {
-                    let chart_time = time - cut.start_time + cut.offset;
                     control.evaluate_splines(chart_time);
                 }
+                context.globals.chart_time = chart_time;
                 cut.chart.render(context)?
             }
         }
@@ -195,6 +197,7 @@ impl VulkanApp for DemoTool {
                 depth_buffer: depth_image,
                 globals: Default::default(),
             };
+            context.globals.app_time = self.start_time.elapsed().as_secs_f32();
 
             // If the last render failed, stop rendering until the user changes the document
             if !self.has_render_failure {
