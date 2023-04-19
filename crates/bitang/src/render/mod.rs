@@ -6,15 +6,15 @@ pub mod render_target;
 pub mod render_unit;
 pub mod vulkan_window;
 
-use std::rc::Rc;
+use crate::control::controls::Control;
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
+use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::image::view::ImageView;
 use vulkano::image::ImmutableImage;
-use crate::control::controls::Control;
 
 #[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
@@ -37,4 +37,5 @@ pub struct RenderObject {
     pub material: Material,
     pub position: Rc<Control>,
     pub rotation: Rc<Control>,
+    pub instances: Rc<Control>,
 }

@@ -90,7 +90,13 @@ impl RenderUnit {
         ) else {
             panic!("RenderUnitStep and MaterialStep mismatch");
         };
-        let result = component.render(context, material_step, &self.render_object.mesh);
+        let instance_count = self.render_object.instances.as_float().round() as u32;
+        let result = component.render(
+            context,
+            material_step,
+            &self.render_object.mesh,
+            instance_count,
+        );
         context.globals = saved_globals;
 
         result
@@ -172,6 +178,7 @@ impl RenderUnitStep {
         context: &mut RenderContext,
         material_step: &MaterialStep,
         mesh: &Mesh,
+        instance_count: u32,
     ) -> Result<()> {
         let descriptor_set_layouts = self.pipeline.layout().set_layouts();
         let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
@@ -205,7 +212,7 @@ impl RenderUnitStep {
                 fragment_descriptor_set,
             )
             .bind_vertex_buffers(0, mesh.vertex_buffer.clone())
-            .draw(mesh.vertex_buffer.len() as u32, 1, 0, 0)?;
+            .draw(mesh.vertex_buffer.len() as u32, instance_count, 0, 0)?;
         Ok(())
     }
 }

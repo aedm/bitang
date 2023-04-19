@@ -239,12 +239,15 @@ impl Object {
 
         let position_id = control_id.add(ControlIdPartType::Value, "position");
         let rotation_id = control_id.add(ControlIdPartType::Value, "rotation");
+        let instances_id = control_id.add(ControlIdPartType::Value, "instances");
 
         let object = render::RenderObject {
             id: self.id.clone(),
             mesh,
             position: control_set_builder.get_control(&position_id),
             rotation: control_set_builder.get_control(&rotation_id),
+            instances: control_set_builder
+                .get_control_with_default(&instances_id, &[1., 0., 0., 0.]),
             material,
         };
         Ok(Arc::new(object))
