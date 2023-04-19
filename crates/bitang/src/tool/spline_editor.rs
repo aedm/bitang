@@ -147,9 +147,17 @@ impl SplineEditor {
                         let point = &mut spline.points[index];
                         ui.horizontal(|ui| {
                             ui.label("Time:");
-                            ui.add(egui::DragValue::new(&mut point.time).speed(0.01));
+                            ui.add(
+                                egui::DragValue::new(&mut point.time)
+                                    .speed(0.01)
+                                    .max_decimals(6),
+                            );
                             ui.label("Value:");
-                            ui.add(egui::DragValue::new(&mut point.value).speed(0.01));
+                            ui.add(
+                                egui::DragValue::new(&mut point.value)
+                                    .speed(0.01)
+                                    .max_decimals(6),
+                            );
                         });
                     }
                 }
