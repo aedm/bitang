@@ -1,3 +1,5 @@
+use crate::control::controls::Control;
+use crate::control::{ControlId, ControlIdPartType};
 use crate::render::material::{
     MaterialStep, MaterialStepType, SamplerSource, Shader, ShaderKind, MATERIAL_STEP_COUNT,
 };
@@ -5,7 +7,9 @@ use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::{RenderObject, Vertex3};
 use anyhow::{Context, Result};
+use glam::{EulerRot, Mat4};
 use std::mem::size_of;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::{array, mem};
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
@@ -76,6 +80,9 @@ impl RenderUnit {
         context: &mut RenderContext,
         material_step_type: MaterialStepType,
     ) -> Result<()> {
+        let saved_globals = context.globals.clone();
+        self.apply_transformations(context);
+
         let index = material_step_type as usize;
         let (Some(component), Some(material_step)) = (
             &self.steps[index],
@@ -83,7 +90,21 @@ impl RenderUnit {
         ) else {
             panic!("RenderUnitStep and MaterialStep mismatch");
         };
-        component.render(context, material_step, &self.render_object.mesh)
+        let result = component.render(context, material_step, &self.render_object.mesh);
+        context.globals = saved_globals;
+
+        result
+    }
+
+    fn apply_transformations(&self, context: &mut RenderContext) {
+        let rotation = self.render_object.rotation.as_vec3();
+        let rotation_matrix = Mat4::from_euler(EulerRot::ZXY, rotation.z, rotation.x, rotation.y);
+
+        let position = self.render_object.position.as_vec3();
+        let translation_matrix = Mat4::from_translation(position);
+
+        context.globals.world_from_model = translation_matrix * rotation_matrix;
+        context.globals.update_compound_matrices();
     }
 }
 

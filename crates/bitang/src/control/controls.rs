@@ -239,11 +239,14 @@ impl GlobalType {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone, Debug)]
 pub struct Globals {
     pub app_time: f32,
     pub projection_from_model: Mat4,
     pub camera_from_model: Mat4,
+    pub projection_from_camera: Mat4,
+    pub camera_from_world: Mat4,
+    pub world_from_model: Mat4,
 }
 
 impl Globals {
@@ -253,5 +256,11 @@ impl Globals {
             GlobalType::ProjectionFromModel => self.projection_from_model.as_ref(),
             GlobalType::CameraFromModel => self.camera_from_model.as_ref(),
         }
+    }
+
+    pub fn update_compound_matrices(&mut self) {
+        self.projection_from_model =
+            self.projection_from_camera * self.camera_from_world * self.world_from_model;
+        self.camera_from_model = self.camera_from_world * self.world_from_model;
     }
 }
