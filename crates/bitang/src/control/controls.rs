@@ -6,7 +6,7 @@ use crate::file::ROOT_FOLDER;
 use crate::render::project::Project;
 use anyhow::Result;
 use anyhow::{anyhow, Context};
-use glam::Mat4;
+use glam::{Mat4, Vec3};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -89,7 +89,19 @@ impl ControlSetBuilder {
     }
 
     pub fn get_control(&mut self, id: &ControlId) -> Rc<Control> {
-        let control = self.control_repository.borrow_mut().get_control(id);
+        let control = self
+            .control_repository
+            .borrow_mut()
+            .get_control(id, &[0.0; 4]);
+        self.used_controls.insert(RcHashRef(control.clone()));
+        control
+    }
+
+    pub fn get_control_with_default(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
+        let control = self
+            .control_repository
+            .borrow_mut()
+            .get_control(id, default);
         self.used_controls.insert(RcHashRef(control.clone()));
         control
     }
@@ -106,11 +118,11 @@ struct SerializedControls {
 }
 
 impl ControlRepository {
-    fn get_control(&mut self, id: &ControlId) -> Rc<Control> {
+    fn get_control(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
         if let Some(x) = self.by_id.get(id) {
             return x.clone();
         }
-        let control = Rc::new(Control::new(id.clone()));
+        let control = Rc::new(Control::new(id.clone(), default));
         self.by_id.insert(id.clone(), control.clone());
         control
     }
@@ -178,12 +190,11 @@ pub struct ControlComponent {
 }
 
 impl Control {
-    pub fn new(id: ControlId) -> Self {
+    pub fn new(id: ControlId, value: &[f32; 4]) -> Self {
         Self {
             id,
-            // value: RefCell::new(ControlValue::Scalars([0.0; 4])),
-            components: RefCell::new(array::from_fn(|_| ControlComponent {
-                value: 0.0,
+            components: RefCell::new(array::from_fn(|i| ControlComponent {
+                value: value[i],
                 spline: Spline::new(),
                 use_spline: false,
             })),
@@ -197,6 +208,15 @@ impl Control {
                 component.value = component.spline.get_value(time);
             }
         }
+    }
+
+    pub fn as_vec3(&self) -> Vec3 {
+        let components = self.components.borrow();
+        Vec3::new(
+            components[0].value,
+            components[1].value,
+            components[2].value,
+        )
     }
 }
 

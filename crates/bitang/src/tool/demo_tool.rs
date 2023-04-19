@@ -87,6 +87,10 @@ impl DemoTool {
     }
 
     pub fn draw(&mut self, context: &mut RenderContext) -> Result<()> {
+        if self.ui_state.is_playing {
+            self.ui_state.time = self.play_start_time.elapsed().as_secs_f32();
+        }
+
         match self.ui_state.get_chart() {
             Some(chart) => self.draw_chart(&chart, context),
             None => self.draw_project(context),
@@ -94,14 +98,9 @@ impl DemoTool {
     }
 
     fn draw_chart(&mut self, chart: &Chart, context: &mut RenderContext) -> Result<()> {
-        let elapsed = self.start_time.elapsed().as_secs_f32();
-
-        if self.ui_state.is_playing {
-            self.ui_state.time = self.play_start_time.elapsed().as_secs_f32();
-        }
-
         // Evaluate control splines
-        if self.last_eval_time != self.ui_state.time {
+        let should_evaluate = true;
+        if should_evaluate {
             if let Some(control_set) = self.ui_state.get_current_chart_control_set() {
                 self.last_eval_time = self.ui_state.time;
                 for control in &control_set.used_controls {
@@ -109,29 +108,6 @@ impl DemoTool {
                 }
             }
         }
-
-        let viewport = &context.screen_viewport;
-        // We use a left-handed, y-up coordinate system.
-        // Vulkan uses y-down, so we need to flip it back.
-        let camera_from_world = Mat4::look_at_lh(
-            Vec3::new(0.0, 0.0, -3.0),
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(0.0, -1.0, 0.0),
-        );
-        let world_from_model = Mat4::from_rotation_y(elapsed);
-
-        // Vulkan uses a [0,1] depth range, ideal for infinite far plane
-        let projection_from_camera = Mat4::perspective_infinite_lh(
-            PI / 2.0,
-            viewport.dimensions[0] / viewport.dimensions[1],
-            0.1,
-        );
-        let projection_from_model = projection_from_camera * camera_from_world * world_from_model;
-        let camera_from_model = camera_from_world * world_from_model;
-
-        context.globals.projection_from_model = projection_from_model;
-        context.globals.camera_from_model = camera_from_model;
-
         chart.render(context)
     }
 
@@ -139,34 +115,6 @@ impl DemoTool {
         let Some(project) = &self.ui_state.project else {
             return Err(anyhow!("No project loaded"));
         };
-
-        let elapsed = self.start_time.elapsed().as_secs_f32();
-
-        if self.ui_state.is_playing {
-            self.ui_state.time = self.play_start_time.elapsed().as_secs_f32();
-        }
-
-        let viewport = &context.screen_viewport;
-        // We use a left-handed, y-up coordinate system.
-        // Vulkan uses y-down, so we need to flip it back.
-        let camera_from_world = Mat4::look_at_lh(
-            Vec3::new(0.0, 0.0, -3.0),
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(0.0, -1.0, 0.0),
-        );
-        let world_from_model = Mat4::from_rotation_y(elapsed);
-
-        // Vulkan uses a [0,1] depth range, ideal for infinite far plane
-        let projection_from_camera = Mat4::perspective_infinite_lh(
-            PI / 2.0,
-            viewport.dimensions[0] / viewport.dimensions[1],
-            0.1,
-        );
-        let projection_from_model = projection_from_camera * camera_from_world * world_from_model;
-        let camera_from_model = camera_from_world * world_from_model;
-
-        context.globals.projection_from_model = projection_from_model;
-        context.globals.camera_from_model = camera_from_model;
 
         // Evaluate control splines and draw charts
         let time = self.ui_state.time;

@@ -4,13 +4,15 @@ use crate::render::material::MaterialStepType;
 use crate::render::render_target::{Pass, RenderTarget};
 use crate::render::vulkan_window::RenderContext;
 use anyhow::Result;
+use glam::Mat4;
+use std::f32::consts::PI;
 use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct Chart {
     pub id: String,
     pub controls: Rc<ControlSet>,
-    _camera: Camera,
+    camera: Camera,
     render_targets: Vec<Arc<RenderTarget>>,
     pub passes: Vec<Pass>,
 }
@@ -30,7 +32,7 @@ impl Chart {
         let controls = Rc::new(control_set_builder.into_control_set());
         Chart {
             id: id.to_string(),
-            _camera,
+            camera: _camera,
             render_targets,
             passes,
             controls,
@@ -41,6 +43,9 @@ impl Chart {
         for render_target in &self.render_targets {
             render_target.ensure_buffer(context)?;
         }
+
+        self.camera.set(context);
+
         for pass in &self.passes {
             pass.render(context, MaterialStepType::Solid)?;
         }
@@ -49,20 +54,46 @@ impl Chart {
 }
 
 struct Camera {
-    _position: Rc<Control>,
-    _target: Rc<Control>,
-    _up: Rc<Control>,
+    position: Rc<Control>,
+    target: Rc<Control>,
+    up: Rc<Control>,
 }
 
 impl Camera {
-    fn new(control_set_builder: &mut ControlSetBuilder, control_prefix: &ControlId) -> Self {
+    fn new(control_set_builder: &mut ControlSetBuilder, parent_id: &ControlId) -> Self {
+        let position_id = parent_id.add(ControlIdPartType::Value, "position");
+        let target_id = parent_id.add(ControlIdPartType::Value, "target");
+        let up_id = parent_id.add(ControlIdPartType::Value, "up");
         Camera {
-            _position: control_set_builder
-                .get_control(&control_prefix.add(ControlIdPartType::Value, "position")),
-            _target: control_set_builder
-                .get_control(&control_prefix.add(ControlIdPartType::Value, "target")),
-            _up: control_set_builder
-                .get_control(&control_prefix.add(ControlIdPartType::Value, "up")),
+            position: control_set_builder
+                .get_control_with_default(&position_id, &[0.0, 0.0, -3.0, 0.0]),
+            target: control_set_builder.get_control_with_default(&target_id, &[0.0, 0.0, 0.0, 0.0]),
+            up: control_set_builder.get_control_with_default(&up_id, &[0.0, -1.0, 0.0, 0.0]),
         }
+    }
+
+    pub fn set(&self, context: &mut RenderContext) {
+        let viewport = &context.screen_viewport;
+
+        // We use a left-handed, y-up coordinate system.
+        // Vulkan uses y-down, so we need to flip it back.
+        let camera_from_world = Mat4::look_at_lh(
+            self.position.as_vec3(),
+            self.target.as_vec3(),
+            self.up.as_vec3(),
+        );
+        let world_from_model = Mat4::from_rotation_y(0.);
+
+        // Vulkan uses a [0,1] depth range, ideal for infinite far plane
+        let projection_from_camera = Mat4::perspective_infinite_lh(
+            PI / 2.0,
+            viewport.dimensions[0] / viewport.dimensions[1],
+            0.1,
+        );
+        let projection_from_model = projection_from_camera * camera_from_world * world_from_model;
+        let camera_from_model = camera_from_world * world_from_model;
+
+        context.globals.projection_from_model = projection_from_model;
+        context.globals.camera_from_model = camera_from_model;
     }
 }

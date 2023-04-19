@@ -6,7 +6,7 @@ use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;
 use egui_winit_vulkano::Gui;
 use std::rc::Rc;
-use tracing::{debug, error};
+use tracing::{error};
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::image::ImageViewAbstract;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
@@ -217,8 +217,10 @@ impl Ui {
                         let component = &mut components[i];
                         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                             ui.add_sized(
-                                [330.0, 0.0],
-                                egui::Slider::new(&mut component.value, 0.0..=1.0),
+                                [350.0, 0.0],
+                                egui::Slider::new(&mut component.value, 0.0..=1.0)
+                                    .clamp_to_range(false)
+                                    .max_decimals(3),
                             );
 
                             if ui.button("✏").clicked() {
