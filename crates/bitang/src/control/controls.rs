@@ -210,6 +210,10 @@ impl Control {
         }
     }
 
+    pub fn as_float(&self) -> f32 {
+        self.components.borrow()[0].value
+    }
+
     pub fn as_vec3(&self) -> Vec3 {
         let components = self.components.borrow();
         Vec3::new(
