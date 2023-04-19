@@ -44,16 +44,14 @@ impl Chart {
             render_target.ensure_buffer(context)?;
         }
 
-        self.camera.set(context);
-
         for pass in &self.passes {
-            pass.render(context, MaterialStepType::Solid)?;
+            pass.render(context, MaterialStepType::Solid, &self.camera)?;
         }
         Ok(())
     }
 }
 
-struct Camera {
+pub struct Camera {
     position: Rc<Control>,
     target: Rc<Control>,
     up: Rc<Control>,
@@ -72,13 +70,13 @@ impl Camera {
         }
     }
 
-    pub fn set(&self, context: &mut RenderContext) {
+    pub fn set(&self, context: &mut RenderContext, render_target_size: [f32; 2]) {
         // Vulkan uses a [0,1] depth range, ideal for infinite far plane
-        // FIXME: use the actual viewport, not the screen viewport
-        let viewport = &context.screen_viewport;
+        let aspect_ratio = render_target_size[0] as f32 / render_target_size[1] as f32;
         context.globals.projection_from_camera = Mat4::perspective_infinite_lh(
             PI / 2.0,
-            viewport.dimensions[0] / viewport.dimensions[1],
+            aspect_ratio,
+            // viewport.dimensions[0] / viewport.dimensions[1],
             0.1,
         );
 

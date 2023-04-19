@@ -1,3 +1,4 @@
+use crate::render::chart::Camera;
 use crate::render::material::MaterialStepType;
 use crate::render::render_unit::RenderUnit;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
@@ -49,6 +50,7 @@ impl Pass {
         &self,
         context: &mut RenderContext,
         material_step_type: MaterialStepType,
+        camera: &Camera,
     ) -> Result<()> {
         if self.render_targets.is_empty() {
             return Err(anyhow!("Pass '{}' has no render targets", self.id));
@@ -61,6 +63,7 @@ impl Pass {
             .with_context(|| format!("Render target '{}' has no image", self.render_targets[0].id))?
             .texture_size;
 
+        // Check that all render targets have the same size
         for render_target in &self.render_targets {
             if render_target
                 .image
@@ -86,6 +89,7 @@ impl Pass {
                 depth_range: 0.0..1.0,
             }
         };
+        camera.set(context, viewport.dimensions);
 
         let attachments = self
             .render_targets
