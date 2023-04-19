@@ -6,6 +6,7 @@ pub mod render_target;
 pub mod render_unit;
 pub mod vulkan_window;
 
+use std::rc::Rc;
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
 use bytemuck::{Pod, Zeroable};
@@ -13,6 +14,7 @@ use glam::Vec3;
 use std::sync::Arc;
 use vulkano::image::view::ImageView;
 use vulkano::image::ImmutableImage;
+use crate::control::controls::Control;
 
 #[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
@@ -32,7 +34,7 @@ pub type Texture = ImageView<ImmutableImage>;
 pub struct RenderObject {
     pub id: String,
     pub mesh: Arc<Mesh>,
-    pub position: Vec3,
-    pub rotation: Vec3,
     pub material: Material,
+    pub position: Rc<Control>,
+    pub rotation: Rc<Control>,
 }

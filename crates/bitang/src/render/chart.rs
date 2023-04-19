@@ -73,27 +73,24 @@ impl Camera {
     }
 
     pub fn set(&self, context: &mut RenderContext) {
-        let viewport = &context.screen_viewport;
-
-        // We use a left-handed, y-up coordinate system.
-        // Vulkan uses y-down, so we need to flip it back.
-        let camera_from_world = Mat4::look_at_lh(
-            self.position.as_vec3(),
-            self.target.as_vec3(),
-            self.up.as_vec3(),
-        );
-        let world_from_model = Mat4::from_rotation_y(0.);
-
         // Vulkan uses a [0,1] depth range, ideal for infinite far plane
-        let projection_from_camera = Mat4::perspective_infinite_lh(
+        // FIXME: use the actual viewport, not the screen viewport
+        let viewport = &context.screen_viewport;
+        context.globals.projection_from_camera = Mat4::perspective_infinite_lh(
             PI / 2.0,
             viewport.dimensions[0] / viewport.dimensions[1],
             0.1,
         );
-        let projection_from_model = projection_from_camera * camera_from_world * world_from_model;
-        let camera_from_model = camera_from_world * world_from_model;
 
-        context.globals.projection_from_model = projection_from_model;
-        context.globals.camera_from_model = camera_from_model;
+        // We use a left-handed, y-up coordinate system.
+        // Vulkan uses y-down, so we need to flip it back.
+        context.globals.camera_from_world = Mat4::look_at_lh(
+            self.position.as_vec3(),
+            self.target.as_vec3(),
+            self.up.as_vec3(),
+        );
+
+        context.globals.world_from_model = Mat4::IDENTITY;
+        context.globals.update_compound_matrices();
     }
 }

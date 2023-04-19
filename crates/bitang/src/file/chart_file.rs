@@ -192,14 +192,14 @@ impl RenderTargetRole {
 impl Object {
     pub fn load(
         &self,
-        control_prefix: &ControlId,
+        parent_id: &ControlId,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
         control_set_builder: &mut ControlSetBuilder,
         render_targets: &HashMap<String, Arc<render::render_target::RenderTarget>>,
         path: &ResourcePath,
     ) -> Result<Arc<render::RenderObject>> {
-        let control_prefix = control_prefix.add(ControlIdPartType::Object, &self.id);
+        let control_id = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh = resource_repository
             .get_mesh(context, &path.relative_path(&self.mesh_path))?
             .clone();
@@ -229,7 +229,7 @@ impl Object {
             context,
             resource_repository,
             control_set_builder,
-            &control_prefix,
+            &control_id,
             &sampler_sources,
             path,
         )?;
@@ -237,11 +237,14 @@ impl Object {
             passes: [None, None, Some(solid_step)],
         };
 
+        let position_id = control_id.add(ControlIdPartType::Value, "position");
+        let rotation_id = control_id.add(ControlIdPartType::Value, "rotation");
+
         let object = render::RenderObject {
             id: self.id.clone(),
             mesh,
-            position: Default::default(),
-            rotation: Default::default(),
+            position: control_set_builder.get_control(&position_id),
+            rotation: control_set_builder.get_control(&rotation_id),
             material,
         };
         Ok(Arc::new(object))
