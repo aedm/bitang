@@ -67,7 +67,7 @@ impl DemoTool {
         let has_render_failure = project.is_none();
 
         let ui_state = UiState {
-            time: 5.0,
+            time: 0.0,
             is_playing: false,
             project,
             control_repository: resource_repository.control_repository.clone(),

@@ -11,6 +11,7 @@ use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 use tracing::instrument;
 
@@ -18,7 +19,12 @@ const COMMON_SHADER_FILE: &str = "common.glsl";
 
 #[derive(Debug, Deserialize)]
 pub struct Chart {
+    #[serde(default)]
     pub render_targets: Vec<RenderTarget>,
+
+    #[serde(default)]
+    pub buffer_generators: Vec<BufferGenerator>,
+
     pub passes: Vec<Pass>,
 }
 
@@ -66,6 +72,13 @@ pub enum TextureMapping {
     RenderTargetId(String),
 }
 
+#[derive(Debug, Deserialize)]
+pub struct BufferGenerator {
+    id: String,
+    size: u32,
+    generator: String,
+}
+
 impl Chart {
     pub fn load(
         &self,
@@ -88,6 +101,15 @@ impl Chart {
             })
             .collect::<HashMap<String, Arc<render::render_target::RenderTarget>>>();
 
+        let buffer_generators_by_id = self
+            .buffer_generators
+            .iter()
+            .map(|buffer_generator| {
+                let generator = buffer_generator.load(context)?;
+                Ok((buffer_generator.id.clone(), Rc::new(generator)))
+            })
+            .collect::<Result<HashMap<String, Rc<render::buffer_generator::BufferGenerator>>>>()?;
+
         let passes = self
             .passes
             .iter()
@@ -108,6 +130,16 @@ impl Chart {
         let chart =
             render::chart::Chart::new(id, &control_id, control_set_builder, render_targets, passes);
         Ok(chart)
+    }
+}
+
+impl BufferGenerator {
+    pub fn load(
+        &self,
+        context: &VulkanContext,
+    ) -> Result<render::buffer_generator::BufferGenerator> {
+        let buffer_generator = render::buffer_generator::BufferGenerator::new(self.size, context);
+        Ok(buffer_generator)
     }
 }
 
