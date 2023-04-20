@@ -60,6 +60,7 @@ pub struct ControlSet {
 pub struct ControlSetBuilder {
     control_repository: Rc<RefCell<ControlRepository>>,
     used_controls: HashSet<RcHashRef<Control>>,
+    used_control_list: Vec<Rc<Control>>,
     root_id: ControlId,
 }
 
@@ -69,6 +70,7 @@ impl ControlSetBuilder {
             root_id,
             control_repository,
             used_controls: HashSet::new(),
+            used_control_list: vec![],
         }
     }
 
@@ -78,9 +80,9 @@ impl ControlSetBuilder {
             ..UsedControlsNode::default()
         };
         let mut controls = vec![];
-        for control in &self.used_controls {
-            root_node.insert(control.0.clone());
-            controls.push(control.0.clone());
+        for control in self.used_control_list {
+            root_node.insert(control.clone());
+            controls.push(control);
         }
         ControlSet {
             used_controls: controls,
@@ -89,12 +91,7 @@ impl ControlSetBuilder {
     }
 
     pub fn get_control(&mut self, id: &ControlId) -> Rc<Control> {
-        let control = self
-            .control_repository
-            .borrow_mut()
-            .get_control(id, &[0.0; 4]);
-        self.used_controls.insert(RcHashRef(control.clone()));
-        control
+        self.get_control_with_default(id, &[0.0; 4])
     }
 
     pub fn get_control_with_default(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
@@ -102,7 +99,9 @@ impl ControlSetBuilder {
             .control_repository
             .borrow_mut()
             .get_control(id, default);
-        self.used_controls.insert(RcHashRef(control.clone()));
+        if self.used_controls.insert(RcHashRef(control.clone())) {
+            self.used_control_list.push(control.clone());
+        }
         control
     }
 }
