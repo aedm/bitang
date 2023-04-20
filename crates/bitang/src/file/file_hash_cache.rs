@@ -85,7 +85,7 @@ impl FileCache {
         self.new_watched_paths.insert(absolute_path.clone());
         let result = match self.cache_map.entry(absolute_path.clone()) {
             Vacant(e) => {
-                trace!("Reading file: '{path_string}'");
+                debug!("Reading file: '{path_string}'");
                 let source = std::fs::read(absolute_path)
                     .with_context(|| anyhow::format_err!("Failed to read file: '{path_string}'"))?;
                 let hash = hash_content(&source);

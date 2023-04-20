@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use anyhow::Context;
 use anyhow::Result;
 use blend::{Blend, Instance};
@@ -19,6 +20,10 @@ pub struct Object {
     pub rotation: [f32; 3],
     pub scale: [f32; 3],
     pub mesh: Mesh,
+}
+
+pub struct ObjectCollection {
+    pub objects_by_name: HashMap<String, Object>,
 }
 
 // This is only valid for meshes with triangular faces
@@ -123,15 +128,19 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     Some(Mesh { faces })
 }
 
-fn load_blend(blend: Blend) -> Result<Object> {
-    let mut objects = Vec::new();
+fn load_blend(blend: Blend) -> Result<ObjectCollection> {
+    let mut objects_by_name = HashMap::new();
+    let object_marker = "OB".to_string();
 
     for obj in blend.get_by_code(*b"OB") {
         let name = obj.get("id").get_string("name");
         // println!("-- name {name:?}");
-        if name != "OBHead_Low" {
+        
+        if !name.starts_with(&object_marker) {
             continue;
         }
+        let name = name[object_marker.len()..].to_string();
+        
         let _loc = obj.get_f32_vec("loc");
         let _id = obj.get("id");
         // for field in &id.fields {
@@ -154,7 +163,7 @@ fn load_blend(blend: Blend) -> Result<Object> {
             let data = obj.get("data");
 
             if let Some(mesh) = instance_to_mesh(data) {
-                objects.push(Object {
+                objects_by_name.insert(name, Object {
                     name: obj.get("id").get_string("name"),
                     location: [loc[0], loc[1], loc[2]],
                     rotation: [rot[0], rot[1], rot[2]],
@@ -175,10 +184,10 @@ fn load_blend(blend: Blend) -> Result<Object> {
         //     // println!("NAME {}: VALUE {:?}", field.0, field.1);
         // }
     }
-    objects.into_iter().next().context("No object found")
+    Ok(ObjectCollection{ objects_by_name })
 }
 
-pub fn load_blend_buffer(buffer: &[u8]) -> Result<Object> {
+pub fn load_blend_buffer(buffer: &[u8]) -> Result<ObjectCollection> {
     let blend = Blend::new(buffer);
     load_blend(blend)
 }
