@@ -8,13 +8,14 @@ use crate::render::mesh::Mesh;
 use crate::render::project::Project;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::{Texture, Vertex3};
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use bitang_utils::blend_loader::load_blend_buffer;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 };
@@ -22,10 +23,14 @@ use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 
+struct MeshCollection {
+    meshes_by_name: HashMap<String, Arc<Mesh>>,
+}
+
 pub struct ResourceRepository {
     file_hash_cache: Rc<RefCell<FileCache>>,
     texture_cache: BinaryFileCache<Arc<Texture>>,
-    mesh_cache: BinaryFileCache<Arc<Mesh>>,
+    mesh_cache: BinaryFileCache<MeshCollection>,
     chart_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
     project_file_cache: BinaryFileCache<Arc<project_file::Project>>,
 
@@ -51,7 +56,7 @@ impl ResourceRepository {
 
         Ok(Self {
             texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
-            mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh),
+            mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh_collection),
             shader_cache: ShaderCache::new(&file_hash_cache),
             chart_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
             project_file_cache: BinaryFileCache::new(&file_hash_cache, load_project_file),
@@ -79,7 +84,7 @@ impl ResourceRepository {
                 }
                 Err(err) => {
                     if self.is_first_load || has_file_changes {
-                        error!("Error loading root document: {:?}", err);
+                        error!("Error loading project: {:?}", err);
                     }
                     self.cached_root = None;
                 }
@@ -100,10 +105,23 @@ impl ResourceRepository {
     }
 
     #[instrument(skip(self, context))]
-    pub fn get_mesh(&mut self, context: &VulkanContext, path: &ResourcePath) -> Result<&Arc<Mesh>> {
-        self.mesh_cache.get_or_load(context, path)
+    pub fn get_mesh(
+        &mut self,
+        context: &VulkanContext,
+        path: &ResourcePath,
+        selector: &str,
+    ) -> Result<&Arc<Mesh>> {
+        let co = self.mesh_cache.get_or_load(context, path)?;
+        co.meshes_by_name.get(selector).with_context(|| {
+            anyhow!(
+                "Could not find mesh '{}' in '{}'",
+                selector,
+                path.to_string()
+            )
+        })
     }
 
+    #[instrument(skip(self, context))]
     pub fn load_chart(&mut self, id: &str, context: &VulkanContext) -> Result<Chart> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
         let chart = self.chart_file_cache.get_or_load(context, &path)?.clone();
@@ -118,22 +136,30 @@ impl ResourceRepository {
 }
 
 #[instrument(skip_all)]
-fn load_mesh(context: &VulkanContext, content: &[u8]) -> Result<Arc<Mesh>> {
+fn load_mesh_collection(context: &VulkanContext, content: &[u8]) -> Result<MeshCollection> {
     let blend_file = load_blend_buffer(content)?;
-    let vertices = blend_file
-        .mesh
-        .faces
-        .iter()
-        .flatten()
-        .map(|v| Vertex3 {
-            a_position: [v.0[0], v.0[1], v.0[2]],
-            a_normal: [v.1[0], v.1[1], v.1[2]],
-            a_tangent: [0.0, 0.0, 0.0],
-            a_uv: [v.2[0], v.2[1]],
-            a_padding: 0.0,
+    let meshes_by_name = blend_file
+        .objects_by_name
+        .into_iter()
+        .map(|(name, object)| {
+            let vertices = object
+                .mesh
+                .faces
+                .iter()
+                .flatten()
+                .map(|v| Vertex3 {
+                    a_position: [v.0[0], v.0[1], v.0[2]],
+                    a_normal: [v.1[0], v.1[1], v.1[2]],
+                    a_tangent: [0.0, 0.0, 0.0],
+                    a_uv: [v.2[0], v.2[1]],
+                    a_padding: 0.0,
+                })
+                .collect::<Vec<Vertex3>>();
+            let mesh = Arc::new(Mesh::try_new(context, vertices)?);
+            Ok((name, mesh))
         })
-        .collect::<Vec<Vertex3>>();
-    Ok(Arc::new(Mesh::try_new(context, vertices)?))
+        .collect::<Result<HashMap<String, Arc<Mesh>>>>()?;
+    Ok(MeshCollection { meshes_by_name })
 }
 
 #[instrument(skip_all)]

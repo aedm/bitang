@@ -51,7 +51,8 @@ pub struct Pass {
 #[derive(Debug, Deserialize)]
 pub struct Object {
     pub id: String,
-    pub mesh_path: String,
+    pub mesh_file: String,
+    pub mesh_name: String,
     pub vertex_shader: String,
     pub fragment_shader: String,
     pub depth_test: bool,
@@ -201,7 +202,11 @@ impl Object {
     ) -> Result<Arc<render::RenderObject>> {
         let control_id = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh = resource_repository
-            .get_mesh(context, &path.relative_path(&self.mesh_path))?
+            .get_mesh(
+                context,
+                &path.relative_path(&self.mesh_file),
+                &self.mesh_name,
+            )?
             .clone();
         let sampler_sources = self
             .textures

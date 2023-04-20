@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     // Set up tracing
     let fmt_layer = fmt::layer().with_target(false);
     let filter_layer = EnvFilter::try_from_default_env()
-        .or_else(|_| EnvFilter::try_new(if cfg!(debug_assertions) { "trace" } else { "info" }))?;
+        .or_else(|_| EnvFilter::try_new(if cfg!(debug_assertions) { "debug" } else { "info" }))?;
     tracing_subscriber::registry()
         .with(filter_layer)
         .with(fmt_layer)
