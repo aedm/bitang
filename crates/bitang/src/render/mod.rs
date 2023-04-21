@@ -1,3 +1,4 @@
+pub mod buffer_generator;
 pub mod chart;
 pub mod material;
 pub mod mesh;

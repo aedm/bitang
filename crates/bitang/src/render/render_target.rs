@@ -6,6 +6,7 @@ use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
 use std::cell::RefCell;
 use std::sync::Arc;
+use tracing::debug;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
@@ -121,6 +122,7 @@ impl Pass {
                 RenderTargetRole::Depth => Some(1f32.into()),
             })
             .collect::<Vec<_>>();
+
         context
             .command_builder
             .begin_render_pass(
@@ -133,11 +135,22 @@ impl Pass {
             // TODO: generate actual viewport
             .set_viewport(0, [viewport]);
 
+        let render_result = self.render_render_units(context, material_step_type);
+
+        context.command_builder.end_render_pass()?;
+
+        render_result?;
+        Ok(())
+    }
+
+    fn render_render_units(
+        &self,
+        context: &mut RenderContext,
+        material_step_type: MaterialStepType,
+    ) -> Result<()> {
         for render_unit in &self.render_units {
             render_unit.render(context, material_step_type)?;
         }
-
-        context.command_builder.end_render_pass()?;
         Ok(())
     }
 

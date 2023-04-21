@@ -27,15 +27,16 @@ pub struct ShaderCacheValue {
 #[derive(Debug)]
 pub struct ShaderCompilationResult {
     pub module: Arc<ShaderModule>,
-    pub samplers: Vec<ShaderCompilationSampler>,
+    pub samplers: Vec<ShaderCompilationResource>,
+    pub buffers: Vec<ShaderCompilationResource>,
     pub global_uniform_bindings: Vec<GlobalUniformMapping>,
     pub local_uniform_bindings: Vec<ShaderCompilationLocalUniform>,
     pub uniform_buffer_size: usize,
 }
 
-// Metadata of a texture binding extracted from the compiled shader
+// A descriptor binding extracted from the compiled shader
 #[derive(Debug)]
-pub struct ShaderCompilationSampler {
+pub struct ShaderCompilationResource {
     pub name: String,
     pub binding: u32,
 }
@@ -147,17 +148,33 @@ impl ShaderCache {
             })?;
 
         // Find all samplers
-        let samplers = descriptor_set
+        let samplers: Vec<_> = descriptor_set
             .bindings
             .iter()
             .filter(|binding| {
                 binding.descriptor_type == ReflectDescriptorType::CombinedImageSampler
             })
-            .map(|binding| ShaderCompilationSampler {
+            .map(|binding| ShaderCompilationResource {
                 name: binding.name.clone(),
                 binding: binding.binding,
             })
             .collect();
+
+        // Find all buffers
+        let buffers: Vec<_> = descriptor_set
+            .bindings
+            .iter()
+            .filter(|binding| binding.descriptor_type == ReflectDescriptorType::StorageBuffer)
+            .map(|binding| ShaderCompilationResource {
+                name: binding.name.clone(),
+                binding: binding.binding,
+            })
+            .collect();
+        debug!(
+            "Found {} samplers and {} buffers",
+            samplers.len(),
+            buffers.len()
+        );
 
         // Find the uniform block that contains all local and global uniforms
         let uniform_block = &descriptor_set
@@ -212,6 +229,7 @@ impl ShaderCache {
         let result = ShaderCompilationResult {
             module,
             samplers,
+            buffers,
             local_uniform_bindings,
             global_uniform_bindings,
             uniform_buffer_size,

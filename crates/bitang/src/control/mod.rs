@@ -36,6 +36,7 @@ pub enum ControlIdPartType {
     Camera,
     Object,
     Value,
+    BufferGenerator,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, PartialOrd, Ord)]

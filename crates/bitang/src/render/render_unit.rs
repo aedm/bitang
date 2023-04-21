@@ -1,7 +1,7 @@
 use crate::control::controls::Control;
 use crate::control::{ControlId, ControlIdPartType};
 use crate::render::material::{
-    MaterialStep, MaterialStepType, SamplerSource, Shader, ShaderKind, MATERIAL_STEP_COUNT,
+    DescriptorSource, MaterialStep, MaterialStepType, Shader, ShaderKind, MATERIAL_STEP_COUNT,
 };
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
@@ -9,9 +9,11 @@ use crate::render::{RenderObject, Vertex3};
 use anyhow::{Context, Result};
 use glam::{EulerRot, Mat4};
 use std::mem::size_of;
+use std::ptr::write;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{array, mem};
+use tracing::debug;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
 use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
@@ -180,6 +182,8 @@ impl RenderUnitStep {
         mesh: &Mesh,
         instance_count: u32,
     ) -> Result<()> {
+        context.globals.instance_count = instance_count as f32;
+
         let descriptor_set_layouts = self.pipeline.layout().set_layouts();
         let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
             context,
@@ -265,31 +269,37 @@ impl ShaderUniformStorage {
             descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
         }
 
-        for texture_binding in &shader.sampler_bindings {
-            let image_view: Arc<dyn ImageViewAbstract> = match &texture_binding.sampler_source {
-                SamplerSource::Texture(texture) => texture.clone(),
-                SamplerSource::RenderTarget(render_target) => render_target
-                    .image
-                    .borrow()
-                    .as_ref()
-                    .unwrap() // Unwrap is safe: we already checked it above
-                    .image_view
-                    .clone(),
-            };
-            let sampler = Sampler::new(
-                context.vulkan_context.context.device().clone(),
-                SamplerCreateInfo {
-                    mag_filter: Filter::Linear,
-                    min_filter: Filter::Linear,
-                    address_mode: [SamplerAddressMode::Repeat; 3],
-                    ..Default::default()
-                },
-            )?;
-            descriptors.push(WriteDescriptorSet::image_view_sampler(
-                texture_binding.descriptor_set_binding,
-                image_view,
-                sampler,
-            ));
+        for descriptor_binding in &shader.descriptor_bindings {
+            let write_descriptor_set = match &descriptor_binding.descriptor_source {
+                DescriptorSource::Texture(texture) => Self::make_sampler(
+                    context,
+                    texture.clone(),
+                    descriptor_binding.descriptor_set_binding,
+                ),
+                DescriptorSource::RenderTarget(render_target) => {
+                    let image_borrow = render_target.image.borrow();
+                    let render_target_image = image_borrow.as_ref().unwrap();
+                    let image_view = render_target_image.image_view.clone();
+                    Self::make_sampler(
+                        context,
+                        image_view,
+                        descriptor_binding.descriptor_set_binding,
+                    )
+                }
+                DescriptorSource::BufferGenerator(buffer_generator) => {
+                    let buffer = buffer_generator.get_buffer().with_context(|| {
+                        format!(
+                            "Failed to get buffer for buffer generator at binding {}",
+                            descriptor_binding.descriptor_set_binding
+                        )
+                    })?;
+                    Ok(WriteDescriptorSet::buffer(
+                        descriptor_binding.descriptor_set_binding,
+                        buffer.clone(),
+                    ))
+                }
+            }?;
+            descriptors.push(write_descriptor_set);
         }
 
         let persistent_descriptor_set = PersistentDescriptorSet::new(
@@ -299,5 +309,25 @@ impl ShaderUniformStorage {
         )?;
 
         Ok(persistent_descriptor_set)
+    }
+
+    fn make_sampler(
+        context: &RenderContext,
+        image_view: Arc<dyn ImageViewAbstract>,
+        binding: u32,
+    ) -> Result<WriteDescriptorSet> {
+        let sampler = Sampler::new(
+            context.vulkan_context.context.device().clone(),
+            SamplerCreateInfo {
+                mag_filter: Filter::Linear,
+                min_filter: Filter::Linear,
+                address_mode: [SamplerAddressMode::Repeat; 3],
+                ..Default::default()
+            },
+        )?;
+
+        Ok(WriteDescriptorSet::image_view_sampler(
+            binding, image_view, sampler,
+        ))
     }
 }

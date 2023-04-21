@@ -6,7 +6,7 @@ use crate::file::ROOT_FOLDER;
 use crate::render::project::Project;
 use anyhow::Result;
 use anyhow::{anyhow, Context};
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Vec3, Vec4};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -221,6 +221,16 @@ impl Control {
             components[2].value,
         )
     }
+
+    pub fn as_vec4(&self) -> Vec4 {
+        let components = self.components.borrow();
+        Vec4::new(
+            components[0].value,
+            components[1].value,
+            components[2].value,
+            components[3].value,
+        )
+    }
 }
 
 // TODO: generate this automatically from the Globals struct somehow
@@ -230,12 +240,14 @@ pub enum GlobalType {
     ChartTime,
     ProjectionFromModel,
     CameraFromModel,
+    InstanceCount,
 }
 
 impl GlobalType {
     pub fn from_str(s: &str) -> Result<GlobalType> {
         match s {
             "app_time" => Ok(GlobalType::AppTime),
+            "instance_count" => Ok(GlobalType::InstanceCount),
             "chart_time" => Ok(GlobalType::ChartTime),
             "projection_from_model" => Ok(GlobalType::ProjectionFromModel),
             "camera_from_model" => Ok(GlobalType::CameraFromModel),
@@ -248,6 +260,7 @@ impl GlobalType {
 pub struct Globals {
     pub app_time: f32,
     pub chart_time: f32,
+    pub instance_count: f32,
     pub projection_from_model: Mat4,
     pub camera_from_model: Mat4,
     pub projection_from_camera: Mat4,
@@ -262,6 +275,7 @@ impl Globals {
             GlobalType::ChartTime => slice::from_ref(&self.chart_time),
             GlobalType::ProjectionFromModel => self.projection_from_model.as_ref(),
             GlobalType::CameraFromModel => self.camera_from_model.as_ref(),
+            GlobalType::InstanceCount => slice::from_ref(&self.instance_count),
         }
     }
 
