@@ -1,5 +1,6 @@
 use crate::control::controls::{Control, ControlSet, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
+use crate::render::buffer_generator::BufferGenerator;
 use crate::render::material::MaterialStepType;
 use crate::render::render_target::{Pass, RenderTarget};
 use crate::render::vulkan_window::RenderContext;
@@ -14,26 +15,29 @@ pub struct Chart {
     pub controls: Rc<ControlSet>,
     camera: Camera,
     render_targets: Vec<Arc<RenderTarget>>,
+    buffer_generators: Vec<Arc<BufferGenerator>>,
     pub passes: Vec<Pass>,
 }
 
 impl Chart {
     pub fn new(
         id: &str,
-        control_prefix: &ControlId,
+        control_id: &ControlId,
         mut control_set_builder: ControlSetBuilder,
         render_targets: Vec<Arc<RenderTarget>>,
+        buffer_generators: Vec<Arc<BufferGenerator>>,
         passes: Vec<Pass>,
     ) -> Self {
         let _camera = Camera::new(
             &mut control_set_builder,
-            &control_prefix.add(ControlIdPartType::Camera, "camera"),
+            &control_id.add(ControlIdPartType::Camera, "camera"),
         );
         let controls = Rc::new(control_set_builder.into_control_set());
         Chart {
             id: id.to_string(),
             camera: _camera,
             render_targets,
+            buffer_generators,
             passes,
             controls,
         }
@@ -43,7 +47,9 @@ impl Chart {
         for render_target in &self.render_targets {
             render_target.ensure_buffer(context)?;
         }
-
+        for buffer_generator in &self.buffer_generators {
+            buffer_generator.generate()?;
+        }
         for pass in &self.passes {
             pass.render(context, MaterialStepType::Solid, &self.camera)?;
         }
@@ -58,10 +64,10 @@ pub struct Camera {
 }
 
 impl Camera {
-    fn new(control_set_builder: &mut ControlSetBuilder, parent_id: &ControlId) -> Self {
-        let position_id = parent_id.add(ControlIdPartType::Value, "position");
-        let target_id = parent_id.add(ControlIdPartType::Value, "target");
-        let up_id = parent_id.add(ControlIdPartType::Value, "up");
+    fn new(control_set_builder: &mut ControlSetBuilder, control_id: &ControlId) -> Self {
+        let position_id = control_id.add(ControlIdPartType::Value, "position");
+        let target_id = control_id.add(ControlIdPartType::Value, "target");
+        let up_id = control_id.add(ControlIdPartType::Value, "up");
         Camera {
             position: control_set_builder
                 .get_control_with_default(&position_id, &[0.0, 0.0, -3.0, 0.0]),
