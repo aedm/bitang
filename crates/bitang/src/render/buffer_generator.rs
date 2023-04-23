@@ -2,6 +2,7 @@ use crate::control::controls::{Control, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
+use glam::Vec3;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -47,17 +48,26 @@ impl BufferGenerator {
     }
 
     pub fn generate(&self) -> Result<()> {
-        let &[mut x, mut y, mut z] = self.x.as_vec3().as_ref();
+        let vec4_size = self.size as usize * 3;
+        let mut data = Vec::with_capacity(vec4_size);
+
         let &[a, b, c, dt] = self.y.as_vec4().as_ref();
-        let mut data = Vec::with_capacity(self.size as usize);
+        let mut p = self.x.as_vec3();
+        let mut normal = Vec3::new(0.0, 1.0, 0.0);
+
         for _ in 0..self.size {
-            let xt = x + dt * a * (y - x);
-            let yt = y + dt * (x * (b - z) - y);
-            let zt = z + dt * (x * y - c * z);
-            x = xt;
-            y = yt;
-            z = zt;
-            data.push([x, y, z, 0.0]);
+            let np = Vec3::new(
+                p.x + dt * a * (p.y - p.x),
+                p.y + dt * (p.x * (b - p.z) - p.y),
+                p.z + dt * (p.x * p.y - c * p.z),
+            );
+            let tangent = (np - p).normalize();
+            normal = tangent.cross(normal.cross(tangent).normalize());
+            p = np; // TODO: prove it
+
+            data.push([p.x, p.y, p.z, 0.0]);
+            data.push([normal.x, normal.y, normal.z, 0.0]);
+            data.push([tangent.x, tangent.y, tangent.z, 0.0]);
         }
         let buffer = self.buffer_pool.from_iter(data)?;
         *self.current_buffer.borrow_mut() = Some(buffer);

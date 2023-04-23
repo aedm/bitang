@@ -14,6 +14,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use std::rc::Rc;
 use std::sync::Arc;
+use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::ImmutableImage;
 
@@ -40,3 +41,6 @@ pub struct RenderObject {
     pub rotation: Rc<Control>,
     pub instances: Rc<Control>,
 }
+
+pub const DEPTH_BUFFER_FORMAT: Format = Format::D32_SFLOAT;
+pub const SCREEN_COLOR_FORMAT: Format = Format::B8G8R8A8_SRGB;

@@ -1,5 +1,6 @@
 use crate::control::controls::Globals;
 use crate::render::render_target::{RenderTarget, RenderTargetRole};
+use crate::render::{DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -72,9 +73,6 @@ impl VulkanWindow {
             ..WindowDescriptor::default()
         };
 
-        const SCREEN_COLOR_FORMAT: Format = Format::B8G8R8A8_SRGB;
-        const DEPTH_FORMAT: Format = Format::D16_UNORM;
-
         windows.create_window(&event_loop, &vulkano_context, &window_descriptor, |ci| {
             ci.image_format = Some(SCREEN_COLOR_FORMAT)
         });
@@ -84,7 +82,7 @@ impl VulkanWindow {
             .context("No primary renderer")?;
         renderer.add_additional_image_view(
             1,
-            Format::D16_UNORM,
+            DEPTH_BUFFER_FORMAT,
             ImageUsage {
                 depth_stencil_attachment: true,
                 ..ImageUsage::empty()
@@ -94,7 +92,7 @@ impl VulkanWindow {
         let screen_render_target =
             RenderTarget::from_swapchain(RenderTargetRole::Color, SCREEN_COLOR_FORMAT);
         let depth_render_target =
-            RenderTarget::from_swapchain(RenderTargetRole::Depth, DEPTH_FORMAT);
+            RenderTarget::from_swapchain(RenderTargetRole::Depth, DEPTH_BUFFER_FORMAT);
         let swapchain_render_targets_by_id = HashMap::from([
             (screen_render_target.id.clone(), screen_render_target),
             (depth_render_target.id.clone(), depth_render_target),
