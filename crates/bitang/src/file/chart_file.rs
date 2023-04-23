@@ -329,10 +329,9 @@ impl Object {
         let object = render::RenderObject {
             id: self.id.clone(),
             mesh,
-            position: control_set_builder.get_control(&position_id),
-            rotation: control_set_builder.get_control(&rotation_id),
-            instances: control_set_builder
-                .get_control_with_default(&instances_id, &[1., 0., 0., 0.]),
+            position: control_set_builder.get_vec3(&position_id),
+            rotation: control_set_builder.get_vec3(&rotation_id),
+            instances: control_set_builder.get_float_with_default(&instances_id, 1.),
             material,
         };
         Ok(Arc::new(object))
@@ -393,7 +392,7 @@ fn make_shader(
         .iter()
         .map(|binding| {
             let control_id = parent_id.add(ControlIdPartType::Value, &binding.name);
-            let control = control_set_builder.get_control(&control_id);
+            let control = control_set_builder.get_vec(&control_id, binding.f32_count);
             LocalUniformMapping {
                 control,
                 f32_count: binding.f32_count,

@@ -69,10 +69,9 @@ impl Camera {
         let target_id = control_id.add(ControlIdPartType::Value, "target");
         let up_id = control_id.add(ControlIdPartType::Value, "up");
         Camera {
-            position: control_set_builder
-                .get_control_with_default(&position_id, &[0.0, 0.0, -3.0, 0.0]),
-            target: control_set_builder.get_control_with_default(&target_id, &[0.0, 0.0, 0.0, 0.0]),
-            up: control_set_builder.get_control_with_default(&up_id, &[0.0, -1.0, 0.0, 0.0]),
+            position: control_set_builder.get_vec3_with_default(&position_id, &[0.0, 0.0, -3.0]),
+            target: control_set_builder.get_vec3_with_default(&target_id, &[0.0, 0.0, 0.0]),
+            up: control_set_builder.get_vec3_with_default(&up_id, &[0.0, -1.0, 0.0]),
         }
     }
 

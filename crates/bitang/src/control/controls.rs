@@ -8,7 +8,8 @@ use anyhow::Result;
 use anyhow::{anyhow, Context};
 use glam::{Mat4, Vec3, Vec4};
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::{array, slice};
@@ -90,15 +91,39 @@ impl ControlSetBuilder {
         }
     }
 
-    pub fn get_control(&mut self, id: &ControlId) -> Rc<Control> {
-        self.get_control_with_default(id, &[0.0; 4])
+    pub fn get_float_with_default(&mut self, id: &ControlId, default: f32) -> Rc<Control> {
+        self.get_control(id, 1, &[default, 0.0, 0.0, 0.0])
     }
 
-    pub fn get_control_with_default(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
+    pub fn get_vec(&mut self, id: &ControlId, component_count: usize) -> Rc<Control> {
+        self.get_control(id, component_count, &[0.0; 4])
+    }
+
+    pub fn get_vec3(&mut self, id: &ControlId) -> Rc<Control> {
+        self.get_control(id, 3, &[0.0; 4])
+    }
+
+    pub fn get_vec3_with_default(&mut self, id: &ControlId, default: &[f32; 3]) -> Rc<Control> {
+        self.get_control(id, 3, &[default[0], default[1], default[2], 0.0])
+    }
+
+    pub fn get_vec4_with_default(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
+        self.get_control(id, 4, default)
+    }
+
+    fn get_control(
+        &mut self,
+        id: &ControlId,
+        component_count: usize,
+        default: &[f32; 4],
+    ) -> Rc<Control> {
         let control = self
             .control_repository
             .borrow_mut()
             .get_control(id, default);
+        control
+            .used_component_count
+            .set(max(control.used_component_count.get(), component_count));
         if self.used_controls.insert(RcHashRef(control.clone())) {
             self.used_control_list.push(control.clone());
         }
@@ -173,12 +198,21 @@ impl ControlRepository {
         }
         Ok(Self { by_id })
     }
+
+    pub fn reset_component_usage_counts(&self) {
+        for control in self.by_id.values() {
+            control.used_component_count.set(0);
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Control {
     pub id: ControlId,
     pub components: RefCell<[ControlComponent; 4]>,
+
+    #[serde(skip)]
+    pub used_component_count: Cell<usize>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -197,6 +231,7 @@ impl Control {
                 spline: Spline::new(),
                 use_spline: false,
             })),
+            used_component_count: Cell::new(0),
         }
     }
 

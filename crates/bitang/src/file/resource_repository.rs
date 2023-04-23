@@ -75,6 +75,9 @@ impl ResourceRepository {
             || (self.cached_root.is_none() && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
         {
             let now = Instant::now();
+            self.control_repository
+                .borrow()
+                .reset_component_usage_counts();
             let result = self.load_project(context);
             self.file_hash_cache.borrow_mut().update_watchers();
             match result {
