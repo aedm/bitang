@@ -42,8 +42,8 @@ impl BufferGenerator {
             size,
             buffer_pool,
             current_buffer: RefCell::new(None),
-            x: control_set_builder.get_control_with_default(&x_id, &[0.1, 0.0, 0.0, 0.0]),
-            y: control_set_builder.get_control_with_default(&y_id, &[10.0, 28.0, 8.0 / 3.0, 0.1]),
+            x: control_set_builder.get_vec3_with_default(&x_id, &[0.1, 0.0, 0.0]),
+            y: control_set_builder.get_vec4_with_default(&y_id, &[10.0, 28.0, 8.0 / 3.0, 0.1]),
         }
     }
 

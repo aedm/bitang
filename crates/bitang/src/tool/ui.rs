@@ -206,16 +206,21 @@ impl Ui {
                     .map(|p| p.name.clone())
                     .collect::<Vec<_>>()
                     .join("/");
-                (index, name, c.components.borrow_mut())
+                (
+                    index,
+                    name,
+                    c.used_component_count.get(),
+                    c.components.borrow_mut(),
+                )
             });
         let mut selected = None;
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                for (control_index, control_name, mut control) in controls_borrow {
+                for (control_index, control_name, component_count, mut control) in controls_borrow {
                     ui.label(&control_name);
                     let components = control.as_mut();
-                    for i in 0..4 {
+                    for i in 0..component_count {
                         let component = &mut components[i];
                         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                             ui.add_sized(
