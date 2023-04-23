@@ -132,6 +132,9 @@ impl ShaderCache {
             .find(|ep| ep.name == "main")
             .with_context(|| format!("Failed to find entry point 'main' in '{path}'"))?;
 
+        let module =
+            unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) }?;
+
         let descriptor_set_index = match kind {
             shaderc::ShaderKind::Vertex => 0,
             shaderc::ShaderKind::Fragment => 1,
@@ -139,13 +142,20 @@ impl ShaderCache {
         };
 
         // Find the descriptor set that belongs to the current shader stage
-        let descriptor_set = entry_point
+        let Some(descriptor_set) = entry_point
             .descriptor_sets
             .iter()
-            .find(|ds| ds.set == descriptor_set_index)
-            .with_context(|| {
-                format!("Failed to find descriptor set {descriptor_set_index} in '{path}'")
-            })?;
+            .find(|ds| ds.set == descriptor_set_index) else {
+            // The entire descriptor set is empty, so we can just use the module
+            return Ok(ShaderCompilationResult {
+                module,
+                samplers: vec![],
+                buffers: vec![],
+                local_uniform_bindings: vec![],
+                global_uniform_bindings: vec![],
+                uniform_buffer_size: 0,
+            });
+        };
 
         // Find all samplers
         let samplers: Vec<_> = descriptor_set
@@ -222,9 +232,6 @@ impl ShaderCache {
                     (vec![], vec![], 0)
                 }
             };
-
-        let module =
-            unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) }?;
 
         let result = ShaderCompilationResult {
             module,

@@ -188,34 +188,36 @@ impl RenderUnitStep {
         let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
             context,
             &material_step.vertex_shader,
-            descriptor_set_layouts
-                .get(ShaderKind::Vertex as usize)
-                .context("Failed to get vertex descriptor set layout")?,
+            descriptor_set_layouts.get(ShaderKind::Vertex as usize),
         )?;
         let fragment_descriptor_set = self.fragment_uniforms_storage.make_descriptor_set(
             context,
             &material_step.fragment_shader,
-            descriptor_set_layouts
-                .get(ShaderKind::Fragment as usize)
-                .context("Failed to get fragment descriptor set layout")?,
+            descriptor_set_layouts.get(ShaderKind::Fragment as usize),
         )?;
 
         context
             .command_builder
             .bind_pipeline_graphics(self.pipeline.clone())
-            .bind_descriptor_sets(
+            .bind_vertex_buffers(0, mesh.vertex_buffer.clone());
+        if let Some(vertex_descriptor_set) = vertex_descriptor_set {
+            context.command_builder.bind_descriptor_sets(
                 PipelineBindPoint::Graphics,
                 self.pipeline.layout().clone(),
                 0,
                 vertex_descriptor_set,
-            )
-            .bind_descriptor_sets(
+            );
+        }
+        if let Some(fragment_descriptor_set) = fragment_descriptor_set {
+            context.command_builder.bind_descriptor_sets(
                 PipelineBindPoint::Graphics,
                 self.pipeline.layout().clone(),
                 1,
                 fragment_descriptor_set,
-            )
-            .bind_vertex_buffers(0, mesh.vertex_buffer.clone())
+            );
+        }
+        context
+            .command_builder
             .draw(mesh.vertex_buffer.len() as u32, instance_count, 0, 0)?;
         Ok(())
     }
@@ -240,8 +242,10 @@ impl ShaderUniformStorage {
         &self,
         context: &RenderContext,
         shader: &Shader,
-        layout: &Arc<DescriptorSetLayout>,
-    ) -> Result<Arc<PersistentDescriptorSet>> {
+        layout: Option<&Arc<DescriptorSetLayout>>,
+    ) -> Result<Option<Arc<PersistentDescriptorSet>>> {
+        let Some(layout) = layout else {return Ok(None);};
+
         // TODO: avoid memory allocation, maybe use tinyvec
         let mut descriptors = vec![];
 
@@ -308,7 +312,7 @@ impl ShaderUniformStorage {
             descriptors,
         )?;
 
-        Ok(persistent_descriptor_set)
+        Ok(Some(persistent_descriptor_set))
     }
 
     fn make_sampler(
