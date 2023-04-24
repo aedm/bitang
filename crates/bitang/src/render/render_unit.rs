@@ -1,5 +1,3 @@
-use crate::control::controls::Control;
-use crate::control::{ControlId, ControlIdPartType};
 use crate::render::material::{
     DescriptorSource, MaterialStep, MaterialStepType, Shader, ShaderKind, MATERIAL_STEP_COUNT,
 };
@@ -9,11 +7,8 @@ use crate::render::{RenderObject, Vertex3};
 use anyhow::{Context, Result};
 use glam::{EulerRot, Mat4};
 use std::mem::size_of;
-use std::ptr::write;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::{array, mem};
-use tracing::debug;
 use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
 use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};

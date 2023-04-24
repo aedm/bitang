@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-use anyhow::Context;
 use anyhow::Result;
 use blend::{Blend, Instance};
 use image::RgbaImage;
+use std::collections::HashMap;
 use std::io::Cursor;
 
 pub type Vertex = ([f32; 3], [f32; 3], [f32; 2]);
@@ -135,12 +134,12 @@ fn load_blend(blend: Blend) -> Result<ObjectCollection> {
     for obj in blend.get_by_code(*b"OB") {
         let name = obj.get("id").get_string("name");
         // println!("-- name {name:?}");
-        
+
         if !name.starts_with(&object_marker) {
             continue;
         }
         let name = name[object_marker.len()..].to_string();
-        
+
         let _loc = obj.get_f32_vec("loc");
         let _id = obj.get("id");
         // for field in &id.fields {
@@ -163,13 +162,16 @@ fn load_blend(blend: Blend) -> Result<ObjectCollection> {
             let data = obj.get("data");
 
             if let Some(mesh) = instance_to_mesh(data) {
-                objects_by_name.insert(name, Object {
-                    name: obj.get("id").get_string("name"),
-                    location: [loc[0], loc[1], loc[2]],
-                    rotation: [rot[0], rot[1], rot[2]],
-                    scale: [size[0], size[1], size[2]],
-                    mesh,
-                });
+                objects_by_name.insert(
+                    name,
+                    Object {
+                        name: obj.get("id").get_string("name"),
+                        location: [loc[0], loc[1], loc[2]],
+                        rotation: [rot[0], rot[1], rot[2]],
+                        scale: [size[0], size[1], size[2]],
+                        mesh,
+                    },
+                );
             }
         }
 
@@ -184,7 +186,7 @@ fn load_blend(blend: Blend) -> Result<ObjectCollection> {
         //     // println!("NAME {}: VALUE {:?}", field.0, field.1);
         // }
     }
-    Ok(ObjectCollection{ objects_by_name })
+    Ok(ObjectCollection { objects_by_name })
 }
 
 pub fn load_blend_buffer(buffer: &[u8]) -> Result<ObjectCollection> {
