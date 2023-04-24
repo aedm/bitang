@@ -1,4 +1,4 @@
-use crate::render::chart::Camera;
+use crate::render::camera::Camera;
 use crate::render::material::MaterialStepType;
 use crate::render::render_unit::RenderUnit;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
@@ -6,7 +6,6 @@ use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
 use std::cell::RefCell;
 use std::sync::Arc;
-use tracing::debug;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
