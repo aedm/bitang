@@ -43,8 +43,17 @@ impl Project {
                 offset: cut.offset,
             })
             .collect();
+        let mut charts = vec![];
+        let mut charts_inserted = HashSet::new();
+        for cut in &self.cuts {
+            if charts_inserted.insert(&cut.chart) {
+                // Unwrap is safe because we just inserted the key.
+                charts.push(charts_by_name.get(&cut.chart).unwrap().clone());
+            }
+        }
         Ok(render::project::Project {
             charts_by_id: charts_by_name,
+            charts,
             cuts,
         })
     }

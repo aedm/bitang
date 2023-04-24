@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 pub struct Project {
     pub charts_by_id: HashMap<String, Rc<Chart>>,
+    pub charts: Vec<Rc<Chart>>,
     pub cuts: Vec<Cut>,
 }
 
