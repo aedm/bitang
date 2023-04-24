@@ -134,7 +134,7 @@ impl SplineEditor {
                     self.selected_index = Some(index_after);
                 }
 
-                // Remove point
+                // Point-specific controls
                 if let Some(index) = self.selected_index {
                     if ui
                         .button("Remove point")
@@ -158,6 +158,7 @@ impl SplineEditor {
                                     .speed(0.01)
                                     .max_decimals(6),
                             );
+                            ui.checkbox(&mut point.is_linear_after, "Linear");
                         });
                     }
                 }
