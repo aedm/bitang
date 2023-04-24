@@ -49,10 +49,15 @@ impl Spline {
             return self.points[self.points.len() - 1].value;
         }
 
+        // We are between two control points
+        let p1 = &self.points[index_after - 1];
+        let p2 = &self.points[index_after];
+        if p1.is_linear_after {
+            return p1.value + (p2.value - p1.value) * (time - p1.time) / (p2.time - p1.time);
+        }
+
         // https://en.wikipedia.org/wiki/Centripetal_Catmull%E2%80%93Rom_spline
         let p0 = &self.points[index_after.saturating_sub(2)];
-        let p1 = &self.points[index_after.saturating_sub(1)];
-        let p2 = &self.points[index_after];
         let p3 = &self.points[min(index_after + 1, self.points.len() - 1)];
 
         let dt = p2.time - p1.time;
