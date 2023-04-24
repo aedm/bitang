@@ -123,7 +123,7 @@ impl Ui {
                     ui.set_min_width(150.0);
                     ui.label("Charts");
                     Self::draw_control_tree_project_node(ui, ui_state);
-                    for (_name, chart) in &project.charts_by_id {
+                    for chart in &project.charts {
                         Self::draw_control_tree_node(
                             ui,
                             &chart.controls.root_node.borrow(),
