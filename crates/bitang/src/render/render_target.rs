@@ -4,6 +4,7 @@ use crate::render::render_unit::RenderUnit;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
+use glam::Vec2;
 use std::cell::RefCell;
 use std::sync::Arc;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
@@ -90,6 +91,9 @@ impl Pass {
             }
         };
         camera.set(context, viewport.dimensions);
+        let pixel_size_x = 1.0 / viewport.dimensions[0];
+        let pixel_size_y = 1.0 / viewport.dimensions[1];
+        context.globals.pixel_size = Vec2::new(pixel_size_x, pixel_size_y);
 
         let attachments = self
             .render_targets
