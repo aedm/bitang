@@ -315,8 +315,7 @@ impl Globals {
     }
 
     pub fn update_compound_matrices(&mut self) {
-        self.projection_from_model =
-            self.projection_from_camera * self.camera_from_world * self.world_from_model;
         self.camera_from_model = self.camera_from_world * self.world_from_model;
+        self.projection_from_model = self.projection_from_camera * self.camera_from_model;
     }
 }

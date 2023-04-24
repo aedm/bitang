@@ -7,7 +7,6 @@ use anyhow::Result;
 use egui_winit_vulkano::Gui;
 use std::rc::Rc;
 use tracing::error;
-use vulkano::command_buffer::RenderPassError::ForbiddenInsideRenderPass;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::image::ImageViewAbstract;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};

@@ -1,4 +1,5 @@
 pub mod buffer_generator;
+pub mod camera;
 pub mod chart;
 pub mod material;
 pub mod mesh;
@@ -11,7 +12,6 @@ use crate::control::controls::Control;
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
 use bytemuck::{Pod, Zeroable};
-use glam::Vec3;
 use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::format::Format;
