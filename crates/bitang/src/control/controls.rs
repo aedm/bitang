@@ -11,7 +11,6 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
 use std::rc::Rc;
 use std::{array, slice};
 use tracing::{debug, info, instrument, warn};
