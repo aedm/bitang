@@ -1,13 +1,13 @@
 use crate::control::spline::Spline;
 use crate::control::ControlIdPartType::Chart;
-use crate::control::{ControlId, RcHashRef};
+use crate::control::{ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
 use crate::file::resource_repository::CHARTS_FOLDER;
 use crate::file::ROOT_FOLDER;
 use crate::render::project::Project;
 use anyhow::Result;
 use anyhow::{anyhow, Context};
-use glam::{Mat4, Vec3, Vec4};
-use serde::{Deserialize, Serialize};
+use glam::{Mat4, Vec2, Vec3, Vec4};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
@@ -131,14 +131,19 @@ impl ControlSetBuilder {
     }
 }
 
-// #[derive(Default)]
 pub struct ControlRepository {
     by_id: HashMap<ControlId, Rc<Control>>,
 }
 
-#[derive(Serialize, Deserialize)]
+// We want to serialize the controls by reference, but deserialize them by value to avoid cloning them.
+#[derive(Serialize)]
 struct SerializedControls {
     controls: Vec<Rc<Control>>,
+}
+
+#[derive(Deserialize)]
+struct DeserializedControls {
+    controls: Vec<Control>,
 }
 
 impl ControlRepository {
@@ -187,9 +192,16 @@ impl ControlRepository {
                 );
                 if let Ok(ron) = std::fs::read_to_string(&controls_path) {
                     info!("Loading '{}'.", controls_path);
-                    let serialized: SerializedControls = ron::de::from_str(&ron)?;
-                    for control in serialized.controls {
-                        by_id.insert(control.id.clone(), control);
+                    let deserialized: DeserializedControls = ron::de::from_str(&ron)?;
+                    for mut control in deserialized.controls {
+                        control.id.parts.insert(
+                            0,
+                            ControlIdPart {
+                                part_type: Chart,
+                                name: chart_id.to_string(),
+                            },
+                        );
+                        by_id.insert(control.id.clone(), Rc::new(control));
                     }
                 } else {
                     warn!("No controls file found at '{}'.", controls_path);
@@ -208,11 +220,42 @@ impl ControlRepository {
 
 #[derive(Serialize, Deserialize)]
 pub struct Control {
+    #[serde(
+        serialize_with = "serialize_control_id",
+        deserialize_with = "deserialize_control_id"
+    )]
     pub id: ControlId,
     pub components: RefCell<[ControlComponent; 4]>,
 
     #[serde(skip)]
     pub used_component_count: Cell<usize>,
+}
+
+fn serialize_control_id<S>(id: &ControlId, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let parts = id
+        .parts
+        .iter()
+        .skip_while(|x| x.part_type == ControlIdPartType::Chart)
+        .map(|x| (x.part_type, &x.name))
+        .collect::<Vec<_>>();
+    let text = ron::ser::to_string(&parts).unwrap();
+    s.serialize_str(&text)
+}
+
+fn deserialize_control_id<'de, D>(d: D) -> Result<ControlId, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let text = String::deserialize(d)?;
+    let parts: Vec<(ControlIdPartType, String)> = ron::de::from_str(&text).unwrap();
+    let parts = parts
+        .into_iter()
+        .map(|(part_type, name)| ControlIdPart { part_type, name })
+        .collect();
+    Ok(ControlId { parts })
 }
 
 #[derive(Serialize, Deserialize)]
@@ -276,6 +319,7 @@ pub enum GlobalType {
     ProjectionFromModel,
     CameraFromModel,
     InstanceCount,
+    PixelSize,
 }
 
 impl GlobalType {
@@ -286,6 +330,7 @@ impl GlobalType {
             "chart_time" => Ok(GlobalType::ChartTime),
             "projection_from_model" => Ok(GlobalType::ProjectionFromModel),
             "camera_from_model" => Ok(GlobalType::CameraFromModel),
+            "pixel_size" => Ok(GlobalType::PixelSize),
             _ => Err(anyhow!("Unknown global type: {}", s)),
         }
     }
@@ -301,6 +346,7 @@ pub struct Globals {
     pub projection_from_camera: Mat4,
     pub camera_from_world: Mat4,
     pub world_from_model: Mat4,
+    pub pixel_size: Vec2,
 }
 
 impl Globals {
@@ -311,6 +357,7 @@ impl Globals {
             GlobalType::ProjectionFromModel => self.projection_from_model.as_ref(),
             GlobalType::CameraFromModel => self.camera_from_model.as_ref(),
             GlobalType::InstanceCount => slice::from_ref(&self.instance_count),
+            GlobalType::PixelSize => self.pixel_size.as_ref(),
         }
     }
 
