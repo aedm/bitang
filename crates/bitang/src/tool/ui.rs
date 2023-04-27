@@ -162,6 +162,7 @@ impl Ui {
                 let control_id_part = &node.id_prefix.parts.last().unwrap();
                 let icon = match control_id_part.part_type {
                     ControlIdPartType::Chart => '📈',
+                    ControlIdPartType::ChartValues => '🌐',
                     ControlIdPartType::Pass => '📦',
                     ControlIdPartType::Camera => '📷',
                     ControlIdPartType::Object => '📝',

@@ -32,6 +32,7 @@ impl<T> Deref for RcHashRef<T> {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum ControlIdPartType {
     Chart,
+    ChartValues,
     Pass,
     Camera,
     Object,

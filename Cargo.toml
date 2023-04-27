@@ -13,8 +13,8 @@ opt-level = 0
 overflow-checks = true
 
 [profile.dev.package.bitang_utils]
-opt-level = 0
-overflow-checks = true
+opt-level = 2
+overflow-checks = false
 
 [profile.dev-nowarn]
 inherits = "dev"
