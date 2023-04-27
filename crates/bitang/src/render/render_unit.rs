@@ -301,6 +301,10 @@ impl ShaderUniformStorage {
             descriptors.push(write_descriptor_set);
         }
 
+        if descriptors.is_empty() {
+            return Ok(None);
+        }
+
         let persistent_descriptor_set = PersistentDescriptorSet::new(
             &context.vulkan_context.descriptor_set_allocator,
             layout.clone(),

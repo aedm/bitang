@@ -68,6 +68,9 @@ pub struct Object {
 
     #[serde(default)]
     pub buffers: HashMap<String, BufferMapping>,
+
+    #[serde(default)]
+    pub control_map: HashMap<String, String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -177,10 +180,11 @@ impl Pass {
         control_set_builder: &mut ControlSetBuilder,
         render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
-        parent_id: &ControlId,
+        chart_id: &ControlId,
         path: &ResourcePath,
     ) -> Result<render::render_target::Pass> {
-        let control_prefix = parent_id.add(ControlIdPartType::Pass, &self.id);
+        let control_prefix = chart_id.add(ControlIdPartType::Pass, &self.id);
+        let chart_id = chart_id.add(ControlIdPartType::ChartValues, "Chart Values");
         let render_targets = self
             .render_targets
             .iter()
@@ -199,6 +203,7 @@ impl Pass {
             .map(|object| {
                 object.load(
                     &control_prefix,
+                    &chart_id,
                     context,
                     resource_repository,
                     control_set_builder,
@@ -254,6 +259,7 @@ impl Object {
     pub fn load(
         &self,
         parent_id: &ControlId,
+        chart_id: &ControlId,
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
         control_set_builder: &mut ControlSetBuilder,
@@ -313,6 +319,8 @@ impl Object {
             resource_repository,
             control_set_builder,
             &control_id,
+            chart_id,
+            &self.control_map,
             &sampler_sources_by_id,
             &buffer_sources_by_id,
             path,
@@ -342,6 +350,8 @@ impl Object {
         resource_repository: &mut ResourceRepository,
         control_set_builder: &mut ControlSetBuilder,
         parent_id: &ControlId,
+        chart_id: &ControlId,
+        control_map: &HashMap<String, String>,
         sampler_sources_by_id: &HashMap<String, DescriptorSource>,
         buffer_sources_by_id: &HashMap<String, DescriptorSource>,
         path: &ResourcePath,
@@ -356,6 +366,8 @@ impl Object {
         let vertex_shader = make_shader(
             control_set_builder,
             parent_id,
+            chart_id,
+            control_map,
             &shaders.vertex_shader,
             sampler_sources_by_id,
             buffer_sources_by_id,
@@ -363,6 +375,8 @@ impl Object {
         let fragment_shader = make_shader(
             control_set_builder,
             parent_id,
+            chart_id,
+            control_map,
             &shaders.fragment_shader,
             sampler_sources_by_id,
             buffer_sources_by_id,
@@ -382,6 +396,8 @@ impl Object {
 fn make_shader(
     control_set_builder: &mut ControlSetBuilder,
     parent_id: &ControlId,
+    chart_id: &ControlId,
+    control_map: &HashMap<String, String>,
     compilation_result: &ShaderCompilationResult,
     sampler_sources_by_id: &HashMap<String, DescriptorSource>,
     buffer_sources_by_id: &HashMap<String, DescriptorSource>,
@@ -390,7 +406,11 @@ fn make_shader(
         .local_uniform_bindings
         .iter()
         .map(|binding| {
-            let control_id = parent_id.add(ControlIdPartType::Value, &binding.name);
+            let control_id = if let Some(mapped_name) = control_map.get(&binding.name) {
+                chart_id.add(ControlIdPartType::Value, mapped_name)
+            } else {
+                parent_id.add(ControlIdPartType::Value, &binding.name)
+            };
             let control = control_set_builder.get_vec(&control_id, binding.f32_count);
             LocalUniformMapping {
                 control,
