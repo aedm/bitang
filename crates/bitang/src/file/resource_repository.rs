@@ -82,8 +82,9 @@ impl ResourceRepository {
             self.file_hash_cache.borrow_mut().update_watchers();
             match result {
                 Ok(project) => {
-                    self.cached_root = Some(Arc::new(project));
+                    info!("Project length: {} seconds", project.length);
                     info!("Loading took {:?}", now.elapsed());
+                    self.cached_root = Some(Arc::new(project));
                 }
                 Err(err) => {
                     if self.is_first_load || has_file_changes {

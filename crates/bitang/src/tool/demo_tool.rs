@@ -3,7 +3,7 @@ use crate::control::{ControlId, ControlIdPartType};
 use crate::file::resource_repository::ResourceRepository;
 use crate::render::chart::Chart;
 use crate::render::project::Project;
-use crate::render::vulkan_window::{RenderContext, VulkanApp, VulkanContext};
+use crate::render::vulkan_window::{PaintResult, RenderContext, VulkanApp, VulkanContext};
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{anyhow, Result};
@@ -134,15 +134,29 @@ impl DemoTool {
         }
         Ok(())
     }
+
+    fn toggle_play(&mut self) {
+        if self.ui_state.is_playing {
+            self.stop();
+        } else {
+            self.play();
+        }
+    }
 }
 
 impl VulkanApp for DemoTool {
-    fn paint(&mut self, vulkan_context: &VulkanContext, renderer: &mut VulkanoWindowRenderer) {
+    fn paint(
+        &mut self,
+        vulkan_context: &VulkanContext,
+        renderer: &mut VulkanoWindowRenderer,
+    ) -> PaintResult {
         let Some(project) = self
             .resource_repository
             .get_or_load_project(vulkan_context) else {
-            return;
+            return PaintResult::None;
         };
+
+        let before_time = self.ui_state.time;
 
         if let Some(last_project) = &self.ui_state.project {
             // If the last loaded document is not the same as the current one
@@ -210,29 +224,9 @@ impl VulkanApp for DemoTool {
                 }
             }
 
-            let is_playing = self.ui_state.is_playing;
-
             // Render UI
             if draw_ui {
                 self.ui.draw(&mut context, ui_height, &mut self.ui_state);
-            }
-
-            // Start/stop
-            match (self.ui_state.is_playing, is_playing) {
-                (true, false) => {
-                    self.music_player.play_from(self.ui_state.time);
-                    let now = Instant::now();
-                    // Duration is always positive
-                    if self.ui_state.time >= 0. {
-                        self.play_start_time = now - Duration::from_secs_f32(self.ui_state.time);
-                    } else {
-                        self.play_start_time = now + Duration::from_secs_f32(-self.ui_state.time);
-                    }
-                }
-                (false, true) => {
-                    self.music_player.stop();
-                }
-                _ => {}
             }
         }
 
@@ -247,9 +241,45 @@ impl VulkanApp for DemoTool {
             .boxed();
 
         renderer.present(after_future, true);
+
+        if before_time < project.length && self.ui_state.time >= project.length {
+            return PaintResult::EndReached;
+        }
+
+        return PaintResult::None;
     }
 
     fn handle_window_event(&mut self, event: &WindowEvent) {
         self.ui.handle_window_event(event);
+        match event {
+            WindowEvent::KeyboardInput { input, .. } => {
+                if input.state == winit::event::ElementState::Pressed {
+                    match input.virtual_keycode {
+                        Some(winit::event::VirtualKeyCode::Space) => {
+                            self.toggle_play();
+                        }
+                        _ => (),
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn play(&mut self) {
+        self.music_player.play_from(self.ui_state.time);
+        let now = Instant::now();
+        // Duration is always positive
+        if self.ui_state.time >= 0. {
+            self.play_start_time = now - Duration::from_secs_f32(self.ui_state.time);
+        } else {
+            self.play_start_time = now + Duration::from_secs_f32(-self.ui_state.time);
+        }
+        self.ui_state.is_playing = true;
+    }
+
+    fn stop(&mut self) {
+        self.music_player.stop();
+        self.ui_state.is_playing = false;
     }
 }
