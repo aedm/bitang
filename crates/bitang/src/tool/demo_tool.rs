@@ -4,6 +4,7 @@ use crate::file::resource_repository::ResourceRepository;
 use crate::render::chart::Chart;
 use crate::render::project::Project;
 use crate::render::vulkan_window::{RenderContext, VulkanApp, VulkanContext};
+use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{anyhow, Result};
 use std::cell::RefCell;
@@ -28,6 +29,7 @@ pub struct DemoTool {
     ui_state: UiState,
     play_start_time: Instant,
     last_eval_time: f32,
+    music_player: MusicPlayer,
 }
 
 pub struct UiState {
@@ -59,6 +61,8 @@ impl UiState {
 
 impl DemoTool {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
+        let music_player = MusicPlayer::new();
+
         let mut resource_repository = ResourceRepository::try_new()?;
         let project = resource_repository.get_or_load_project(context);
         let ui = Ui::new(context, event_loop)?;
@@ -80,6 +84,7 @@ impl DemoTool {
             has_render_failure,
             play_start_time: Instant::now(),
             last_eval_time: -1.0,
+            music_player,
         };
         Ok(demo_tool)
     }
@@ -212,16 +217,22 @@ impl VulkanApp for DemoTool {
                 self.ui.draw(&mut context, ui_height, &mut self.ui_state);
             }
 
-            // Start playing
-            if self.ui_state.is_playing && !is_playing {
-                // Duration is always positive
-                if self.ui_state.time >= 0. {
-                    self.play_start_time =
-                        Instant::now() - Duration::from_secs_f32(self.ui_state.time);
-                } else {
-                    self.play_start_time =
-                        Instant::now() + Duration::from_secs_f32(-self.ui_state.time);
+            // Start/stop
+            match (self.ui_state.is_playing, is_playing) {
+                (true, false) => {
+                    self.music_player.play_from(self.ui_state.time);
+                    let now = Instant::now();
+                    // Duration is always positive
+                    if self.ui_state.time >= 0. {
+                        self.play_start_time = now - Duration::from_secs_f32(self.ui_state.time);
+                    } else {
+                        self.play_start_time = now + Duration::from_secs_f32(-self.ui_state.time);
+                    }
                 }
+                (false, true) => {
+                    self.music_player.stop();
+                }
+                _ => {}
             }
         }
 
