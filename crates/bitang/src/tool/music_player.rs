@@ -3,7 +3,7 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;
 use std::io::BufReader;
 use std::time::Duration;
-use tracing::{debug, info};
+use tracing::{info};
 
 pub struct MusicPlayer {
     sink: Sink,
