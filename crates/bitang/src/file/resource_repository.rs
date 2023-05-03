@@ -172,7 +172,7 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
     info!("Decoded image in {:?}", now.elapsed());
     let dimensions = ImageDimensions::Dim2d {
         width: rgba.dimensions().0,
-        height: rgba.dimensions().0,
+        height: rgba.dimensions().1,
         array_layers: 1,
     };
 

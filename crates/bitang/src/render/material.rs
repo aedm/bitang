@@ -4,6 +4,7 @@ use crate::render::render_target::RenderTarget;
 use crate::render::Texture;
 use std::rc::Rc;
 use std::sync::Arc;
+use vulkano::sampler::SamplerAddressMode;
 use vulkano::shader::ShaderModule;
 
 #[derive(Copy, Clone, Debug)]
@@ -17,6 +18,14 @@ pub const MATERIAL_STEP_COUNT: usize = 3;
 #[derive(Clone)]
 pub struct Material {
     pub passes: [Option<MaterialStep>; MATERIAL_STEP_COUNT],
+    pub sampler_address_mode: SamplerAddressMode,
+}
+
+#[derive(Clone)]
+pub enum BlendMode {
+    None,
+    Alpha,
+    Additive,
 }
 
 #[derive(Clone)]
@@ -25,6 +34,8 @@ pub struct MaterialStep {
     pub fragment_shader: Shader,
     pub depth_test: bool,
     pub depth_write: bool,
+    pub blend_mode: BlendMode,
+    pub sampler_address_mode: SamplerAddressMode,
 }
 
 pub enum ShaderKind {
