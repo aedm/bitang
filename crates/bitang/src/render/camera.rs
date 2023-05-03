@@ -2,7 +2,6 @@ use crate::control::controls::{Control, ControlSetBuilder, Globals};
 use crate::control::{ControlId, ControlIdPartType};
 use glam::{Mat4, Vec2, Vec3};
 use std::f32::consts::PI;
-use std::hint::black_box;
 use std::rc::Rc;
 
 pub struct Camera {
