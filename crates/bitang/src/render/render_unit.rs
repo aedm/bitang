@@ -1,5 +1,6 @@
 use crate::render::material::{
-    DescriptorSource, MaterialStep, MaterialStepType, Shader, ShaderKind, MATERIAL_STEP_COUNT,
+    BlendMode, DescriptorSource, MaterialStep, MaterialStepType, Shader, ShaderKind,
+    MATERIAL_STEP_COUNT,
 };
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
@@ -14,6 +15,9 @@ use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::image::ImageViewAbstract;
 use vulkano::memory::allocator::MemoryUsage;
+use vulkano::pipeline::graphics::color_blend::{
+    AttachmentBlend, BlendFactor, BlendOp, ColorBlendState,
+};
 use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
@@ -54,11 +58,16 @@ impl RenderUnit {
             .map(|material_step| {
                 // let material_step = &render_object.material.passes[index];
                 if let Some(material_step) = material_step {
-                    Ok(Some(RenderUnitStep::new(
-                        context,
-                        render_pass,
-                        material_step,
-                    )?))
+                    Ok(Some(
+                        RenderUnitStep::new(context, render_pass, material_step).with_context(
+                            || {
+                                format!(
+                                    "Failed to create RenderUnitStep for object {}",
+                                    render_object.id
+                                )
+                            },
+                        )?,
+                    ))
                 } else {
                     Ok(None)
                 }
@@ -138,6 +147,24 @@ impl RenderUnitStep {
             stencil: Default::default(),
         };
 
+        let mut color_blend_state = ColorBlendState::new(1);
+        match material_step.blend_mode {
+            BlendMode::None => {}
+            BlendMode::Alpha => {
+                color_blend_state = color_blend_state.blend_alpha();
+            }
+            BlendMode::Additive => {
+                color_blend_state = color_blend_state.blend(AttachmentBlend {
+                    color_op: BlendOp::Add,
+                    color_source: BlendFactor::SrcAlpha,
+                    color_destination: BlendFactor::One,
+                    alpha_op: BlendOp::Max,
+                    alpha_source: BlendFactor::One,
+                    alpha_destination: BlendFactor::One,
+                });
+            }
+        };
+
         let pipeline = GraphicsPipeline::start()
             .vertex_input_state(BuffersDefinition::new().vertex::<Vertex3>())
             .vertex_shader(
@@ -158,6 +185,7 @@ impl RenderUnitStep {
                     .context("Failed to get fragment shader entry point")?,
                 (),
             )
+            .color_blend_state(color_blend_state)
             .depth_stencil_state(depth_stencil_state)
             // Unwrap is safe: every pass has one subpass
             .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
@@ -184,11 +212,13 @@ impl RenderUnitStep {
             context,
             &material_step.vertex_shader,
             descriptor_set_layouts.get(ShaderKind::Vertex as usize),
+            material_step.sampler_address_mode,
         )?;
         let fragment_descriptor_set = self.fragment_uniforms_storage.make_descriptor_set(
             context,
             &material_step.fragment_shader,
             descriptor_set_layouts.get(ShaderKind::Fragment as usize),
+            material_step.sampler_address_mode,
         )?;
 
         context
@@ -238,6 +268,7 @@ impl ShaderUniformStorage {
         context: &RenderContext,
         shader: &Shader,
         layout: Option<&Arc<DescriptorSetLayout>>,
+        sampler_address_mode: SamplerAddressMode,
     ) -> Result<Option<Arc<PersistentDescriptorSet>>> {
         let Some(layout) = layout else {return Ok(None);};
 
@@ -274,6 +305,7 @@ impl ShaderUniformStorage {
                     context,
                     texture.clone(),
                     descriptor_binding.descriptor_set_binding,
+                    sampler_address_mode,
                 ),
                 DescriptorSource::RenderTarget(render_target) => {
                     let image_borrow = render_target.image.borrow();
@@ -283,6 +315,7 @@ impl ShaderUniformStorage {
                         context,
                         image_view,
                         descriptor_binding.descriptor_set_binding,
+                        sampler_address_mode,
                     )
                 }
                 DescriptorSource::BufferGenerator(buffer_generator) => {
@@ -318,13 +351,14 @@ impl ShaderUniformStorage {
         context: &RenderContext,
         image_view: Arc<dyn ImageViewAbstract>,
         binding: u32,
+        address_mode: SamplerAddressMode,
     ) -> Result<WriteDescriptorSet> {
         let sampler = Sampler::new(
             context.vulkan_context.context.device().clone(),
             SamplerCreateInfo {
                 mag_filter: Filter::Linear,
                 min_filter: Filter::Linear,
-                address_mode: [SamplerAddressMode::Repeat; 3],
+                address_mode: [address_mode; 3],
                 ..Default::default()
             },
         )?;

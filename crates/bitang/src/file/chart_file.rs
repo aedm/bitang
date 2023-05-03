@@ -46,11 +46,38 @@ pub enum RenderTargetRole {
     Depth,
 }
 
+#[derive(Debug, Deserialize, Default)]
+pub enum BlendMode {
+    #[default]
+    None,
+    Alpha,
+    Additive,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub enum SamplerAddressMode {
+    #[default]
+    Repeat,
+    ClampToEdge,
+    MirroredRepeat,
+}
+
+fn default_clear_color() -> Option<[f32; 4]> {
+    Some([0.03, 0.03, 0.03, 1.0])
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Pass {
     pub id: String,
     pub render_targets: Vec<String>,
     pub objects: Vec<Object>,
+
+    #[serde(default = "default_clear_color")]
+    pub clear_color: Option<[f32; 4]>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,8 +87,18 @@ pub struct Object {
     pub mesh_name: String,
     pub vertex_shader: String,
     pub fragment_shader: String,
+
+    #[serde(default = "default_true")]
     pub depth_test: bool,
+
+    #[serde(default = "default_true")]
     pub depth_write: bool,
+
+    #[serde(default)]
+    pub blend_mode: BlendMode,
+
+    #[serde(default)]
+    pub sampler_address_mode: SamplerAddressMode,
 
     #[serde(default)]
     pub textures: HashMap<String, TextureMapping>,
@@ -104,6 +141,7 @@ impl Chart {
             control_id.clone(),
             resource_repository.control_repository.clone(),
         );
+
         let render_targets_by_id = self
             .render_targets
             .iter()
@@ -214,7 +252,13 @@ impl Pass {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let pass = render::render_target::Pass::new(context, &self.id, render_targets, objects)?;
+        let pass = render::render_target::Pass::new(
+            context,
+            &self.id,
+            render_targets,
+            objects,
+            self.clear_color,
+        )?;
         Ok(pass)
     }
 }
@@ -327,6 +371,7 @@ impl Object {
         )?;
         let material = Material {
             passes: [None, None, Some(solid_step)],
+            sampler_address_mode: self.sampler_address_mode.load(),
         };
 
         let position_id = control_id.add(ControlIdPartType::Value, "position");
@@ -387,8 +432,32 @@ impl Object {
             fragment_shader,
             depth_test: self.depth_test,
             depth_write: self.depth_write,
+            blend_mode: self.blend_mode.load(),
+            sampler_address_mode: self.sampler_address_mode.load(),
         };
         Ok(material_step)
+    }
+}
+
+impl BlendMode {
+    pub fn load(&self) -> render::material::BlendMode {
+        match self {
+            BlendMode::None => render::material::BlendMode::None,
+            BlendMode::Alpha => render::material::BlendMode::Alpha,
+            BlendMode::Additive => render::material::BlendMode::Additive,
+        }
+    }
+}
+
+impl SamplerAddressMode {
+    pub fn load(&self) -> vulkano::sampler::SamplerAddressMode {
+        match self {
+            SamplerAddressMode::Repeat => vulkano::sampler::SamplerAddressMode::Repeat,
+            SamplerAddressMode::MirroredRepeat => {
+                vulkano::sampler::SamplerAddressMode::MirroredRepeat
+            }
+            SamplerAddressMode::ClampToEdge => vulkano::sampler::SamplerAddressMode::ClampToEdge,
+        }
     }
 }
 

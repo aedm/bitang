@@ -107,6 +107,10 @@ impl ControlSetBuilder {
         self.get_control(id, 3, &[default[0], default[1], default[2], 0.0])
     }
 
+    pub fn get_vec4(&mut self, id: &ControlId) -> Rc<Control> {
+        self.get_control(id, 4, &[0.0; 4])
+    }
+
     pub fn get_vec4_with_default(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
         self.get_control(id, 4, default)
     }
@@ -317,9 +321,15 @@ pub enum GlobalType {
     AppTime,
     ChartTime,
     ProjectionFromModel,
+    ProjectionFromCamera,
     CameraFromModel,
+    CameraFromWorld,
+    WorldFromModel,
     InstanceCount,
     PixelSize,
+    AspectRatio,
+    ZNear,
+    FieldOfView,
 }
 
 impl GlobalType {
@@ -329,8 +339,14 @@ impl GlobalType {
             "instance_count" => Ok(GlobalType::InstanceCount),
             "chart_time" => Ok(GlobalType::ChartTime),
             "projection_from_model" => Ok(GlobalType::ProjectionFromModel),
+            "projection_from_camera" => Ok(GlobalType::ProjectionFromCamera),
             "camera_from_model" => Ok(GlobalType::CameraFromModel),
+            "camera_from_world" => Ok(GlobalType::CameraFromWorld),
+            "world_from_model" => Ok(GlobalType::WorldFromModel),
             "pixel_size" => Ok(GlobalType::PixelSize),
+            "aspect_ratio" => Ok(GlobalType::AspectRatio),
+            "z_near" => Ok(GlobalType::ZNear),
+            "field_of_view" => Ok(GlobalType::FieldOfView),
             _ => Err(anyhow!("Unknown global type: {}", s)),
         }
     }
@@ -338,15 +354,18 @@ impl GlobalType {
 
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Globals {
-    pub app_time: f32,
-    pub chart_time: f32,
-    pub instance_count: f32,
     pub projection_from_model: Mat4,
     pub camera_from_model: Mat4,
     pub projection_from_camera: Mat4,
     pub camera_from_world: Mat4,
     pub world_from_model: Mat4,
     pub pixel_size: Vec2,
+    pub app_time: f32,
+    pub chart_time: f32,
+    pub instance_count: f32,
+    pub aspect_ratio: f32,
+    pub z_near: f32,
+    pub field_of_view: f32,
 }
 
 impl Globals {
@@ -355,9 +374,15 @@ impl Globals {
             GlobalType::AppTime => slice::from_ref(&self.app_time),
             GlobalType::ChartTime => slice::from_ref(&self.chart_time),
             GlobalType::ProjectionFromModel => self.projection_from_model.as_ref(),
+            GlobalType::ProjectionFromCamera => self.projection_from_camera.as_ref(),
             GlobalType::CameraFromModel => self.camera_from_model.as_ref(),
+            GlobalType::CameraFromWorld => self.camera_from_world.as_ref(),
+            GlobalType::WorldFromModel => self.world_from_model.as_ref(),
             GlobalType::InstanceCount => slice::from_ref(&self.instance_count),
             GlobalType::PixelSize => self.pixel_size.as_ref(),
+            GlobalType::AspectRatio => slice::from_ref(&self.aspect_ratio),
+            GlobalType::ZNear => slice::from_ref(&self.z_near),
+            GlobalType::FieldOfView => slice::from_ref(&self.field_of_view),
         }
     }
 

@@ -12,6 +12,7 @@ use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{AttachmentImage, ImageLayout, ImageViewAbstract, SampleCount};
 use vulkano::pipeline::graphics::viewport::Viewport;
+use vulkano::render_pass::LoadOp::Load;
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
     RenderPassCreateInfo, StoreOp, SubpassDescription,
@@ -22,6 +23,7 @@ pub struct Pass {
     pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     pub render_targets: Vec<Arc<RenderTarget>>,
     pub objects: Vec<Arc<RenderObject>>,
+    pub clear_color: Option<[f32; 4]>,
     render_units: Vec<RenderUnit>,
 }
 
@@ -31,12 +33,15 @@ impl Pass {
         id: &str,
         render_targets: Vec<Arc<RenderTarget>>,
         objects: Vec<Arc<RenderObject>>,
+        clear_color: Option<[f32; 4]>,
     ) -> Result<Pass> {
-        let render_pass = Self::make_vulkan_render_pass(context, &render_targets)?;
+        let render_pass =
+            Self::make_vulkan_render_pass(context, &render_targets, clear_color.is_some())?;
         let render_units = objects
             .iter()
             .map(|object| RenderUnit::new(context, &render_pass, object))
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()
+            .with_context(|| format!("Failed to create render units for pass '{}'", id))?;
 
         Ok(Pass {
             id: id.to_string(),
@@ -44,6 +49,7 @@ impl Pass {
             render_targets,
             objects,
             render_units,
+            clear_color,
         })
     }
 
@@ -90,10 +96,7 @@ impl Pass {
                 depth_range: 0.0..1.0,
             }
         };
-        camera.set(context, viewport.dimensions);
-        let pixel_size_x = 1.0 / viewport.dimensions[0];
-        let pixel_size_y = 1.0 / viewport.dimensions[1];
-        context.globals.pixel_size = Vec2::new(pixel_size_x, pixel_size_y);
+        camera.set(&mut context.globals, viewport.dimensions);
 
         let attachments = self
             .render_targets
@@ -121,8 +124,10 @@ impl Pass {
             .render_targets
             .iter()
             .map(|target| match target.role {
-                RenderTargetRole::Color => Some([0.03, 0.03, 0.03, 1.0].into()),
-                RenderTargetRole::Depth => Some(1f32.into()),
+                // RenderTargetRole::Color => Some([0.03, 0.03, 0.03, 1.0].into()),
+                RenderTargetRole::Color => self.clear_color.map(|c| c.into()),
+                // RenderTargetRole::Depth => Some(1f32.into()),
+                RenderTargetRole::Depth => self.clear_color.map(|_| 1f32.into()),
             })
             .collect::<Vec<_>>();
 
@@ -160,18 +165,18 @@ impl Pass {
     fn make_vulkan_render_pass(
         context: &VulkanContext,
         render_targets: &[Arc<RenderTarget>],
+        clear_buffers: bool,
     ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
         let mut attachments = vec![];
         let mut color_attachments = vec![];
         let mut depth_stencil_attachment = None;
+        let load_op = if clear_buffers { LoadOp::Clear } else { LoadOp::Load };
         for (index, render_target) in render_targets.iter().enumerate() {
             attachments.push(AttachmentDescription {
                 format: Some(render_target.format),
                 samples: SampleCount::Sample1, // TODO
-                load_op: LoadOp::Clear,
+                load_op,
                 store_op: StoreOp::Store,
-                stencil_load_op: LoadOp::Clear,
-                stencil_store_op: StoreOp::Store,
                 initial_layout: ImageLayout::General,
                 final_layout: ImageLayout::General,
                 ..Default::default()

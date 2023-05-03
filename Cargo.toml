@@ -16,5 +16,8 @@ overflow-checks = true
 opt-level = 2
 overflow-checks = false
 
+[profile.dev.package.vulkano]
+opt-level = 1
+
 [profile.dev-nowarn]
 inherits = "dev"
