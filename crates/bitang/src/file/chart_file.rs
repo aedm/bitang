@@ -4,6 +4,7 @@ use crate::file::resource_repository::ResourceRepository;
 use crate::file::shader_loader::ShaderCompilationResult;
 use crate::file::ResourcePath;
 use crate::render;
+use crate::render::buffer_generator::BufferGeneratorType;
 use crate::render::material::{
     DescriptorBinding, DescriptorSource, LocalUniformMapping, Material, MaterialStep, Shader,
 };
@@ -125,7 +126,7 @@ pub enum BufferMapping {
 pub struct BufferGenerator {
     id: String,
     size: u32,
-    generator: String,
+    generator: BufferGeneratorType,
 }
 
 impl Chart {
@@ -205,6 +206,7 @@ impl BufferGenerator {
             context,
             &control_id,
             control_set_builder,
+            &self.generator,
         );
         buffer_generator
     }

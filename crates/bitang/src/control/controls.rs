@@ -99,6 +99,10 @@ impl ControlSetBuilder {
         self.get_control(id, component_count, &[0.0; 4])
     }
 
+    pub fn get_vec2_with_default(&mut self, id: &ControlId, default: &[f32; 2]) -> Rc<Control> {
+        self.get_control(id, 2, &[default[0], default[1], 0.0, 0.0])
+    }
+
     pub fn get_vec3(&mut self, id: &ControlId) -> Rc<Control> {
         self.get_control(id, 3, &[0.0; 4])
     }
@@ -293,6 +297,11 @@ impl Control {
 
     pub fn as_float(&self) -> f32 {
         self.components.borrow()[0].value
+    }
+
+    pub fn as_vec2(&self) -> Vec2 {
+        let components = self.components.borrow();
+        Vec2::new(components[0].value, components[1].value)
     }
 
     pub fn as_vec3(&self) -> Vec3 {
