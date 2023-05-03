@@ -1,7 +1,6 @@
 use crate::control::controls::{Control, ControlSetBuilder, Globals};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::render::vulkan_window::RenderContext;
-use glam::{Mat3, Mat4, Vec2, Vec3};
+use glam::{Mat4, Vec2, Vec3};
 use std::f32::consts::PI;
 use std::hint::black_box;
 use std::rc::Rc;
@@ -80,15 +79,5 @@ impl Camera {
         globals.world_from_model = Mat4::IDENTITY;
 
         globals.update_compound_matrices();
-
-        let p = glam::Vec4::new(0., 0., 1., 1.);
-        let tp = globals.projection_from_model * p;
-
-        let o = glam::Vec4::new(0., 0., 0., 1.);
-        let to = globals.camera_from_world * o;
-
-        black_box(tp);
-        black_box(tp);
-        return;
     }
 }

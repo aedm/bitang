@@ -2,7 +2,6 @@ use crate::control::controls::{Control, GlobalType};
 use crate::render::buffer_generator::BufferGenerator;
 use crate::render::render_target::RenderTarget;
 use crate::render::Texture;
-use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::sampler::SamplerAddressMode;
