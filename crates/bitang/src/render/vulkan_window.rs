@@ -4,7 +4,7 @@ use crate::render::{DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::error;
+use tracing::{error, info};
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
@@ -25,7 +25,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
-const START_IN_FULLSCREEN: bool = false;
+const START_IN_DEMO_MODE: bool = false;
 
 pub struct VulkanContext {
     // TODO: expand and remove
@@ -54,9 +54,20 @@ pub struct VulkanWindow {
     is_fullscreen: bool,
 }
 
+pub enum PaintResult {
+    None,
+    EndReached,
+}
+
 pub trait VulkanApp {
-    fn paint(&mut self, context: &VulkanContext, renderer: &mut VulkanoWindowRenderer);
+    fn paint(
+        &mut self,
+        context: &VulkanContext,
+        renderer: &mut VulkanoWindowRenderer,
+    ) -> PaintResult;
     fn handle_window_event(&mut self, event: &WindowEvent);
+    fn play(&mut self);
+    fn stop(&mut self);
 }
 
 impl VulkanWindow {
@@ -144,6 +155,7 @@ impl VulkanWindow {
         } else {
             window.set_fullscreen(None);
             window.set_cursor_visible(true);
+            window.focus_window();
         }
     }
 
@@ -152,49 +164,74 @@ impl VulkanWindow {
     }
 
     pub fn run(mut self, mut app: impl VulkanApp + 'static) {
-        if START_IN_FULLSCREEN {
+        if START_IN_DEMO_MODE {
+            info!("Starting demo.");
             self.toggle_fullscreen();
+            app.play();
         }
+        let mut demo_mode = START_IN_DEMO_MODE;
 
         let event_loop = self.event_loop.take().unwrap();
-        event_loop.run(move |event, _, control_flow| match event {
-            Event::WindowEvent { event, window_id }
-                if window_id == self.get_renderer().window().id() =>
-            {
-                app.handle_window_event(&event);
-                match event {
-                    WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                        self.get_renderer().resize();
-                    }
-                    WindowEvent::CloseRequested => {
-                        *control_flow = ControlFlow::Exit;
-                    }
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        if input.state == winit::event::ElementState::Pressed {
-                            match input.virtual_keycode {
-                                Some(winit::event::VirtualKeyCode::Escape) => {
-                                    *control_flow = ControlFlow::Exit;
+        event_loop.run(move |event, _, control_flow| {
+            match event {
+                Event::WindowEvent { event, window_id }
+                    if window_id == self.get_renderer().window().id() =>
+                {
+                    app.handle_window_event(&event);
+                    match event {
+                        WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                            self.get_renderer().resize();
+                        }
+                        WindowEvent::CloseRequested => {
+                            *control_flow = ControlFlow::Exit;
+                            info!("App closed.");
+                        }
+                        WindowEvent::KeyboardInput { input, .. } => {
+                            if input.state == winit::event::ElementState::Pressed {
+                                match input.virtual_keycode {
+                                    Some(winit::event::VirtualKeyCode::F11) => {
+                                        self.toggle_fullscreen();
+                                        demo_mode = false;
+                                    }
+                                    Some(winit::event::VirtualKeyCode::Escape) => {
+                                        if demo_mode {
+                                            *control_flow = ControlFlow::Exit;
+                                            info!("Exiting on user request.");
+                                        } else if self.is_fullscreen {
+                                            self.toggle_fullscreen();
+                                            app.stop();
+                                        }
+                                    }
+                                    _ => (),
                                 }
-                                Some(winit::event::VirtualKeyCode::F11) => {
-                                    self.toggle_fullscreen();
-                                }
-                                _ => (),
                             }
                         }
+                        _ => (),
                     }
-                    _ => (),
                 }
-            }
-            Event::RedrawRequested(_) => {
-                app.paint(
-                    &self.context,
-                    self.windows.get_primary_renderer_mut().unwrap(),
-                );
-            }
-            Event::MainEventsCleared => {
-                self.get_renderer().window().request_redraw();
-            }
-            _ => (),
+                Event::RedrawRequested(_) => {
+                    let result = app.paint(
+                        &self.context,
+                        self.windows.get_primary_renderer_mut().unwrap(),
+                    );
+                    match result {
+                        PaintResult::None => {}
+                        PaintResult::EndReached => {
+                            if demo_mode {
+                                *control_flow = ControlFlow::Exit;
+                                info!("Everything that has a beginning must have an end.");
+                            } else if self.is_fullscreen {
+                                self.toggle_fullscreen();
+                            }
+                            app.stop();
+                        }
+                    }
+                }
+                Event::MainEventsCleared => {
+                    self.get_renderer().window().request_redraw();
+                }
+                _ => (),
+            };
         });
     }
 }

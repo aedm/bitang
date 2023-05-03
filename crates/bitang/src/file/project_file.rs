@@ -25,8 +25,8 @@ impl Project {
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
     ) -> Result<render::project::Project> {
-        let chart_names: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();
-        let charts_by_name: HashMap<_, _> = chart_names
+        let chart_ids: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();
+        let charts_by_id: HashMap<_, _> = chart_ids
             .iter()
             .map(|&chart_name| {
                 let chart = resource_repository.load_chart(chart_name, context)?;
@@ -37,24 +37,12 @@ impl Project {
             .cuts
             .iter()
             .map(|cut| render::project::Cut {
-                chart: charts_by_name[&cut.chart].clone(),
+                chart: charts_by_id[&cut.chart].clone(),
                 start_time: cut.start_time,
                 end_time: cut.end_time,
                 offset: cut.offset,
             })
             .collect();
-        let mut charts = vec![];
-        let mut charts_inserted = HashSet::new();
-        for cut in &self.cuts {
-            if charts_inserted.insert(&cut.chart) {
-                // Unwrap is safe because we just inserted the key.
-                charts.push(charts_by_name.get(&cut.chart).unwrap().clone());
-            }
-        }
-        Ok(render::project::Project {
-            charts_by_id: charts_by_name,
-            charts,
-            cuts,
-        })
+        Ok(render::project::Project::new(charts_by_id, cuts))
     }
 }

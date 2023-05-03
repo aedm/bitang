@@ -101,14 +101,6 @@ impl Ui {
                 }
             }
         }
-
-        // Play
-        if ctx
-            .input_mut()
-            .consume_key(egui::Modifiers::NONE, egui::Key::Space)
-        {
-            ui_state.is_playing = !ui_state.is_playing;
-        }
     }
 
     fn draw_control_tree(ui: &mut egui::Ui, ui_state: &mut UiState) {
