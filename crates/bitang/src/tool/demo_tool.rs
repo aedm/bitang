@@ -12,7 +12,7 @@ use std::cmp::max;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::{error, info};
+use tracing::error;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::image::ImageViewAbstract;
 use vulkano::pipeline::graphics::viewport::Viewport;
@@ -30,7 +30,6 @@ pub struct DemoTool {
     play_start_time: Instant,
     last_eval_time: f32,
     music_player: MusicPlayer,
-    should_quit: bool,
 }
 
 pub struct UiState {
@@ -86,7 +85,6 @@ impl DemoTool {
             play_start_time: Instant::now(),
             last_eval_time: -1.0,
             music_player,
-            should_quit: false,
         };
         Ok(demo_tool)
     }
