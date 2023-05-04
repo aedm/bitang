@@ -24,7 +24,7 @@ use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
 use vulkano::pipeline::graphics::viewport::ViewportState;
 use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineBindPoint, StateMode};
 use vulkano::render_pass::Subpass;
-use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
+use vulkano::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
 
 // TODO: use a dynamically sized ring buffer for uniforms instead
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
@@ -356,10 +356,8 @@ impl ShaderUniformStorage {
         let sampler = Sampler::new(
             context.vulkan_context.context.device().clone(),
             SamplerCreateInfo {
-                mag_filter: Filter::Linear,
-                min_filter: Filter::Linear,
                 address_mode: [address_mode; 3],
-                ..Default::default()
+                ..SamplerCreateInfo::simple_repeat_linear()
             },
         )?;
 
