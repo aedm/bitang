@@ -115,7 +115,7 @@ impl ControlSetBuilder {
         self.get_control(id, 4, &[0.0; 4])
     }
 
-    pub fn get_vec4_with_default(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
+    pub fn _get_vec4_with_default(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
         self.get_control(id, 4, default)
     }
 
