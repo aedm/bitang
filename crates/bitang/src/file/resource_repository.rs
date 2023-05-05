@@ -187,7 +187,7 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
         context.context.memory_allocator(),
         rgba.into_raw(),
         dimensions,
-        MipmapsCount::One,
+        MipmapsCount::Log2,
         Format::R8G8B8A8_SRGB,
         &mut cbb,
     )?;
