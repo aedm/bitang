@@ -12,6 +12,9 @@ pub struct SplinePoint {
     pub time: f32,
     pub value: f32,
     pub is_linear_after: bool,
+
+    #[serde(default)]
+    pub hold_after: bool,
 }
 
 impl Spline {
@@ -51,6 +54,9 @@ impl Spline {
 
         // We are between two control points
         let p1 = &self.points[index_after - 1];
+        if p1.hold_after {
+            return p1.value;
+        }
         let p2 = &self.points[index_after];
         if p1.is_linear_after {
             return p1.value + (p2.value - p1.value) * (time - p1.time) / (p2.time - p1.time);
