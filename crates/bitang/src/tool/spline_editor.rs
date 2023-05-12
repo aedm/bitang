@@ -129,6 +129,7 @@ impl SplineEditor {
                             time: *time,
                             value,
                             is_linear_after: false,
+                            hold_after: false,
                         },
                     );
                     self.selected_index = Some(index_after);
@@ -159,6 +160,7 @@ impl SplineEditor {
                                     .max_decimals(6),
                             );
                             ui.checkbox(&mut point.is_linear_after, "Linear");
+                            ui.checkbox(&mut point.hold_after, "Hold");
                         });
                     }
                 }

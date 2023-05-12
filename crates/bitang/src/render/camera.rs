@@ -10,6 +10,8 @@ pub struct Camera {
     distance: Rc<Control>,
     field_of_view: Rc<Control>,
     shake: Rc<Control>,
+    speed: Rc<Control>,
+    time_adjustment: Rc<Control>,
 }
 
 impl Camera {
@@ -19,6 +21,8 @@ impl Camera {
         let distance_id = control_id.add(ControlIdPartType::Value, "distance");
         let field_of_view_id = control_id.add(ControlIdPartType::Value, "field_of_view");
         let shake_id = control_id.add(ControlIdPartType::Value, "shake");
+        let speed_id = control_id.add(ControlIdPartType::Value, "speed");
+        let time_adjustment_id = control_id.add(ControlIdPartType::Value, "time_adjustment");
         Camera {
             target: control_set_builder.get_vec3_with_default(&target_id, &[0.0, 0.0, 0.0]),
             orientation: control_set_builder
@@ -26,6 +30,8 @@ impl Camera {
             distance: control_set_builder.get_float_with_default(&distance_id, 5.),
             field_of_view: control_set_builder.get_float_with_default(&field_of_view_id, PI / 2.0),
             shake: control_set_builder.get_vec4(&shake_id),
+            speed: control_set_builder.get_float_with_default(&speed_id, 1.),
+            time_adjustment: control_set_builder.get_float_with_default(&time_adjustment_id, 0.),
         }
     }
 
@@ -49,10 +55,11 @@ impl Camera {
         // Shake
         let shake = {
             let s = self.shake.as_vec4();
-            let time = globals.app_time * s.w * 10.0;
+            let time =
+                globals.app_time * self.speed.as_float() * 10.0 + self.time_adjustment.as_float();
             let shc = (1.0, 2.423, 1.834634);
             let t = (time, time * 1.257443, time * 1.1123658);
-            let sens = 0.004;
+            let sens = 0.004 * s.w;
             let shake_pitch =
                 ((t.0 * shc.0).sin() * (t.0 * shc.1).sin() * (t.0 * shc.2).sin()) * s.x * sens;
             let shake_yaw =

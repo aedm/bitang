@@ -146,37 +146,42 @@ impl Ui {
     fn draw_control_tree_node(ui: &mut egui::Ui, node: &UsedControlsNode, ui_state: &mut UiState) {
         let id_str = format!("node:{}", node.id_prefix);
         let id = ui.make_persistent_id(&id_str);
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
-            .show_header(ui, |ui| {
-                let selected = ui_state.selected_control_id == node.id_prefix;
-                let mut new_selected = selected;
-                // Unwrap is safe because we know that the prefix has at least one part
-                let control_id_part = &node.id_prefix.parts.last().unwrap();
-                let icon = match control_id_part.part_type {
-                    ControlIdPartType::Chart => '📈',
-                    ControlIdPartType::ChartValues => '🌐',
-                    ControlIdPartType::Pass => '📦',
-                    ControlIdPartType::Camera => '📷',
-                    ControlIdPartType::Object => '📝',
-                    ControlIdPartType::Value => '📊',
-                    ControlIdPartType::BufferGenerator => '🔮',
-                };
-                ui.toggle_value(
-                    &mut new_selected,
-                    format!("{} {}", icon, control_id_part.name),
-                );
-                if new_selected && !selected {
-                    ui_state.selected_control_id = node.id_prefix.clone();
+        // Unwrap is safe because we know that the prefix has at least one part
+        let control_id_part = &node.id_prefix.parts.last().unwrap();
+        let default_open = control_id_part.part_type != ControlIdPartType::Chart;
+        egui::collapsing_header::CollapsingState::load_with_default_open(
+            ui.ctx(),
+            id,
+            default_open,
+        )
+        .show_header(ui, |ui| {
+            let selected = ui_state.selected_control_id == node.id_prefix;
+            let mut new_selected = selected;
+            let icon = match control_id_part.part_type {
+                ControlIdPartType::Chart => '📈',
+                ControlIdPartType::ChartValues => '🌐',
+                ControlIdPartType::Pass => '📦',
+                ControlIdPartType::Camera => '📷',
+                ControlIdPartType::Object => '📝',
+                ControlIdPartType::Value => '📊',
+                ControlIdPartType::BufferGenerator => '🔮',
+            };
+            ui.toggle_value(
+                &mut new_selected,
+                format!("{} {}", icon, control_id_part.name),
+            );
+            if new_selected && !selected {
+                ui_state.selected_control_id = node.id_prefix.clone();
+            }
+        })
+        .body(|ui| {
+            for child in &node.children {
+                let child = child.borrow();
+                if !child.children.is_empty() {
+                    Self::draw_control_tree_node(ui, &child, ui_state);
                 }
-            })
-            .body(|ui| {
-                for child in &node.children {
-                    let child = child.borrow();
-                    if !child.children.is_empty() {
-                        Self::draw_control_tree_node(ui, &child, ui_state);
-                    }
-                }
-            });
+            }
+        });
     }
 
     // Returns the spline that was activated

@@ -57,6 +57,24 @@ impl UiState {
         self.get_chart()
             .and_then(|chart| Some(chart.controls.clone()))
     }
+
+    pub fn get_time(&self) -> f32 {
+        if let Some(part) = self.selected_control_id.parts.first() {
+            if let Some(project) = &self.project {
+                if part.part_type == ControlIdPartType::Chart {
+                    if let Some(time) = project
+                        .cuts
+                        .iter()
+                        .find(|cut| cut.chart.id == part.name)
+                        .map(|cut| cut.start_time)
+                    {
+                        return time + self.time;
+                    }
+                }
+            }
+        }
+        return self.time;
+    }
 }
 
 impl DemoTool {
@@ -267,7 +285,7 @@ impl VulkanApp for DemoTool {
     }
 
     fn play(&mut self) {
-        self.music_player.play_from(self.ui_state.time);
+        self.music_player.play_from(self.ui_state.get_time());
         let now = Instant::now();
         // Duration is always positive
         if self.ui_state.time >= 0. {

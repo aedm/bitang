@@ -25,7 +25,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
-const START_IN_DEMO_MODE: bool = false;
+const START_IN_DEMO_MODE: bool = !true;
 
 pub struct VulkanContext {
     // TODO: expand and remove
