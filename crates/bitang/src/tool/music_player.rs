@@ -3,7 +3,7 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;
 use std::io::BufReader;
 use std::time::Duration;
-use tracing::{info};
+use tracing::info;
 
 pub struct MusicPlayer {
     sink: Sink,
@@ -11,6 +11,8 @@ pub struct MusicPlayer {
     _stream: OutputStream,
     is_playing: bool,
 }
+
+const MUSIC_FILE: &str = "Brian-Attractors-(short-version).mp3";
 
 impl MusicPlayer {
     pub fn new() -> Self {
@@ -30,7 +32,7 @@ impl MusicPlayer {
             info!("Music can't be played from negative time");
             return;
         }
-        let path = format! {"{ROOT_FOLDER}/music.mp3"};
+        let path = format! {"{ROOT_FOLDER}/{MUSIC_FILE}"};
         let Ok(file) = File::open(&path) else {
             info!("Music file '{path}' not found");
             return;
