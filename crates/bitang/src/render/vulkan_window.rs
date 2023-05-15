@@ -26,6 +26,7 @@ use winit::{
 };
 
 const START_IN_DEMO_MODE: bool = !true;
+const BORDERLESS_FULL_SCREEN: bool = true;
 
 pub struct VulkanContext {
     // TODO: expand and remove
@@ -139,7 +140,10 @@ impl VulkanWindow {
         let window = renderer.window();
         self.is_fullscreen = !self.is_fullscreen;
         if self.is_fullscreen {
-            if let Some(monitor) = window.current_monitor() {
+            if BORDERLESS_FULL_SCREEN {
+                window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                window.set_cursor_visible(false);
+            } else if let Some(monitor) = window.current_monitor() {
                 let video_mode = monitor
                     .video_modes()
                     .find(|mode| mode.size() == PhysicalSize::new(1920, 1080));
