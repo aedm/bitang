@@ -1,9 +1,10 @@
 use crate::file::ROOT_FOLDER;
+use anyhow::{anyhow, Context, Error, Result};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;
 use std::io::BufReader;
 use std::time::Duration;
-use tracing::{info};
+use tracing::{debug, info};
 
 pub struct MusicPlayer {
     sink: Sink,
@@ -30,7 +31,10 @@ impl MusicPlayer {
             info!("Music can't be played from negative time");
             return;
         }
-        let path = format! {"{ROOT_FOLDER}/music.mp3"};
+        let Ok(path) = Self::find_music_file() else {
+            info!("Music file not found");
+            return;
+        };
         let Ok(file) = File::open(&path) else {
             info!("Music file '{path}' not found");
             return;
@@ -48,5 +52,24 @@ impl MusicPlayer {
             self.sink.stop();
             self.is_playing = false;
         }
+    }
+
+    fn find_music_file() -> Result<String> {
+        let entries = std::fs::read_dir(ROOT_FOLDER)
+            .with_context(|| format!("Failed to read directory: {}", ROOT_FOLDER))?;
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(path) = path.to_str() {
+                        if path.ends_with(".mp3") {
+                            debug!("Music file found: {}", path);
+                            return Ok(path.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        Err(anyhow!("No music file found in {}", ROOT_FOLDER))
     }
 }
