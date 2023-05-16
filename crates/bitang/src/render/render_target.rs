@@ -8,8 +8,9 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::format::Format;
-use vulkano::image::view::ImageView;
-use vulkano::image::{AttachmentImage, ImageLayout, ImageViewAbstract, SampleCount};
+use vulkano::image::view::{ImageView, ImageViewCreateInfo};
+use vulkano::image::{AttachmentImage, ImageLayout, ImageUsage, ImageViewAbstract, SampleCount};
+use vulkano::memory::allocator::StandardMemoryAllocator;
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
@@ -214,11 +215,13 @@ impl Pass {
     }
 }
 
+#[derive(PartialEq, Eq)]
 pub enum RenderTargetRole {
     Color,
     Depth,
 }
 
+#[derive(Clone)]
 pub enum RenderTargetSizeConstraint {
     Static { width: u32, height: u32 },
     ScreenRelative { width: f32, height: f32 },
@@ -290,7 +293,60 @@ impl RenderTarget {
         })
     }
 
+    pub fn new_fake_swapchain(
+        memory_allocator: &Arc<StandardMemoryAllocator>,
+        role: RenderTargetRole,
+        texture_size: (u32, u32),
+    ) -> Arc<RenderTarget> {
+        let id = match role {
+            RenderTargetRole::Color => "screen",
+            RenderTargetRole::Depth => "screen_depth",
+        };
+        let format = match role {
+            RenderTargetRole::Color => Format::R8G8B8A8_SRGB,
+            RenderTargetRole::Depth => Format::D32_SFLOAT,
+        };
+        let usage = ImageUsage {
+            sampled: true,
+            transfer_src: true,
+            color_attachment: role == RenderTargetRole::Color,
+            depth_stencil_attachment: role == RenderTargetRole::Depth,
+            ..ImageUsage::empty()
+        };
+        let texture = AttachmentImage::with_usage(
+            memory_allocator,
+            [texture_size.0, texture_size.1],
+            format,
+            usage,
+        )
+        .unwrap();
+        let create_info = ImageViewCreateInfo {
+            usage,
+            ..ImageViewCreateInfo::from_image(&texture)
+        };
+        let image = Some(RenderTargetImage {
+            image_view: ImageView::new(texture.clone(), create_info).unwrap(),
+            texture: Some(texture),
+            texture_size,
+        });
+
+        Arc::new(RenderTarget {
+            is_swapchain: true,
+            id: id.to_string(),
+            format,
+            size_constraint: RenderTargetSizeConstraint::Static {
+                width: texture_size.0,
+                height: texture_size.1,
+            },
+            role,
+            image: RefCell::new(image),
+        })
+    }
+
     pub fn ensure_buffer(&self, context: &RenderContext) -> Result<()> {
+        if self.is_swapchain {
+            return Ok(());
+        }
         let texture_size = match self.size_constraint {
             RenderTargetSizeConstraint::Static { width, height } => (width, height),
             RenderTargetSizeConstraint::ScreenRelative { width, height } => {
