@@ -1,5 +1,5 @@
 use crate::control::controls::Globals;
-use crate::render::render_target::{RenderTarget, RenderTargetRole};
+use crate::render::render_target::{RenderTarget, RenderTargetRole, RenderTargetSizeConstraint};
 use crate::render::{DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
@@ -10,7 +10,7 @@ use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::device::Queue;
 use vulkano::format::Format;
-use vulkano::image::ImageUsage;
+use vulkano::image::{ImageUsage, ImageViewAbstract};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::Surface;
 use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
@@ -28,6 +28,11 @@ use winit::{
 const START_IN_DEMO_MODE: bool = !true;
 const BORDERLESS_FULL_SCREEN: bool = true;
 
+pub const FRAMEDUMP_MODE: bool = false;
+pub const FRAMEDUMP_WIDTH: u32 = 3840;
+pub const FRAMEDUMP_HEIGHT: u32 = 2160;
+pub const FRAMEDUMP_FPS: u32 = 60;
+
 pub struct VulkanContext {
     // TODO: expand and remove
     pub context: VulkanoContext,
@@ -41,8 +46,7 @@ pub struct VulkanContext {
 
 pub struct RenderContext<'a> {
     pub vulkan_context: &'a VulkanContext,
-    pub screen_buffer: SwapchainImageView,
-    pub depth_buffer: DeviceImageView,
+    pub screen_buffer: Arc<dyn ImageViewAbstract>, //SwapchainImageView,
     pub screen_viewport: Viewport,
     pub command_builder: &'a mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
     pub globals: Globals,
@@ -101,14 +105,32 @@ impl VulkanWindow {
             },
         );
 
-        let screen_render_target =
-            RenderTarget::from_swapchain(RenderTargetRole::Color, SCREEN_COLOR_FORMAT);
-        let depth_render_target =
-            RenderTarget::from_swapchain(RenderTargetRole::Depth, DEPTH_BUFFER_FORMAT);
-        let swapchain_render_targets_by_id = HashMap::from([
-            (screen_render_target.id.clone(), screen_render_target),
-            (depth_render_target.id.clone(), depth_render_target),
-        ]);
+        let swapchain_render_targets_by_id = if FRAMEDUMP_MODE {
+            let size = (FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
+            let screen_render_target = RenderTarget::new_fake_swapchain(
+                vulkano_context.memory_allocator(),
+                RenderTargetRole::Color,
+                size,
+            );
+            let depth_render_target = RenderTarget::new_fake_swapchain(
+                vulkano_context.memory_allocator(),
+                RenderTargetRole::Depth,
+                size,
+            );
+            HashMap::from([
+                (screen_render_target.id.clone(), screen_render_target),
+                (depth_render_target.id.clone(), depth_render_target),
+            ])
+        } else {
+            let screen_render_target =
+                RenderTarget::from_swapchain(RenderTargetRole::Color, SCREEN_COLOR_FORMAT);
+            let depth_render_target =
+                RenderTarget::from_swapchain(RenderTargetRole::Depth, DEPTH_BUFFER_FORMAT);
+            HashMap::from([
+                (screen_render_target.id.clone(), screen_render_target),
+                (depth_render_target.id.clone(), depth_render_target),
+            ])
+        };
 
         let command_buffer_allocator = StandardCommandBufferAllocator::new(
             vulkano_context.device().clone(),
@@ -221,7 +243,7 @@ impl VulkanWindow {
                     match result {
                         PaintResult::None => {}
                         PaintResult::EndReached => {
-                            if demo_mode {
+                            if demo_mode || FRAMEDUMP_MODE {
                                 *control_flow = ControlFlow::Exit;
                                 info!("Everything that has a beginning must have an end.");
                             } else if self.is_fullscreen {
