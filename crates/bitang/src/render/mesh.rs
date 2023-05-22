@@ -1,26 +1,29 @@
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::Vertex3;
 use anyhow::Result;
-use std::sync::Arc;
-use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
+use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryUsage};
 
-pub type VertexBuffer = CpuAccessibleBuffer<[Vertex3]>;
+pub type VertexBuffer = Subbuffer<[Vertex3]>;
 
 #[derive(Clone)]
 pub struct Mesh {
     // TODO: omit Arc
-    pub vertex_buffer: Arc<VertexBuffer>,
+    pub vertex_buffer: VertexBuffer,
 }
 
 impl Mesh {
     pub fn try_new(context: &VulkanContext, vertices: Vec<Vertex3>) -> Result<Mesh> {
-        let vertex_buffer = CpuAccessibleBuffer::from_iter(
+        let vertex_buffer = Buffer::from_iter(
             context.context.memory_allocator(),
-            BufferUsage {
-                vertex_buffer: true,
-                ..BufferUsage::empty()
+            BufferCreateInfo {
+                usage: BufferUsage::VERTEX_BUFFER,
+                ..Default::default()
             },
-            false,
+            AllocationCreateInfo {
+                usage: MemoryUsage::Upload,
+                ..Default::default()
+            },
             vertices,
         )?;
         Ok(Mesh { vertex_buffer })

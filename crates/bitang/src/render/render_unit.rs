@@ -10,17 +10,17 @@ use glam::{EulerRot, Mat4};
 use std::mem::size_of;
 use std::sync::Arc;
 use std::{array, mem};
-use vulkano::buffer::{BufferUsage, CpuBufferPool, TypedBufferAccess};
+use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
+use vulkano::buffer::BufferUsage;
 use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::image::ImageViewAbstract;
-use vulkano::memory::allocator::MemoryUsage;
 use vulkano::pipeline::graphics::color_blend::{
     AttachmentBlend, BlendFactor, BlendOp, ColorBlendState,
 };
 use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
-use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
+use vulkano::pipeline::graphics::vertex_input::Vertex;
 use vulkano::pipeline::graphics::viewport::ViewportState;
 use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineBindPoint, StateMode};
 use vulkano::render_pass::Subpass;
@@ -28,7 +28,6 @@ use vulkano::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
 
 // TODO: use a dynamically sized ring buffer for uniforms instead
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
-type UniformBufferPool = CpuBufferPool<[f32; MAX_UNIFORMS_F32_COUNT]>;
 
 pub struct RenderUnit {
     render_object: Arc<RenderObject>,
@@ -42,7 +41,7 @@ struct RenderUnitStep {
 }
 
 struct ShaderUniformStorage {
-    uniform_buffer_pool: UniformBufferPool,
+    uniform_buffer_pool: SubbufferAllocator,
 }
 
 impl RenderUnit {
@@ -166,7 +165,7 @@ impl RenderUnitStep {
         };
 
         let pipeline = GraphicsPipeline::start()
-            .vertex_input_state(BuffersDefinition::new().vertex::<Vertex3>())
+            .vertex_input_state(Vertex3::per_vertex())
             .vertex_shader(
                 material_step
                     .vertex_shader
@@ -250,13 +249,12 @@ impl RenderUnitStep {
 
 impl ShaderUniformStorage {
     pub fn new(context: &VulkanContext) -> ShaderUniformStorage {
-        let uniform_buffer_pool = UniformBufferPool::new(
+        let uniform_buffer_pool = SubbufferAllocator::new(
             context.context.memory_allocator().clone(),
-            BufferUsage {
-                uniform_buffer: true,
-                ..BufferUsage::empty()
+            SubbufferAllocatorCreateInfo {
+                buffer_usage: BufferUsage::UNIFORM_BUFFER,
+                ..Default::default()
             },
-            MemoryUsage::Upload,
         );
         ShaderUniformStorage {
             uniform_buffer_pool,
@@ -294,8 +292,8 @@ impl ShaderUniformStorage {
             }
             let _value_count = shader.uniform_buffer_size / size_of::<f32>();
             // Unwrap is okay: we want to panic if we can't allocate
-            let uniform_buffer_subbuffer =
-                self.uniform_buffer_pool.from_data(uniform_values).unwrap();
+            let uniform_buffer_subbuffer = self.uniform_buffer_pool.allocate_sized().unwrap();
+            *uniform_buffer_subbuffer.write().unwrap() = uniform_values;
             descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
         }
 

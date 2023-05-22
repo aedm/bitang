@@ -11,24 +11,27 @@ pub mod vulkan_window;
 use crate::control::controls::Control;
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
-use bytemuck::{Pod, Zeroable};
 use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::ImmutableImage;
+use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex};
 
-#[derive(Default, Debug, Clone, Copy, Pod, Zeroable)]
+#[derive(BufferContents, Vertex)]
 #[repr(C)]
 pub struct Vertex3 {
+    #[format(R32G32B32_SFLOAT)]
     pub a_position: [f32; 3],
+    #[format(R32G32B32_SFLOAT)]
     pub a_normal: [f32; 3],
+    #[format(R32G32B32_SFLOAT)]
     pub a_tangent: [f32; 3],
+    #[format(R32G32_SFLOAT)]
     pub a_uv: [f32; 2],
+    #[format(R32_SFLOAT)]
     pub a_padding: f32,
 }
-
-vulkano::impl_vertex!(Vertex3, a_position, a_normal, a_tangent, a_uv, a_padding);
 
 pub type Texture = ImageView<ImmutableImage>;
 

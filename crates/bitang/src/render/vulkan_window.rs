@@ -1,5 +1,5 @@
 use crate::control::controls::Globals;
-use crate::render::render_target::{RenderTarget, RenderTargetRole, RenderTargetSizeConstraint};
+use crate::render::render_target::{RenderTarget, RenderTargetRole};
 use crate::render::{DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use vulkano::format::Format;
 use vulkano::image::{ImageUsage, ImageViewAbstract};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::Surface;
-use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
+use vulkano_util::renderer::{VulkanoWindowRenderer};
 use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},
@@ -25,7 +25,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
-const START_IN_DEMO_MODE: bool = !true;
+const START_IN_DEMO_MODE: bool = false;
 const BORDERLESS_FULL_SCREEN: bool = true;
 
 pub const FRAMEDUMP_MODE: bool = false;
@@ -99,10 +99,7 @@ impl VulkanWindow {
         renderer.add_additional_image_view(
             1,
             DEPTH_BUFFER_FORMAT,
-            ImageUsage {
-                depth_stencil_attachment: true,
-                ..ImageUsage::empty()
-            },
+            ImageUsage::DEPTH_STENCIL_ATTACHMENT,
         );
 
         let swapchain_render_targets_by_id = if FRAMEDUMP_MODE {

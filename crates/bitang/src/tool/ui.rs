@@ -4,11 +4,10 @@ use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::tool::demo_tool::UiState;
 use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;
-use egui_winit_vulkano::Gui;
+use egui_winit_vulkano::{Gui, GuiConfig};
 use std::rc::Rc;
 use tracing::error;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
-use vulkano::image::ImageViewAbstract;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
 use winit::{event::WindowEvent, event_loop::EventLoop};
 
@@ -38,9 +37,12 @@ impl Ui {
         let gui = Gui::new_with_subpass(
             event_loop,
             context.surface.clone(),
-            Some(vulkano::format::Format::B8G8R8A8_SRGB),
             context.gfx_queue.clone(),
             subpass.clone(),
+            GuiConfig {
+                preferred_format: Some(vulkano::format::Format::B8G8R8A8_SRGB),
+                ..Default::default()
+            },
         );
         let spline_editor = SplineEditor::new();
 
@@ -87,10 +89,8 @@ impl Ui {
 
     fn handle_hotkeys(ctx: egui::Context, ui_state: &mut UiState) {
         // Save
-        if ctx
-            .input_mut()
-            .consume_key(egui::Modifiers::CTRL, egui::Key::S)
-        {
+        let save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
+        if ctx.input_mut(|i| i.consume_shortcut(&save_shortcut)) {
             if let Some(project) = &ui_state.project {
                 if let Err(err) = ui_state
                     .control_repository

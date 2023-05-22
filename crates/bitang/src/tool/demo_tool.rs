@@ -12,20 +12,19 @@ use crate::tool::ui::Ui;
 use anyhow::{anyhow, Result};
 use std::cell::RefCell;
 use std::cmp::max;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-use tracing::{debug, error, info};
-use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
+use tracing::{error, info};
+use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, CopyImageToBufferInfo,
     PrimaryCommandBufferAbstract,
 };
-use vulkano::image::view::ImageView;
-use vulkano::image::{ImageAccess, ImageViewAbstract};
+use vulkano::image::ImageViewAbstract;
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryUsage};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::sync::GpuFuture;
 use vulkano_util::renderer::VulkanoWindowRenderer;
@@ -42,7 +41,7 @@ pub struct DemoTool {
     last_eval_time: f32,
     music_player: MusicPlayer,
 
-    dumped_frame_buffer: Option<Arc<CpuAccessibleBuffer<[u8]>>>,
+    dumped_frame_buffer: Option<Subbuffer<[u8]>>,
     frame_counter: usize,
 }
 
@@ -109,13 +108,16 @@ impl DemoTool {
         };
 
         let dumped_frame_buffer = if FRAMEDUMP_MODE {
-            let buffer = CpuAccessibleBuffer::from_iter(
+            let buffer = Buffer::from_iter(
                 context.context.memory_allocator(),
-                BufferUsage {
-                    transfer_dst: true,
-                    ..BufferUsage::empty()
+                BufferCreateInfo {
+                    usage: BufferUsage::TRANSFER_DST,
+                    ..Default::default()
                 },
-                true,
+                AllocationCreateInfo {
+                    usage: MemoryUsage::Download,
+                    ..Default::default()
+                },
                 (0..FRAMEDUMP_WIDTH * FRAMEDUMP_HEIGHT * 4).map(|_| 0u8),
             )?;
             Some(buffer)
@@ -393,11 +395,13 @@ impl DemoTool {
             self.ui_state.project = Some(project.clone());
         }
 
-        if !self.has_render_failure {
-            if let Err(err) = self.draw(context) {
-                error!("Render failed: {}", err);
+        if let Err(err) = self.draw(context) {
+            if !self.has_render_failure {
+                error!("Render failed: {:?}", err);
                 self.has_render_failure = true;
             }
+        } else {
+            self.has_render_failure = false;
         }
 
         Some(project)

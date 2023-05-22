@@ -6,10 +6,8 @@ use glam::Vec3;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
-use vulkano::buffer::cpu_pool::CpuBufferPoolChunk;
-use vulkano::buffer::{BufferUsage, CpuBufferPool};
-use vulkano::memory::allocator::MemoryUsage;
+use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
+use vulkano::buffer::{BufferUsage, Subbuffer};
 
 type BufferItem = [f32; 4];
 
@@ -29,8 +27,8 @@ trait BufferGeneratorImpl {
 
 pub struct BufferGenerator {
     size: u32,
-    buffer_pool: CpuBufferPool<BufferItem>,
-    current_buffer: RefCell<Option<Arc<CpuBufferPoolChunk<BufferItem>>>>,
+    buffer_pool: SubbufferAllocator,
+    pub current_buffer: RefCell<Option<Subbuffer<[BufferItem]>>>,
     generator: Rc<dyn BufferGeneratorImpl>,
 }
 
@@ -42,13 +40,12 @@ impl BufferGenerator {
         control_set_builder: &mut ControlSetBuilder,
         generator_type: &BufferGeneratorType,
     ) -> Self {
-        let buffer_pool = CpuBufferPool::new(
+        let buffer_pool = SubbufferAllocator::new(
             context.context.memory_allocator().clone(),
-            BufferUsage {
-                storage_buffer: true,
-                ..BufferUsage::empty()
+            SubbufferAllocatorCreateInfo {
+                buffer_usage: BufferUsage::STORAGE_BUFFER,
+                ..Default::default()
             },
-            MemoryUsage::Upload,
         );
 
         let generator: Rc<dyn BufferGeneratorImpl> = match generator_type {
@@ -83,12 +80,13 @@ impl BufferGenerator {
 
     pub fn generate(&self) -> Result<()> {
         let data = self.generator.generate(self.size as usize);
-        let buffer = self.buffer_pool.from_iter(data)?;
+        let buffer = self.buffer_pool.allocate_slice(data.len() as _)?;
+        buffer.write()?.copy_from_slice(&data);
         *self.current_buffer.borrow_mut() = Some(buffer);
         Ok(())
     }
 
-    pub fn get_buffer(&self) -> Option<Arc<CpuBufferPoolChunk<BufferItem>>> {
+    pub fn get_buffer(&self) -> Option<Subbuffer<[BufferItem]>> {
         self.current_buffer.borrow().clone()
     }
 }
