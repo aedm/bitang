@@ -171,29 +171,30 @@ impl Pass {
         let mut depth_stencil_attachment = None;
         let load_op = if clear_buffers { LoadOp::Clear } else { LoadOp::Load };
         for (index, render_target) in render_targets.iter().enumerate() {
+            let layout = match render_target.role {
+                RenderTargetRole::Color => ImageLayout::ColorAttachmentOptimal,
+                RenderTargetRole::Depth => ImageLayout::DepthStencilAttachmentOptimal,
+            };
+            let attachment_reference = Some(AttachmentReference {
+                attachment: index as u32,
+                layout,
+                ..Default::default()
+            });
             attachments.push(AttachmentDescription {
                 format: Some(render_target.format),
                 samples: SampleCount::Sample1, // TODO
                 load_op,
                 store_op: StoreOp::Store,
-                initial_layout: ImageLayout::General,
-                final_layout: ImageLayout::General,
+                initial_layout: layout,
+                final_layout: layout,
                 ..Default::default()
             });
             match render_target.role {
                 RenderTargetRole::Color => {
-                    color_attachments.push(Some(AttachmentReference {
-                        attachment: index as u32,
-                        layout: ImageLayout::ColorAttachmentOptimal,
-                        ..Default::default()
-                    }));
+                    color_attachments.push(attachment_reference);
                 }
                 RenderTargetRole::Depth => {
-                    depth_stencil_attachment = Some(AttachmentReference {
-                        attachment: index as u32,
-                        layout: ImageLayout::DepthStencilAttachmentOptimal,
-                        ..Default::default()
-                    });
+                    depth_stencil_attachment = attachment_reference;
                 }
             }
         }
@@ -306,13 +307,12 @@ impl RenderTarget {
             RenderTargetRole::Color => Format::R8G8B8A8_SRGB,
             RenderTargetRole::Depth => Format::D32_SFLOAT,
         };
-        let usage = ImageUsage {
-            sampled: true,
-            transfer_src: true,
-            color_attachment: role == RenderTargetRole::Color,
-            depth_stencil_attachment: role == RenderTargetRole::Depth,
-            ..ImageUsage::empty()
-        };
+        let mut usage = ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC;
+        if role == RenderTargetRole::Color {
+            usage |= ImageUsage::COLOR_ATTACHMENT;
+        } else if role == RenderTargetRole::Depth {
+            usage |= ImageUsage::DEPTH_STENCIL_ATTACHMENT;
+        }
         let texture = AttachmentImage::with_usage(
             memory_allocator,
             [texture_size.0, texture_size.1],
@@ -365,10 +365,11 @@ impl RenderTarget {
             }
         }
 
-        let texture = AttachmentImage::sampled(
+        let texture = AttachmentImage::with_usage(
             context.vulkan_context.context.memory_allocator(),
             [texture_size.0, texture_size.1],
             self.format,
+            ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST,
         )?;
         *self.image.borrow_mut() = Some(RenderTargetImage {
             image_view: ImageView::new_default(texture.clone())?,

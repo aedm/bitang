@@ -25,7 +25,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
-const START_IN_DEMO_MODE: bool = !true;
+const START_IN_DEMO_MODE: bool = false;
 const BORDERLESS_FULL_SCREEN: bool = true;
 
 pub const FRAMEDUMP_MODE: bool = false;
@@ -99,10 +99,7 @@ impl VulkanWindow {
         renderer.add_additional_image_view(
             1,
             DEPTH_BUFFER_FORMAT,
-            ImageUsage {
-                depth_stencil_attachment: true,
-                ..ImageUsage::empty()
-            },
+            ImageUsage::DEPTH_STENCIL_ATTACHMENT,
         );
 
         let swapchain_render_targets_by_id = if FRAMEDUMP_MODE {

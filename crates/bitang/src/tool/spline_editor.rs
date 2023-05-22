@@ -88,7 +88,7 @@ impl SplineEditor {
             });
 
             self.handle_events(
-                &ui.input(),
+                &ui,
                 &plot_response.response,
                 &pixel_size,
                 hover_index,
@@ -269,19 +269,27 @@ impl SplineEditor {
 
     fn handle_events(
         &mut self,
-        input: &InputState,
+        ui: &egui::Ui,
         response: &egui::Response,
         pixel_size: &Vec2,
         hover_index: Option<usize>,
         pointer_coordinate: Option<PlotPoint>,
         time: &mut f32,
     ) {
+        let scroll_delta = ui.input(|i| i.scroll_delta);
+        let zoom_delta = ui.input(|i| i.zoom_delta());
+        let secondary_clicked = ui.input(|i| i.pointer.secondary_clicked());
+        let primary_clicked = ui.input(|i| i.pointer.primary_clicked());
+        let primary_down = ui.input(|i| i.pointer.primary_down());
+        let secondary_down = ui.input(|i| i.pointer.secondary_down());
+        let pointer_delta = ui.input(|i| i.pointer.delta());
+
         if let Some(hover) = response.hover_pos() {
             let hover = hover - response.rect.min;
             let screen_size = response.rect.size();
 
             // Horizontal zoom
-            let zoom_x_delta = input.scroll_delta.y * -0.005;
+            let zoom_x_delta = scroll_delta.y * -0.005;
             if zoom_x_delta != 0.0 {
                 let plot_x = self.min_x + hover.x * pixel_size.x;
                 self.zoom.x += zoom_x_delta;
@@ -290,7 +298,7 @@ impl SplineEditor {
             }
 
             // Vertical zoom
-            let zoom_y_delta = (input.zoom_delta() - 1.0) * -1.0;
+            let zoom_y_delta = (zoom_delta - 1.0) * -1.0;
             if zoom_y_delta != 0.0 {
                 let plot_y = self.center_y - (hover.y - screen_size.y / 2.0) * pixel_size.y;
                 self.zoom.y += zoom_y_delta;
@@ -302,12 +310,12 @@ impl SplineEditor {
         match self.state {
             SplineEditorState::Idle => {
                 // Right click: pan
-                if response.hovered() && input.pointer.secondary_clicked() {
+                if response.hovered() && secondary_clicked {
                     self.state = SplineEditorState::Pan;
                 }
 
                 // Left click: select point
-                if input.pointer.primary_clicked() {
+                if primary_clicked {
                     if let Some(index) = hover_index {
                         self.state = SplineEditorState::PointMove { index };
                         self.selected_index = Some(index);
@@ -315,9 +323,7 @@ impl SplineEditor {
                 }
 
                 // Left click: set time if no point is selected
-                if response.hovered()
-                    && input.pointer.primary_down()
-                    && (!input.pointer.primary_clicked() || hover_index.is_none())
+                if response.hovered() && primary_down && (!primary_clicked || hover_index.is_none())
                 {
                     if let Some(pointer_coordinate) = pointer_coordinate {
                         *time = pointer_coordinate.x as f32;
@@ -326,9 +332,9 @@ impl SplineEditor {
                 }
             }
             SplineEditorState::Pan => {
-                self.min_x -= input.pointer.delta().x * Self::calculate_pixel_size(self.zoom.x);
-                self.center_y += input.pointer.delta().y * Self::calculate_pixel_size(self.zoom.y);
-                if !input.pointer.secondary_down() {
+                self.min_x -= pointer_delta.x * Self::calculate_pixel_size(self.zoom.x);
+                self.center_y += pointer_delta.y * Self::calculate_pixel_size(self.zoom.y);
+                if !secondary_down {
                     self.state = SplineEditorState::Idle;
                 }
             }
@@ -337,11 +343,10 @@ impl SplineEditor {
                     let mut components = control.components.borrow_mut();
                     let spline = &mut components[self.component_index].spline;
                     let point = spline.points.get_mut(index).unwrap();
-                    point.time += input.pointer.delta().x * Self::calculate_pixel_size(self.zoom.x);
-                    point.value -=
-                        input.pointer.delta().y * Self::calculate_pixel_size(self.zoom.y);
+                    point.time += pointer_delta.x * Self::calculate_pixel_size(self.zoom.x);
+                    point.value -= pointer_delta.y * Self::calculate_pixel_size(self.zoom.y);
                 }
-                if !input.pointer.primary_down() {
+                if !primary_down {
                     self.state = SplineEditorState::Idle;
                 }
             }
