@@ -13,7 +13,7 @@ use vulkano::format::Format;
 use vulkano::image::{ImageUsage, ImageViewAbstract};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::Surface;
-use vulkano_util::renderer::{VulkanoWindowRenderer};
+use vulkano_util::renderer::VulkanoWindowRenderer;
 use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},
@@ -73,6 +73,7 @@ pub trait VulkanApp {
     fn handle_window_event(&mut self, event: &WindowEvent);
     fn play(&mut self);
     fn stop(&mut self);
+    fn set_fullscreen(&mut self, fullscreen: bool);
 }
 
 impl VulkanWindow {
@@ -154,7 +155,7 @@ impl VulkanWindow {
         })
     }
 
-    fn toggle_fullscreen(&mut self) {
+    fn toggle_fullscreen(&mut self, app: &mut impl VulkanApp) {
         let renderer = self.windows.get_primary_renderer_mut().unwrap();
         let window = renderer.window();
         self.is_fullscreen = !self.is_fullscreen;
@@ -180,6 +181,7 @@ impl VulkanWindow {
             window.set_cursor_visible(true);
             window.focus_window();
         }
+        app.set_fullscreen(self.is_fullscreen);
     }
 
     fn get_renderer(&mut self) -> &mut VulkanoWindowRenderer {
@@ -187,9 +189,10 @@ impl VulkanWindow {
     }
 
     pub fn run(mut self, mut app: impl VulkanApp + 'static) {
+        app.set_fullscreen(self.is_fullscreen);
         if START_IN_DEMO_MODE {
             info!("Starting demo.");
-            self.toggle_fullscreen();
+            self.toggle_fullscreen(&mut app);
             app.play();
         }
         let mut demo_mode = START_IN_DEMO_MODE;
@@ -213,7 +216,7 @@ impl VulkanWindow {
                             if input.state == winit::event::ElementState::Pressed {
                                 match input.virtual_keycode {
                                     Some(winit::event::VirtualKeyCode::F11) => {
-                                        self.toggle_fullscreen();
+                                        self.toggle_fullscreen(&mut app);
                                         demo_mode = false;
                                     }
                                     Some(winit::event::VirtualKeyCode::Escape) => {
@@ -221,7 +224,7 @@ impl VulkanWindow {
                                             *control_flow = ControlFlow::Exit;
                                             info!("Exiting on user request.");
                                         } else if self.is_fullscreen {
-                                            self.toggle_fullscreen();
+                                            self.toggle_fullscreen(&mut app);
                                             app.stop();
                                         }
                                     }
@@ -244,7 +247,7 @@ impl VulkanWindow {
                                 *control_flow = ControlFlow::Exit;
                                 info!("Everything that has a beginning must have an end.");
                             } else if self.is_fullscreen {
-                                self.toggle_fullscreen();
+                                self.toggle_fullscreen(&mut app);
                             }
                             app.stop();
                         }

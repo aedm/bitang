@@ -31,6 +31,8 @@ use vulkano_util::renderer::VulkanoWindowRenderer;
 use winit::event::WindowEvent;
 use winit::event_loop::EventLoop;
 
+const SCREEN_RATIO: (u32, u32) = (16, 9);
+
 pub struct DemoTool {
     ui: Ui,
     start_time: Instant,
@@ -40,6 +42,7 @@ pub struct DemoTool {
     play_start_time: Instant,
     last_eval_time: f32,
     music_player: MusicPlayer,
+    is_fullscreen: bool,
 
     dumped_frame_buffer: Option<Subbuffer<[u8]>>,
     frame_counter: usize,
@@ -136,6 +139,7 @@ impl DemoTool {
             music_player,
             dumped_frame_buffer,
             frame_counter: 0,
+            is_fullscreen: false,
         };
         Ok(demo_tool)
     }
@@ -262,11 +266,33 @@ impl DemoTool {
         // Calculate viewport
         let window_size = target_image.dimensions();
         let scale_factor = renderer.window().scale_factor() as f32;
-        let movie_height = (window_size.width() * 9 / 16) as i32;
-        let ui_height = max(window_size.height() as i32 - movie_height, 0) as f32 / scale_factor;
+        let (width, height, top, left) = if self.is_fullscreen {
+            if window_size.width() * SCREEN_RATIO.1 > window_size.height() * SCREEN_RATIO.0 {
+                // Screen is too wide
+                let height = window_size.height();
+                let width = height * SCREEN_RATIO.0 / SCREEN_RATIO.1;
+                let left = (window_size.width() - width) / 2;
+                let top = 0;
+                (width, height, top, left)
+            } else {
+                // Screen is too tall
+                let width = window_size.width();
+                let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
+                let left = 0;
+                let top = (window_size.height() - height) / 2;
+                (width, height, top, left)
+            }
+        } else {
+            let width = window_size.width();
+            let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
+            let left = 0;
+            let top = 0;
+            (width, height, top, left)
+        };
+        let ui_height = max(window_size.height() as i32 - height as i32, 0) as f32 / scale_factor;
         let screen_viewport = Viewport {
-            origin: [0.0, 0.0],
-            dimensions: [window_size.width() as f32, movie_height as f32],
+            origin: [left as f32, top as f32],
+            dimensions: [width as f32, height as f32],
             depth_range: 0.0..1.0,
         };
 
@@ -304,7 +330,7 @@ impl DemoTool {
         }
 
         // Render UI
-        if ui_height > 0.0 {
+        if !self.is_fullscreen && ui_height > 0.0 {
             self.ui.draw(&mut context, ui_height, &mut self.ui_state);
         }
 
@@ -493,5 +519,9 @@ impl VulkanApp for DemoTool {
     fn stop(&mut self) {
         self.music_player.stop();
         self.ui_state.is_playing = false;
+    }
+
+    fn set_fullscreen(&mut self, fullscreen: bool) {
+        self.is_fullscreen = fullscreen;
     }
 }
