@@ -1,5 +1,5 @@
 use crate::file::ROOT_FOLDER;
-use anyhow::{anyhow, Context, Error, Result};
+use anyhow::{anyhow, Context, Result};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;
 use std::io::BufReader;

@@ -4,12 +4,10 @@ use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::tool::demo_tool::UiState;
 use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;
-use egui::Modifiers;
 use egui_winit_vulkano::{Gui, GuiConfig};
 use std::rc::Rc;
 use tracing::error;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
-use vulkano::image::ImageViewAbstract;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
 use winit::{event::WindowEvent, event_loop::EventLoop};
 

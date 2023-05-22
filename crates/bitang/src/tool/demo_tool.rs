@@ -12,20 +12,18 @@ use crate::tool::ui::Ui;
 use anyhow::{anyhow, Result};
 use std::cell::RefCell;
 use std::cmp::max;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, CopyImageToBufferInfo,
     PrimaryCommandBufferAbstract,
 };
-use vulkano::image::view::ImageView;
-use vulkano::image::{ImageAccess, ImageViewAbstract};
+use vulkano::image::ImageViewAbstract;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryUsage};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::sync::GpuFuture;

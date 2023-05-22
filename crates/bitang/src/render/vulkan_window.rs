@@ -1,5 +1,5 @@
 use crate::control::controls::Globals;
-use crate::render::render_target::{RenderTarget, RenderTargetRole, RenderTargetSizeConstraint};
+use crate::render::render_target::{RenderTarget, RenderTargetRole};
 use crate::render::{DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use vulkano::format::Format;
 use vulkano::image::{ImageUsage, ImageViewAbstract};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::Surface;
-use vulkano_util::renderer::{DeviceImageView, SwapchainImageView, VulkanoWindowRenderer};
+use vulkano_util::renderer::{VulkanoWindowRenderer};
 use vulkano_util::{
     context::{VulkanoConfig, VulkanoContext},
     window::{VulkanoWindows, WindowDescriptor},
