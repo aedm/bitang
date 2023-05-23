@@ -123,9 +123,7 @@ impl Pass {
             .render_targets
             .iter()
             .map(|target| match target.role {
-                // RenderTargetRole::Color => Some([0.03, 0.03, 0.03, 1.0].into()),
                 RenderTargetRole::Color => self.clear_color.map(|c| c.into()),
-                // RenderTargetRole::Depth => Some(1f32.into()),
                 RenderTargetRole::Depth => self.clear_color.map(|_| 1f32.into()),
             })
             .collect::<Vec<_>>();

@@ -222,7 +222,12 @@ impl DemoTool {
         content
     }
 
-    fn save_frame_buffer_to_file(content: Vec<u8>, frame_number: usize) {
+    fn save_frame_buffer_to_file(mut content: Vec<u8>, frame_number: usize) {
+        // Fix the alpha channel
+        for i in 0..content.len() / 4 {
+            content[i * 4 + 3] = 255;
+        }
+
         let path = format!("framedump/dump-{:0>8}.png", frame_number);
         let save_timer = Instant::now();
         image::save_buffer_with_format(
@@ -348,7 +353,7 @@ impl DemoTool {
         paint_result
     }
 
-    fn render_frame_to_file(&mut self, vulkan_context: &VulkanContext) -> Arc<Project> {
+    fn render_frame_to_buffer(&mut self, vulkan_context: &VulkanContext) -> Arc<Project> {
         let target_image = vulkan_context
             .swapchain_render_targets_by_id
             .get("screen")
@@ -442,7 +447,7 @@ impl DemoTool {
                 self.ui_state.time = self.frame_counter as f32 / (FRAMEDUMP_FPS as f32);
 
                 // Render frame and save it into host memory
-                let project = self.render_frame_to_file(vulkan_context);
+                let project = self.render_frame_to_buffer(vulkan_context);
                 let content = self.get_frame_content();
 
                 // If we're rendering too fast, wait a bit

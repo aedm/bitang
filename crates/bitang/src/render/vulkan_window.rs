@@ -28,7 +28,7 @@ use winit::{
 const START_IN_DEMO_MODE: bool = false;
 const BORDERLESS_FULL_SCREEN: bool = true;
 
-pub const FRAMEDUMP_MODE: bool = false;
+pub const FRAMEDUMP_MODE: bool = !true;
 pub const FRAMEDUMP_WIDTH: u32 = 3840;
 pub const FRAMEDUMP_HEIGHT: u32 = 2160;
 pub const FRAMEDUMP_FPS: u32 = 60;
