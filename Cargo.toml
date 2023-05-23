@@ -21,3 +21,9 @@ opt-level = 1
 
 [profile.dev-nowarn]
 inherits = "dev"
+
+[profile.release-min]
+inherits = "release"
+strip = true
+lto = true
+panic = "abort"

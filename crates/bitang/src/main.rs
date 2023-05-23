@@ -10,15 +10,24 @@ use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
-fn main() -> Result<()> {
-    // Set up tracing
-    let fmt_layer = fmt::layer().with_target(false);
+fn set_up_tracing() -> Result<()> {
+    #[cfg(windows)]
+    let with_color = ansi_term::enable_ansi_support().is_ok();
+    #[cfg(not(windows))]
+    let with_color = true;
+
+    let fmt_layer = fmt::layer().with_target(false).with_ansi(with_color);
     let filter_layer = EnvFilter::try_from_default_env()
         .or_else(|_| EnvFilter::try_new(if cfg!(debug_assertions) { "debug" } else { "info" }))?;
     tracing_subscriber::registry()
         .with(filter_layer)
         .with(fmt_layer)
         .init();
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    set_up_tracing()?;
     info!("Starting Bitang");
 
     let window = VulkanWindow::new()?;
