@@ -10,6 +10,7 @@ bitang_utils = { path = "../bitang_utils" }
 anyhow = { version = "1.0.66", features = ["backtrace"] }
 tracing = "0.1.37"
 tracing-subscriber = { version= "0.3.16", features = ["fmt", "env-filter"] }
+ansi_term = "0.12.1"
 
 egui_winit_vulkano = "0.24.0"
 egui = "0.21.0"
