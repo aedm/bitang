@@ -1,3 +1,5 @@
+use std::fmt;
+
 mod binary_file_cache;
 mod chart_file;
 pub mod file_hash_cache;
@@ -22,10 +24,6 @@ impl ResourcePath {
         }
     }
 
-    fn to_string(&self) -> String {
-        format!("{ROOT_FOLDER}/{}/{}", self.directory, self.file_name)
-    }
-
     fn relative_path(&self, file_name: &str) -> Self {
         let parts = file_name.split('/').collect::<Vec<_>>();
         let directory = if file_name.starts_with('/') {
@@ -39,5 +37,11 @@ impl ResourcePath {
             directory,
             file_name: parts.last().unwrap().to_string(),
         }
+    }
+}
+
+impl fmt::Display for ResourcePath {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{ROOT_FOLDER}/{}/{}", self.directory, self.file_name)
     }
 }

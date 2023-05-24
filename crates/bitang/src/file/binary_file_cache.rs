@@ -1,8 +1,9 @@
 use crate::file::file_hash_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::file::ResourcePath;
 use crate::render::vulkan_window::VulkanContext;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::cell::RefCell;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::rc::Rc;
 use tracing::info;
@@ -28,10 +29,7 @@ impl<T> BinaryFileCache<T> {
         let FileCacheEntry { hash, content } = self.file_hash_cache.borrow_mut().get(path, true)?;
 
         // TODO: simplify when they fix if-let borrow leaks. https://github.com/rust-lang/rust/issues/21906
-        if self.resource_cache.contains_key(&hash) {
-            // Unwrap is safe: we just checked that the key exists
-            Ok(self.resource_cache.get(&hash).unwrap())
-        } else {
+        if let Entry::Vacant(entry) = self.resource_cache.entry(hash) {
             let now = std::time::Instant::now();
             let source = match content {
                 Some(source) => source,
@@ -39,10 +37,10 @@ impl<T> BinaryFileCache<T> {
             };
             let resource = (self.loader_func)(context, &source)?;
             info!("Loading {} took {:?}", &path.to_string(), now.elapsed());
-            self.resource_cache.insert(hash, resource);
-            self.resource_cache
-                .get(&hash)
-                .context("Failed to get resource")
+            entry.insert(resource);
         }
+
+        // Unwrap is safe: we just checked that the key exists
+        Ok(self.resource_cache.get(&hash).unwrap())
     }
 }

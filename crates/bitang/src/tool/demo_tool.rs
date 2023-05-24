@@ -70,8 +70,7 @@ impl UiState {
     }
 
     pub fn get_current_chart_control_set(&self) -> Option<Rc<ControlSet>> {
-        self.get_chart()
-            .and_then(|chart| Some(chart.controls.clone()))
+        self.get_chart().map(|chart| chart.controls.clone())
     }
 
     pub fn get_time(&self) -> f32 {
@@ -89,7 +88,7 @@ impl UiState {
                 }
             }
         }
-        return self.time;
+        self.time
     }
 }
 
@@ -494,18 +493,16 @@ impl VulkanApp for DemoTool {
 
     fn handle_window_event(&mut self, event: &WindowEvent) {
         self.ui.handle_window_event(event);
-        match event {
-            WindowEvent::KeyboardInput { input, .. } => {
-                if input.state == winit::event::ElementState::Pressed {
-                    match input.virtual_keycode {
-                        Some(winit::event::VirtualKeyCode::Space) => {
-                            self.toggle_play();
-                        }
-                        _ => (),
+        if let WindowEvent::KeyboardInput { input, .. } = event {
+            if input.state == winit::event::ElementState::Pressed {
+                #[allow(clippy::single_match)]
+                match input.virtual_keycode {
+                    Some(winit::event::VirtualKeyCode::Space) => {
+                        self.toggle_play();
                     }
+                    _ => (),
                 }
             }
-            _ => {}
         }
     }
 

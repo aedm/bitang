@@ -66,13 +66,13 @@ impl FileCache {
         // Best effort: if a file is missing, creating a watcher will fail
         for path in self.watched_paths.difference(&self.new_watched_paths) {
             if let Some(path) = path.to_str() {
-                trace!("Unwatching: {:?}", path.replace("\\", "/"));
+                trace!("Unwatching: {:?}", path.replace('\\', "/"));
             }
             let _ = self.file_watcher.unwatch(path);
         }
         for path in self.new_watched_paths.difference(&self.watched_paths) {
             if let Some(path) = path.to_str() {
-                trace!("Watching: {:?}", path.replace("\\", "/"));
+                trace!("Watching: {:?}", path.replace('\\', "/"));
             }
             let _ = self.file_watcher.watch(path, RecursiveMode::NonRecursive);
         }

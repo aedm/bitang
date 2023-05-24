@@ -114,7 +114,7 @@ impl ShaderCache {
         let path = path.to_string();
         let now = std::time::Instant::now();
         let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
-        let spirv = compiler.compile_into_spirv(&source, kind, &path, "main", None)?;
+        let spirv = compiler.compile_into_spirv(source, kind, &path, "main", None)?;
         let spirv_binary = spirv.as_binary_u8();
         info!(
             "compiled in {:?}, SPIRV size: {}.",
@@ -211,13 +211,12 @@ impl ShaderCache {
                         .iter()
                         .filter(|var| var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
                         .map(|var| {
-                            GlobalType::from_str(&var.name[(GLOBAL_UNIFORM_PREFIX.len())..])
-                                .and_then(|global_type| {
-                                    Ok(GlobalUniformMapping {
-                                        global_type,
-                                        offset: var.offset as usize,
-                                    })
-                                })
+                            GlobalType::from_str(&var.name[(GLOBAL_UNIFORM_PREFIX.len())..]).map(
+                                |global_type| GlobalUniformMapping {
+                                    global_type,
+                                    offset: var.offset as usize,
+                                },
+                            )
                         })
                         .collect::<Result<Vec<_>>>()?;
                     let uniform_buffer_size = binding.block.size as usize;

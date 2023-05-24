@@ -134,10 +134,8 @@ impl Ui {
                 let selected = ui_state.selected_control_id.parts.is_empty();
                 let mut new_selected = selected;
                 ui.toggle_value(&mut new_selected, "📁 Project");
-                if new_selected && !selected {
-                    if ui_state.project.is_some() {
-                        ui_state.selected_control_id = ControlId::default();
-                    }
+                if new_selected && !selected && ui_state.project.is_some() {
+                    ui_state.selected_control_id = ControlId::default();
                 }
             })
             .body(|_ui| ());
@@ -145,7 +143,7 @@ impl Ui {
 
     fn draw_control_tree_node(ui: &mut egui::Ui, node: &UsedControlsNode, ui_state: &mut UiState) {
         let id_str = format!("node:{}", node.id_prefix);
-        let id = ui.make_persistent_id(&id_str);
+        let id = ui.make_persistent_id(id_str);
         // Unwrap is safe because we know that the prefix has at least one part
         let control_id_part = &node.id_prefix.parts.last().unwrap();
         let default_open = control_id_part.part_type != ControlIdPartType::Chart;
@@ -217,8 +215,7 @@ impl Ui {
                 for (control_index, control_name, component_count, mut control) in controls_borrow {
                     ui.label(&control_name);
                     let components = control.as_mut();
-                    for i in 0..component_count {
-                        let component = &mut components[i];
+                    for (i, component) in components.iter_mut().enumerate().take(component_count) {
                         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                             ui.add_sized(
                                 [350.0, 0.0],
@@ -237,8 +234,8 @@ impl Ui {
             })
         });
 
-        selected.and_then(|(control_index, component_index)| {
-            Some((&controls.used_controls[control_index], component_index))
+        selected.map(|(control_index, component_index)| {
+            (&controls.used_controls[control_index], component_index)
         })
     }
 

@@ -105,7 +105,7 @@ impl Pass {
                     .image
                     .borrow()
                     .as_ref()
-                    .and_then(|image| Some(image.image_view.clone()))
+                    .map(|image| image.image_view.clone())
                     .with_context(|| {
                         anyhow!("Render target '{}' has no image view", target.id.as_str())
                     })
