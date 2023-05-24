@@ -493,18 +493,16 @@ impl VulkanApp for DemoTool {
 
     fn handle_window_event(&mut self, event: &WindowEvent) {
         self.ui.handle_window_event(event);
-        match event {
-            WindowEvent::KeyboardInput { input, .. } => {
-                if input.state == winit::event::ElementState::Pressed {
-                    match input.virtual_keycode {
-                        Some(winit::event::VirtualKeyCode::Space) => {
-                            self.toggle_play();
-                        }
-                        _ => (),
+        if let WindowEvent::KeyboardInput { input, .. } = event {
+            if input.state == winit::event::ElementState::Pressed {
+                #[allow(clippy::single_match)]
+                match input.virtual_keycode {
+                    Some(winit::event::VirtualKeyCode::Space) => {
+                        self.toggle_play();
                     }
+                    _ => (),
                 }
             }
-            _ => {}
         }
     }
 

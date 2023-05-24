@@ -38,6 +38,7 @@ impl SplineEditor {
         self.control = Some(control.clone());
         self.component_index = component_index;
         self.selected_index = None;
+        #[allow(clippy::single_match)]
         match self.state {
             SplineEditorState::PointMove { .. } => {
                 self.state = SplineEditorState::Idle;

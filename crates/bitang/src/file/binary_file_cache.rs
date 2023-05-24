@@ -1,7 +1,7 @@
 use crate::file::file_hash_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::file::ResourcePath;
 use crate::render::vulkan_window::VulkanContext;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;

@@ -57,15 +57,13 @@ impl MusicPlayer {
     fn find_music_file() -> Result<String> {
         let entries = std::fs::read_dir(ROOT_FOLDER)
             .with_context(|| format!("Failed to read directory: {}", ROOT_FOLDER))?;
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(path) = path.to_str() {
-                        if path.ends_with(".mp3") {
-                            debug!("Music file found: {}", path);
-                            return Ok(path.to_string());
-                        }
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(path) = path.to_str() {
+                    if path.ends_with(".mp3") {
+                        debug!("Music file found: {}", path);
+                        return Ok(path.to_string());
                     }
                 }
             }

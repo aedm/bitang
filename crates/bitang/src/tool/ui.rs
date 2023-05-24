@@ -215,8 +215,7 @@ impl Ui {
                 for (control_index, control_name, component_count, mut control) in controls_borrow {
                     ui.label(&control_name);
                     let components = control.as_mut();
-                    for i in 0..component_count {
-                        let component = &mut components[i];
+                    for (i, component) in components.iter_mut().enumerate().take(component_count) {
                         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                             ui.add_sized(
                                 [350.0, 0.0],

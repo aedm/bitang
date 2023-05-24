@@ -213,6 +213,7 @@ impl BufferGenerator {
 }
 
 impl Pass {
+    #[allow(clippy::too_many_arguments)]
     pub fn load(
         &self,
         context: &VulkanContext,
@@ -302,6 +303,7 @@ impl RenderTargetRole {
 }
 
 impl Object {
+    #[allow(clippy::too_many_arguments)]
     pub fn load(
         &self,
         parent_id: &ControlId,
@@ -391,6 +393,7 @@ impl Object {
         Ok(Arc::new(object))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn make_material_step(
         &self,
         context: &VulkanContext,
