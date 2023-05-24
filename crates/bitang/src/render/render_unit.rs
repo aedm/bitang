@@ -85,7 +85,7 @@ impl RenderUnit {
         context: &mut RenderContext,
         material_step_type: MaterialStepType,
     ) -> Result<()> {
-        let saved_globals = context.globals.clone();
+        let saved_globals = context.globals;
         self.apply_transformations(context);
 
         let index = material_step_type as usize;

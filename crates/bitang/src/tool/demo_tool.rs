@@ -70,8 +70,7 @@ impl UiState {
     }
 
     pub fn get_current_chart_control_set(&self) -> Option<Rc<ControlSet>> {
-        self.get_chart()
-            .and_then(|chart| Some(chart.controls.clone()))
+        self.get_chart().map(|chart| chart.controls.clone())
     }
 
     pub fn get_time(&self) -> f32 {
@@ -89,7 +88,7 @@ impl UiState {
                 }
             }
         }
-        return self.time;
+        self.time
     }
 }
 

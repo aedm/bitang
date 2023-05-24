@@ -88,7 +88,7 @@ impl SplineEditor {
             });
 
             self.handle_events(
-                &ui,
+                ui,
                 &plot_response.response,
                 &pixel_size,
                 hover_index,

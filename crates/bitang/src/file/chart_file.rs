@@ -201,14 +201,14 @@ impl BufferGenerator {
         control_set_builder: &mut ControlSetBuilder,
     ) -> render::buffer_generator::BufferGenerator {
         let control_id = parent_id.add(ControlIdPartType::BufferGenerator, &self.id);
-        let buffer_generator = render::buffer_generator::BufferGenerator::new(
+
+        render::buffer_generator::BufferGenerator::new(
             self.size,
             context,
             &control_id,
             control_set_builder,
             &self.generator,
-        );
-        buffer_generator
+        )
     }
 }
 
@@ -232,7 +232,7 @@ impl Pass {
                 render_targets_by_id
                     .get(render_target_id)
                     .or_else(|| context.swapchain_render_targets_by_id.get(render_target_id))
-                    .and_then(|render_target| Some(render_target.clone()))
+                    .cloned()
                     .with_context(|| anyhow!("Render target '{}' not found", render_target_id))
             })
             .collect::<Result<Vec<_>>>()?;
@@ -497,7 +497,7 @@ fn make_shader(
         .map(|sampler| {
             let sampler_source = sampler_sources_by_id
                 .get(&sampler.name)
-                .and_then(|sampler_source| Some(sampler_source.clone()))
+                .cloned()
                 .with_context(|| format!("Sampler binding '{}' not found", sampler.name))?;
             Ok(DescriptorBinding {
                 descriptor_source: sampler_source,
@@ -512,7 +512,7 @@ fn make_shader(
         .map(|buffer| {
             let buffer_source = buffer_sources_by_id
                 .get(&buffer.name)
-                .and_then(|buffer_source| Some(buffer_source.clone()))
+                .cloned()
                 .with_context(|| format!("Buffer binding '{}' not found", buffer.name))?;
             Ok(DescriptorBinding {
                 descriptor_source: buffer_source,
