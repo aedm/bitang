@@ -12,7 +12,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 fn set_up_tracing() -> Result<()> {
     #[cfg(windows)]
-    let with_color = ansi_term::enable_ansi_support().is_ok();
+    let with_color = nu_ansi_term::enable_ansi_support().is_ok();
     #[cfg(not(windows))]
     let with_color = true;
 

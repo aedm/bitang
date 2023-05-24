@@ -1,8 +1,6 @@
 use anyhow::Result;
 use blend::{Blend, Instance};
-use image::RgbaImage;
 use std::collections::HashMap;
-use std::io::Cursor;
 
 pub type Vertex = ([f32; 3], [f32; 3], [f32; 2]);
 pub type Face = [Vertex; 3];
@@ -192,12 +190,4 @@ fn load_blend(blend: Blend) -> Result<ObjectCollection> {
 pub fn load_blend_buffer(buffer: &[u8]) -> Result<ObjectCollection> {
     let blend = Blend::new(buffer);
     load_blend(blend)
-}
-
-pub fn load_image(content: &[u8]) -> Result<RgbaImage> {
-    let image = image::io::Reader::new(Cursor::new(content))
-        .with_guessed_format()?
-        .decode()?
-        .to_rgba8();
-    Ok(image)
 }

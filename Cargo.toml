@@ -5,19 +5,22 @@ members = [
 ]
 
 [profile.dev.package."*"]
-opt-level = 2
+opt-level = "s"
 overflow-checks = false
+debug = false
 
 [profile.dev.package.bitang]
 opt-level = 0
 overflow-checks = true
+debug = true
 
 [profile.dev.package.bitang_utils]
 opt-level = 2
 overflow-checks = false
+debug = false
 
 [profile.dev.package.vulkano]
-opt-level = 1
+opt-level = 2
 
 [profile.dev-nowarn]
 inherits = "dev"
@@ -27,3 +30,4 @@ inherits = "release"
 strip = true
 lto = true
 panic = "abort"
+opt-level = "s"
