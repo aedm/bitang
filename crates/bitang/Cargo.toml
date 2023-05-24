@@ -9,8 +9,8 @@ edition = "2021"
 bitang_utils = { path = "../bitang_utils" }
 anyhow = { version = "1.0.66", features = ["backtrace"] }
 tracing = "0.1.37"
-tracing-subscriber = { version= "0.3.16", features = ["fmt", "env-filter"] }
-ansi_term = "0.12.1"
+tracing-subscriber = { version = "0.3.16", features = ["fmt", "env-filter"] }
+nu-ansi-term = "*"
 
 egui_winit_vulkano = "0.24.0"
 egui = "0.21.0"
@@ -22,14 +22,13 @@ vulkano-util = "0.33.0"
 vulkano-win = "0.33.0"
 shaderc = "*"
 spirv-reflect = "0.2.3"
-glam = { version = "0.22", features = ["bytemuck"] }
-bytemuck = "1.8.0"
+glam = "0.22"
 
 serde = { version = "*", features = ["derive", "rc"] }
 notify = "5.1.0"
 ron = "0.8.0"
-image = "0.24.4"
+image = { version = "0.24.4", default-features = false, features = ["jpeg", "png"] }
 ahash = "0.8.3"
 rayon = "1.7.0"
 
-rodio = "0.17.1"
+rodio = { version = "0.17.1", default-features = false, features = ["mp3"] }
