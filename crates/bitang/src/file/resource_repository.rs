@@ -72,12 +72,16 @@ impl ResourceRepository {
     pub fn get_or_load_project(&mut self, context: &VulkanContext) -> Option<Arc<Project>> {
         let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
         if has_file_changes
-            || (self.cached_root.is_none() && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
+            || self.is_first_load
+            || (self.cached_root.is_none()
+                && self.file_hash_cache.borrow_mut().has_missing_files
+                && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
         {
             let now = Instant::now();
             self.control_repository
                 .borrow()
                 .reset_component_usage_counts();
+            self.file_hash_cache.borrow_mut().prepare_loading_cycle();
             let result = self.load_project(context);
             self.file_hash_cache.borrow_mut().update_watchers();
             match result {

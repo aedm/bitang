@@ -29,6 +29,9 @@ pub struct FileCache {
 
     // Stores every path during the current document loading cycle
     new_watched_paths: HashSet<PathBuf>,
+
+    // Did we encounter a missing file during loading?
+    pub has_missing_files: bool,
 }
 
 impl FileCache {
@@ -42,6 +45,7 @@ impl FileCache {
             watched_paths: HashSet::new(),
             new_watched_paths: HashSet::new(),
             current_dir: env::current_dir()?,
+            has_missing_files: false,
         })
     }
 
@@ -79,6 +83,10 @@ impl FileCache {
         self.watched_paths = mem::take(&mut self.new_watched_paths);
     }
 
+    pub fn prepare_loading_cycle(&mut self) {
+        self.has_missing_files = false;
+    }
+
     pub fn get(&mut self, path: &ResourcePath, store_content: bool) -> Result<FileCacheEntry> {
         let path_string = path.to_string();
         let absolute_path = self.to_absolute_path(&path_string);
@@ -86,7 +94,11 @@ impl FileCache {
         let result = match self.cache_map.entry(absolute_path.clone()) {
             Vacant(e) => {
                 debug!("Reading file: '{path_string}'");
-                let source = std::fs::read(absolute_path)
+                let source = std::fs::read(absolute_path);
+                if source.is_err() {
+                    self.has_missing_files = true;
+                }
+                let source = source
                     .with_context(|| anyhow::format_err!("Failed to read file: '{path_string}'"))?;
                 let hash = hash_content(&source);
                 let entry = FileCacheEntry {
