@@ -4,29 +4,44 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;
 use std::io::BufReader;
 use std::time::Duration;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
-pub struct MusicPlayer {
+struct MusicDevice {
     sink: Sink,
     _stream_handle: OutputStreamHandle,
     _stream: OutputStream,
+}
+
+pub struct MusicPlayer {
+    device: Option<MusicDevice>,
     is_playing: bool,
 }
 
 impl MusicPlayer {
     pub fn new() -> Self {
-        let (stream, stream_handle) = OutputStream::try_default().unwrap();
+        let Ok((stream, stream_handle)) = OutputStream::try_default() else {
+            warn!("No audio device found");
+            return Self {
+                device: None,
+                is_playing: false,
+            };
+        };
         let sink = Sink::try_new(&stream_handle).unwrap();
 
         Self {
-            sink,
-            _stream_handle: stream_handle,
-            _stream: stream,
+            device: Some(MusicDevice {
+                sink,
+                _stream_handle: stream_handle,
+                _stream: stream,
+            }),
             is_playing: false,
         }
     }
 
     pub fn play_from(&mut self, time: f32) {
+        if self.device.is_none() {
+            return;
+        }
         if time < 0. {
             info!("Music can't be played from negative time");
             return;
@@ -42,15 +57,17 @@ impl MusicPlayer {
         let reader = BufReader::new(file);
         let source = Decoder::new(reader).unwrap();
         self.stop();
-        self.sink
+        self.device.as_mut().unwrap().sink
             .append(source.skip_duration(Duration::from_secs_f32(time)));
         self.is_playing = true;
     }
 
     pub fn stop(&mut self) {
-        if self.is_playing {
-            self.sink.stop();
-            self.is_playing = false;
+        if let Some(device) = &mut self.device {
+            if self.is_playing {
+                device.sink.stop();
+                self.is_playing = false;
+            }
         }
     }
 
