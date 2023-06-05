@@ -330,6 +330,7 @@ pub enum GlobalType {
     AppTime,
     ChartTime,
     ProjectionFromModel,
+    LightProjectionFromModel,
     ProjectionFromCamera,
     CameraFromModel,
     CameraFromWorld,
@@ -350,6 +351,7 @@ impl GlobalType {
             "instance_count" => Ok(GlobalType::InstanceCount),
             "chart_time" => Ok(GlobalType::ChartTime),
             "projection_from_model" => Ok(GlobalType::ProjectionFromModel),
+            "light_projection_from_model" => Ok(GlobalType::LightProjectionFromModel),
             "projection_from_camera" => Ok(GlobalType::ProjectionFromCamera),
             "camera_from_model" => Ok(GlobalType::CameraFromModel),
             "camera_from_world" => Ok(GlobalType::CameraFromWorld),
@@ -369,9 +371,14 @@ impl GlobalType {
 pub struct Globals {
     pub projection_from_model: Mat4,
     pub camera_from_model: Mat4,
+    pub light_camera_from_model: Mat4,
     pub projection_from_camera: Mat4,
+    pub light_projection_from_camera: Mat4,
     pub camera_from_world: Mat4,
+    pub light_camera_from_world: Mat4,
     pub world_from_model: Mat4,
+    pub light_projection_from_world: Mat4,
+    pub light_projection_from_model: Mat4,
     pub pixel_size: Vec2,
     pub app_time: f32,
     pub chart_time: f32,
@@ -390,6 +397,7 @@ impl Globals {
             GlobalType::AppTime => slice::from_ref(&self.app_time),
             GlobalType::ChartTime => slice::from_ref(&self.chart_time),
             GlobalType::ProjectionFromModel => self.projection_from_model.as_ref(),
+            GlobalType::LightProjectionFromModel => self.light_projection_from_model.as_ref(),
             GlobalType::ProjectionFromCamera => self.projection_from_camera.as_ref(),
             GlobalType::CameraFromModel => self.camera_from_model.as_ref(),
             GlobalType::CameraFromWorld => self.camera_from_world.as_ref(),
@@ -407,5 +415,9 @@ impl Globals {
     pub fn update_compound_matrices(&mut self) {
         self.camera_from_model = self.camera_from_world * self.world_from_model;
         self.projection_from_model = self.projection_from_camera * self.camera_from_model;
+
+        self.light_camera_from_model = self.light_camera_from_world * self.world_from_model;
+        self.light_projection_from_model =
+            self.light_projection_from_camera * self.light_camera_from_model;
     }
 }

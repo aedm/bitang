@@ -61,15 +61,19 @@ impl Draw {
             -shadow_map_size,
             shadow_map_size,
         );
+        globals.light_projection_from_camera = globals.projection_from_camera;
 
         // We use a left-handed, y-up coordinate system. But Vulkan screen space is right-handed, y-down.
         // So we need to flip the y-axis in the projection matrix.
         // globals.projection_from_camera.y_axis *= -1.;
 
-        globals.camera_from_world = Mat4::look_at_lh(light_dir, Vec3::ZERO, Vec3::Y);
+        globals.camera_from_world = Mat4::look_to_lh(Vec3::ZERO, -light_dir, Vec3::Y);
+        globals.light_camera_from_world = globals.camera_from_world;
 
         // Render objects should take care of their model-to-world transformation
         globals.world_from_model = Mat4::IDENTITY;
+        globals.light_projection_from_world =
+            globals.projection_from_camera * globals.camera_from_world;
 
         globals.update_compound_matrices();
     }
