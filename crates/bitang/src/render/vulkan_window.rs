@@ -92,7 +92,7 @@ impl VulkanWindow {
 
         windows.create_window(&event_loop, &vulkano_context, &window_descriptor, |ci| {
             ci.image_format = Some(SCREEN_COLOR_FORMAT);
-            ci.min_image_count = 3;
+            ci.min_image_count = ci.min_image_count.max(3);
         });
 
         let renderer = windows
