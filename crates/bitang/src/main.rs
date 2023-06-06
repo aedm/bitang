@@ -6,9 +6,12 @@ mod tool;
 use crate::render::vulkan_window::VulkanWindow;
 use crate::tool::demo_tool::DemoTool;
 use anyhow::Result;
+use build_time::{build_time_local, build_time_utc};
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn set_up_tracing() -> Result<()> {
     #[cfg(windows)]
@@ -28,7 +31,11 @@ fn set_up_tracing() -> Result<()> {
 
 fn main() -> Result<()> {
     set_up_tracing()?;
-    info!("Starting Bitang");
+    if VERSION == "0.0.0" {
+        info!("Bitang dev version, build time {}", build_time_local!());
+    } else {
+        info!("Bitang {VERSION}");
+    }
 
     let window = VulkanWindow::new()?;
     let app = DemoTool::new(&window.context, window.event_loop.as_ref().unwrap())?;
