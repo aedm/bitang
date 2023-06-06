@@ -293,7 +293,7 @@ impl DemoTool {
             let top = 0;
             (width, height, top, left)
         };
-        let ui_height = max(window_size.height() as i32 - height as i32, 0) as f32 / scale_factor;
+        let ui_height = max(window_size.height() as i32 - height as i32, 0) as f32;
         let screen_viewport = Viewport {
             origin: [left as f32, top as f32],
             dimensions: [width as f32, height as f32],
@@ -335,7 +335,8 @@ impl DemoTool {
 
         // Render UI
         if !self.is_fullscreen && ui_height > 0.0 {
-            self.ui.draw(&mut context, ui_height, &mut self.ui_state);
+            self.ui
+                .draw(&mut context, ui_height, scale_factor, &mut self.ui_state);
         }
 
         // Execute commands and display the result
