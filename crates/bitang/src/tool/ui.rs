@@ -57,9 +57,11 @@ impl Ui {
         &mut self,
         context: &mut RenderContext,
         bottom_panel_height: f32,
+        scale_factor: f32,
         ui_state: &mut UiState,
     ) {
-        let pixels_per_point = 1.15f32;
+        let pixels_per_point =
+            if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
         let bottom_panel_height = bottom_panel_height / pixels_per_point;
         let spline_editor = &mut self.spline_editor;
         self.gui.immediate_ui(|gui| {
