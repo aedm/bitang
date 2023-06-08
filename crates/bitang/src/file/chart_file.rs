@@ -1,5 +1,6 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
+use crate::file::default_true;
 use crate::file::resource_repository::ResourceRepository;
 use crate::file::shader_loader::ShaderCompilationResult;
 use crate::file::ResourcePath;
@@ -26,108 +27,6 @@ pub struct Chart {
     pub buffer_generators: Vec<BufferGenerator>,
 
     pub steps: Vec<Draw>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct RenderTarget {
-    pub id: String,
-    pub size: RenderTargetSize,
-    pub role: RenderTargetRole,
-}
-
-#[derive(Debug, Deserialize)]
-pub enum RenderTargetSize {
-    Static { width: u32, height: u32 },
-    ScreenRelative { width: f32, height: f32 },
-}
-
-#[derive(Debug, Deserialize)]
-pub enum RenderTargetRole {
-    Color,
-    Depth,
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub enum BlendMode {
-    #[default]
-    None,
-    Alpha,
-    Additive,
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub enum SamplerAddressMode {
-    #[default]
-    Repeat,
-    ClampToEdge,
-    MirroredRepeat,
-}
-
-fn default_clear_color() -> Option<[f32; 4]> {
-    Some([0.03, 0.03, 0.03, 1.0])
-}
-
-/// Represents a draw step in the chart sequence.
-#[derive(Debug, Deserialize)]
-pub struct Draw {
-    pub id: String,
-    pub render_targets: Vec<String>,
-    pub objects: Vec<Object>,
-
-    #[serde(default = "default_clear_color")]
-    pub clear_color: Option<[f32; 4]>,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Object {
-    pub id: String,
-    pub mesh_file: String,
-    pub mesh_name: String,
-    pub vertex_shader: String,
-    pub fragment_shader: String,
-
-    #[serde(default = "default_true")]
-    pub depth_test: bool,
-
-    #[serde(default = "default_true")]
-    pub depth_write: bool,
-
-    #[serde(default)]
-    pub blend_mode: BlendMode,
-
-    #[serde(default)]
-    pub sampler_address_mode: SamplerAddressMode,
-
-    #[serde(default)]
-    pub textures: HashMap<String, TextureMapping>,
-
-    #[serde(default)]
-    pub buffers: HashMap<String, BufferMapping>,
-
-    #[serde(default)]
-    pub control_map: HashMap<String, String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub enum TextureMapping {
-    File(String),
-    RenderTargetId(String),
-}
-
-#[derive(Debug, Deserialize)]
-pub enum BufferMapping {
-    BufferGeneratorId(String),
-}
-
-#[derive(Debug, Deserialize)]
-pub struct BufferGenerator {
-    id: String,
-    size: u32,
-    generator: BufferGeneratorType,
 }
 
 impl Chart {
@@ -194,6 +93,160 @@ impl Chart {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct RenderTarget {
+    pub id: String,
+    pub size: RenderTargetSize,
+    pub role: RenderTargetRole,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum RenderTargetSize {
+    Static { width: u32, height: u32 },
+    ScreenRelative { width: f32, height: f32 },
+}
+
+#[derive(Debug, Deserialize)]
+pub enum RenderTargetRole {
+    Color,
+    Depth,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub enum BlendMode {
+    #[default]
+    None,
+    Alpha,
+    Additive,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub enum SamplerAddressMode {
+    #[default]
+    Repeat,
+    ClampToEdge,
+    MirroredRepeat,
+}
+
+fn default_clear_color() -> Option<[f32; 4]> {
+    Some([0.03, 0.03, 0.03, 1.0])
+}
+
+/// Represents a draw step in the chart sequence.
+#[derive(Debug, Deserialize)]
+pub struct Draw {
+    pub id: String,
+    // pub render_targets: Vec<String>,
+    pub passes: Vec<Pass>,
+    pub objects: Vec<Object>,
+    // #[serde(default = "default_clear_color")]
+    // pub clear_color: Option<[f32; 4]>,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum RenderTargetSelector {
+    RenderTargetLevelZero(String),
+}
+
+impl RenderTargetSelector {
+    pub fn load(
+        &self,
+        render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
+    ) -> Result<render::pass::RenderTargetSelector> {
+        match self {
+            RenderTargetSelector::RenderTargetLevelZero(id) => render_targets_by_id
+                .get(id)
+                .cloned()
+                .map(render::pass::RenderTargetSelector::RenderTargetLevelZero)
+                .ok_or_else(|| anyhow!("Render target not found: {}", id)),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Pass {
+    pub id: String,
+    pub depth_buffer: Option<RenderTargetSelector>,
+    pub color_buffers: Vec<RenderTargetSelector>,
+
+    #[serde(default = "default_clear_color")]
+    pub clear_color: Option<[f32; 4]>,
+}
+
+impl Pass {
+    pub fn load(
+        &self,
+        context: &VulkanContext,
+        render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
+    ) -> Result<render::pass::Pass> {
+        let depth_buffer = self
+            .depth_buffer
+            .map(|selector| selector.load(render_targets_by_id))?;
+        let color_buffers = self
+            .color_buffers
+            .iter()
+            .map(|color_buffer| color_buffer.load(render_targets_by_id))
+            .collect::<Result<Vec<_>>>()?;
+
+        let pass = render::pass::Pass::new(
+            &self.id,
+            context,
+            color_buffers,
+            depth_buffer,
+            self.clear_color,
+        );
+        Ok(pass)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Object {
+    pub id: String,
+    pub mesh_file: String,
+    pub mesh_name: String,
+    pub vertex_shader: String,
+    pub fragment_shader: String,
+
+    #[serde(default = "default_true")]
+    pub depth_test: bool,
+
+    #[serde(default = "default_true")]
+    pub depth_write: bool,
+
+    #[serde(default)]
+    pub blend_mode: BlendMode,
+
+    #[serde(default)]
+    pub sampler_address_mode: SamplerAddressMode,
+
+    #[serde(default)]
+    pub textures: HashMap<String, TextureMapping>,
+
+    #[serde(default)]
+    pub buffers: HashMap<String, BufferMapping>,
+
+    #[serde(default)]
+    pub control_map: HashMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum TextureMapping {
+    File(String),
+    RenderTargetId(String),
+}
+
+#[derive(Debug, Deserialize)]
+pub enum BufferMapping {
+    BufferGeneratorId(String),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BufferGenerator {
+    id: String,
+    size: u32,
+    generator: BufferGeneratorType,
+}
+
 impl BufferGenerator {
     pub fn load(
         &self,
@@ -225,7 +278,7 @@ impl Draw {
         chart_id: &ControlId,
         path: &ResourcePath,
     ) -> Result<render::draw::Draw> {
-        let control_prefix = chart_id.add(ControlIdPartType::Pass, &self.id);
+        let control_prefix = chart_id.add(ControlIdPartType::ChartStep, &self.id);
         let chart_id = chart_id.add(ControlIdPartType::ChartValues, "Chart Values");
         let render_targets = self
             .render_targets

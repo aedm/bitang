@@ -1,5 +1,6 @@
 use crate::render::camera::Camera;
 use crate::render::material::MaterialStepType;
+use crate::render::pass::Pass;
 use crate::render::render_target::{RenderTarget, RenderTargetRole};
 use crate::render::render_unit::RenderUnit;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
@@ -17,10 +18,9 @@ use vulkano::render_pass::{
 /// Represents a draw step in the chart sequence.
 pub struct Draw {
     pub id: String,
-    pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
-    pub render_targets: Vec<Arc<RenderTarget>>,
+    // pub render_targets: Vec<Arc<RenderTarget>>,
+    pub passes: Vec<Pass>,
     pub objects: Vec<Arc<RenderObject>>,
-    pub clear_color: Option<[f32; 4]>,
     render_units: Vec<RenderUnit>,
 }
 
@@ -28,25 +28,29 @@ impl Draw {
     pub fn new(
         context: &VulkanContext,
         id: &str,
-        render_targets: Vec<Arc<RenderTarget>>,
+        passes: Vec<Pass>,
+        // render_targets: Vec<Arc<RenderTarget>>,
         objects: Vec<Arc<RenderObject>>,
-        clear_color: Option<[f32; 4]>,
+        // clear_color: Option<[f32; 4]>,
     ) -> Result<Draw> {
-        let render_pass =
-            Self::make_vulkan_render_pass(context, &render_targets, clear_color.is_some())?;
+        let solid_pass = passes
+            .iter()
+            .find(|pass| pass.id == "solid")
+            .with_context(|| format!("Draw step '{id}' doesn't have a solid pass. Bitang can only render solid passes at the moment."))?;
         let render_units = objects
             .iter()
-            .map(|object| RenderUnit::new(context, &render_pass, object))
+            .map(|object| RenderUnit::new(context, &solid_pass, object))
             .collect::<Result<Vec<_>>>()
             .with_context(|| format!("Failed to create render units for pass '{}'", id))?;
 
         Ok(Draw {
             id: id.to_string(),
-            vulkan_render_pass: render_pass,
-            render_targets,
+            // vulkan_render_pass: render_pass,
+            // render_targets,
             objects,
+            passes,
             render_units,
-            clear_color,
+            // clear_color,
         })
     }
 
@@ -144,60 +148,6 @@ impl Draw {
 
         render_result?;
         Ok(())
-    }
-
-    fn make_vulkan_render_pass(
-        context: &VulkanContext,
-        render_targets: &[Arc<RenderTarget>],
-        clear_buffers: bool,
-    ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
-        let mut attachments = vec![];
-        let mut color_attachments = vec![];
-        let mut depth_stencil_attachment = None;
-        let load_op = if clear_buffers { LoadOp::Clear } else { LoadOp::Load };
-        for (index, render_target) in render_targets.iter().enumerate() {
-            let layout = match render_target.role {
-                RenderTargetRole::Color => ImageLayout::ColorAttachmentOptimal,
-                RenderTargetRole::Depth => ImageLayout::DepthStencilAttachmentOptimal,
-            };
-            let attachment_reference = Some(AttachmentReference {
-                attachment: index as u32,
-                layout,
-                ..Default::default()
-            });
-            attachments.push(AttachmentDescription {
-                format: Some(render_target.format),
-                samples: SampleCount::Sample1, // TODO
-                load_op,
-                store_op: StoreOp::Store,
-                initial_layout: layout,
-                final_layout: layout,
-                ..Default::default()
-            });
-            match render_target.role {
-                RenderTargetRole::Color => {
-                    color_attachments.push(attachment_reference);
-                }
-                RenderTargetRole::Depth => {
-                    depth_stencil_attachment = attachment_reference;
-                }
-            }
-        }
-
-        let subpasses = vec![SubpassDescription {
-            color_attachments,
-            depth_stencil_attachment,
-            ..Default::default()
-        }];
-
-        let create_info = RenderPassCreateInfo {
-            attachments,
-            subpasses,
-            ..Default::default()
-        };
-        let render_pass =
-            vulkano::render_pass::RenderPass::new(context.context.device().clone(), create_info)?;
-        Ok(render_pass)
     }
 
     fn render_render_units(

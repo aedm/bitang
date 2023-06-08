@@ -160,7 +160,7 @@ impl Ui {
             let icon = match control_id_part.part_type {
                 ControlIdPartType::Chart => '📈',
                 ControlIdPartType::ChartValues => '🌐',
-                ControlIdPartType::Pass => '📦',
+                ControlIdPartType::ChartStep => '📦',
                 ControlIdPartType::Camera => '📷',
                 ControlIdPartType::Object => '📝',
                 ControlIdPartType::Value => '📊',

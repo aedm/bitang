@@ -3,6 +3,7 @@ use crate::render::material::{
     MATERIAL_STEP_COUNT,
 };
 use crate::render::mesh::Mesh;
+use crate::render::pass::Pass;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::{RenderObject, Vertex3};
 use anyhow::{Context, Result};
@@ -51,7 +52,7 @@ struct ShaderUniformStorage {
 impl RenderUnit {
     pub fn new(
         context: &VulkanContext,
-        render_pass: &Arc<vulkano::render_pass::RenderPass>,
+        solid_pass: &Pass,
         render_object: &Arc<RenderObject>,
     ) -> Result<RenderUnit> {
         let mut steps = render_object
@@ -62,7 +63,7 @@ impl RenderUnit {
                 // let material_step = &render_object.material.passes[index];
                 if let Some(material_step) = material_step {
                     Ok(Some(
-                        RenderUnitStep::new(context, render_pass, material_step).with_context(
+                        RenderUnitStep::new(context, solid_pass, material_step).with_context(
                             || {
                                 format!(
                                     "Failed to create RenderUnitStep for object {}",
@@ -126,7 +127,7 @@ impl RenderUnit {
 impl RenderUnitStep {
     pub fn new(
         context: &VulkanContext,
-        render_pass: &Arc<vulkano::render_pass::RenderPass>,
+        pass: &Pass,
         material_step: &MaterialStep,
     ) -> Result<RenderUnitStep> {
         let vertex_uniforms_storage = ShaderUniformStorage::new(context);
@@ -191,7 +192,7 @@ impl RenderUnitStep {
             .color_blend_state(color_blend_state)
             .depth_stencil_state(depth_stencil_state)
             // Unwrap is safe: every pass has one subpass
-            .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
+            .render_pass(Subpass::from(pass.vulkan_render_pass.clone(), 0).unwrap())
             .build(context.context.device().clone())?;
 
         Ok(RenderUnitStep {

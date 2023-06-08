@@ -14,7 +14,7 @@ pub struct Chart {
     pub id: String,
     pub controls: Rc<ControlSet>,
     camera: Camera,
-    render_targets: Vec<Arc<RenderTarget>>,
+    // render_targets: Vec<Arc<RenderTarget>>,
     buffer_generators: Vec<Arc<BufferGenerator>>,
     pub steps: Vec<Draw>,
 }

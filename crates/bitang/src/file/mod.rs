@@ -45,3 +45,8 @@ impl fmt::Display for ResourcePath {
         write!(f, "{ROOT_FOLDER}/{}/{}", self.directory, self.file_name)
     }
 }
+
+// Helper function to initialize a bool using serde
+fn default_true() -> bool {
+    true
+}

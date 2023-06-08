@@ -4,6 +4,7 @@ pub mod chart;
 pub mod draw;
 pub mod material;
 pub mod mesh;
+pub mod pass;
 pub mod project;
 pub mod render_target;
 pub mod render_unit;
