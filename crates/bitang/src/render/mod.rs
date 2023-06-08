@@ -1,6 +1,7 @@
 pub mod buffer_generator;
 pub mod camera;
 pub mod chart;
+pub mod draw;
 pub mod material;
 pub mod mesh;
 pub mod project;

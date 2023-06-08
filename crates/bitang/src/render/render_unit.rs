@@ -34,6 +34,10 @@ pub struct RenderUnit {
     steps: [Option<RenderUnitStep>; MATERIAL_STEP_COUNT],
 }
 
+/// Represents a material stage, eg. 'solid' or 'shadow' stage.
+///
+/// Each stage renders the same mesh with possibly different shaders and different uniforms,
+/// maybe even into different render targets.
 struct RenderUnitStep {
     pipeline: Arc<GraphicsPipeline>,
     vertex_uniforms_storage: ShaderUniformStorage,

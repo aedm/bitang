@@ -8,7 +8,6 @@ pub type VertexBuffer = Subbuffer<[Vertex3]>;
 
 #[derive(Clone)]
 pub struct Mesh {
-    // TODO: omit Arc
     pub vertex_buffer: VertexBuffer,
 }
 

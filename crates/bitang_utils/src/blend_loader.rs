@@ -2,8 +2,8 @@ use anyhow::Result;
 use blend::{Blend, Instance};
 use std::collections::HashMap;
 
-pub type Vertex = ([f32; 3], [f32; 3], [f32; 2]);
-pub type Face = [Vertex; 3];
+type Vertex = ([f32; 3], [f32; 3], [f32; 2]);
+type Face = [Vertex; 3];
 
 #[derive(Debug)]
 pub struct Mesh {
@@ -11,7 +11,7 @@ pub struct Mesh {
 }
 
 #[derive(Debug)]
-pub struct Object {
+pub struct ExternalObject {
     pub name: String,
     pub location: [f32; 3],
     pub rotation: [f32; 3],
@@ -19,8 +19,8 @@ pub struct Object {
     pub mesh: Mesh,
 }
 
-pub struct ObjectCollection {
-    pub objects_by_name: HashMap<String, Object>,
+pub struct ExternalObjectCollection {
+    pub objects_by_name: HashMap<String, ExternalObject>,
 }
 
 // This is only valid for meshes with triangular faces
@@ -125,7 +125,7 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
     Some(Mesh { faces })
 }
 
-fn load_blend(blend: Blend) -> Result<ObjectCollection> {
+fn load_blend(blend: Blend) -> Result<ExternalObjectCollection> {
     let mut objects_by_name = HashMap::new();
     let object_marker = "OB".to_string();
 
@@ -162,7 +162,7 @@ fn load_blend(blend: Blend) -> Result<ObjectCollection> {
             if let Some(mesh) = instance_to_mesh(data) {
                 objects_by_name.insert(
                     name,
-                    Object {
+                    ExternalObject {
                         name: obj.get("id").get_string("name"),
                         location: [loc[0], loc[1], loc[2]],
                         rotation: [rot[0], rot[1], rot[2]],
@@ -184,10 +184,12 @@ fn load_blend(blend: Blend) -> Result<ObjectCollection> {
         //     // println!("NAME {}: VALUE {:?}", field.0, field.1);
         // }
     }
-    Ok(ObjectCollection { objects_by_name })
+    Ok(ExternalObjectCollection {
+        objects_by_name: objects_by_name,
+    })
 }
 
-pub fn load_blend_buffer(buffer: &[u8]) -> Result<ObjectCollection> {
+pub fn load_blend_buffer(buffer: &[u8]) -> Result<ExternalObjectCollection> {
     let blend = Blend::new(buffer);
     load_blend(blend)
 }
