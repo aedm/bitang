@@ -5,13 +5,9 @@ use crate::render::render_unit::RenderUnit;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::RenderObject;
 use anyhow::{anyhow, Context, Result};
-use std::cell::RefCell;
 use std::sync::Arc;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
-use vulkano::format::Format;
-use vulkano::image::view::{ImageView, ImageViewCreateInfo};
-use vulkano::image::{AttachmentImage, ImageLayout, ImageUsage, ImageViewAbstract, SampleCount};
-use vulkano::memory::allocator::StandardMemoryAllocator;
+use vulkano::image::{ImageLayout, SampleCount};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
