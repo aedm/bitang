@@ -125,7 +125,7 @@ impl BufferGeneratorImpl for LorenzGenerator {
                 p + Vec3::new(a * (p.y - p.x), p.x * (b - p.z) - p.y, p.x * p.y - c * p.z) * dt;
             let tangent = (np - p).normalize();
             normal = tangent.cross(normal.cross(tangent).normalize());
-            p = np; // TODO: prove it
+            p = np;
 
             data.push([p.x, p.y, p.z, 0.0]);
             data.push([normal.x, normal.y, normal.z, 0.0]);
@@ -168,7 +168,7 @@ impl BufferGeneratorImpl for RoesslerGenerator {
             let np = p + Vec3::new(-p.y - p.z, p.x + a * p.y, b + p.z * (p.x - c)) * dt;
             let tangent = (np - p).normalize();
             normal = tangent.cross(normal.cross(tangent).normalize());
-            p = np; // TODO: prove it
+            p = np;
 
             data.push([p.x, p.y, p.z, 0.0]);
             data.push([normal.x, normal.y, normal.z, 0.0]);
@@ -215,7 +215,7 @@ impl BufferGeneratorImpl for ThomasGenerator {
             ) * dt;
             let tangent = (np - p).normalize();
             normal = tangent.cross(normal.cross(tangent).normalize());
-            p = np; // TODO: prove it
+            p = np;
 
             data.push([p.x, p.y, p.z, 0.0]);
             data.push([normal.x, normal.y, normal.z, 0.0]);
@@ -267,7 +267,7 @@ impl BufferGeneratorImpl for AizawaGenerator {
             ) * dt;
             let tangent = (np - p).normalize();
             normal = tangent.cross(normal.cross(tangent).normalize());
-            p = np; // TODO: prove it
+            p = np;
 
             data.push([p.x, p.y, p.z, 0.0]);
             data.push([normal.x, normal.y, normal.z, 0.0]);
@@ -318,7 +318,7 @@ impl BufferGeneratorImpl for DadrasGenerator {
             ) * dt;
             let tangent = (np - p).normalize();
             normal = tangent.cross(normal.cross(tangent).normalize());
-            p = np; // TODO: prove it
+            p = np;
 
             data.push([p.x, p.y, p.z, 0.0]);
             data.push([normal.x, normal.y, normal.z, 0.0]);
@@ -365,7 +365,7 @@ impl BufferGeneratorImpl for RabinovichFabrikantGenerator {
             ) * dt;
             let tangent = (np - p).normalize();
             normal = tangent.cross(normal.cross(tangent).normalize());
-            p = np; // TODO: prove it
+            p = np;
 
             data.push([p.x, p.y, p.z, 0.0]);
             data.push([normal.x, normal.y, normal.z, 0.0]);

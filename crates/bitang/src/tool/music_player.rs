@@ -57,7 +57,10 @@ impl MusicPlayer {
         let reader = BufReader::new(file);
         let source = Decoder::new(reader).unwrap();
         self.stop();
-        self.device.as_mut().unwrap().sink
+        self.device
+            .as_mut()
+            .unwrap()
+            .sink
             .append(source.skip_duration(Duration::from_secs_f32(time)));
         self.is_playing = true;
     }

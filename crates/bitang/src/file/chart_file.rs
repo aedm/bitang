@@ -25,7 +25,7 @@ pub struct Chart {
     #[serde(default)]
     pub buffer_generators: Vec<BufferGenerator>,
 
-    pub passes: Vec<Pass>,
+    pub steps: Vec<Draw>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,8 +67,9 @@ fn default_clear_color() -> Option<[f32; 4]> {
     Some([0.03, 0.03, 0.03, 1.0])
 }
 
+/// Represents a draw step in the chart sequence.
 #[derive(Debug, Deserialize)]
-pub struct Pass {
+pub struct Draw {
     pub id: String,
     pub render_targets: Vec<String>,
     pub objects: Vec<Object>,
@@ -163,7 +164,7 @@ impl Chart {
             .collect::<HashMap<_, _>>();
 
         let passes = self
-            .passes
+            .steps
             .iter()
             .map(|pass| {
                 pass.load(
@@ -212,7 +213,7 @@ impl BufferGenerator {
     }
 }
 
-impl Pass {
+impl Draw {
     #[allow(clippy::too_many_arguments)]
     pub fn load(
         &self,
@@ -223,7 +224,7 @@ impl Pass {
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         chart_id: &ControlId,
         path: &ResourcePath,
-    ) -> Result<render::render_target::Pass> {
+    ) -> Result<render::draw::Draw> {
         let control_prefix = chart_id.add(ControlIdPartType::Pass, &self.id);
         let chart_id = chart_id.add(ControlIdPartType::ChartValues, "Chart Values");
         let render_targets = self
@@ -255,13 +256,8 @@ impl Pass {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let pass = render::render_target::Pass::new(
-            context,
-            &self.id,
-            render_targets,
-            objects,
-            self.clear_color,
-        )?;
+        let pass =
+            render::draw::Draw::new(context, &self.id, render_targets, objects, self.clear_color)?;
         Ok(pass)
     }
 }
