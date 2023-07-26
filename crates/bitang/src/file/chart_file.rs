@@ -93,11 +93,43 @@ impl Chart {
     }
 }
 
+// #[derive(Debug, Deserialize)]
+// pub struct RenderTarget {
+//     pub id: String,
+//     pub size: RenderTargetSize,
+//     pub role: RenderTargetRole,
+// }
+
 #[derive(Debug, Deserialize)]
-pub struct RenderTarget {
+pub enum TextureSizeRule {
+    Fixed(u32, u32),
+    CanvasRelative(f32),
+    At4k(u32, u32),
+}
+
+#[derive(Debug, Deserialize)]
+pub enum TextureFormat {
+    Rgba8U,
+    Rgba16F,
+    Depth32F,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum MipLevels {
+    Fixed(u32),
+    MinSize(u32),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Texture {
     pub id: String,
-    pub size: RenderTargetSize,
-    pub role: RenderTargetRole,
+    pub path: Option<String>,
+    pub generate_mipmaps: Option<bool>,
+    pub size: Option<TextureSizeRule>,
+}
+
+impl Texture {
+    pub fn load(&self) -> Result<render::Texture> {}
 }
 
 #[derive(Debug, Deserialize)]
@@ -143,6 +175,59 @@ pub struct Draw {
     // pub clear_color: Option<[f32; 4]>,
 }
 
+impl Draw {
+    #[allow(clippy::too_many_arguments)]
+    pub fn load(
+        &self,
+        context: &VulkanContext,
+        resource_repository: &mut ResourceRepository,
+        control_set_builder: &mut ControlSetBuilder,
+        render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
+        buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
+        chart_id: &ControlId,
+        path: &ResourcePath,
+    ) -> Result<render::draw::Draw> {
+        let control_prefix = chart_id.add(ControlIdPartType::ChartStep, &self.id);
+        let chart_id = chart_id.add(ControlIdPartType::ChartValues, "Chart Values");
+        let passes = self
+            .passes
+            .iter()
+            .map(|pass| pass.load(context, render_targets_by_id))
+            .collect::<Result<Vec<_>>>()?;
+        // let render_targets = self
+        //     .render_targets
+        //     .iter()
+        //     .map(|render_target_id| {
+        //         render_targets_by_id
+        //             .get(render_target_id)
+        //             .or_else(|| context.swapchain_render_targets_by_id.get(render_target_id))
+        //             .cloned()
+        //             .with_context(|| anyhow!("Render target '{}' not found", render_target_id))
+        //     })
+        //     .collect::<Result<Vec<_>>>()?;
+
+        let objects = self
+            .objects
+            .iter()
+            .map(|object| {
+                object.load(
+                    &control_prefix,
+                    &chart_id,
+                    context,
+                    resource_repository,
+                    control_set_builder,
+                    render_targets_by_id,
+                    buffer_generators_by_id,
+                    path,
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        let pass = render::draw::Draw::new(context, &self.id, passes, objects)?;
+        Ok(pass)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub enum RenderTargetSelector {
     RenderTargetLevelZero(String),
@@ -181,7 +266,8 @@ impl Pass {
     ) -> Result<render::pass::Pass> {
         let depth_buffer = self
             .depth_buffer
-            .map(|selector| selector.load(render_targets_by_id))?;
+            .map(|selector| selector.load(render_targets_by_id))
+            .transpose()?;
         let color_buffers = self
             .color_buffers
             .iter()
@@ -263,55 +349,6 @@ impl BufferGenerator {
             control_set_builder,
             &self.generator,
         )
-    }
-}
-
-impl Draw {
-    #[allow(clippy::too_many_arguments)]
-    pub fn load(
-        &self,
-        context: &VulkanContext,
-        resource_repository: &mut ResourceRepository,
-        control_set_builder: &mut ControlSetBuilder,
-        render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
-        buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
-        chart_id: &ControlId,
-        path: &ResourcePath,
-    ) -> Result<render::draw::Draw> {
-        let control_prefix = chart_id.add(ControlIdPartType::ChartStep, &self.id);
-        let chart_id = chart_id.add(ControlIdPartType::ChartValues, "Chart Values");
-        let render_targets = self
-            .render_targets
-            .iter()
-            .map(|render_target_id| {
-                render_targets_by_id
-                    .get(render_target_id)
-                    .or_else(|| context.swapchain_render_targets_by_id.get(render_target_id))
-                    .cloned()
-                    .with_context(|| anyhow!("Render target '{}' not found", render_target_id))
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        let objects = self
-            .objects
-            .iter()
-            .map(|object| {
-                object.load(
-                    &control_prefix,
-                    &chart_id,
-                    context,
-                    resource_repository,
-                    control_set_builder,
-                    render_targets_by_id,
-                    buffer_generators_by_id,
-                    path,
-                )
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        let pass =
-            render::draw::Draw::new(context, &self.id, render_targets, objects, self.clear_color)?;
-        Ok(pass)
     }
 }
 

@@ -2,12 +2,14 @@ pub mod buffer_generator;
 pub mod camera;
 pub mod chart;
 pub mod draw;
+pub mod image;
 pub mod material;
 pub mod mesh;
 pub mod pass;
 pub mod project;
 pub mod render_target;
 pub mod render_unit;
+pub mod sampler;
 pub mod vulkan_window;
 
 use crate::control::controls::Control;
@@ -35,7 +37,7 @@ pub struct Vertex3 {
     pub a_padding: f32,
 }
 
-pub type Texture = ImageView<ImmutableImage>;
+// pub type Texture = ImageView<ImmutableImage>;
 
 #[derive(Clone)]
 pub struct RenderObject {

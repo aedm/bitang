@@ -148,4 +148,32 @@ impl Pass {
         attachments.push(attachment_description);
         reference
     }
+
+    fn validate(&self) -> Result<()> {
+        if self.color_buffers.is_empty() && self.depth_buffer.is_none() {
+            return Err(anyhow!("Pass {} has no color or depth buffers", self.id));
+        }
+
+        let mut size = self.depth_buffer.map(|selector| match selector {
+            RenderTargetSelector::RenderTargetLevelZero(render_target) => render_target.size,
+        });
+        Ok(())
+    }
+
+    fn set(&self) -> Result<()> {
+        if self.color_buffers.is_empty() && self.depth_buffer.is_none() {
+            return Err(anyhow!("Pass {} has no color or depth buffers", self.id));
+        }
+
+        let size = self
+            .depth_buffer
+            .map(|selector| match selector {
+                RenderTargetSelector::RenderTargetLevelZero(render_target) => render_target.size,
+            })
+            .unwrap_or_else(|| match self.color_buffers.first().unwrap() {
+                RenderTargetSelector::RenderTargetLevelZero(render_target) => render_target.size,
+            });
+
+        Ok(())
+    }
 }

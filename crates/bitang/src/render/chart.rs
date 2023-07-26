@@ -14,7 +14,7 @@ pub struct Chart {
     pub id: String,
     pub controls: Rc<ControlSet>,
     camera: Camera,
-    // render_targets: Vec<Arc<RenderTarget>>,
+    render_targets: Vec<Arc<RenderTarget>>,
     buffer_generators: Vec<Arc<BufferGenerator>>,
     pub steps: Vec<Draw>,
 }
@@ -50,8 +50,8 @@ impl Chart {
         for buffer_generator in &self.buffer_generators {
             buffer_generator.generate()?;
         }
-        for pass in &self.steps {
-            pass.render(context, MaterialStepType::Solid, &self.camera)?;
+        for draw in &self.steps {
+            draw.render(context, MaterialStepType::Solid, &self.camera)?;
         }
         Ok(())
     }
