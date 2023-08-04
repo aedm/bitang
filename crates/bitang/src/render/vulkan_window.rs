@@ -1,5 +1,5 @@
 use crate::control::controls::Globals;
-use crate::render::render_target::{RenderTarget, RenderTargetRole};
+use crate::render::image::Image;
 use crate::render::{DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
@@ -41,7 +41,7 @@ pub struct VulkanContext {
     pub swapchain_format: Format,
     pub surface: Arc<Surface>,
     pub gfx_queue: Arc<Queue>,
-    pub swapchain_render_targets_by_id: HashMap<String, Arc<RenderTarget>>,
+    pub swapchain_render_targets_by_id: HashMap<String, Arc<Image>>,
 }
 
 pub struct RenderContext<'a> {
@@ -106,12 +106,12 @@ impl VulkanWindow {
 
         let swapchain_render_targets_by_id = if FRAMEDUMP_MODE {
             let size = (FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
-            let screen_render_target = RenderTarget::new_fake_swapchain(
+            let screen_render_target = Image::new_fake_swapchain(
                 vulkano_context.memory_allocator(),
                 RenderTargetRole::Color,
                 size,
             );
-            let depth_render_target = RenderTarget::new_fake_swapchain(
+            let depth_render_target = Image::new_fake_swapchain(
                 vulkano_context.memory_allocator(),
                 RenderTargetRole::Depth,
                 size,
@@ -122,9 +122,9 @@ impl VulkanWindow {
             ])
         } else {
             let screen_render_target =
-                RenderTarget::from_swapchain(RenderTargetRole::Color, SCREEN_COLOR_FORMAT);
+                Image::from_swapchain(RenderTargetRole::Color, SCREEN_COLOR_FORMAT);
             let depth_render_target =
-                RenderTarget::from_swapchain(RenderTargetRole::Depth, DEPTH_BUFFER_FORMAT);
+                Image::from_swapchain(RenderTargetRole::Depth, DEPTH_BUFFER_FORMAT);
             HashMap::from([
                 (screen_render_target.id.clone(), screen_render_target),
                 (depth_render_target.id.clone(), depth_render_target),

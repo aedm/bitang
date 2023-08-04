@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use tracing::info;
 
-type LoaderFunc<T> = fn(&VulkanContext, &[u8]) -> Result<T>;
+type LoaderFunc<T> = fn(&VulkanContext, &[u8], &str) -> Result<T>;
 
 pub struct BinaryFileCache<T> {
     file_hash_cache: Rc<RefCell<FileCache>>,

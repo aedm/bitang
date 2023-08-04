@@ -1,4 +1,4 @@
-use crate::render::render_target::RenderTarget;
+use crate::render::image::Image;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Result};
 use std::sync::Arc;
@@ -8,14 +8,14 @@ use vulkano::render_pass::{
     SubpassDescription,
 };
 
-pub enum RenderTargetSelector {
-    RenderTargetLevelZero(Arc<RenderTarget>),
+pub enum ImageSelector {
+    Image(Arc<Image>),
 }
 
 pub struct Pass {
     pub id: String,
-    color_buffers: Vec<RenderTargetSelector>,
-    depth_buffer: Option<RenderTargetSelector>,
+    color_buffers: Vec<ImageSelector>,
+    depth_buffer: Option<ImageSelector>,
     clear_color: Option<[f32; 4]>,
     pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
 }
@@ -24,8 +24,8 @@ impl Pass {
     pub fn new(
         id: &str,
         context: &VulkanContext,
-        color_buffers: Vec<RenderTargetSelector>,
-        depth_buffer: Option<RenderTargetSelector>,
+        color_buffers: Vec<ImageSelector>,
+        depth_buffer: Option<ImageSelector>,
         clear_color: Option<[f32; 4]>,
     ) -> Self {
         let vulkan_render_pass = Self::make_vulkan_render_pass(
@@ -45,8 +45,8 @@ impl Pass {
 
     fn make_vulkan_render_pass(
         context: &VulkanContext,
-        color_buffers: &Vec<RenderTargetSelector>,
-        depth_buffer: &Option<RenderTargetSelector>,
+        color_buffers: &Vec<ImageSelector>,
+        depth_buffer: &Option<ImageSelector>,
         clear_buffers: bool,
     ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
         let mut attachments = vec![];
@@ -123,7 +123,7 @@ impl Pass {
     }
 
     fn make_attachment_reference(
-        selector: &RenderTargetSelector,
+        selector: &ImageSelector,
         attachments: &mut Vec<AttachmentDescription>,
         layout: ImageLayout,
         load_op: LoadOp,
@@ -135,8 +135,8 @@ impl Pass {
         };
 
         let attachment_description = match selector {
-            RenderTargetSelector::RenderTargetLevelZero(render_target) => AttachmentDescription {
-                format: Some(render_target.format),
+            ImageSelector::Image(image) => AttachmentDescription {
+                format: Some(image.format),
                 samples: SampleCount::Sample1, // TODO
                 load_op,
                 store_op: StoreOp::Store,
@@ -155,7 +155,7 @@ impl Pass {
         }
 
         let mut size = self.depth_buffer.map(|selector| match selector {
-            RenderTargetSelector::RenderTargetLevelZero(render_target) => render_target.size,
+            ImageSelector::Image(render_target) => render_target.size,
         });
         Ok(())
     }
@@ -168,10 +168,10 @@ impl Pass {
         let size = self
             .depth_buffer
             .map(|selector| match selector {
-                RenderTargetSelector::RenderTargetLevelZero(render_target) => render_target.size,
+                ImageSelector::Image(render_target) => render_target.size,
             })
             .unwrap_or_else(|| match self.color_buffers.first().unwrap() {
-                RenderTargetSelector::RenderTargetLevelZero(render_target) => render_target.size,
+                ImageSelector::Image(render_target) => render_target.size,
             });
 
         Ok(())

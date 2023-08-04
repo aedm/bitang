@@ -4,17 +4,17 @@ use crate::render::buffer_generator::BufferGenerator;
 use crate::render::camera::Camera;
 use crate::render::draw::Draw;
 use crate::render::material::MaterialStepType;
-use crate::render::render_target::RenderTarget;
 use crate::render::vulkan_window::RenderContext;
 use anyhow::Result;
 use std::rc::Rc;
 use std::sync::Arc;
+use crate::render::image::Image;
 
 pub struct Chart {
     pub id: String,
     pub controls: Rc<ControlSet>,
     camera: Camera,
-    render_targets: Vec<Arc<RenderTarget>>,
+    images: Vec<Arc<Image>>,
     buffer_generators: Vec<Arc<BufferGenerator>>,
     pub steps: Vec<Draw>,
 }
@@ -24,7 +24,7 @@ impl Chart {
         id: &str,
         control_id: &ControlId,
         mut control_set_builder: ControlSetBuilder,
-        render_targets: Vec<Arc<RenderTarget>>,
+        images: Vec<Arc<Image>>,
         buffer_generators: Vec<Arc<BufferGenerator>>,
         passes: Vec<Draw>,
     ) -> Self {
@@ -36,7 +36,7 @@ impl Chart {
         Chart {
             id: id.to_string(),
             camera: _camera,
-            render_targets,
+            images: images,
             buffer_generators,
             steps: passes,
             controls,
@@ -44,8 +44,8 @@ impl Chart {
     }
 
     pub fn render(&self, context: &mut RenderContext) -> Result<()> {
-        for render_target in &self.render_targets {
-            render_target.ensure_buffer(context)?;
+        for image in &self.images {
+            image.enforce_size_rule(context)?;
         }
         for buffer_generator in &self.buffer_generators {
             buffer_generator.generate()?;

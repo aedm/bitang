@@ -1,11 +1,10 @@
 use crate::control::controls::{Control, GlobalType};
 use crate::render::buffer_generator::BufferGenerator;
-use crate::render::render_target::RenderTarget;
-use crate::render::Texture;
 use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::sampler::SamplerAddressMode;
 use vulkano::shader::ShaderModule;
+use crate::render::image::Image;
 
 #[derive(Copy, Clone, Debug)]
 pub enum MaterialStepType {
@@ -54,8 +53,7 @@ pub struct Shader {
 
 #[derive(Clone)]
 pub enum DescriptorSource {
-    Texture(Arc<Texture>),
-    RenderTarget(Arc<RenderTarget>),
+    Image(Arc<Image>),
     BufferGenerator(Arc<BufferGenerator>),
 }
 

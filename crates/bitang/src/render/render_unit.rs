@@ -310,7 +310,7 @@ impl ShaderUniformStorage {
                     descriptor_binding.descriptor_set_binding,
                     sampler_address_mode,
                 ),
-                DescriptorSource::RenderTarget(render_target) => {
+                DescriptorSource::Image(render_target) => {
                     let image_borrow = render_target.image.borrow();
                     let render_target_image = image_borrow.as_ref().unwrap();
                     let image_view = render_target_image.image_view.clone();

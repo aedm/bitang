@@ -6,6 +6,7 @@ use crate::file::shader_loader::ShaderCompilationResult;
 use crate::file::ResourcePath;
 use crate::render;
 use crate::render::buffer_generator::BufferGeneratorType;
+use crate::render::image::ImageSizeRule;
 use crate::render::material::{
     DescriptorBinding, DescriptorSource, LocalUniformMapping, Material, MaterialStep, Shader,
 };
@@ -21,7 +22,7 @@ const COMMON_SHADER_FILE: &str = "common.glsl";
 #[derive(Debug, Deserialize)]
 pub struct Chart {
     #[serde(default)]
-    pub render_targets: Vec<RenderTarget>,
+    pub images: Vec<Image>,
 
     #[serde(default)]
     pub buffer_generators: Vec<BufferGenerator>,
@@ -43,8 +44,8 @@ impl Chart {
             resource_repository.control_repository.clone(),
         );
 
-        let render_targets_by_id = self
-            .render_targets
+        let images_by_id = self
+            .images
             .iter()
             .map(|render_target| {
                 let render_target = render_target.load();
@@ -70,7 +71,7 @@ impl Chart {
                     context,
                     resource_repository,
                     &mut control_set_builder,
-                    &render_targets_by_id,
+                    &images_by_id,
                     &buffer_generators_by_id,
                     &control_id,
                     path,
@@ -78,14 +79,14 @@ impl Chart {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let render_targets = render_targets_by_id.into_values().collect::<Vec<_>>();
+        let images = images_by_id.into_values().collect::<Vec<_>>();
         let buffer_generators = buffer_generators_by_id.into_values().collect::<Vec<_>>();
 
         let chart = render::chart::Chart::new(
             id,
             &control_id,
             control_set_builder,
-            render_targets,
+            images,
             buffer_generators,
             passes,
         );
@@ -93,55 +94,18 @@ impl Chart {
     }
 }
 
-// #[derive(Debug, Deserialize)]
-// pub struct RenderTarget {
-//     pub id: String,
-//     pub size: RenderTargetSize,
-//     pub role: RenderTargetRole,
-// }
-
 #[derive(Debug, Deserialize)]
-pub enum TextureSizeRule {
-    Fixed(u32, u32),
-    CanvasRelative(f32),
-    At4k(u32, u32),
-}
-
-#[derive(Debug, Deserialize)]
-pub enum TextureFormat {
-    Rgba8U,
-    Rgba16F,
-    Depth32F,
-}
-
-#[derive(Debug, Deserialize)]
-pub enum MipLevels {
-    Fixed(u32),
-    MinSize(u32),
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Texture {
+pub struct Image {
     pub id: String,
     pub path: Option<String>,
     pub generate_mipmaps: Option<bool>,
-    pub size: Option<TextureSizeRule>,
+    pub size: Option<ImageSizeRule>,
 }
 
-impl Texture {
-    pub fn load(&self) -> Result<render::Texture> {}
-}
-
-#[derive(Debug, Deserialize)]
-pub enum RenderTargetSize {
-    Static { width: u32, height: u32 },
-    ScreenRelative { width: f32, height: f32 },
-}
-
-#[derive(Debug, Deserialize)]
-pub enum RenderTargetRole {
-    Color,
-    Depth,
+impl Image {
+    pub fn load(&self) -> Result<render::image::Image> {
+        todo!("Image::load")
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -182,7 +146,7 @@ impl Draw {
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
         control_set_builder: &mut ControlSetBuilder,
-        render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
+        images_by_id: &HashMap<String, Arc<render::image::Image>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         chart_id: &ControlId,
         path: &ResourcePath,
@@ -192,7 +156,7 @@ impl Draw {
         let passes = self
             .passes
             .iter()
-            .map(|pass| pass.load(context, render_targets_by_id))
+            .map(|pass| pass.load(context, images_by_id))
             .collect::<Result<Vec<_>>>()?;
         // let render_targets = self
         //     .render_targets
@@ -216,7 +180,7 @@ impl Draw {
                     context,
                     resource_repository,
                     control_set_builder,
-                    render_targets_by_id,
+                    images_by_id,
                     buffer_generators_by_id,
                     path,
                 )
@@ -229,20 +193,21 @@ impl Draw {
 }
 
 #[derive(Debug, Deserialize)]
-pub enum RenderTargetSelector {
-    RenderTargetLevelZero(String),
+pub enum ImageSelector {
+    /// Level 0 of the image
+    Image(String),
 }
 
-impl RenderTargetSelector {
+impl ImageSelector {
     pub fn load(
         &self,
-        render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
-    ) -> Result<render::pass::RenderTargetSelector> {
+        images_by_id: &HashMap<String, Arc<render::image::Image>>,
+    ) -> Result<render::pass::ImageSelector> {
         match self {
-            RenderTargetSelector::RenderTargetLevelZero(id) => render_targets_by_id
+            ImageSelector::Image(id) => images_by_id
                 .get(id)
                 .cloned()
-                .map(render::pass::RenderTargetSelector::RenderTargetLevelZero)
+                .map(render::pass::ImageSelector::Image)
                 .ok_or_else(|| anyhow!("Render target not found: {}", id)),
         }
     }
@@ -251,8 +216,8 @@ impl RenderTargetSelector {
 #[derive(Debug, Deserialize)]
 pub struct Pass {
     pub id: String,
-    pub depth_buffer: Option<RenderTargetSelector>,
-    pub color_buffers: Vec<RenderTargetSelector>,
+    pub depth_buffer: Option<ImageSelector>,
+    pub color_buffers: Vec<ImageSelector>,
 
     #[serde(default = "default_clear_color")]
     pub clear_color: Option<[f32; 4]>,
@@ -262,7 +227,7 @@ impl Pass {
     pub fn load(
         &self,
         context: &VulkanContext,
-        render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
+        render_targets_by_id: &HashMap<String, Arc<render::image::Image>>,
     ) -> Result<render::pass::Pass> {
         let depth_buffer = self
             .depth_buffer
@@ -318,7 +283,7 @@ pub struct Object {
 #[derive(Debug, Deserialize)]
 pub enum TextureMapping {
     File(String),
-    RenderTargetId(String),
+    Image(String),
 }
 
 #[derive(Debug, Deserialize)]
@@ -352,42 +317,6 @@ impl BufferGenerator {
     }
 }
 
-impl RenderTarget {
-    pub fn load(&self) -> Arc<render::render_target::RenderTarget> {
-        let size_constraint = self.size.load();
-        let role = self.role.load();
-        render::render_target::RenderTarget::new(&self.id, role, size_constraint)
-    }
-}
-
-impl RenderTargetSize {
-    pub fn load(&self) -> render::render_target::RenderTargetSizeConstraint {
-        match self {
-            RenderTargetSize::Static { width, height } => {
-                render::render_target::RenderTargetSizeConstraint::Static {
-                    width: *width,
-                    height: *height,
-                }
-            }
-            RenderTargetSize::ScreenRelative { width, height } => {
-                render::render_target::RenderTargetSizeConstraint::ScreenRelative {
-                    width: *width,
-                    height: *height,
-                }
-            }
-        }
-    }
-}
-
-impl RenderTargetRole {
-    pub fn load(&self) -> render::render_target::RenderTargetRole {
-        match self {
-            RenderTargetRole::Color => render::render_target::RenderTargetRole::Color,
-            RenderTargetRole::Depth => render::render_target::RenderTargetRole::Depth,
-        }
-    }
-}
-
 impl Object {
     #[allow(clippy::too_many_arguments)]
     pub fn load(
@@ -397,7 +326,7 @@ impl Object {
         context: &VulkanContext,
         resource_repository: &mut ResourceRepository,
         control_set_builder: &mut ControlSetBuilder,
-        render_targets_by_id: &HashMap<String, Arc<render::render_target::RenderTarget>>,
+        images_by_id: &HashMap<String, Arc<render::image::Image>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         path: &ResourcePath,
     ) -> Result<Arc<render::RenderObject>> {
@@ -416,16 +345,16 @@ impl Object {
             .map(|(name, texture_mapping)| {
                 let texture_binding: DescriptorSource = match texture_mapping {
                     TextureMapping::File(texture_path) => {
-                        let texture = resource_repository
+                        let image = resource_repository
                             .get_texture(context, &path.relative_path(texture_path))?
                             .clone();
-                        DescriptorSource::Texture(texture)
+                        DescriptorSource::Image(image)
                     }
-                    TextureMapping::RenderTargetId(id) => {
-                        let render_target = render_targets_by_id
+                    TextureMapping::Image(id) => {
+                        let image = images_by_id
                             .get(id)
                             .with_context(|| anyhow!("Render target '{}' not found", id))?;
-                        DescriptorSource::RenderTarget(render_target.clone())
+                        DescriptorSource::Image(image.clone())
                     }
                 };
                 Ok((name.clone(), texture_binding))
