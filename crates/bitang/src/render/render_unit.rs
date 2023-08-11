@@ -1,5 +1,5 @@
 use crate::render::material::{
-    BlendMode, DescriptorSource, MaterialStep, MaterialStepType, Shader, ShaderKind,
+    BlendMode, DescriptorSource, MaterialPass, MaterialStepType, Shader, ShaderKind,
     MATERIAL_STEP_COUNT,
 };
 use crate::render::mesh::Mesh;
@@ -85,50 +85,50 @@ impl RenderUnit {
         })
     }
 
-    pub fn render(
-        &self,
-        context: &mut RenderContext,
-        material_step_type: MaterialStepType,
-    ) -> Result<()> {
-        let saved_globals = context.globals;
-        self.apply_transformations(context);
-
-        let index = material_step_type as usize;
-        let (Some(component), Some(material_step)) = (
-            &self.steps[index],
-            &self.render_object.material.passes[index],
-        ) else {
-            panic!("RenderUnitStep and MaterialStep mismatch");
-        };
-        let instance_count = self.render_object.instances.as_float().round() as u32;
-        let result = component.render(
-            context,
-            material_step,
-            &self.render_object.mesh,
-            instance_count,
-        );
-        context.globals = saved_globals;
-
-        result
-    }
-
-    fn apply_transformations(&self, context: &mut RenderContext) {
-        let rotation = self.render_object.rotation.as_vec3();
-        let rotation_matrix = Mat4::from_euler(EulerRot::ZXY, rotation.z, rotation.x, rotation.y);
-
-        let position = self.render_object.position.as_vec3();
-        let translation_matrix = Mat4::from_translation(position);
-
-        context.globals.world_from_model = translation_matrix * rotation_matrix;
-        context.globals.update_compound_matrices();
-    }
+    // pub fn render(
+    //     &self,
+    //     context: &mut RenderContext,
+    //     material_step_type: MaterialStepType,
+    // ) -> Result<()> {
+    //     let saved_globals = context.globals;
+    //     self.apply_transformations(context);
+    //
+    //     let index = material_step_type as usize;
+    //     let (Some(component), Some(material_step)) = (
+    //         &self.steps[index],
+    //         &self.render_object.material.passes[index],
+    //     ) else {
+    //         panic!("RenderUnitStep and MaterialStep mismatch");
+    //     };
+    //     let instance_count = self.render_object.instances.as_float().round() as u32;
+    //     let result = component.render(
+    //         context,
+    //         material_step,
+    //         &self.render_object.mesh,
+    //         instance_count,
+    //     );
+    //     context.globals = saved_globals;
+    //
+    //     result
+    // }
+    //
+    // fn apply_transformations(&self, context: &mut RenderContext) {
+    //     let rotation = self.render_object.rotation.as_vec3();
+    //     let rotation_matrix = Mat4::from_euler(EulerRot::ZXY, rotation.z, rotation.x, rotation.y);
+    //
+    //     let position = self.render_object.position.as_vec3();
+    //     let translation_matrix = Mat4::from_translation(position);
+    //
+    //     context.globals.world_from_model = translation_matrix * rotation_matrix;
+    //     context.globals.update_compound_matrices();
+    // }
 }
 
 impl RenderUnitStep {
     pub fn new(
         context: &VulkanContext,
         pass: &Pass,
-        material_step: &MaterialStep,
+        material_step: &MaterialPass,
     ) -> Result<RenderUnitStep> {
         let vertex_uniforms_storage = ShaderUniformStorage::new(context);
         let fragment_uniforms_storage = ShaderUniformStorage::new(context);
@@ -202,54 +202,54 @@ impl RenderUnitStep {
         })
     }
 
-    pub fn render(
-        &self,
-        context: &mut RenderContext,
-        material_step: &MaterialStep,
-        mesh: &Mesh,
-        instance_count: u32,
-    ) -> Result<()> {
-        context.globals.instance_count = instance_count as f32;
-
-        let descriptor_set_layouts = self.pipeline.layout().set_layouts();
-        let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
-            context,
-            &material_step.vertex_shader,
-            descriptor_set_layouts.get(ShaderKind::Vertex as usize),
-            material_step.sampler_address_mode,
-        )?;
-        let fragment_descriptor_set = self.fragment_uniforms_storage.make_descriptor_set(
-            context,
-            &material_step.fragment_shader,
-            descriptor_set_layouts.get(ShaderKind::Fragment as usize),
-            material_step.sampler_address_mode,
-        )?;
-
-        context
-            .command_builder
-            .bind_pipeline_graphics(self.pipeline.clone())
-            .bind_vertex_buffers(0, mesh.vertex_buffer.clone());
-        if let Some(vertex_descriptor_set) = vertex_descriptor_set {
-            context.command_builder.bind_descriptor_sets(
-                PipelineBindPoint::Graphics,
-                self.pipeline.layout().clone(),
-                0,
-                vertex_descriptor_set,
-            );
-        }
-        if let Some(fragment_descriptor_set) = fragment_descriptor_set {
-            context.command_builder.bind_descriptor_sets(
-                PipelineBindPoint::Graphics,
-                self.pipeline.layout().clone(),
-                1,
-                fragment_descriptor_set,
-            );
-        }
-        context
-            .command_builder
-            .draw(mesh.vertex_buffer.len() as u32, instance_count, 0, 0)?;
-        Ok(())
-    }
+    // pub fn render(
+    //     &self,
+    //     context: &mut RenderContext,
+    //     material_step: &MaterialPass,
+    //     mesh: &Mesh,
+    //     instance_count: u32,
+    // ) -> Result<()> {
+    //     context.globals.instance_count = instance_count as f32;
+    //
+    //     let descriptor_set_layouts = self.pipeline.layout().set_layouts();
+    //     let vertex_descriptor_set = self.vertex_uniforms_storage.make_descriptor_set(
+    //         context,
+    //         &material_step.vertex_shader,
+    //         descriptor_set_layouts.get(ShaderKind::Vertex as usize),
+    //         material_step.sampler_address_mode,
+    //     )?;
+    //     let fragment_descriptor_set = self.fragment_uniforms_storage.make_descriptor_set(
+    //         context,
+    //         &material_step.fragment_shader,
+    //         descriptor_set_layouts.get(ShaderKind::Fragment as usize),
+    //         material_step.sampler_address_mode,
+    //     )?;
+    //
+    //     context
+    //         .command_builder
+    //         .bind_pipeline_graphics(self.pipeline.clone())
+    //         .bind_vertex_buffers(0, mesh.vertex_buffer.clone());
+    //     if let Some(vertex_descriptor_set) = vertex_descriptor_set {
+    //         context.command_builder.bind_descriptor_sets(
+    //             PipelineBindPoint::Graphics,
+    //             self.pipeline.layout().clone(),
+    //             0,
+    //             vertex_descriptor_set,
+    //         );
+    //     }
+    //     if let Some(fragment_descriptor_set) = fragment_descriptor_set {
+    //         context.command_builder.bind_descriptor_sets(
+    //             PipelineBindPoint::Graphics,
+    //             self.pipeline.layout().clone(),
+    //             1,
+    //             fragment_descriptor_set,
+    //         );
+    //     }
+    //     context
+    //         .command_builder
+    //         .draw(mesh.vertex_buffer.len() as u32, instance_count, 0, 0)?;
+    //     Ok(())
+    // }
 }
 
 impl ShaderUniformStorage {
@@ -266,89 +266,89 @@ impl ShaderUniformStorage {
         }
     }
 
-    fn make_descriptor_set(
-        &self,
-        context: &RenderContext,
-        shader: &Shader,
-        layout: Option<&Arc<DescriptorSetLayout>>,
-        sampler_address_mode: SamplerAddressMode,
-    ) -> Result<Option<Arc<PersistentDescriptorSet>>> {
-        let Some(layout) = layout else {return Ok(None);};
-
-        // TODO: avoid memory allocation, maybe use tinyvec
-        let mut descriptors = vec![];
-
-        if shader.uniform_buffer_size > 0 {
-            // Fill uniform array
-            let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
-            for global_mapping in &shader.global_uniform_bindings {
-                let values = context.globals.get(global_mapping.global_type);
-                // TODO: store f32 offset instead of byte offset
-                let offset = global_mapping.offset / size_of::<f32>();
-                for (i, value) in values.iter().enumerate() {
-                    uniform_values[offset + i] = *value;
-                }
-            }
-            for local_mapping in &shader.local_uniform_bindings {
-                let components = local_mapping.control.components.borrow();
-                for i in 0..local_mapping.f32_count {
-                    uniform_values[local_mapping.f32_offset + i] = components[i].value;
-                }
-            }
-            let _value_count = shader.uniform_buffer_size / size_of::<f32>();
-            // Unwrap is okay: we want to panic if we can't allocate
-            let uniform_buffer_subbuffer = self.uniform_buffer_pool.allocate_sized().unwrap();
-            *uniform_buffer_subbuffer.write().unwrap() = uniform_values;
-            descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
-        }
-
-        for descriptor_binding in &shader.descriptor_bindings {
-            let write_descriptor_set = match &descriptor_binding.descriptor_source {
-                DescriptorSource::Texture(texture) => Self::make_sampler(
-                    context,
-                    texture.clone(),
-                    descriptor_binding.descriptor_set_binding,
-                    sampler_address_mode,
-                ),
-                DescriptorSource::Image(render_target) => {
-                    let image_borrow = render_target.image.borrow();
-                    let render_target_image = image_borrow.as_ref().unwrap();
-                    let image_view = render_target_image.image_view.clone();
-                    Self::make_sampler(
-                        context,
-                        image_view,
-                        descriptor_binding.descriptor_set_binding,
-                        sampler_address_mode,
-                    )
-                }
-                DescriptorSource::BufferGenerator(buffer_generator) => {
-                    let buffer = buffer_generator.get_buffer().with_context(|| {
-                        format!(
-                            "Failed to get buffer for buffer generator at binding {}",
-                            descriptor_binding.descriptor_set_binding
-                        )
-                    })?;
-                    Ok(WriteDescriptorSet::buffer(
-                        descriptor_binding.descriptor_set_binding,
-                        buffer.clone(),
-                    ))
-                }
-            }?;
-            descriptors.push(write_descriptor_set);
-        }
-
-        if descriptors.is_empty() {
-            return Ok(None);
-        }
-
-        let persistent_descriptor_set = PersistentDescriptorSet::new(
-            &context.vulkan_context.descriptor_set_allocator,
-            layout.clone(),
-            descriptors,
-        )?;
-
-        Ok(Some(persistent_descriptor_set))
-    }
+    // fn make_descriptor_set(
+    //     &self,
+    //     context: &RenderContext,
+    //     shader: &Shader,
+    //     layout: Option<&Arc<DescriptorSetLayout>>,
+    //     sampler_address_mode: SamplerAddressMode,
+    // ) -> Result<Option<Arc<PersistentDescriptorSet>>> {
+    //     let Some(layout) = layout else {return Ok(None);};
+    //
+    //     // TODO: avoid memory allocation, maybe use tinyvec
+    //     let mut descriptors = vec![];
+    //
+    //     if shader.uniform_buffer_size > 0 {
+    //         // Fill uniform array
+    //         let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
+    //         for global_mapping in &shader.global_uniform_bindings {
+    //             let values = context.globals.get(global_mapping.global_type);
+    //             // TODO: store f32 offset instead of byte offset
+    //             let offset = global_mapping.offset / size_of::<f32>();
+    //             for (i, value) in values.iter().enumerate() {
+    //                 uniform_values[offset + i] = *value;
+    //             }
+    //         }
+    //         for local_mapping in &shader.local_uniform_bindings {
+    //             let components = local_mapping.control.components.borrow();
+    //             for i in 0..local_mapping.f32_count {
+    //                 uniform_values[local_mapping.f32_offset + i] = components[i].value;
+    //             }
+    //         }
+    //         let _value_count = shader.uniform_buffer_size / size_of::<f32>();
+    //         // Unwrap is okay: we want to panic if we can't allocate
+    //         let uniform_buffer_subbuffer = self.uniform_buffer_pool.allocate_sized().unwrap();
+    //         *uniform_buffer_subbuffer.write().unwrap() = uniform_values;
+    //         descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
+    //     }
+    //
+    //     for descriptor_binding in &shader.descriptor_bindings {
+    //         let write_descriptor_set = match &descriptor_binding.descriptor_source {
+    //             DescriptorSource::Texture(texture) => Self::make_sampler(
+    //                 context,
+    //                 texture.clone(),
+    //                 descriptor_binding.descriptor_set_binding,
+    //                 sampler_address_mode,
+    //             ),
+    //             DescriptorSource::Image(render_target) => {
+    //                 let image_borrow = render_target.image.borrow();
+    //                 let render_target_image = image_borrow.as_ref().unwrap();
+    //                 let image_view = render_target_image.image_view.clone();
+    //                 Self::make_sampler(
+    //                     context,
+    //                     image_view,
+    //                     descriptor_binding.descriptor_set_binding,
+    //                     sampler_address_mode,
+    //                 )
+    //             }
+    //             DescriptorSource::BufferGenerator(buffer_generator) => {
+    //                 let buffer = buffer_generator.get_buffer().with_context(|| {
+    //                     format!(
+    //                         "Failed to get buffer for buffer generator at binding {}",
+    //                         descriptor_binding.descriptor_set_binding
+    //                     )
+    //                 })?;
+    //                 Ok(WriteDescriptorSet::buffer(
+    //                     descriptor_binding.descriptor_set_binding,
+    //                     buffer.clone(),
+    //                 ))
+    //             }
+    //         }?;
+    //         descriptors.push(write_descriptor_set);
+    //     }
+    //
+    //     if descriptors.is_empty() {
+    //         return Ok(None);
+    //     }
+    //
+    //     let persistent_descriptor_set = PersistentDescriptorSet::new(
+    //         &context.vulkan_context.descriptor_set_allocator,
+    //         layout.clone(),
+    //         descriptors,
+    //     )?;
+    //
+    //     Ok(Some(persistent_descriptor_set))
+    // }
 
     fn make_sampler(
         context: &RenderContext,

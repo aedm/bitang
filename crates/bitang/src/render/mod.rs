@@ -7,9 +7,11 @@ pub mod material;
 pub mod mesh;
 pub mod pass;
 pub mod project;
+pub mod render_object;
 pub mod render_target;
 pub mod render_unit;
 pub mod sampler;
+pub mod shader;
 pub mod vulkan_window;
 
 use crate::control::controls::Control;
@@ -35,18 +37,6 @@ pub struct Vertex3 {
     pub a_uv: [f32; 2],
     #[format(R32_SFLOAT)]
     pub a_padding: f32,
-}
-
-// pub type Texture = ImageView<ImmutableImage>;
-
-#[derive(Clone)]
-pub struct RenderObject {
-    pub id: String,
-    pub mesh: Arc<Mesh>,
-    pub material: Material,
-    pub position: Rc<Control>,
-    pub rotation: Rc<Control>,
-    pub instances: Rc<Control>,
 }
 
 pub const DEPTH_BUFFER_FORMAT: Format = Format::D32_SFLOAT;

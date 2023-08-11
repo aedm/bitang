@@ -1,9 +1,12 @@
 use crate::render::vulkan_window::RenderContext;
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::cell::{Cell, RefCell};
 use std::sync::Arc;
-use vulkano::image::{AttachmentImage, ImageAccess, ImageUsage, ImmutableImage, StorageImage};
-use anyhow::Result;
+use vulkano::image::view::{ImageView, ImageViewCreateInfo};
+use vulkano::image::{
+    AttachmentImage, ImageAccess, ImageUsage, ImageViewAbstract, ImmutableImage, StorageImage,
+};
 
 #[derive(Debug, Deserialize)]
 pub enum ImageFormat {
@@ -83,13 +86,36 @@ impl Image {
         }
     }
 
+    pub fn get_view(&self) -> Result<Arc<dyn ImageViewAbstract>> {
+        let view = match &self.inner {
+            ImageInner::Immutable(image) => {
+                ImageView::new(image.clone(), ImageViewCreateInfo::default())?
+            }
+            ImageInner::SingleLevelAttachment(image) => {
+                if let Some(image) = image.borrow().as_ref() {
+                    ImageView::new(image.clone(), ImageViewCreateInfo::default())?
+                } else {
+                    return Err(anyhow::anyhow!("Attachment image not initialized"));
+                }
+            }
+            ImageInner::Swapchain(image) => {
+                if let Some(image) = image.borrow().as_ref() {
+                    ImageView::new(image.clone(), ImageViewCreateInfo::default())?
+                } else {
+                    return Err(anyhow::anyhow!("Swapchain image not initialized"));
+                }
+            }
+        };
+        Ok(view)
+    }
+
     /// Enforce the size rule.
     pub fn enforce_size_rule(&self, context: &RenderContext) -> Result<()> {
         // Only attachments need to be resized.
         let ImageInner::SingleLevelAttachment(attachment) = &self.inner else {
             return Ok(());
         };
-        
+
         // Calculate the size of the image.
         let size = match self.size_rule {
             ImageSizeRule::Fixed(w, h) => [w, h],
@@ -103,7 +129,7 @@ impl Image {
                 [(w as f32 * scale) as u32, (h as f32 * scale) as u32]
             }
         };
-        
+
         // Check if the image is already the correct size.
         let mut attachment = attachment.borrow_mut();
         if let Some(attachment) = &*attachment {
@@ -123,6 +149,19 @@ impl Image {
         Ok(())
     }
 
+    pub fn get_size(&self) -> Result<(u32, u32)> {
+        self.size
+            .get()
+            .with_context(|| format!("Image {} has no size", self.id))
+    }
+
+    pub fn is_swapchain(&self) -> bool {
+        match &self.inner {
+            ImageInner::Swapchain(_) => true,
+            _ => false,
+        }
+    }
+
     // pub fn get_view(&self) -> ImageView {
     //     match &self.inner {
     //         ImageInner::Immutable(image) => ImageView::new(image.clone()).unwrap(),
@@ -132,4 +171,3 @@ impl Image {
     //     }
     // }
 }
-

@@ -1,24 +1,24 @@
-use crate::control::controls::{Control, GlobalType};
-use crate::render::buffer_generator::BufferGenerator;
-use std::rc::Rc;
+use crate::render::mesh::Mesh;
+use crate::render::shader::Shader;
+use crate::render::vulkan_window::RenderContext;
+use anyhow::{Context, Result};
 use std::sync::Arc;
-use vulkano::sampler::SamplerAddressMode;
-use vulkano::shader::ShaderModule;
-use crate::render::image::Image;
-
-#[derive(Copy, Clone, Debug)]
-pub enum MaterialStepType {
-    _EarlyDepth = 0,
-    _Shadow = 1,
-    Solid = 2,
-}
-pub const MATERIAL_STEP_COUNT: usize = 3;
-
-#[derive(Clone)]
-pub struct Material {
-    pub passes: [Option<MaterialStep>; MATERIAL_STEP_COUNT],
-    pub sampler_address_mode: SamplerAddressMode,
-}
+use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
+use vulkano::buffer::BufferUsage;
+use vulkano::descriptor_set::layout::DescriptorSetLayout;
+use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
+use vulkano::image::ImageViewAbstract;
+use vulkano::pipeline::graphics::color_blend::{
+    AttachmentBlend, BlendFactor, BlendOp, ColorBlendState,
+};
+use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
+use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
+use vulkano::pipeline::graphics::vertex_input::Vertex;
+use vulkano::pipeline::graphics::viewport::ViewportState;
+use vulkano::pipeline::{GraphicsPipeline, PipelineBindPoint};
+use vulkano::pipeline::{Pipeline, StateMode};
+use vulkano::render_pass::Subpass;
+use vulkano::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
 
 #[derive(Clone)]
 pub enum BlendMode {
@@ -28,50 +28,45 @@ pub enum BlendMode {
 }
 
 #[derive(Clone)]
-pub struct MaterialStep {
+pub struct Material {
+    pub passes: Vec<Option<MaterialPass>>,
+}
+
+impl Material {
+    pub fn get_pass(&self, pass_id: usize) -> Option<&MaterialPass> {
+        self.passes[pass_id].as_ref()
+    }
+}
+
+#[derive(Clone)]
+pub struct MaterialPass {
+    pub id: String,
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
     pub depth_test: bool,
     pub depth_write: bool,
     pub blend_mode: BlendMode,
-    pub sampler_address_mode: SamplerAddressMode,
+
+    pipeline: Arc<GraphicsPipeline>,
 }
 
-pub enum ShaderKind {
-    Vertex = 0,
-    Fragment = 1,
-}
+impl MaterialPass {
+    pub fn render(&self, context: &mut RenderContext, mesh: &Mesh) -> Result<()> {
+        // let descriptor_set_layouts = self.pipeline.layout().set_layouts();
 
-#[derive(Clone)]
-pub struct Shader {
-    pub shader_module: Arc<ShaderModule>,
-    pub descriptor_bindings: Vec<DescriptorBinding>,
-    pub global_uniform_bindings: Vec<GlobalUniformMapping>,
-    pub local_uniform_bindings: Vec<LocalUniformMapping>,
-    pub uniform_buffer_size: usize,
-}
+        context
+            .command_builder
+            .bind_pipeline_graphics(self.pipeline.clone())
+            .bind_vertex_buffers(0, mesh.vertex_buffer.clone());
+        self.vertex_shader
+            .bind(context, self.pipeline.layout().clone())?;
+        self.fragment_shader
+            .bind(context, self.pipeline.layout().clone())?;
 
-#[derive(Clone)]
-pub enum DescriptorSource {
-    Image(Arc<Image>),
-    BufferGenerator(Arc<BufferGenerator>),
-}
-
-#[derive(Clone)]
-pub struct DescriptorBinding {
-    pub descriptor_source: DescriptorSource,
-    pub descriptor_set_binding: u32,
-}
-
-#[derive(Clone)]
-pub struct LocalUniformMapping {
-    pub control: Rc<Control>,
-    pub f32_count: usize,
-    pub f32_offset: usize,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct GlobalUniformMapping {
-    pub global_type: GlobalType,
-    pub offset: usize,
+        let instance_count = context.globals.instance_count as u32;
+        context
+            .command_builder
+            .draw(mesh.vertex_buffer.len() as u32, instance_count, 0, 0)?;
+        Ok(())
+    }
 }

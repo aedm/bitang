@@ -13,6 +13,7 @@ use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
     RenderPassCreateInfo, StoreOp, SubpassDescription,
 };
+use crate::render::render_object::RenderObject;
 
 /// Represents a draw step in the chart sequence.
 pub struct Draw {
@@ -20,35 +21,35 @@ pub struct Draw {
     // pub render_targets: Vec<Arc<RenderTarget>>,
     pub passes: Vec<Pass>,
     pub objects: Vec<Arc<RenderObject>>,
-    render_units: Vec<RenderUnit>,
+    // render_units: Vec<RenderUnit>,
 }
 
 impl Draw {
     pub fn new(
-        context: &VulkanContext,
+        // context: &VulkanContext,
         id: &str,
         passes: Vec<Pass>,
         // render_targets: Vec<Arc<RenderTarget>>,
         objects: Vec<Arc<RenderObject>>,
         // clear_color: Option<[f32; 4]>,
     ) -> Result<Draw> {
-        let solid_pass = passes
-            .iter()
-            .find(|pass| pass.id == "solid")
-            .with_context(|| format!("Draw step '{id}' doesn't have a solid pass. Bitang can only render solid passes at the moment."))?;
-        let render_units = objects
-            .iter()
-            .map(|object| RenderUnit::new(context, &solid_pass, object))
-            .collect::<Result<Vec<_>>>()
-            .with_context(|| format!("Failed to create render units for pass '{}'", id))?;
+        // let solid_pass = passes
+        //     .iter()
+        //     .find(|pass| pass.id == "solid")
+        //     .with_context(|| format!("Draw step '{id}' doesn't have a solid pass. Bitang can only render solid passes at the moment."))?;
+        // let render_units = objects
+        //     .iter()
+        //     .map(|object| RenderUnit::new(context, &solid_pass, object))
+        //     .collect::<Result<Vec<_>>>()
+        //     .with_context(|| format!("Failed to create render units for pass '{}'", id))?;
 
         Ok(Draw {
             id: id.to_string(),
             // vulkan_render_pass: render_pass,
             // render_targets,
-            objects,
             passes,
-            render_units,
+            objects,
+            // render_units,
             // clear_color,
         })
     }
@@ -56,11 +57,11 @@ impl Draw {
     pub fn render(
         &self,
         context: &mut RenderContext,
-        material_step_type: MaterialStepType,
+        // material_step_type: MaterialStepType,
         camera: &Camera,
     ) -> Result<()> {
-        if self.render_targets.is_empty() {
-            return Err(anyhow!("Pass '{}' has no render targets", self.id));
+        if self.passes.is_empty() {
+            return Err(anyhow!("Draw '{}' has no passes", self.id));
         }
 
         let size = self.render_targets[0]
@@ -147,6 +148,24 @@ impl Draw {
 
         render_result?;
         Ok(())
+    }
+    
+    fn render_pass(&self,
+                   context: &mut RenderContext,
+                   pass_index: usize) -> Result<()> {
+        let pass = &self.passes[pass_index];
+        pass.set();
+        
+
+        todo!("render_pass");
+
+        let render_result = self.render_render_units(context, material_step_type);
+
+        context.command_builder.end_render_pass()?;
+
+        render_result?;
+        Ok(())
+
     }
 
     fn render_render_units(

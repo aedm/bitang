@@ -1,22 +1,41 @@
+use crate::render::camera::Camera;
 use crate::render::image::Image;
-use crate::render::vulkan_window::VulkanContext;
+use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use anyhow::{anyhow, Context, Result};
 use std::sync::Arc;
+use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
+use vulkano::image::view::ImageView;
+use vulkano::image::ImageViewAbstract;
 use vulkano::image::{ImageLayout, SampleCount};
+use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
-    AttachmentDescription, AttachmentReference, LoadOp, RenderPassCreateInfo, StoreOp,
-    SubpassDescription,
+    AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
+    RenderPassCreateInfo, StoreOp, SubpassDescription,
 };
 
 pub enum ImageSelector {
     Image(Arc<Image>),
 }
 
+impl ImageSelector {
+    pub fn get_image(&self) -> &Arc<Image> {
+        match self {
+            ImageSelector::Image(image) => image,
+        }
+    }
+
+    pub fn get_image_view(&self) -> Arc<dyn ImageViewAbstract> {
+        match self {
+            ImageSelector::Image(image) => image.get_image_view(),
+        }
+    }
+}
+
 pub struct Pass {
     pub id: String,
-    color_buffers: Vec<ImageSelector>,
-    depth_buffer: Option<ImageSelector>,
-    clear_color: Option<[f32; 4]>,
+    pub color_buffers: Vec<ImageSelector>,
+    pub depth_buffer: Option<ImageSelector>,
+    pub clear_color: Option<[f32; 4]>,
     pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
 }
 
@@ -160,19 +179,78 @@ impl Pass {
         Ok(())
     }
 
-    fn set(&self) -> Result<()> {
-        if self.color_buffers.is_empty() && self.depth_buffer.is_none() {
+    pub fn set(&self, context: &mut RenderContext, camera: &mut Camera) -> Result<()> {
+        let first_image = if let Some(img) = self.color_buffers.first() {
+            img.get_image()
+        } else if let Some(img) = &self.depth_buffer {
+            img.get_image()
+        } else {
             return Err(anyhow!("Pass {} has no color or depth buffers", self.id));
+        };
+
+        // Check that all render targets have the same size
+        let size = first_image.get_size()?;
+        for img_selector in &self.color_buffers {
+            let image = img_selector.get_image();
+            if image.get_size()? != size {
+                return Err(anyhow!(
+                    "Image '{}' in Pass '{}' has different size than other images",
+                    image.id,
+                    self.id
+                ));
+            }
         }
 
-        let size = self
-            .depth_buffer
-            .map(|selector| match selector {
-                ImageSelector::Image(render_target) => render_target.size,
-            })
-            .unwrap_or_else(|| match self.color_buffers.first().unwrap() {
-                ImageSelector::Image(render_target) => render_target.size,
-            });
+        let viewport = if first_image.is_swapchain {
+            context.screen_viewport.clone()
+        } else {
+            Viewport {
+                origin: [0.0, 0.0],
+                dimensions: [size.0 as f32, size.1 as f32],
+                depth_range: 0.0..1.0,
+            }
+        };
+        camera.set(&mut context.globals, viewport.dimensions);
+
+        // Collect attachment images
+        let mut attachments = vec![];
+        let mut clear_values = vec![];
+        for img_selector in &self.color_buffers {
+            let image = img_selector.get_image();
+            attachments.push(image.get_image_view()?);
+            clear_values.push(self.clear_color.map(|c| c.into()));
+        }
+        if let Some(depth) = &self.depth_buffer {
+            attachments.push(depth.get_image_view()?);
+            clear_values.push(self.clear_color.map(|_| 1f32.into()));
+        }
+        let framebuffer = Framebuffer::new(
+            self.vulkan_render_pass.clone(),
+            FramebufferCreateInfo {
+                attachments,
+                ..Default::default()
+            },
+        )?;
+
+        // let clear_values = self
+        //     .render_targets
+        //     .iter()
+        //     .map(|target| match target.role {
+        //         RenderTargetRole::Color => self.clear_color.map(|c| c.into()),
+        //         RenderTargetRole::Depth => self.clear_color.map(|_| 1f32.into()),
+        //     })
+        //     .collect::<Vec<_>>();
+
+        context
+            .command_builder
+            .begin_render_pass(
+                RenderPassBeginInfo {
+                    clear_values,
+                    ..RenderPassBeginInfo::framebuffer(framebuffer)
+                },
+                SubpassContents::Inline,
+            )?
+            .set_viewport(0, [viewport]);
 
         Ok(())
     }

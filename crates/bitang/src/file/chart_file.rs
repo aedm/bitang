@@ -8,7 +8,7 @@ use crate::render;
 use crate::render::buffer_generator::BufferGeneratorType;
 use crate::render::image::ImageSizeRule;
 use crate::render::material::{
-    DescriptorBinding, DescriptorSource, LocalUniformMapping, Material, MaterialStep, Shader,
+    DescriptorBinding, DescriptorSource, LocalUniformMapping, Material, MaterialPass, Shader,
 };
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Result};
@@ -420,7 +420,7 @@ impl Object {
         sampler_sources_by_id: &HashMap<String, DescriptorSource>,
         buffer_sources_by_id: &HashMap<String, DescriptorSource>,
         path: &ResourcePath,
-    ) -> Result<MaterialStep> {
+    ) -> Result<MaterialPass> {
         let shaders = resource_repository.shader_cache.get_or_load(
             context,
             &path.relative_path(&self.vertex_shader),
@@ -447,7 +447,7 @@ impl Object {
             buffer_sources_by_id,
         )?;
 
-        let material_step = MaterialStep {
+        let material_step = MaterialPass {
             vertex_shader,
             fragment_shader,
             depth_test: self.depth_test,
