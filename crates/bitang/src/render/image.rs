@@ -5,14 +5,19 @@ use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{
-    AttachmentImage, ImageAccess, ImageUsage, ImageViewAbstract, ImmutableImage, StorageImage,
+    AttachmentImage, ImageAccess, ImageLayout, ImageUsage, ImageViewAbstract, ImmutableImage,
+    SampleCount, StorageImage,
 };
+use vulkano::render_pass::{AttachmentDescription, LoadOp, StoreOp};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Copy)]
 pub enum ImageFormat {
     Rgba16F,
     Depth32F,
     Rgba8U,
+
+    /// Only for swapchain.
+    Rgba8Srgb,
 }
 
 impl ImageFormat {
@@ -21,11 +26,12 @@ impl ImageFormat {
             ImageFormat::Rgba16F => vulkano::format::Format::R16G16B16A16_SFLOAT,
             ImageFormat::Depth32F => vulkano::format::Format::D32_SFLOAT,
             ImageFormat::Rgba8U => vulkano::format::Format::B8G8R8A8_UNORM,
+            ImageFormat::Rgba8Srgb => vulkano::format::Format::B8G8R8A8_SRGB,
         }
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Copy)]
 pub enum ImageSizeRule {
     Fixed(u32, u32),
     CanvasRelative(f32),
@@ -41,53 +47,53 @@ pub enum ImageSizeRule {
 enum ImageInner {
     Immutable(Arc<ImmutableImage>),
     SingleLevelAttachment(RefCell<Option<Arc<AttachmentImage>>>),
-    Swapchain(RefCell<Option<Arc<dyn ImageAccess>>>),
+    Swapchain(RefCell<Option<Arc<dyn ImageViewAbstract>>>),
 }
 
 pub struct Image {
     pub id: String,
     pub size_rule: ImageSizeRule,
+    pub vulkan_format: vulkano::format::Format,
     // pub mip_levels: MipLevels,
     inner: ImageInner,
-    vulkan_format: vulkano::format::Format,
     size: Cell<Option<(u32, u32)>>,
 }
 
 impl Image {
-    pub fn new_immutable(id: &str, source: Arc<ImmutableImage>) -> Self {
+    pub fn new_immutable(id: &str, source: Arc<ImmutableImage>) -> Arc<Self> {
         let dim = source.dimensions().width_height();
-        Self {
+        Arc::new(Self {
             id: id.to_owned(),
+            vulkan_format: source.format(),
             inner: ImageInner::Immutable(source),
             size_rule: ImageSizeRule::Fixed(dim[0], dim[1]),
             size: Cell::new(Some((dim[0], dim[1]))),
-            vulkan_format: source.format(),
             // mip_levels: MipLevels::Fixed(source.mip_levels()),
-        }
+        })
     }
 
-    pub fn new_attachment(id: &str, format: ImageFormat, size_rule: ImageSizeRule) -> Self {
-        Self {
+    pub fn new_attachment(id: &str, format: ImageFormat, size_rule: ImageSizeRule) -> Arc<Self> {
+        Arc::new(Self {
             id: id.to_owned(),
             inner: ImageInner::SingleLevelAttachment(RefCell::new(None)),
             size_rule,
             size: Cell::new(None),
             vulkan_format: format.vulkan_format(),
-        }
+        })
     }
 
-    pub fn new_swapchain(id: &str, format: ImageFormat) -> Self {
-        Self {
+    pub fn new_swapchain(id: &str, format: ImageFormat) -> Arc<Self> {
+        Arc::new(Self {
             id: id.to_owned(),
             inner: ImageInner::Swapchain(RefCell::new(None)),
             size_rule: ImageSizeRule::CanvasRelative(1.0),
             size: Cell::new(None),
             vulkan_format: format.vulkan_format(),
-        }
+        })
     }
 
     pub fn get_view(&self) -> Result<Arc<dyn ImageViewAbstract>> {
-        let view = match &self.inner {
+        let view: Arc<dyn ImageViewAbstract> = match &self.inner {
             ImageInner::Immutable(image) => {
                 ImageView::new(image.clone(), ImageViewCreateInfo::default())?
             }
@@ -100,13 +106,46 @@ impl Image {
             }
             ImageInner::Swapchain(image) => {
                 if let Some(image) = image.borrow().as_ref() {
-                    ImageView::new(image.clone(), ImageViewCreateInfo::default())?
+                    image.clone()
                 } else {
                     return Err(anyhow::anyhow!("Swapchain image not initialized"));
                 }
             }
         };
         Ok(view)
+    }
+
+    pub fn get_image_access(&self) -> Arc<dyn ImageAccess> {
+        match &self.inner {
+            ImageInner::Immutable(image) => image.clone(),
+            ImageInner::SingleLevelAttachment(image) => {
+                if let Some(image) = image.borrow().as_ref() {
+                    image.clone()
+                } else {
+                    panic!("Attachment image not initialized");
+                }
+            }
+            ImageInner::Swapchain(image) => {
+                panic!("Swapchain image can't be accessed");
+            }
+        }
+    }
+
+    // TODO: use this in Pass to create the attachment description
+    pub fn make_attachment_description(
+        &self,
+        layout: ImageLayout,
+        load_op: LoadOp,
+    ) -> Result<AttachmentDescription> {
+        Ok(AttachmentDescription {
+            format: Some(self.vulkan_format),
+            samples: SampleCount::Sample1, // TODO
+            load_op,
+            store_op: StoreOp::Store,
+            initial_layout: layout,
+            final_layout: layout,
+            ..Default::default()
+        })
     }
 
     /// Enforce the size rule.
@@ -162,12 +201,12 @@ impl Image {
         }
     }
 
-    // pub fn get_view(&self) -> ImageView {
-    //     match &self.inner {
-    //         ImageInner::Immutable(image) => ImageView::new(image.clone()).unwrap(),
-    //         ImageInner::SingleLevelAttachment(image) => {
-    //             ImageView::new(image.clone()).unwrap()
-    //         }
-    //     }
-    // }
+    pub fn set_swapchain_image(&self, image: Arc<dyn ImageViewAbstract>) {
+        match &self.inner {
+            ImageInner::Swapchain(swapchain_image) => {
+                *swapchain_image.borrow_mut() = Some(image);
+            }
+            _ => panic!("Not a swapchain image"),
+        }
+    }
 }

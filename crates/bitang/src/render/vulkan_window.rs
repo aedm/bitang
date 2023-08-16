@@ -1,6 +1,9 @@
 use crate::control::controls::Globals;
-use crate::render::image::Image;
-use crate::render::{DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT};
+use crate::render::image::{Image, ImageFormat, ImageSizeRule};
+use crate::render::{
+    DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT, SCREEN_DEPTH_RENDER_TARGET_ID,
+    SCREEN_RENDER_TARGET_ID,
+};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -91,7 +94,7 @@ impl VulkanWindow {
         };
 
         windows.create_window(&event_loop, &vulkano_context, &window_descriptor, |ci| {
-            ci.image_format = Some(SCREEN_COLOR_FORMAT);
+            ci.image_format = Some(SCREEN_COLOR_FORMAT.vulkan_format());
             ci.min_image_count = ci.min_image_count.max(3);
         });
 
@@ -100,31 +103,47 @@ impl VulkanWindow {
             .context("No primary renderer")?;
         renderer.add_additional_image_view(
             1,
-            DEPTH_BUFFER_FORMAT,
+            DEPTH_BUFFER_FORMAT.vulkan_format(),
             ImageUsage::DEPTH_STENCIL_ATTACHMENT,
         );
 
         let swapchain_render_targets_by_id = if FRAMEDUMP_MODE {
             let size = (FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
-            let screen_render_target = Image::new_fake_swapchain(
-                vulkano_context.memory_allocator(),
-                RenderTargetRole::Color,
-                size,
+            // let screen_render_target = Image::new_fake_swapchain(
+            //     vulkano_context.memory_allocator(),
+            //     RenderTargetRole::Color,
+            //     size,
+            // );
+            // let depth_render_target = Image::new_fake_swapchain(
+            //     vulkano_context.memory_allocator(),
+            //     RenderTargetRole::Depth,
+            //     size,
+            // );
+            let screen_render_target = Image::new_attachment(
+                SCREEN_RENDER_TARGET_ID,
+                ImageFormat::Rgba8U,
+                ImageSizeRule::Fixed(size.0, size.1),
             );
-            let depth_render_target = Image::new_fake_swapchain(
-                vulkano_context.memory_allocator(),
-                RenderTargetRole::Depth,
-                size,
+            let depth_render_target = Image::new_attachment(
+                SCREEN_DEPTH_RENDER_TARGET_ID,
+                ImageFormat::Depth32F,
+                ImageSizeRule::Fixed(size.0, size.1),
             );
             HashMap::from([
                 (screen_render_target.id.clone(), screen_render_target),
                 (depth_render_target.id.clone(), depth_render_target),
             ])
         } else {
+            // let screen_render_target =
+            //     Image::new_swapchain(RenderTargetRole::Color, SCREEN_COLOR_FORMAT);
+            // let depth_render_target =
+            //     Image::from_swapchain(RenderTargetRole::Depth, DEPTH_BUFFER_FORMAT);
+
             let screen_render_target =
-                Image::from_swapchain(RenderTargetRole::Color, SCREEN_COLOR_FORMAT);
+                Image::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
             let depth_render_target =
-                Image::from_swapchain(RenderTargetRole::Depth, DEPTH_BUFFER_FORMAT);
+                Image::new_swapchain(SCREEN_DEPTH_RENDER_TARGET_ID, DEPTH_BUFFER_FORMAT);
+
             HashMap::from([
                 (screen_render_target.id.clone(), screen_render_target),
                 (depth_render_target.id.clone(), depth_render_target),

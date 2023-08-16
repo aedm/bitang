@@ -208,7 +208,7 @@ fn load_texture(
         .execute(context.context.graphics_queue().clone())?;
 
     let image = Image::new_immutable(resource_name, image);
-    Ok(Arc::new(image))
+    Ok(image)
 }
 
 #[instrument(skip_all)]

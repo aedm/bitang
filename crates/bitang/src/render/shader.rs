@@ -1,21 +1,22 @@
 use crate::control::controls::{Control, GlobalType};
 use crate::render::buffer_generator::BufferGenerator;
 use crate::render::image::Image;
-use crate::render::vulkan_window::RenderContext;
+use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
-use vulkano::buffer::allocator::SubbufferAllocator;
+use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
+use vulkano::buffer::BufferUsage;
 use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::pipeline::{PipelineBindPoint, PipelineLayout};
-use vulkano::sampler::SamplerAddressMode;
+use vulkano::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
 use vulkano::shader::ShaderModule;
 
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub enum ShaderKind {
     Vertex = 0,
     Fragment = 1,
@@ -23,7 +24,7 @@ pub enum ShaderKind {
 
 impl ShaderKind {
     /// Returns the descriptor set index for this shader stage.
-    /// 
+    ///
     /// Descriptor sets are shared between all shader stages in a pipeline. To distinguish,
     /// Bitang uses unique descriptor set for each shader stage:
     /// - Vertex shader: `set = 0`
@@ -31,12 +32,11 @@ impl ShaderKind {
     ///
     /// E.g. every resource in a vertex shader must use `layout(set = 0, binding = ...)`,
     pub fn get_descriptor_set_index(&self) -> u32 {
-        self as u32
+        *self as u32
     }
 }
 
 /// Shader stage, either vertex or fragment.
-#[derive(Clone)]
 pub struct Shader {
     /// The compiled shader module.
     pub shader_module: Arc<ShaderModule>,
@@ -53,25 +53,60 @@ pub struct Shader {
     /// The size of the uniform buffer in bytes.
     pub uniform_buffer_size: usize,
 
-    /// Image bindings
-    pub samplers: Vec<SamplerBinding>,
-
-    /// Buffer bindings
-    pub buffers: Vec<BufferBinding>,
+    // /// Image bindings
+    // pub samplers: Vec<SamplerBinding>,
+    //
+    // /// Buffer bindings
+    // pub buffers: Vec<BufferBinding>,
+    /// Descriptor bindings, e.g. samplers, buffers, etc.
+    pub descriptor_resources: Vec<DescriptorResource>,
 
     /// Storage for the uniform buffer values    
     uniform_buffer_pool: SubbufferAllocator,
-
-    layout: Option<Arc<DescriptorSetLayout>>,
 }
 
 impl Shader {
+    pub fn new(
+        context: &VulkanContext,
+        shader_module: Arc<ShaderModule>,
+        kind: ShaderKind,
+        global_uniform_bindings: Vec<GlobalUniformMapping>,
+        local_uniform_bindings: Vec<LocalUniformMapping>,
+        uniform_buffer_size: usize,
+        descriptor_resources: Vec<DescriptorResource>,
+    ) -> Shader {
+        let uniform_buffer_pool = SubbufferAllocator::new(
+            context.context.memory_allocator().clone(),
+            SubbufferAllocatorCreateInfo {
+                buffer_usage: BufferUsage::UNIFORM_BUFFER,
+                ..Default::default()
+            },
+        );
+
+        Shader {
+            shader_module,
+            kind,
+            global_uniform_bindings,
+            local_uniform_bindings,
+            uniform_buffer_size,
+            descriptor_resources,
+            uniform_buffer_pool,
+        }
+    }
+
     pub fn bind(
         &self,
-        context: &RenderContext,
-        pipeline_layout: Arc<PipelineLayout>,
+        context: &mut RenderContext,
+        pipeline_layout: &Arc<PipelineLayout>,
     ) -> Result<()> {
-        let Some(layout) = &self.layout else {return Ok(None);};
+        if self.uniform_buffer_size == 0 && self.descriptor_resources.is_empty() {
+            return Ok(());
+        }
+
+        let descriptor_set_layout = pipeline_layout
+            .set_layouts()
+            .get(self.kind.get_descriptor_set_index() as usize)
+            .context("Failed to get descriptor set layout")?;
 
         // TODO: avoid memory allocation, maybe use tinyvec
         let mut descriptors = vec![];
@@ -79,7 +114,7 @@ impl Shader {
         if self.uniform_buffer_size > 0 {
             // Fill uniform array
             let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
-            for global_mapping in &shader.global_uniform_bindings {
+            for global_mapping in &self.global_uniform_bindings {
                 let values = context.globals.get(global_mapping.global_type);
                 // TODO: store f32 offset instead of byte offset
                 let offset = global_mapping.offset / size_of::<f32>();
@@ -87,68 +122,61 @@ impl Shader {
                     uniform_values[offset + i] = *value;
                 }
             }
-            for local_mapping in &shader.local_uniform_bindings {
+            for local_mapping in &self.local_uniform_bindings {
                 let components = local_mapping.control.components.borrow();
                 for i in 0..local_mapping.f32_count {
                     uniform_values[local_mapping.f32_offset + i] = components[i].value;
                 }
             }
-            let _value_count = shader.uniform_buffer_size / size_of::<f32>();
+            let _value_count = self.uniform_buffer_size / size_of::<f32>();
             // Unwrap is okay: we want to panic if we can't allocate
             let uniform_buffer_subbuffer = self.uniform_buffer_pool.allocate_sized().unwrap();
             *uniform_buffer_subbuffer.write().unwrap() = uniform_values;
+
+            // Uniforms are always at binding 0
             descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
         }
 
-        for descriptor_binding in &shader.descriptor_bindings {
-            let write_descriptor_set = match &descriptor_binding.descriptor_source {
-                DescriptorSource::Texture(texture) => Self::make_sampler(
-                    context,
-                    texture.clone(),
-                    descriptor_binding.descriptor_set_binding,
-                    sampler_address_mode,
-                ),
-                DescriptorSource::Image(render_target) => {
-                    let image_borrow = render_target.image.borrow();
-                    let render_target_image = image_borrow.as_ref().unwrap();
-                    let image_view = render_target_image.image_view.clone();
-                    Self::make_sampler(
-                        context,
+        for descriptor_resource in &self.descriptor_resources {
+            let write_descriptor_set = match &descriptor_resource.source {
+                DescriptorSource::Image(image_descriptor) => {
+                    let image_view = image_descriptor.image.get_view()?;
+                    let sampler = Sampler::new(
+                        context.vulkan_context.context.device().clone(),
+                        SamplerCreateInfo {
+                            address_mode: [image_descriptor.address_mode; 3],
+                            ..SamplerCreateInfo::simple_repeat_linear()
+                        },
+                    )?;
+
+                    WriteDescriptorSet::image_view_sampler(
+                        descriptor_resource.binding,
                         image_view,
-                        descriptor_binding.descriptor_set_binding,
-                        sampler_address_mode,
+                        sampler,
                     )
                 }
                 DescriptorSource::BufferGenerator(buffer_generator) => {
                     let buffer = buffer_generator.get_buffer().with_context(|| {
                         format!(
-                            "Failed to get buffer for buffer generator at binding {}",
-                            descriptor_binding.descriptor_set_binding
+                            "Failed to get buffer for buffer generator for binding {}",
+                            descriptor_resource.id
                         )
                     })?;
-                    Ok(WriteDescriptorSet::buffer(
-                        descriptor_binding.descriptor_set_binding,
-                        buffer.clone(),
-                    ))
+                    WriteDescriptorSet::buffer(descriptor_resource.binding, buffer.clone())
                 }
-            }?;
+            };
             descriptors.push(write_descriptor_set);
-        }
-
-        if descriptors.is_empty() {
-            return Ok(None);
         }
 
         let persistent_descriptor_set = PersistentDescriptorSet::new(
             &context.vulkan_context.descriptor_set_allocator,
-            layout.clone(),
+            descriptor_set_layout.clone(),
             descriptors,
         )?;
 
-        // Ok(Some(persistent_descriptor_set))
         context.command_builder.bind_descriptor_sets(
             PipelineBindPoint::Graphics,
-            pipeline_layout,
+            pipeline_layout.clone(),
             self.kind.get_descriptor_set_index(),
             persistent_descriptor_set,
         );
@@ -156,25 +184,42 @@ impl Shader {
         Ok(())
     }
 }
+//
+// /// The binding point of a descriptor.
+// pub type DescriptorBinding = u32;
 
-/// The binding point of a descriptor.
-/// This is value of the `layout(binding = ...)` attribute in the shader.
-pub type DescriptorBinding = u32;
-
-#[derive(Clone)]
-pub struct SamplerBinding {
-    pub id: String,
-    pub binding: DescriptorBinding,
+pub struct ImageDescriptor {
     pub image: Arc<Image>,
     pub address_mode: SamplerAddressMode,
 }
 
-#[derive(Clone)]
-pub struct BufferBinding {
-    pub id: String,
-    pub binding: DescriptorBinding,
-    pub buffer_generator: Arc<BufferGenerator>,
+pub enum DescriptorSource {
+    Image(ImageDescriptor),
+    BufferGenerator(Arc<BufferGenerator>),
 }
+
+pub struct DescriptorResource {
+    pub id: String,
+
+    /// This is value of the `layout(binding = ...)` attribute in the shader.
+    pub binding: u32,
+
+    pub source: DescriptorSource,
+}
+
+// #[derive(Clone)]
+// pub struct SamplerBinding {
+//     pub id: String,
+//     pub binding: DescriptorBinding,
+//
+// }
+
+// #[derive(Clone)]
+// pub struct BufferBinding {
+//     pub id: String,
+//     pub binding: DescriptorBinding,
+//     pub buffer_generator: Arc<BufferGenerator>,
+// }
 
 #[derive(Clone)]
 pub struct LocalUniformMapping {

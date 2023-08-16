@@ -1,23 +1,18 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::default_true;
+use crate::file::material::Material;
 use crate::file::resource_repository::ResourceRepository;
 use crate::file::shader_loader::ShaderCompilationResult;
 use crate::file::ResourcePath;
-use crate::render;
 use crate::render::buffer_generator::BufferGeneratorType;
 use crate::render::image::ImageSizeRule;
-use crate::render::material::{
-    DescriptorBinding, DescriptorSource, LocalUniformMapping, Material, MaterialPass, Shader,
-};
 use crate::render::vulkan_window::VulkanContext;
+use crate::{file, render};
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::instrument;
-
-const COMMON_SHADER_FILE: &str = "common.glsl";
 
 #[derive(Debug, Deserialize)]
 pub struct Chart {
@@ -47,11 +42,11 @@ impl Chart {
         let images_by_id = self
             .images
             .iter()
-            .map(|render_target| {
-                let render_target = render_target.load();
-                (render_target.id.clone(), render_target)
+            .map(|image_desc| {
+                let image = image_desc.load()?;
+                Ok((image_desc.id.clone(), image))
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<Result<HashMap<_, _>>>()?;
 
         let buffer_generators_by_id = self
             .buffer_generators
@@ -97,31 +92,27 @@ impl Chart {
 #[derive(Debug, Deserialize)]
 pub struct Image {
     pub id: String,
-    pub path: Option<String>,
-    pub generate_mipmaps: Option<bool>,
+    // pub path: Option<String>,
+    // pub generate_mipmaps: Option<bool>,
     pub size: Option<ImageSizeRule>,
+    pub format: Option<render::image::ImageFormat>,
 }
 
 impl Image {
-    pub fn load(&self) -> Result<render::image::Image> {
-        todo!("Image::load")
+    pub fn load(&self) -> Result<Arc<render::image::Image>> {
+        let Some(size_rule) = self.size else {
+            return Err(anyhow!("Image size not specified"));
+        };
+        let Some(format) = self.format else {
+            return Err(anyhow!("Image format not specified"));
+        };
+        let image = render::image::Image::new_attachment(
+            &self.id,
+            format,
+            size_rule,
+        );
+        Ok(image)
     }
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub enum BlendMode {
-    #[default]
-    None,
-    Alpha,
-    Additive,
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub enum SamplerAddressMode {
-    #[default]
-    Repeat,
-    ClampToEdge,
-    MirroredRepeat,
 }
 
 fn default_clear_color() -> Option<[f32; 4]> {
@@ -183,12 +174,13 @@ impl Draw {
                     images_by_id,
                     buffer_generators_by_id,
                     path,
+                    &passes,
                 )
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let pass = render::draw::Draw::new(context, &self.id, passes, objects)?;
-        Ok(pass)
+        let draw = render::draw::Draw::new(&self.id, passes, objects)?;
+        Ok(draw)
     }
 }
 
@@ -231,6 +223,7 @@ impl Pass {
     ) -> Result<render::pass::Pass> {
         let depth_buffer = self
             .depth_buffer
+            .as_ref()
             .map(|selector| selector.load(render_targets_by_id))
             .transpose()?;
         let color_buffers = self
@@ -246,49 +239,8 @@ impl Pass {
             depth_buffer,
             self.clear_color,
         );
-        Ok(pass)
+        pass
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Object {
-    pub id: String,
-    pub mesh_file: String,
-    pub mesh_name: String,
-    pub vertex_shader: String,
-    pub fragment_shader: String,
-
-    #[serde(default = "default_true")]
-    pub depth_test: bool,
-
-    #[serde(default = "default_true")]
-    pub depth_write: bool,
-
-    #[serde(default)]
-    pub blend_mode: BlendMode,
-
-    #[serde(default)]
-    pub sampler_address_mode: SamplerAddressMode,
-
-    #[serde(default)]
-    pub textures: HashMap<String, TextureMapping>,
-
-    #[serde(default)]
-    pub buffers: HashMap<String, BufferMapping>,
-
-    #[serde(default)]
-    pub control_map: HashMap<String, String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub enum TextureMapping {
-    File(String),
-    Image(String),
-}
-
-#[derive(Debug, Deserialize)]
-pub enum BufferMapping {
-    BufferGeneratorId(String),
 }
 
 #[derive(Debug, Deserialize)]
@@ -317,6 +269,30 @@ impl BufferGenerator {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct Object {
+    pub id: String,
+    pub mesh_file: String,
+    pub mesh_name: String,
+    pub material: file::material::Material,
+    // pub vertex_shader: String,
+    // pub fragment_shader: String,
+    //
+    // #[serde(default = "default_true")]
+    // pub depth_test: bool,
+    //
+    // #[serde(default = "default_true")]
+    // pub depth_write: bool,
+    //
+    // #[serde(default)]
+    // pub textures: HashMap<String, TextureMapping>,
+    //
+    // #[serde(default)]
+    // pub buffers: HashMap<String, BufferMapping>,
+    #[serde(default)]
+    pub control_map: HashMap<String, String>,
+}
+
 impl Object {
     #[allow(clippy::too_many_arguments)]
     pub fn load(
@@ -329,7 +305,8 @@ impl Object {
         images_by_id: &HashMap<String, Arc<render::image::Image>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         path: &ResourcePath,
-    ) -> Result<Arc<render::RenderObject>> {
+        passes: &Vec<render::pass::Pass>,
+    ) -> Result<Arc<crate::render::render_object::RenderObject>> {
         let control_id = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh = resource_repository
             .get_mesh(
@@ -339,215 +316,152 @@ impl Object {
             )?
             .clone();
 
-        let sampler_sources_by_id = self
-            .textures
-            .iter()
-            .map(|(name, texture_mapping)| {
-                let texture_binding: DescriptorSource = match texture_mapping {
-                    TextureMapping::File(texture_path) => {
-                        let image = resource_repository
-                            .get_texture(context, &path.relative_path(texture_path))?
-                            .clone();
-                        DescriptorSource::Image(image)
-                    }
-                    TextureMapping::Image(id) => {
-                        let image = images_by_id
-                            .get(id)
-                            .with_context(|| anyhow!("Render target '{}' not found", id))?;
-                        DescriptorSource::Image(image.clone())
-                    }
-                };
-                Ok((name.clone(), texture_binding))
-            })
-            .collect::<Result<HashMap<String, DescriptorSource>>>()?;
-
-        let buffer_sources_by_id = self
-            .buffers
-            .iter()
-            .map(|(name, buffer_mapping)| {
-                let buffer_binding: DescriptorSource = match buffer_mapping {
-                    BufferMapping::BufferGeneratorId(id) => {
-                        let buffer_generator = buffer_generators_by_id
-                            .get(id)
-                            .with_context(|| anyhow!("Buffer generator '{}' not found", id))?;
-                        DescriptorSource::BufferGenerator(buffer_generator.clone())
-                    }
-                };
-                Ok((name.clone(), buffer_binding))
-            })
-            .collect::<Result<HashMap<String, DescriptorSource>>>()?;
-
-        let solid_step = self.make_material_step(
+        let material = self.material.load(
             context,
             resource_repository,
+            images_by_id,
+            path,
+            passes,
             control_set_builder,
+            &self.control_map,
             &control_id,
             chart_id,
-            &self.control_map,
-            &sampler_sources_by_id,
-            &buffer_sources_by_id,
-            path,
-        )?;
-        let material = Material {
-            passes: [None, None, Some(solid_step)],
-            sampler_address_mode: self.sampler_address_mode.load(),
-        };
+            buffer_generators_by_id,
+        )?; // TODO: pass control_id and chart_id to material.load(
 
         let position_id = control_id.add(ControlIdPartType::Value, "position");
         let rotation_id = control_id.add(ControlIdPartType::Value, "rotation");
         let instances_id = control_id.add(ControlIdPartType::Value, "instances");
 
-        let object = render::RenderObject {
+        let object = crate::render::render_object::RenderObject {
             id: self.id.clone(),
             mesh,
+            material,
             position: control_set_builder.get_vec3(&position_id),
             rotation: control_set_builder.get_vec3(&rotation_id),
             instances: control_set_builder.get_float_with_default(&instances_id, 1.),
-            material,
         };
         Ok(Arc::new(object))
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn make_material_step(
-        &self,
-        context: &VulkanContext,
-        resource_repository: &mut ResourceRepository,
-        control_set_builder: &mut ControlSetBuilder,
-        parent_id: &ControlId,
-        chart_id: &ControlId,
-        control_map: &HashMap<String, String>,
-        sampler_sources_by_id: &HashMap<String, DescriptorSource>,
-        buffer_sources_by_id: &HashMap<String, DescriptorSource>,
-        path: &ResourcePath,
-    ) -> Result<MaterialPass> {
-        let shaders = resource_repository.shader_cache.get_or_load(
-            context,
-            &path.relative_path(&self.vertex_shader),
-            &path.relative_path(&self.fragment_shader),
-            &path.relative_path(COMMON_SHADER_FILE),
-        )?;
-
-        let vertex_shader = make_shader(
-            control_set_builder,
-            parent_id,
-            chart_id,
-            control_map,
-            &shaders.vertex_shader,
-            sampler_sources_by_id,
-            buffer_sources_by_id,
-        )?;
-        let fragment_shader = make_shader(
-            control_set_builder,
-            parent_id,
-            chart_id,
-            control_map,
-            &shaders.fragment_shader,
-            sampler_sources_by_id,
-            buffer_sources_by_id,
-        )?;
-
-        let material_step = MaterialPass {
-            vertex_shader,
-            fragment_shader,
-            depth_test: self.depth_test,
-            depth_write: self.depth_write,
-            blend_mode: self.blend_mode.load(),
-            sampler_address_mode: self.sampler_address_mode.load(),
-        };
-        Ok(material_step)
-    }
+    // #[allow(clippy::too_many_arguments)]
+    // fn make_material_step(
+    //     &self,
+    //     context: &VulkanContext,
+    //     resource_repository: &mut ResourceRepository,
+    //     control_set_builder: &mut ControlSetBuilder,
+    //     parent_id: &ControlId,
+    //     chart_id: &ControlId,
+    //     control_map: &HashMap<String, String>,
+    //     sampler_sources_by_id: &HashMap<String, DescriptorSource>,
+    //     buffer_sources_by_id: &HashMap<String, DescriptorSource>,
+    //     path: &ResourcePath,
+    // ) -> Result<MaterialPass> {
+    //     let shaders = resource_repository.shader_cache.get_or_load(
+    //         context,
+    //         &path.relative_path(&self.vertex_shader),
+    //         &path.relative_path(&self.fragment_shader),
+    //         &path.relative_path(COMMON_SHADER_FILE),
+    //     )?;
+    //
+    //     let vertex_shader = make_shader(
+    //         control_set_builder,
+    //         parent_id,
+    //         chart_id,
+    //         control_map,
+    //         &shaders.vertex_shader,
+    //         sampler_sources_by_id,
+    //         buffer_sources_by_id,
+    //     )?;
+    //     let fragment_shader = make_shader(
+    //         control_set_builder,
+    //         parent_id,
+    //         chart_id,
+    //         control_map,
+    //         &shaders.fragment_shader,
+    //         sampler_sources_by_id,
+    //         buffer_sources_by_id,
+    //     )?;
+    //
+    //     let material_step = MaterialPass {
+    //         vertex_shader,
+    //         fragment_shader,
+    //         depth_test: self.depth_test,
+    //         depth_write: self.depth_write,
+    //         blend_mode: self.blend_mode.load(),
+    //         sampler_address_mode: self.sampler_address_mode.load(),
+    //     };
+    //     Ok(material_step)
+    // }
 }
 
-impl BlendMode {
-    pub fn load(&self) -> render::material::BlendMode {
-        match self {
-            BlendMode::None => render::material::BlendMode::None,
-            BlendMode::Alpha => render::material::BlendMode::Alpha,
-            BlendMode::Additive => render::material::BlendMode::Additive,
-        }
-    }
-}
-
-impl SamplerAddressMode {
-    pub fn load(&self) -> vulkano::sampler::SamplerAddressMode {
-        match self {
-            SamplerAddressMode::Repeat => vulkano::sampler::SamplerAddressMode::Repeat,
-            SamplerAddressMode::MirroredRepeat => {
-                vulkano::sampler::SamplerAddressMode::MirroredRepeat
-            }
-            SamplerAddressMode::ClampToEdge => vulkano::sampler::SamplerAddressMode::ClampToEdge,
-        }
-    }
-}
-
-#[instrument(skip_all)]
-fn make_shader(
-    control_set_builder: &mut ControlSetBuilder,
-    parent_id: &ControlId,
-    chart_id: &ControlId,
-    control_map: &HashMap<String, String>,
-    compilation_result: &ShaderCompilationResult,
-    sampler_sources_by_id: &HashMap<String, DescriptorSource>,
-    buffer_sources_by_id: &HashMap<String, DescriptorSource>,
-) -> Result<Shader> {
-    let local_mapping = compilation_result
-        .local_uniform_bindings
-        .iter()
-        .map(|binding| {
-            let control_id = if let Some(mapped_name) = control_map.get(&binding.name) {
-                chart_id.add(ControlIdPartType::Value, mapped_name)
-            } else {
-                parent_id.add(ControlIdPartType::Value, &binding.name)
-            };
-            let control = control_set_builder.get_vec(&control_id, binding.f32_count);
-            LocalUniformMapping {
-                control,
-                f32_count: binding.f32_count,
-                f32_offset: binding.f32_offset,
-            }
-        })
-        .collect::<Vec<_>>();
-
-    let mut sampler_bindings = compilation_result
-        .samplers
-        .iter()
-        .map(|sampler| {
-            let sampler_source = sampler_sources_by_id
-                .get(&sampler.name)
-                .cloned()
-                .with_context(|| format!("Sampler binding '{}' not found", sampler.name))?;
-            Ok(DescriptorBinding {
-                descriptor_source: sampler_source,
-                descriptor_set_binding: sampler.binding,
-            })
-        })
-        .collect::<Result<Vec<DescriptorBinding>>>()?;
-
-    let mut buffer_bindings = compilation_result
-        .buffers
-        .iter()
-        .map(|buffer| {
-            let buffer_source = buffer_sources_by_id
-                .get(&buffer.name)
-                .cloned()
-                .with_context(|| format!("Buffer binding '{}' not found", buffer.name))?;
-            Ok(DescriptorBinding {
-                descriptor_source: buffer_source,
-                descriptor_set_binding: buffer.binding,
-            })
-        })
-        .collect::<Result<Vec<DescriptorBinding>>>()?;
-
-    let mut descriptor_bindings = vec![];
-    descriptor_bindings.append(&mut sampler_bindings);
-    descriptor_bindings.append(&mut buffer_bindings);
-
-    Ok(Shader {
-        shader_module: compilation_result.module.clone(),
-        descriptor_bindings,
-        local_uniform_bindings: local_mapping,
-        global_uniform_bindings: compilation_result.global_uniform_bindings.clone(),
-        uniform_buffer_size: compilation_result.uniform_buffer_size,
-    })
-}
+// #[instrument(skip_all)]
+// fn make_shader(
+//     control_set_builder: &mut ControlSetBuilder,
+//     parent_id: &ControlId,
+//     chart_id: &ControlId,
+//     control_map: &HashMap<String, String>,
+//     compilation_result: &ShaderCompilationResult,
+//     sampler_sources_by_id: &HashMap<String, DescriptorSource>,
+//     buffer_sources_by_id: &HashMap<String, DescriptorSource>,
+// ) -> Result<Shader> {
+//     let local_mapping = compilation_result
+//         .local_uniform_bindings
+//         .iter()
+//         .map(|binding| {
+//             let control_id = if let Some(mapped_name) = control_map.get(&binding.name) {
+//                 chart_id.add(ControlIdPartType::Value, mapped_name)
+//             } else {
+//                 parent_id.add(ControlIdPartType::Value, &binding.name)
+//             };
+//             let control = control_set_builder.get_vec(&control_id, binding.f32_count);
+//             LocalUniformMapping {
+//                 control,
+//                 f32_count: binding.f32_count,
+//                 f32_offset: binding.f32_offset,
+//             }
+//         })
+//         .collect::<Vec<_>>();
+//
+//     let mut sampler_bindings = compilation_result
+//         .samplers
+//         .iter()
+//         .map(|sampler| {
+//             let sampler_source = sampler_sources_by_id
+//                 .get(&sampler.name)
+//                 .cloned()
+//                 .with_context(|| format!("Sampler binding '{}' not found", sampler.name))?;
+//             Ok(DescriptorBinding {
+//                 descriptor_source: sampler_source,
+//                 descriptor_set_binding: sampler.binding,
+//             })
+//         })
+//         .collect::<Result<Vec<DescriptorBinding>>>()?;
+//
+//     let mut buffer_bindings = compilation_result
+//         .buffers
+//         .iter()
+//         .map(|buffer| {
+//             let buffer_source = buffer_sources_by_id
+//                 .get(&buffer.name)
+//                 .cloned()
+//                 .with_context(|| format!("Buffer binding '{}' not found", buffer.name))?;
+//             Ok(DescriptorBinding {
+//                 descriptor_source: buffer_source,
+//                 descriptor_set_binding: buffer.binding,
+//             })
+//         })
+//         .collect::<Result<Vec<DescriptorBinding>>>()?;
+//
+//     let mut descriptor_bindings = vec![];
+//     descriptor_bindings.append(&mut sampler_bindings);
+//     descriptor_bindings.append(&mut buffer_bindings);
+//
+//     Ok(Shader {
+//         shader_module: compilation_result.module.clone(),
+//         descriptor_bindings,
+//         local_uniform_bindings: local_mapping,
+//         global_uniform_bindings: compilation_result.global_uniform_bindings.clone(),
+//         uniform_buffer_size: compilation_result.uniform_buffer_size,
+//     })
+// }

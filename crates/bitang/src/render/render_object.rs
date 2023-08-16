@@ -1,12 +1,12 @@
 use crate::control::controls::Control;
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
+use crate::render::vulkan_window::RenderContext;
+use anyhow::{Context, Result};
+use glam::{EulerRot, Mat4};
 use std::rc::Rc;
 use std::sync::Arc;
-use glam::{EulerRot, Mat4};
-use crate::render::vulkan_window::RenderContext;
 
-#[derive(Clone)]
 pub struct RenderObject {
     pub id: String,
     pub mesh: Arc<Mesh>,
@@ -17,27 +17,23 @@ pub struct RenderObject {
 }
 
 impl RenderObject {
-    pub fn render(
-        &self,
-        context: &mut RenderContext,
-        material_pass_index: usize,
-    ) -> Result<()> {
-        let saved_globals = context.globals;
-        self.apply_transformations(context);
-
+    pub fn render(&self, context: &mut RenderContext, material_pass_index: usize) -> Result<()> {
         let Some(material_pass) = self.material.get_pass(material_pass_index) else {
             return Ok(());
         };
-        
-        let instance_count = self.instances.as_float().round() as u32;
-        context.globals.instance_count = instance_count as f32;
 
-        let result = component.render(
-            context,
-            material_step,
-            &self.render_object.mesh,
-            instance_count,
-        );
+        let saved_globals = context.globals;
+        self.apply_transformations(context);
+
+        context.globals.instance_count = self.instances.as_float().round();
+
+        // let result = component.render(
+        //     context,
+        //     material_step,
+        //     &self.render_object.mesh,
+        //     instance_count,
+        // );
+        let result = material_pass.render(context, &self.mesh);
         context.globals = saved_globals;
 
         result

@@ -24,9 +24,9 @@ impl ImageSelector {
         }
     }
 
-    pub fn get_image_view(&self) -> Arc<dyn ImageViewAbstract> {
+    pub fn get_image_view(&self) -> Result<Arc<dyn ImageViewAbstract>> {
         match self {
-            ImageSelector::Image(image) => image.get_image_view(),
+            ImageSelector::Image(image) => image.get_view(),
         }
     }
 }
@@ -46,20 +46,20 @@ impl Pass {
         color_buffers: Vec<ImageSelector>,
         depth_buffer: Option<ImageSelector>,
         clear_color: Option<[f32; 4]>,
-    ) -> Self {
+    ) -> Result<Self> {
         let vulkan_render_pass = Self::make_vulkan_render_pass(
             context,
             &color_buffers,
             &depth_buffer,
             clear_color.is_some(),
         )?;
-        Pass {
+        Ok(Pass {
             id: id.to_string(),
             depth_buffer,
             color_buffers,
             clear_color,
             vulkan_render_pass,
-        }
+        })
     }
 
     fn make_vulkan_render_pass(
@@ -155,7 +155,7 @@ impl Pass {
 
         let attachment_description = match selector {
             ImageSelector::Image(image) => AttachmentDescription {
-                format: Some(image.format),
+                format: Some(image.vulkan_format),
                 samples: SampleCount::Sample1, // TODO
                 load_op,
                 store_op: StoreOp::Store,
@@ -168,18 +168,18 @@ impl Pass {
         reference
     }
 
-    fn validate(&self) -> Result<()> {
-        if self.color_buffers.is_empty() && self.depth_buffer.is_none() {
-            return Err(anyhow!("Pass {} has no color or depth buffers", self.id));
-        }
+    // fn validate(&self) -> Result<()> {
+    //     if self.color_buffers.is_empty() && self.depth_buffer.is_none() {
+    //         return Err(anyhow!("Pass {} has no color or depth buffers", self.id));
+    //     }
+    //
+    //     let mut size = self.depth_buffer.map(|selector| match selector {
+    //         ImageSelector::Image(render_target) => render_target.size,
+    //     });
+    //     Ok(())
+    // }
 
-        let mut size = self.depth_buffer.map(|selector| match selector {
-            ImageSelector::Image(render_target) => render_target.size,
-        });
-        Ok(())
-    }
-
-    pub fn set(&self, context: &mut RenderContext, camera: &mut Camera) -> Result<()> {
+    pub fn set(&self, context: &mut RenderContext, camera: &Camera) -> Result<()> {
         let first_image = if let Some(img) = self.color_buffers.first() {
             img.get_image()
         } else if let Some(img) = &self.depth_buffer {
@@ -201,7 +201,7 @@ impl Pass {
             }
         }
 
-        let viewport = if first_image.is_swapchain {
+        let viewport = if first_image.is_swapchain() {
             context.screen_viewport.clone()
         } else {
             Viewport {
@@ -212,18 +212,22 @@ impl Pass {
         };
         camera.set(&mut context.globals, viewport.dimensions);
 
-        // Collect attachment images
+        // Collect color attachment images...
         let mut attachments = vec![];
         let mut clear_values = vec![];
         for img_selector in &self.color_buffers {
             let image = img_selector.get_image();
-            attachments.push(image.get_image_view()?);
+            attachments.push(image.get_view()?);
             clear_values.push(self.clear_color.map(|c| c.into()));
         }
+
+        // ...and the depth attachment image
         if let Some(depth) = &self.depth_buffer {
             attachments.push(depth.get_image_view()?);
             clear_values.push(self.clear_color.map(|_| 1f32.into()));
         }
+
+        // Create the framebuffer
         let framebuffer = Framebuffer::new(
             self.vulkan_render_pass.clone(),
             FramebufferCreateInfo {

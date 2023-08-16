@@ -3,12 +3,11 @@ use crate::control::{ControlId, ControlIdPartType};
 use crate::render::buffer_generator::BufferGenerator;
 use crate::render::camera::Camera;
 use crate::render::draw::Draw;
-use crate::render::material::MaterialStepType;
+use crate::render::image::Image;
 use crate::render::vulkan_window::RenderContext;
 use anyhow::Result;
 use std::rc::Rc;
 use std::sync::Arc;
-use crate::render::image::Image;
 
 pub struct Chart {
     pub id: String,
@@ -51,7 +50,7 @@ impl Chart {
             buffer_generator.generate()?;
         }
         for draw in &self.steps {
-            draw.render(context, MaterialStepType::Solid, &self.camera)?;
+            draw.render(context, &self.camera)?;
         }
         Ok(())
     }

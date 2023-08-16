@@ -15,6 +15,7 @@ pub mod shader;
 pub mod vulkan_window;
 
 use crate::control::controls::Control;
+use crate::render::image::ImageFormat;
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
 use std::rc::Rc;
@@ -39,5 +40,7 @@ pub struct Vertex3 {
     pub a_padding: f32,
 }
 
-pub const DEPTH_BUFFER_FORMAT: Format = Format::D32_SFLOAT;
-pub const SCREEN_COLOR_FORMAT: Format = Format::B8G8R8A8_SRGB;
+pub const DEPTH_BUFFER_FORMAT: ImageFormat = ImageFormat::Depth32F;
+pub const SCREEN_COLOR_FORMAT: ImageFormat = ImageFormat::Rgba8Srgb;
+pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
+pub const SCREEN_DEPTH_RENDER_TARGET_ID: &str = "screen_depth";
