@@ -8,7 +8,7 @@ mod project_file;
 pub mod resource_repository;
 mod shader_loader;
 
-// The root folder for all content.
+/// The root folder for all content.
 pub const ROOT_FOLDER: &str = "app";
 
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]

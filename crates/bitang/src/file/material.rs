@@ -1,11 +1,11 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::chart_file::BufferGenerator;
+use crate::file::default_true;
 use crate::file::resource_repository::ResourceRepository;
 use crate::file::shader_loader::ShaderCompilationResult;
 use crate::file::ResourcePath;
 use crate::render;
-use crate::render::image::{Image, ImageSizeRule};
+use crate::render::image::Image;
 use crate::render::material::BlendMode;
 use crate::render::shader::{
     DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, Shader, ShaderKind,
@@ -108,7 +108,11 @@ impl Material {
 struct MaterialPass {
     vertex_shader: String,
     fragment_shader: String,
+
+    #[serde(default = "default_true")]
     depth_test: bool,
+
+    #[serde(default = "default_true")]
     depth_write: bool,
 
     #[serde(default)]

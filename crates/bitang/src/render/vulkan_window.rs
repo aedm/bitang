@@ -109,16 +109,6 @@ impl VulkanWindow {
 
         let swapchain_render_targets_by_id = if FRAMEDUMP_MODE {
             let size = (FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
-            // let screen_render_target = Image::new_fake_swapchain(
-            //     vulkano_context.memory_allocator(),
-            //     RenderTargetRole::Color,
-            //     size,
-            // );
-            // let depth_render_target = Image::new_fake_swapchain(
-            //     vulkano_context.memory_allocator(),
-            //     RenderTargetRole::Depth,
-            //     size,
-            // );
             let screen_render_target = Image::new_attachment(
                 SCREEN_RENDER_TARGET_ID,
                 ImageFormat::Rgba8U,
@@ -134,11 +124,6 @@ impl VulkanWindow {
                 (depth_render_target.id.clone(), depth_render_target),
             ])
         } else {
-            // let screen_render_target =
-            //     Image::new_swapchain(RenderTargetRole::Color, SCREEN_COLOR_FORMAT);
-            // let depth_render_target =
-            //     Image::from_swapchain(RenderTargetRole::Depth, DEPTH_BUFFER_FORMAT);
-
             let screen_render_target =
                 Image::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
             let depth_render_target =

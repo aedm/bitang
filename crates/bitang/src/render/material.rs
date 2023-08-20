@@ -1,15 +1,10 @@
 use crate::render::mesh::Mesh;
-use crate::render::shader::{Shader, ShaderKind};
+use crate::render::shader::Shader;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::Vertex3;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::sync::Arc;
-use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
-use vulkano::buffer::BufferUsage;
-use vulkano::descriptor_set::layout::DescriptorSetLayout;
-use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
-use vulkano::image::ImageViewAbstract;
 use vulkano::pipeline::graphics::color_blend::{
     AttachmentBlend, BlendFactor, BlendOp, ColorBlendState,
 };
@@ -17,10 +12,9 @@ use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthSte
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use vulkano::pipeline::graphics::viewport::ViewportState;
-use vulkano::pipeline::{GraphicsPipeline, PipelineBindPoint};
+use vulkano::pipeline::GraphicsPipeline;
 use vulkano::pipeline::{Pipeline, StateMode};
 use vulkano::render_pass::Subpass;
-use vulkano::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
 
 #[derive(Debug, Deserialize, Default, Clone)]
 pub enum BlendMode {
@@ -48,10 +42,7 @@ pub struct MaterialPass {
     pub depth_write: bool,
     pub blend_mode: BlendMode,
 
-    // Vulkan stuff
     pipeline: Arc<GraphicsPipeline>,
-    vertex_layout: Option<Arc<DescriptorSetLayout>>,
-    fragment_layout: Option<Arc<DescriptorSetLayout>>,
 }
 
 impl MaterialPass {
@@ -125,15 +116,6 @@ impl MaterialPass {
             .render_pass(Subpass::from(vulkan_render_pass, 0).unwrap())
             .build(context.context.device().clone())?;
 
-        // Extract the descriptor set layouts
-        let descriptor_set_layouts = pipeline.layout().set_layouts();
-        let vertex_layout = descriptor_set_layouts
-            .get(ShaderKind::Vertex.get_descriptor_set_index() as usize)
-            .cloned();
-        let fragment_layout = descriptor_set_layouts
-            .get(ShaderKind::Fragment.get_descriptor_set_index() as usize)
-            .cloned();
-
         Ok(MaterialPass {
             id,
             vertex_shader,
@@ -142,8 +124,6 @@ impl MaterialPass {
             depth_write,
             blend_mode,
             pipeline,
-            vertex_layout,
-            fragment_layout,
         })
     }
 

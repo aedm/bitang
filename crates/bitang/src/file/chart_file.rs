@@ -1,18 +1,15 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::material::Material;
 use crate::file::resource_repository::ResourceRepository;
-use crate::file::shader_loader::ShaderCompilationResult;
 use crate::file::ResourcePath;
 use crate::render::buffer_generator::BufferGeneratorType;
 use crate::render::image::ImageSizeRule;
 use crate::render::vulkan_window::VulkanContext;
 use crate::{file, render};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 pub struct Chart {
@@ -97,8 +94,6 @@ impl Chart {
 #[derive(Debug, Deserialize)]
 pub struct Image {
     pub id: String,
-    // pub path: Option<String>,
-    // pub generate_mipmaps: Option<bool>,
     pub size: ImageSizeRule,
     pub format: render::image::ImageFormat,
 }
@@ -118,11 +113,8 @@ fn default_clear_color() -> Option<[f32; 4]> {
 #[derive(Debug, Deserialize)]
 pub struct Draw {
     pub id: String,
-    // pub render_targets: Vec<String>,
     pub passes: Vec<Pass>,
     pub objects: Vec<Object>,
-    // #[serde(default = "default_clear_color")]
-    // pub clear_color: Option<[f32; 4]>,
 }
 
 impl Draw {
@@ -144,17 +136,6 @@ impl Draw {
             .iter()
             .map(|pass| pass.load(context, images_by_id))
             .collect::<Result<Vec<_>>>()?;
-        // let render_targets = self
-        //     .render_targets
-        //     .iter()
-        //     .map(|render_target_id| {
-        //         render_targets_by_id
-        //             .get(render_target_id)
-        //             .or_else(|| context.swapchain_render_targets_by_id.get(render_target_id))
-        //             .cloned()
-        //             .with_context(|| anyhow!("Render target '{}' not found", render_target_id))
-        //     })
-        //     .collect::<Result<Vec<_>>>()?;
 
         let objects = self
             .objects
@@ -270,20 +251,7 @@ pub struct Object {
     pub mesh_file: String,
     pub mesh_name: String,
     pub material: file::material::Material,
-    // pub vertex_shader: String,
-    // pub fragment_shader: String,
-    //
-    // #[serde(default = "default_true")]
-    // pub depth_test: bool,
-    //
-    // #[serde(default = "default_true")]
-    // pub depth_write: bool,
-    //
-    // #[serde(default)]
-    // pub textures: HashMap<String, TextureMapping>,
-    //
-    // #[serde(default)]
-    // pub buffers: HashMap<String, BufferMapping>,
+
     #[serde(default)]
     pub control_map: HashMap<String, String>,
 }
@@ -338,125 +306,4 @@ impl Object {
         };
         Ok(Arc::new(object))
     }
-
-    // #[allow(clippy::too_many_arguments)]
-    // fn make_material_step(
-    //     &self,
-    //     context: &VulkanContext,
-    //     resource_repository: &mut ResourceRepository,
-    //     control_set_builder: &mut ControlSetBuilder,
-    //     parent_id: &ControlId,
-    //     chart_id: &ControlId,
-    //     control_map: &HashMap<String, String>,
-    //     sampler_sources_by_id: &HashMap<String, DescriptorSource>,
-    //     buffer_sources_by_id: &HashMap<String, DescriptorSource>,
-    //     path: &ResourcePath,
-    // ) -> Result<MaterialPass> {
-    //     let shaders = resource_repository.shader_cache.get_or_load(
-    //         context,
-    //         &path.relative_path(&self.vertex_shader),
-    //         &path.relative_path(&self.fragment_shader),
-    //         &path.relative_path(COMMON_SHADER_FILE),
-    //     )?;
-    //
-    //     let vertex_shader = make_shader(
-    //         control_set_builder,
-    //         parent_id,
-    //         chart_id,
-    //         control_map,
-    //         &shaders.vertex_shader,
-    //         sampler_sources_by_id,
-    //         buffer_sources_by_id,
-    //     )?;
-    //     let fragment_shader = make_shader(
-    //         control_set_builder,
-    //         parent_id,
-    //         chart_id,
-    //         control_map,
-    //         &shaders.fragment_shader,
-    //         sampler_sources_by_id,
-    //         buffer_sources_by_id,
-    //     )?;
-    //
-    //     let material_step = MaterialPass {
-    //         vertex_shader,
-    //         fragment_shader,
-    //         depth_test: self.depth_test,
-    //         depth_write: self.depth_write,
-    //         blend_mode: self.blend_mode.load(),
-    //         sampler_address_mode: self.sampler_address_mode.load(),
-    //     };
-    //     Ok(material_step)
-    // }
 }
-
-// #[instrument(skip_all)]
-// fn make_shader(
-//     control_set_builder: &mut ControlSetBuilder,
-//     parent_id: &ControlId,
-//     chart_id: &ControlId,
-//     control_map: &HashMap<String, String>,
-//     compilation_result: &ShaderCompilationResult,
-//     sampler_sources_by_id: &HashMap<String, DescriptorSource>,
-//     buffer_sources_by_id: &HashMap<String, DescriptorSource>,
-// ) -> Result<Shader> {
-//     let local_mapping = compilation_result
-//         .local_uniform_bindings
-//         .iter()
-//         .map(|binding| {
-//             let control_id = if let Some(mapped_name) = control_map.get(&binding.name) {
-//                 chart_id.add(ControlIdPartType::Value, mapped_name)
-//             } else {
-//                 parent_id.add(ControlIdPartType::Value, &binding.name)
-//             };
-//             let control = control_set_builder.get_vec(&control_id, binding.f32_count);
-//             LocalUniformMapping {
-//                 control,
-//                 f32_count: binding.f32_count,
-//                 f32_offset: binding.f32_offset,
-//             }
-//         })
-//         .collect::<Vec<_>>();
-//
-//     let mut sampler_bindings = compilation_result
-//         .samplers
-//         .iter()
-//         .map(|sampler| {
-//             let sampler_source = sampler_sources_by_id
-//                 .get(&sampler.name)
-//                 .cloned()
-//                 .with_context(|| format!("Sampler binding '{}' not found", sampler.name))?;
-//             Ok(DescriptorBinding {
-//                 descriptor_source: sampler_source,
-//                 descriptor_set_binding: sampler.binding,
-//             })
-//         })
-//         .collect::<Result<Vec<DescriptorBinding>>>()?;
-//
-//     let mut buffer_bindings = compilation_result
-//         .buffers
-//         .iter()
-//         .map(|buffer| {
-//             let buffer_source = buffer_sources_by_id
-//                 .get(&buffer.name)
-//                 .cloned()
-//                 .with_context(|| format!("Buffer binding '{}' not found", buffer.name))?;
-//             Ok(DescriptorBinding {
-//                 descriptor_source: buffer_source,
-//                 descriptor_set_binding: buffer.binding,
-//             })
-//         })
-//         .collect::<Result<Vec<DescriptorBinding>>>()?;
-//
-//     let mut descriptor_bindings = vec![];
-//     descriptor_bindings.append(&mut sampler_bindings);
-//     descriptor_bindings.append(&mut buffer_bindings);
-//
-//     Ok(Shader {
-//         shader_module: compilation_result.module.clone(),
-//         descriptor_bindings,
-//         local_uniform_bindings: local_mapping,
-//         global_uniform_bindings: compilation_result.global_uniform_bindings.clone(),
-//         uniform_buffer_size: compilation_result.uniform_buffer_size,
-//     })
-// }

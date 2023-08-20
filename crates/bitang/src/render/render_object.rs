@@ -2,7 +2,7 @@ use crate::control::controls::Control;
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::RenderContext;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use glam::{EulerRot, Mat4};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -27,12 +27,6 @@ impl RenderObject {
 
         context.globals.instance_count = self.instances.as_float().round();
 
-        // let result = component.render(
-        //     context,
-        //     material_step,
-        //     &self.render_object.mesh,
-        //     instance_count,
-        // );
         let result = material_pass.render(context, &self.mesh);
         context.globals = saved_globals;
 

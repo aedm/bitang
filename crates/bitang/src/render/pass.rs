@@ -1,10 +1,8 @@
-use crate::render::camera::Camera;
 use crate::render::image::Image;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use std::sync::Arc;
-use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
-use vulkano::image::view::ImageView;
+use vulkano::command_buffer::RenderPassBeginInfo;
 use vulkano::image::ImageViewAbstract;
 use vulkano::image::{ImageLayout, SampleCount};
 use vulkano::pipeline::graphics::viewport::Viewport;
@@ -91,40 +89,6 @@ impl Pass {
             )
         });
 
-        // for (index, selector) in color_buffers.iter().enumerate() {
-        //     // let layout = match selector.role {
-        //     //     RenderTargetRole::Color => ImageLayout::ColorAttachmentOptimal,
-        //     //     RenderTargetRole::Depth => ImageLayout::DepthStencilAttachmentOptimal,
-        //     // };
-        //     let attachment_reference = Some(AttachmentReference {
-        //         attachment: index as u32,
-        //         layout: ImageLayout::ColorAttachmentOptimal,
-        //         ..Default::default()
-        //     });
-        //     attachments.push(AttachmentDescription {
-        //         format: Some(selector.format),
-        //         samples: SampleCount::Sample1, // TODO
-        //         load_op,
-        //         store_op: StoreOp::Store,
-        //         initial_layout: ImageLayout::ColorAttachmentOptimal,
-        //         final_layout: ImageLayout::ColorAttachmentOptimal,
-        //         ..Default::default()
-        //     });
-        //     match selector.role {
-        //         RenderTargetRole::Color => {
-        //             color_attachments.push(attachment_reference);
-        //         }
-        //         RenderTargetRole::Depth => {
-        //             depth_stencil_attachment = attachment_reference;
-        //         }
-        //     }
-        // }
-        // let depth_stencil_attachment = depth_buffer.map(|selector| AttachmentReference {
-        //     attachment: color_attachments.len() as u32,
-        //     layout: ImageLayout::DepthStencilAttachmentOptimal,
-        //     ..Default::default()
-        // });
-
         let subpasses = vec![SubpassDescription {
             color_attachments,
             depth_stencil_attachment,
@@ -168,17 +132,6 @@ impl Pass {
         reference
     }
 
-    // fn validate(&self) -> Result<()> {
-    //     if self.color_buffers.is_empty() && self.depth_buffer.is_none() {
-    //         return Err(anyhow!("Pass {} has no color or depth buffers", self.id));
-    //     }
-    //
-    //     let mut size = self.depth_buffer.map(|selector| match selector {
-    //         ImageSelector::Image(render_target) => render_target.size,
-    //     });
-    //     Ok(())
-    // }
-
     pub fn get_viewport(&self, context: &mut RenderContext) -> Result<Viewport> {
         let first_image = if let Some(img) = self.color_buffers.first() {
             img.get_image()
@@ -215,7 +168,7 @@ impl Pass {
 
     pub fn make_render_pass_begin_info(
         &self,
-        context: &mut RenderContext,
+        _context: &mut RenderContext,
     ) -> Result<RenderPassBeginInfo> {
         // Collect color attachment images...
         let mut attachments = vec![];
@@ -241,32 +194,9 @@ impl Pass {
             },
         )?;
 
-        // let clear_values = self
-        //     .render_targets
-        //     .iter()
-        //     .map(|target| match target.role {
-        //         RenderTargetRole::Color => self.clear_color.map(|c| c.into()),
-        //         RenderTargetRole::Depth => self.clear_color.map(|_| 1f32.into()),
-        //     })
-        //     .collect::<Vec<_>>();
-
         Ok(RenderPassBeginInfo {
             clear_values,
             ..RenderPassBeginInfo::framebuffer(framebuffer)
         })
     }
-    //
-    //     context
-    //         .command_builder
-    //         .begin_render_pass(
-    //             RenderPassBeginInfo {
-    //                 clear_values,
-    //                 ..RenderPassBeginInfo::framebuffer(framebuffer)
-    //             },
-    //             SubpassContents::Inline,
-    //         )?
-    //         .set_viewport(0, [viewport]);
-    //
-    //     Ok(())
-    // }
 }

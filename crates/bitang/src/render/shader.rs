@@ -8,7 +8,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;
-use vulkano::descriptor_set::layout::DescriptorSetLayout;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::pipeline::{PipelineBindPoint, PipelineLayout};
 use vulkano::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
@@ -53,11 +52,6 @@ pub struct Shader {
     /// The size of the uniform buffer in bytes.
     pub uniform_buffer_size: usize,
 
-    // /// Image bindings
-    // pub samplers: Vec<SamplerBinding>,
-    //
-    // /// Buffer bindings
-    // pub buffers: Vec<BufferBinding>,
     /// Descriptor bindings, e.g. samplers, buffers, etc.
     pub descriptor_resources: Vec<DescriptorResource>,
 
@@ -184,9 +178,6 @@ impl Shader {
         Ok(())
     }
 }
-//
-// /// The binding point of a descriptor.
-// pub type DescriptorBinding = u32;
 
 pub struct ImageDescriptor {
     pub image: Arc<Image>,
@@ -207,20 +198,6 @@ pub struct DescriptorResource {
     pub source: DescriptorSource,
 }
 
-// #[derive(Clone)]
-// pub struct SamplerBinding {
-//     pub id: String,
-//     pub binding: DescriptorBinding,
-//
-// }
-
-// #[derive(Clone)]
-// pub struct BufferBinding {
-//     pub id: String,
-//     pub binding: DescriptorBinding,
-//     pub buffer_generator: Arc<BufferGenerator>,
-// }
-
 #[derive(Clone)]
 pub struct LocalUniformMapping {
     pub control: Rc<Control>,
@@ -233,5 +210,3 @@ pub struct GlobalUniformMapping {
     pub global_type: GlobalType,
     pub offset: usize,
 }
-
-struct ShaderUniformStorage {}

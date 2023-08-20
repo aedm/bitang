@@ -8,21 +8,10 @@ pub mod mesh;
 pub mod pass;
 pub mod project;
 pub mod render_object;
-pub mod render_target;
-pub mod render_unit;
-pub mod sampler;
 pub mod shader;
 pub mod vulkan_window;
 
-use crate::control::controls::Control;
 use crate::render::image::ImageFormat;
-use crate::render::material::Material;
-use crate::render::mesh::Mesh;
-use std::rc::Rc;
-use std::sync::Arc;
-use vulkano::format::Format;
-use vulkano::image::view::ImageView;
-use vulkano::image::ImmutableImage;
 use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex};
 
 #[derive(BufferContents, Vertex)]

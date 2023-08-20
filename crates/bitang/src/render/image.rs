@@ -3,10 +3,10 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::cell::{Cell, RefCell};
 use std::sync::Arc;
-use vulkano::image::view::{ImageView, ImageViewCreateInfo};
+use vulkano::image::view::ImageView;
 use vulkano::image::{
     AttachmentImage, ImageAccess, ImageLayout, ImageUsage, ImageViewAbstract, ImmutableImage,
-    SampleCount, StorageImage,
+    SampleCount,
 };
 use vulkano::render_pass::{AttachmentDescription, LoadOp, StoreOp};
 
@@ -68,7 +68,6 @@ impl Image {
             inner: ImageInner::Immutable(source),
             size_rule: ImageSizeRule::Fixed(dim[0], dim[1]),
             size: Cell::new(Some((dim[0], dim[1]))),
-            // mip_levels: MipLevels::Fixed(source.mip_levels()),
         })
     }
 
@@ -123,7 +122,7 @@ impl Image {
                     panic!("Attachment image not initialized");
                 }
             }
-            ImageInner::Swapchain(image) => {
+            ImageInner::Swapchain(_image) => {
                 panic!("Swapchain image can't be accessed");
             }
         }
@@ -161,7 +160,7 @@ impl Image {
                 [(w * r) as u32, (h * r) as u32]
             }
             ImageSizeRule::At4k(w, h) => {
-                let [sw, sh] = context.screen_viewport.dimensions;
+                let [sw, _sh] = context.screen_viewport.dimensions;
                 let scale = 4096.0 / sw;
                 [(w as f32 * scale) as u32, (h as f32 * scale) as u32]
             }
