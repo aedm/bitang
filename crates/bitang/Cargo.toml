@@ -7,7 +7,10 @@ edition = "2021"
 
 [dependencies]
 bitang_utils = { path = "../bitang_utils" }
+
 anyhow = { version = "1.0.66", features = ["backtrace"] }
+itertools = "0.11.0"
+
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", features = ["fmt", "env-filter"] }
 nu-ansi-term = "*"

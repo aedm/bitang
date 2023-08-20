@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use tracing::info;
 
-type LoaderFunc<T> = fn(&VulkanContext, &[u8]) -> Result<T>;
+type LoaderFunc<T> = fn(context: &VulkanContext, blob: &[u8], resource_name: &str) -> Result<T>;
 
 pub struct BinaryFileCache<T> {
     file_hash_cache: Rc<RefCell<FileCache>>,
@@ -35,7 +35,7 @@ impl<T> BinaryFileCache<T> {
                 Some(source) => source,
                 None => std::fs::read(path.to_string())?,
             };
-            let resource = (self.loader_func)(context, &source)?;
+            let resource = (self.loader_func)(context, &source, &path.file_name)?;
             info!("Loading {} took {:?}", &path.to_string(), now.elapsed());
             entry.insert(resource);
         }

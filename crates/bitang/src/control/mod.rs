@@ -33,7 +33,7 @@ impl<T> Deref for RcHashRef<T> {
 pub enum ControlIdPartType {
     Chart,
     ChartValues,
-    Pass,
+    ChartStep,
     Camera,
     Object,
     Value,

@@ -1,7 +1,6 @@
 use crate::control::controls::GlobalType;
 use crate::file::file_hash_cache::{hash_content, ContentHash, FileCache, FileCacheEntry};
 use crate::file::ResourcePath;
-use crate::render::material::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Error, Result};
 use spirv_reflect::types::ReflectDescriptorType;
@@ -12,6 +11,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use tracing::{debug, info, instrument, trace};
 use vulkano::shader::ShaderModule;
+use crate::render::shader::GlobalUniformMapping;
 
 #[derive(Hash, PartialEq, Eq, Clone)]
 struct ShaderCacheKey {

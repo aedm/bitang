@@ -3,11 +3,12 @@ use std::fmt;
 mod binary_file_cache;
 mod chart_file;
 pub mod file_hash_cache;
+mod material;
 mod project_file;
 pub mod resource_repository;
 mod shader_loader;
 
-// The root folder for all content.
+/// The root folder for all content.
 pub const ROOT_FOLDER: &str = "app";
 
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
@@ -44,4 +45,9 @@ impl fmt::Display for ResourcePath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{ROOT_FOLDER}/{}/{}", self.directory, self.file_name)
     }
+}
+
+// Helper function to initialize a bool using serde
+fn default_true() -> bool {
+    true
 }

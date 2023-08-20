@@ -7,6 +7,7 @@ use crate::render::vulkan_window::{
     PaintResult, RenderContext, VulkanApp, VulkanContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT,
     FRAMEDUMP_MODE, FRAMEDUMP_WIDTH,
 };
+use crate::render::{SCREEN_DEPTH_RENDER_TARGET_ID, SCREEN_RENDER_TARGET_ID};
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{anyhow, Result};
@@ -198,16 +199,9 @@ impl DemoTool {
         let image = render_context
             .vulkan_context
             .swapchain_render_targets_by_id
-            .get("screen")
+            .get(SCREEN_RENDER_TARGET_ID)
             .unwrap()
-            .image
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .texture
-            .as_ref()
-            .unwrap()
-            .clone();
+            .get_image_access();
         render_context
             .command_builder
             .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(image, buf.clone()))
@@ -258,14 +252,14 @@ impl DemoTool {
 
         vulkan_context
             .swapchain_render_targets_by_id
-            .get("screen")
+            .get(SCREEN_RENDER_TARGET_ID)
             .unwrap()
-            .update_swapchain_image(target_image.clone());
+            .set_swapchain_image(target_image.clone());
         vulkan_context
             .swapchain_render_targets_by_id
-            .get("screen_depth")
+            .get(SCREEN_DEPTH_RENDER_TARGET_ID)
             .unwrap()
-            .update_swapchain_image(depth_image);
+            .set_swapchain_image(depth_image);
 
         // Calculate viewport
         let window_size = target_image.dimensions();
@@ -356,14 +350,10 @@ impl DemoTool {
     fn render_frame_to_buffer(&mut self, vulkan_context: &VulkanContext) -> Arc<Project> {
         let target_image = vulkan_context
             .swapchain_render_targets_by_id
-            .get("screen")
+            .get(SCREEN_RENDER_TARGET_ID)
             .unwrap()
-            .image
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .image_view
-            .clone();
+            .get_view()
+            .unwrap();
         let size = target_image.dimensions();
         let screen_viewport = Viewport {
             origin: [0.0, 0.0],

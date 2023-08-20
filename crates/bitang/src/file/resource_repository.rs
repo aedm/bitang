@@ -4,10 +4,11 @@ use crate::file::file_hash_cache::FileCache;
 use crate::file::shader_loader::ShaderCache;
 use crate::file::{chart_file, project_file, ResourcePath};
 use crate::render::chart::Chart;
+use crate::render::image::Image;
 use crate::render::mesh::Mesh;
 use crate::render::project::Project;
 use crate::render::vulkan_window::VulkanContext;
-use crate::render::{Texture, Vertex3};
+use crate::render::Vertex3;
 use anyhow::{anyhow, Context, Result};
 use bitang_utils::blend_loader::load_blend_buffer;
 use std::cell::RefCell;
@@ -20,7 +21,6 @@ use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 };
 use vulkano::format::Format;
-use vulkano::image::view::ImageView;
 use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 
 struct MeshCollection {
@@ -29,7 +29,7 @@ struct MeshCollection {
 
 pub struct ResourceRepository {
     file_hash_cache: Rc<RefCell<FileCache>>,
-    texture_cache: BinaryFileCache<Arc<Texture>>,
+    texture_cache: BinaryFileCache<Arc<Image>>,
     mesh_cache: BinaryFileCache<MeshCollection>,
     chart_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
     project_file_cache: BinaryFileCache<Arc<project_file::Project>>,
@@ -108,7 +108,7 @@ impl ResourceRepository {
         &mut self,
         context: &VulkanContext,
         path: &ResourcePath,
-    ) -> Result<&Arc<Texture>> {
+    ) -> Result<&Arc<Image>> {
         self.texture_cache.get_or_load(context, path)
     }
 
@@ -144,7 +144,11 @@ impl ResourceRepository {
 }
 
 #[instrument(skip_all)]
-fn load_mesh_collection(context: &VulkanContext, content: &[u8]) -> Result<MeshCollection> {
+fn load_mesh_collection(
+    context: &VulkanContext,
+    content: &[u8],
+    _resource_name: &str,
+) -> Result<MeshCollection> {
     let blend_file = load_blend_buffer(content)?;
     let meshes_by_name = blend_file
         .objects_by_name
@@ -171,7 +175,11 @@ fn load_mesh_collection(context: &VulkanContext, content: &[u8]) -> Result<MeshC
 }
 
 #[instrument(skip_all)]
-fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>> {
+fn load_texture(
+    context: &VulkanContext,
+    content: &[u8],
+    resource_name: &str,
+) -> Result<Arc<Image>> {
     let now = Instant::now();
     let rgba = image::load_from_memory(content)?.to_rgba8();
     info!("Decoded image in {:?}", now.elapsed());
@@ -199,12 +207,19 @@ fn load_texture(context: &VulkanContext, content: &[u8]) -> Result<Arc<Texture>>
         .build()?
         .execute(context.context.graphics_queue().clone())?;
 
-    Ok(ImageView::new_default(image)?)
+    let image = Image::new_immutable(resource_name, image);
+    Ok(image)
 }
 
 #[instrument(skip_all)]
-pub fn load_chart_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<chart_file::Chart>> {
-    let chart = ron::from_str::<chart_file::Chart>(std::str::from_utf8(content)?)?;
+pub fn load_chart_file(
+    _context: &VulkanContext,
+    content: &[u8],
+    _resource_name: &str,
+) -> Result<Arc<chart_file::Chart>> {
+    let ron =
+        ron::Options::default().with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME);
+    let chart = ron.from_str::<chart_file::Chart>(std::str::from_utf8(content)?)?;
     Ok(Arc::new(chart))
 }
 
@@ -212,7 +227,10 @@ pub fn load_chart_file(_context: &VulkanContext, content: &[u8]) -> Result<Arc<c
 pub fn load_project_file(
     _context: &VulkanContext,
     content: &[u8],
+    _resource_name: &str,
 ) -> Result<Arc<project_file::Project>> {
-    let project = ron::from_str::<project_file::Project>(std::str::from_utf8(content)?)?;
+    let ron =
+        ron::Options::default().with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME);
+    let project = ron.from_str::<project_file::Project>(std::str::from_utf8(content)?)?;
     Ok(Arc::new(project))
 }

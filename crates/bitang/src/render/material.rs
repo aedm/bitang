@@ -1,79 +1,145 @@
-use crate::control::controls::{Control, GlobalType};
-use crate::render::buffer_generator::BufferGenerator;
-use crate::render::render_target::RenderTarget;
-use crate::render::Texture;
-use std::rc::Rc;
+use crate::render::mesh::Mesh;
+use crate::render::shader::Shader;
+use crate::render::vulkan_window::{RenderContext, VulkanContext};
+use crate::render::Vertex3;
+use anyhow::{Context, Result};
+use serde::Deserialize;
 use std::sync::Arc;
-use vulkano::sampler::SamplerAddressMode;
-use vulkano::shader::ShaderModule;
+use vulkano::pipeline::graphics::color_blend::{
+    AttachmentBlend, BlendFactor, BlendOp, ColorBlendState,
+};
+use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
+use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
+use vulkano::pipeline::graphics::vertex_input::Vertex;
+use vulkano::pipeline::graphics::viewport::ViewportState;
+use vulkano::pipeline::GraphicsPipeline;
+use vulkano::pipeline::{Pipeline, StateMode};
+use vulkano::render_pass::Subpass;
 
-#[derive(Copy, Clone, Debug)]
-pub enum MaterialStepType {
-    _EarlyDepth = 0,
-    _Shadow = 1,
-    Solid = 2,
-}
-pub const MATERIAL_STEP_COUNT: usize = 3;
-
-#[derive(Clone)]
-pub struct Material {
-    pub passes: [Option<MaterialStep>; MATERIAL_STEP_COUNT],
-    pub sampler_address_mode: SamplerAddressMode,
-}
-
-#[derive(Clone)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub enum BlendMode {
+    #[default]
     None,
     Alpha,
     Additive,
 }
 
-#[derive(Clone)]
-pub struct MaterialStep {
+pub struct Material {
+    pub passes: Vec<Option<MaterialPass>>,
+}
+
+impl Material {
+    pub fn get_pass(&self, pass_id: usize) -> Option<&MaterialPass> {
+        self.passes[pass_id].as_ref()
+    }
+}
+
+pub struct MaterialPass {
+    pub id: String,
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
     pub depth_test: bool,
     pub depth_write: bool,
     pub blend_mode: BlendMode,
-    pub sampler_address_mode: SamplerAddressMode,
+
+    pipeline: Arc<GraphicsPipeline>,
 }
 
-pub enum ShaderKind {
-    Vertex = 0,
-    Fragment = 1,
-}
+impl MaterialPass {
+    pub fn new(
+        context: &VulkanContext,
+        id: String,
+        vertex_shader: Shader,
+        fragment_shader: Shader,
+        depth_test: bool,
+        depth_write: bool,
+        blend_mode: BlendMode,
+        vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
+    ) -> Result<MaterialPass> {
+        let depth_state = if depth_test || depth_write {
+            let compare_op = if depth_test { CompareOp::Less } else { CompareOp::Always };
+            Some(DepthState {
+                enable_dynamic: false,
+                compare_op: StateMode::Fixed(compare_op),
+                write_enable: StateMode::Fixed(depth_write),
+            })
+        } else {
+            None
+        };
 
-#[derive(Clone)]
-pub struct Shader {
-    pub shader_module: Arc<ShaderModule>,
-    pub descriptor_bindings: Vec<DescriptorBinding>,
-    pub global_uniform_bindings: Vec<GlobalUniformMapping>,
-    pub local_uniform_bindings: Vec<LocalUniformMapping>,
-    pub uniform_buffer_size: usize,
-}
+        let depth_stencil_state = DepthStencilState {
+            depth: depth_state,
+            depth_bounds: Default::default(),
+            stencil: Default::default(),
+        };
 
-#[derive(Clone)]
-pub enum DescriptorSource {
-    Texture(Arc<Texture>),
-    RenderTarget(Arc<RenderTarget>),
-    BufferGenerator(Arc<BufferGenerator>),
-}
+        let mut color_blend_state = ColorBlendState::new(1);
+        match blend_mode {
+            BlendMode::None => {}
+            BlendMode::Alpha => {
+                color_blend_state = color_blend_state.blend_alpha();
+            }
+            BlendMode::Additive => {
+                color_blend_state = color_blend_state.blend(AttachmentBlend {
+                    color_op: BlendOp::Add,
+                    color_source: BlendFactor::SrcAlpha,
+                    color_destination: BlendFactor::One,
+                    alpha_op: BlendOp::Max,
+                    alpha_source: BlendFactor::One,
+                    alpha_destination: BlendFactor::One,
+                });
+            }
+        };
 
-#[derive(Clone)]
-pub struct DescriptorBinding {
-    pub descriptor_source: DescriptorSource,
-    pub descriptor_set_binding: u32,
-}
+        // Create the Vulkan pipeline
+        let pipeline = GraphicsPipeline::start()
+            .vertex_input_state(Vertex3::per_vertex())
+            .vertex_shader(
+                vertex_shader
+                    .shader_module
+                    .entry_point("main")
+                    .context("Failed to get vertex shader entry point")?,
+                (),
+            )
+            .input_assembly_state(InputAssemblyState::new())
+            .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
+            .fragment_shader(
+                fragment_shader
+                    .shader_module
+                    .entry_point("main")
+                    .context("Failed to get fragment shader entry point")?,
+                (),
+            )
+            .color_blend_state(color_blend_state)
+            .depth_stencil_state(depth_stencil_state)
+            // Unwrap is safe: every pass has one subpass
+            .render_pass(Subpass::from(vulkan_render_pass, 0).unwrap())
+            .build(context.context.device().clone())?;
 
-#[derive(Clone)]
-pub struct LocalUniformMapping {
-    pub control: Rc<Control>,
-    pub f32_count: usize,
-    pub f32_offset: usize,
-}
+        Ok(MaterialPass {
+            id,
+            vertex_shader,
+            fragment_shader,
+            depth_test,
+            depth_write,
+            blend_mode,
+            pipeline,
+        })
+    }
 
-#[derive(Copy, Clone, Debug)]
-pub struct GlobalUniformMapping {
-    pub global_type: GlobalType,
-    pub offset: usize,
+    pub fn render(&self, context: &mut RenderContext, mesh: &Mesh) -> Result<()> {
+        let pipeline_layout = self.pipeline.layout();
+        context
+            .command_builder
+            .bind_pipeline_graphics(self.pipeline.clone())
+            .bind_vertex_buffers(0, mesh.vertex_buffer.clone());
+        self.vertex_shader.bind(context, pipeline_layout)?;
+        self.fragment_shader.bind(context, pipeline_layout)?;
+
+        let instance_count = context.globals.instance_count as u32;
+        context
+            .command_builder
+            .draw(mesh.vertex_buffer.len() as u32, instance_count, 0, 0)?;
+        Ok(())
+    }
 }
