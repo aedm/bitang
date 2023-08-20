@@ -51,6 +51,13 @@ impl Draw {
         })
     }
 
+    fn render_objects(&self, context: &mut RenderContext) -> Result<()> {
+        for object in &self.objects {
+            object.render(context, 0)?;
+        }
+        Ok(())
+    }
+
     pub fn render(
         &self,
         context: &mut RenderContext,
@@ -62,10 +69,21 @@ impl Draw {
         }
 
         for (pass_index, pass) in self.passes.iter().enumerate() {
-            pass.set(context, camera)?;
-            for object in &self.objects {
-                object.render(context, pass_index)?;
-            }
+            let viewport = pass.get_viewport(context)?;
+            camera.set(&mut context.globals, viewport.dimensions);
+
+            let render_pass_begin_info = pass.make_render_pass_begin_info(context)?;
+            context
+                .command_builder
+                .begin_render_pass(render_pass_begin_info, SubpassContents::Inline)?
+                .set_viewport(0, [viewport]);
+
+            // Don't fail early, we must end the render pass
+            let result = self.render_objects(context);
+
+            context.command_builder.end_render_pass()?;
+
+            result?;
         }
 
         // let size = self.render_targets[0]

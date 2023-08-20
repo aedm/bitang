@@ -179,7 +179,7 @@ impl Pass {
     //     Ok(())
     // }
 
-    pub fn set(&self, context: &mut RenderContext, camera: &Camera) -> Result<()> {
+    pub fn get_viewport(&self, context: &mut RenderContext) -> Result<Viewport> {
         let first_image = if let Some(img) = self.color_buffers.first() {
             img.get_image()
         } else if let Some(img) = &self.depth_buffer {
@@ -210,8 +210,13 @@ impl Pass {
                 depth_range: 0.0..1.0,
             }
         };
-        camera.set(&mut context.globals, viewport.dimensions);
+        Ok(viewport)
+    }
 
+    pub fn make_render_pass_begin_info(
+        &self,
+        context: &mut RenderContext,
+    ) -> Result<RenderPassBeginInfo> {
         // Collect color attachment images...
         let mut attachments = vec![];
         let mut clear_values = vec![];
@@ -245,17 +250,23 @@ impl Pass {
         //     })
         //     .collect::<Vec<_>>();
 
-        context
-            .command_builder
-            .begin_render_pass(
-                RenderPassBeginInfo {
-                    clear_values,
-                    ..RenderPassBeginInfo::framebuffer(framebuffer)
-                },
-                SubpassContents::Inline,
-            )?
-            .set_viewport(0, [viewport]);
-
-        Ok(())
+        Ok(RenderPassBeginInfo {
+            clear_values,
+            ..RenderPassBeginInfo::framebuffer(framebuffer)
+        })
     }
+    //
+    //     context
+    //         .command_builder
+    //         .begin_render_pass(
+    //             RenderPassBeginInfo {
+    //                 clear_values,
+    //                 ..RenderPassBeginInfo::framebuffer(framebuffer)
+    //             },
+    //             SubpassContents::Inline,
+    //         )?
+    //         .set_viewport(0, [viewport]);
+    //
+    //     Ok(())
+    // }
 }

@@ -94,12 +94,10 @@ impl Image {
 
     pub fn get_view(&self) -> Result<Arc<dyn ImageViewAbstract>> {
         let view: Arc<dyn ImageViewAbstract> = match &self.inner {
-            ImageInner::Immutable(image) => {
-                ImageView::new(image.clone(), ImageViewCreateInfo::default())?
-            }
+            ImageInner::Immutable(image) => ImageView::new_default(image.clone())?,
             ImageInner::SingleLevelAttachment(image) => {
                 if let Some(image) = image.borrow().as_ref() {
-                    ImageView::new(image.clone(), ImageViewCreateInfo::default())?
+                    ImageView::new_default(image.clone())?
                 } else {
                     return Err(anyhow::anyhow!("Attachment image not initialized"));
                 }
@@ -185,13 +183,14 @@ impl Image {
             ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST,
         )?;
         *attachment = Some(image);
+        self.size.set(Some((size[0], size[1])));
         Ok(())
     }
 
     pub fn get_size(&self) -> Result<(u32, u32)> {
         self.size
             .get()
-            .with_context(|| format!("Image {} has no size", self.id))
+            .with_context(|| format!("Image '{}' has no size", self.id))
     }
 
     pub fn is_swapchain(&self) -> bool {
@@ -204,6 +203,8 @@ impl Image {
     pub fn set_swapchain_image(&self, image: Arc<dyn ImageViewAbstract>) {
         match &self.inner {
             ImageInner::Swapchain(swapchain_image) => {
+                let size = image.dimensions().width_height();
+                self.size.set(Some((size[0], size[1])));
                 *swapchain_image.borrow_mut() = Some(image);
             }
             _ => panic!("Not a swapchain image"),

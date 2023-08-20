@@ -39,7 +39,7 @@ impl Chart {
             resource_repository.control_repository.clone(),
         );
 
-        let images_by_id = self
+        let mut images_by_id = self
             .images
             .iter()
             .map(|image_desc| {
@@ -47,6 +47,11 @@ impl Chart {
                 Ok((image_desc.id.clone(), image))
             })
             .collect::<Result<HashMap<_, _>>>()?;
+
+        // Add default swapchain images to the image map
+        for (id, image) in &context.swapchain_render_targets_by_id {
+            images_by_id.insert(id.clone(), image.clone());
+        }
 
         let buffer_generators_by_id = self
             .buffer_generators
@@ -94,23 +99,13 @@ pub struct Image {
     pub id: String,
     // pub path: Option<String>,
     // pub generate_mipmaps: Option<bool>,
-    pub size: Option<ImageSizeRule>,
-    pub format: Option<render::image::ImageFormat>,
+    pub size: ImageSizeRule,
+    pub format: render::image::ImageFormat,
 }
 
 impl Image {
     pub fn load(&self) -> Result<Arc<render::image::Image>> {
-        let Some(size_rule) = self.size else {
-            return Err(anyhow!("Image size not specified"));
-        };
-        let Some(format) = self.format else {
-            return Err(anyhow!("Image format not specified"));
-        };
-        let image = render::image::Image::new_attachment(
-            &self.id,
-            format,
-            size_rule,
-        );
+        let image = render::image::Image::new_attachment(&self.id, self.format, self.size);
         Ok(image)
     }
 }

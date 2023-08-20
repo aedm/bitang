@@ -21,7 +21,11 @@ const COMMON_SHADER_FILE: &str = "common.glsl";
 #[derive(Debug, Deserialize)]
 pub struct Material {
     passes: HashMap<String, MaterialPass>,
+
+    #[serde(default)]
     samplers: HashMap<String, Sampler>,
+
+    #[serde(default)]
     buffers: HashMap<String, BufferSource>,
 }
 
@@ -56,6 +60,20 @@ impl Material {
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
+        let buffer_generators_by_id = self
+            .buffers
+            .iter()
+            .map(|(name, buffer)| {
+                let buffer_generator = match buffer {
+                    BufferSource::BufferGenerator(id) => buffer_generators_by_id
+                        .get(id)
+                        .with_context(|| anyhow!("Buffer generator '{}' not found", id))?
+                        .clone(),
+                };
+                Ok((name.clone(), buffer_generator.clone()))
+            })
+            .collect::<Result<HashMap<_, _>>>()?;
+
         let material_passes = passes
             .iter()
             .map(|pass| {
@@ -70,7 +88,7 @@ impl Material {
                         parent_id,
                         chart_id,
                         &sampler_images,
-                        buffer_generators_by_id,
+                        &buffer_generators_by_id,
                         pass.vulkan_render_pass.clone(),
                     )?;
                     Ok(Some(pass))
@@ -92,6 +110,8 @@ struct MaterialPass {
     fragment_shader: String,
     depth_test: bool,
     depth_write: bool,
+
+    #[serde(default)]
     blend_mode: BlendMode,
 }
 
@@ -229,7 +249,7 @@ impl MaterialPass {
             self.blend_mode.clone(),
             vulkan_render_pass,
         );
-        
+
         material_pass
     }
 }
@@ -247,8 +267,10 @@ pub enum BufferSource {
 
 #[derive(Debug, Deserialize)]
 struct Sampler {
-    id: String,
+    // id: String,
     bind: SamplerSource,
+
+    #[serde(default)]
     address_mode: SamplerAddressMode,
 }
 
