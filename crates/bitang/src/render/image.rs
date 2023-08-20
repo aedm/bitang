@@ -193,10 +193,7 @@ impl Image {
     }
 
     pub fn is_swapchain(&self) -> bool {
-        match &self.inner {
-            ImageInner::Swapchain(_) => true,
-            _ => false,
-        }
+        matches!(&self.inner, ImageInner::Swapchain(_))
     }
 
     pub fn set_swapchain_image(&self, image: Arc<dyn ImageViewAbstract>) {

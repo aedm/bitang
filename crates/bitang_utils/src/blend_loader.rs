@@ -184,9 +184,7 @@ fn load_blend(blend: Blend) -> Result<ExternalObjectCollection> {
         //     // println!("NAME {}: VALUE {:?}", field.0, field.1);
         // }
     }
-    Ok(ExternalObjectCollection {
-        objects_by_name: objects_by_name,
-    })
+    Ok(ExternalObjectCollection { objects_by_name })
 }
 
 pub fn load_blend_buffer(buffer: &[u8]) -> Result<ExternalObjectCollection> {

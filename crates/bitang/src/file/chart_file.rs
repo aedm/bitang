@@ -208,14 +208,13 @@ impl Pass {
             .map(|color_buffer| color_buffer.load(render_targets_by_id))
             .collect::<Result<Vec<_>>>()?;
 
-        let pass = render::pass::Pass::new(
+        render::pass::Pass::new(
             &self.id,
             context,
             color_buffers,
             depth_buffer,
             self.clear_color,
-        );
-        pass
+        )
     }
 }
 
@@ -268,7 +267,7 @@ impl Object {
         images_by_id: &HashMap<String, Arc<render::image::Image>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         path: &ResourcePath,
-        passes: &Vec<render::pass::Pass>,
+        passes: &[render::pass::Pass],
     ) -> Result<Arc<crate::render::render_object::RenderObject>> {
         let control_id = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh = resource_repository

@@ -35,7 +35,7 @@ impl Chart {
         Chart {
             id: id.to_string(),
             camera: _camera,
-            images: images,
+            images,
             buffer_generators,
             steps: passes,
             controls,

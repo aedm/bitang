@@ -36,7 +36,7 @@ impl Material {
         resource_repository: &mut ResourceRepository,
         images_by_id: &HashMap<String, Arc<render::image::Image>>,
         path: &ResourcePath,
-        passes: &Vec<render::pass::Pass>,
+        passes: &[render::pass::Pass],
         control_set_builder: &mut ControlSetBuilder,
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
@@ -211,7 +211,7 @@ impl MaterialPass {
         sampler_images: &HashMap<String, (Arc<Image>, &Sampler)>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
-    ) -> Result<crate::render::material::MaterialPass> {
+    ) -> Result<render::material::MaterialPass> {
         let shader_cache_value = resource_repository.shader_cache.get_or_load(
             context,
             &path.relative_path(&self.vertex_shader),
@@ -227,8 +227,8 @@ impl MaterialPass {
             control_map,
             parent_id,
             chart_id,
-            &sampler_images,
-            &buffer_generators_by_id,
+            sampler_images,
+            buffer_generators_by_id,
         )?;
 
         let fragment_shader = self.make_shader(
@@ -239,11 +239,11 @@ impl MaterialPass {
             control_map,
             parent_id,
             chart_id,
-            &sampler_images,
-            &buffer_generators_by_id,
+            sampler_images,
+            buffer_generators_by_id,
         )?;
 
-        let material_pass = render::material::MaterialPass::new(
+        render::material::MaterialPass::new(
             context,
             id.to_string(),
             vertex_shader,
@@ -252,9 +252,7 @@ impl MaterialPass {
             self.depth_write,
             self.blend_mode.clone(),
             vulkan_render_pass,
-        );
-
-        material_pass
+        )
     }
 }
 

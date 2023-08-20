@@ -62,7 +62,7 @@ impl Pass {
 
     fn make_vulkan_render_pass(
         context: &VulkanContext,
-        color_buffers: &Vec<ImageSelector>,
+        color_buffers: &[ImageSelector],
         depth_buffer: &Option<ImageSelector>,
         clear_buffers: bool,
     ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
