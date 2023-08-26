@@ -155,7 +155,13 @@ impl Draw {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let draw = render::draw::Draw::new(&self.id, passes, objects)?;
+        let light_dir_id = control_prefix.add(ControlIdPartType::Value, "light_dir");
+        let shadow_map_size_id = control_prefix.add(ControlIdPartType::Value, "shadow_map_size");
+
+        let light_dir = control_set_builder.get_vec3(&light_dir_id);
+        let shadow_map_size = control_set_builder.get_vec3(&shadow_map_size_id);
+
+        let draw = render::draw::Draw::new(&self.id, passes, objects, light_dir, shadow_map_size)?;
         Ok(draw)
     }
 }
@@ -289,7 +295,7 @@ impl Object {
             &control_id,
             chart_id,
             buffer_generators_by_id,
-        )?; // TODO: pass control_id and chart_id to material.load(
+        )?;
 
         let position_id = control_id.add(ControlIdPartType::Value, "position");
         let rotation_id = control_id.add(ControlIdPartType::Value, "rotation");

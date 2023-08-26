@@ -339,6 +339,8 @@ pub enum GlobalType {
     AspectRatio,
     ZNear,
     FieldOfView,
+    LightDir,
+    ShadowMapSize,
 }
 
 impl GlobalType {
@@ -356,6 +358,8 @@ impl GlobalType {
             "aspect_ratio" => Ok(GlobalType::AspectRatio),
             "z_near" => Ok(GlobalType::ZNear),
             "field_of_view" => Ok(GlobalType::FieldOfView),
+            "light_dir" => Ok(GlobalType::LightDir),
+            "shadow_map_size" => Ok(GlobalType::ShadowMapSize),
             _ => Err(anyhow!("Unknown global type: {}", s)),
         }
     }
@@ -375,6 +379,9 @@ pub struct Globals {
     pub aspect_ratio: f32,
     pub z_near: f32,
     pub field_of_view: f32,
+
+    pub light_dir: Vec3,
+    pub shadow_map_size: f32,
 }
 
 impl Globals {
@@ -392,6 +399,8 @@ impl Globals {
             GlobalType::AspectRatio => slice::from_ref(&self.aspect_ratio),
             GlobalType::ZNear => slice::from_ref(&self.z_near),
             GlobalType::FieldOfView => slice::from_ref(&self.field_of_view),
+            GlobalType::LightDir => self.light_dir.as_ref(),
+            GlobalType::ShadowMapSize => slice::from_ref(&self.shadow_map_size),
         }
     }
 
