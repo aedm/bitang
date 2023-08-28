@@ -330,6 +330,7 @@ pub enum GlobalType {
     AppTime,
     ChartTime,
     ProjectionFromModel,
+    LightProjectionFromModel,
     ProjectionFromCamera,
     CameraFromModel,
     CameraFromWorld,
@@ -339,6 +340,8 @@ pub enum GlobalType {
     AspectRatio,
     ZNear,
     FieldOfView,
+    LightDir,
+    ShadowMapSize,
 }
 
 impl GlobalType {
@@ -348,6 +351,7 @@ impl GlobalType {
             "instance_count" => Ok(GlobalType::InstanceCount),
             "chart_time" => Ok(GlobalType::ChartTime),
             "projection_from_model" => Ok(GlobalType::ProjectionFromModel),
+            "light_projection_from_model" => Ok(GlobalType::LightProjectionFromModel),
             "projection_from_camera" => Ok(GlobalType::ProjectionFromCamera),
             "camera_from_model" => Ok(GlobalType::CameraFromModel),
             "camera_from_world" => Ok(GlobalType::CameraFromWorld),
@@ -356,6 +360,8 @@ impl GlobalType {
             "aspect_ratio" => Ok(GlobalType::AspectRatio),
             "z_near" => Ok(GlobalType::ZNear),
             "field_of_view" => Ok(GlobalType::FieldOfView),
+            "light_dir" => Ok(GlobalType::LightDir),
+            "shadow_map_size" => Ok(GlobalType::ShadowMapSize),
             _ => Err(anyhow!("Unknown global type: {}", s)),
         }
     }
@@ -368,6 +374,8 @@ pub struct Globals {
     pub projection_from_camera: Mat4,
     pub camera_from_world: Mat4,
     pub world_from_model: Mat4,
+    pub light_projection_from_world: Mat4,
+    pub light_projection_from_model: Mat4,
     pub pixel_size: Vec2,
     pub app_time: f32,
     pub chart_time: f32,
@@ -375,6 +383,9 @@ pub struct Globals {
     pub aspect_ratio: f32,
     pub z_near: f32,
     pub field_of_view: f32,
+
+    pub light_dir: Vec3,
+    pub shadow_map_size: f32,
 }
 
 impl Globals {
@@ -383,6 +394,7 @@ impl Globals {
             GlobalType::AppTime => slice::from_ref(&self.app_time),
             GlobalType::ChartTime => slice::from_ref(&self.chart_time),
             GlobalType::ProjectionFromModel => self.projection_from_model.as_ref(),
+            GlobalType::LightProjectionFromModel => self.light_projection_from_model.as_ref(),
             GlobalType::ProjectionFromCamera => self.projection_from_camera.as_ref(),
             GlobalType::CameraFromModel => self.camera_from_model.as_ref(),
             GlobalType::CameraFromWorld => self.camera_from_world.as_ref(),
@@ -392,11 +404,15 @@ impl Globals {
             GlobalType::AspectRatio => slice::from_ref(&self.aspect_ratio),
             GlobalType::ZNear => slice::from_ref(&self.z_near),
             GlobalType::FieldOfView => slice::from_ref(&self.field_of_view),
+            GlobalType::LightDir => self.light_dir.as_ref(),
+            GlobalType::ShadowMapSize => slice::from_ref(&self.shadow_map_size),
         }
     }
 
     pub fn update_compound_matrices(&mut self) {
         self.camera_from_model = self.camera_from_world * self.world_from_model;
         self.projection_from_model = self.projection_from_camera * self.camera_from_model;
+
+        self.light_projection_from_model = self.light_projection_from_world * self.world_from_model;
     }
 }
