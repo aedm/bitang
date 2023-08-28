@@ -371,11 +371,8 @@ impl GlobalType {
 pub struct Globals {
     pub projection_from_model: Mat4,
     pub camera_from_model: Mat4,
-    pub light_camera_from_model: Mat4,
     pub projection_from_camera: Mat4,
-    pub light_projection_from_camera: Mat4,
     pub camera_from_world: Mat4,
-    pub light_camera_from_world: Mat4,
     pub world_from_model: Mat4,
     pub light_projection_from_world: Mat4,
     pub light_projection_from_model: Mat4,
@@ -416,8 +413,6 @@ impl Globals {
         self.camera_from_model = self.camera_from_world * self.world_from_model;
         self.projection_from_model = self.projection_from_camera * self.camera_from_model;
 
-        self.light_camera_from_model = self.light_camera_from_world * self.world_from_model;
-        self.light_projection_from_model =
-            self.light_projection_from_camera * self.light_camera_from_model;
+        self.light_projection_from_model = self.light_projection_from_world * self.world_from_model;
     }
 }
