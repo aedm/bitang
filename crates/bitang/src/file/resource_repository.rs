@@ -11,12 +11,16 @@ use crate::render::vulkan_window::VulkanContext;
 use crate::render::Vertex3;
 use anyhow::{anyhow, Context, Result};
 use bitang_utils::blend_loader::load_blend_buffer;
+use glam::Vec3;
+use itertools::Itertools;
+use russimp::scene::{PostProcess, Scene};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{error, info, instrument};
+use tracing::field::debug;
+use tracing::{debug, error, info, instrument, warn};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 };
@@ -143,36 +147,144 @@ impl ResourceRepository {
     }
 }
 
+fn to_vec3(v: &russimp::Vector3D) -> [f32; 3] {
+    [v.x, v.y, v.z]
+}
+
+fn to_vec3_b(v: &russimp::Vector3D) -> [f32; 3] {
+    [v.x, v.z, v.y]
+}
+fn to_vec2(v: &russimp::Vector3D) -> [f32; 2] {
+    [v.x, v.y]
+}
+
 #[instrument(skip_all)]
 fn load_mesh_collection(
     context: &VulkanContext,
     content: &[u8],
     _resource_name: &str,
 ) -> Result<MeshCollection> {
-    let blend_file = load_blend_buffer(content)?;
-    let meshes_by_name = blend_file
-        .objects_by_name
-        .into_iter()
-        .map(|(name, object)| {
-            let vertices = object
-                .mesh
-                .faces
-                .iter()
-                .flatten()
-                .map(|v| Vertex3 {
-                    a_position: [v.0[0], v.0[1], v.0[2]],
-                    a_normal: [v.1[0], v.1[1], v.1[2]],
-                    a_tangent: [0.0, 0.0, 0.0],
-                    a_uv: [v.2[0], v.2[1]],
+    let scene = Scene::from_buffer(
+        content,
+        vec![
+            PostProcess::CalculateTangentSpace,
+            PostProcess::Triangulate,
+            PostProcess::JoinIdenticalVertices,
+            PostProcess::SortByPrimitiveType,
+            PostProcess::GenerateSmoothNormals,
+            PostProcess::FlipUVs,
+        ],
+        "",
+    )?;
+    error!("Loaded meshes: {}", scene.meshes.len());
+    let mut meshes_by_name = HashMap::new();
+    for mesh in scene.meshes {
+        let name = mesh.name.clone();
+        if mesh.vertices.is_empty() {
+            warn!("No vertices found in mesh '{name}'");
+            continue;
+        }
+        if mesh.normals.is_empty() {
+            warn!("No normals found in mesh '{name}'");
+            continue;
+        }
+        if mesh.texture_coords.is_empty() {
+            warn!("No texture coordinates found in mesh '{name}'");
+            continue;
+        }
+        if mesh.tangents.is_empty() {
+            warn!("No tangents found in mesh '{name}'");
+            continue;
+        }
+        let uvs = mesh.texture_coords[0]
+            .as_ref()
+            .context("No texture coordinates found")?;
+        let mut vertices = vec![];
+        for (index, face) in mesh.faces.iter().enumerate() {
+            if face.0.len() != 3 {
+                return Err(anyhow!(
+                    "Face {index} in mesh '{name}' has {} vertices, expected 3",
+                    face.0.len()
+                ));
+            }
+            for i in 0..3 {
+                let vertex = Vertex3 {
+                    a_position: to_vec3_b(&mesh.vertices[face.0[i] as usize]),
+                    a_normal: to_vec3_b(&mesh.normals[face.0[i] as usize]),
+                    a_tangent: to_vec3_b(&mesh.tangents[face.0[i] as usize]),
+                    a_uv: to_vec2(&uvs[face.0[i] as usize]),
                     a_padding: 0.0,
-                })
-                .collect::<Vec<Vertex3>>();
-            let mesh = Arc::new(Mesh::try_new(context, vertices)?);
-            Ok((name, mesh))
-        })
-        .collect::<Result<HashMap<String, Arc<Mesh>>>>()?;
+                };
+                vertices.push(vertex);
+            }
+        }
+        let mesh = Arc::new(Mesh::try_new(context, vertices)?);
+        meshes_by_name.insert(name, mesh);
+    }
+
+    // let blend_file = load_blend_buffer(content)?;
+    // let meshes_by_name = blend_file
+    //     .objects_by_name
+    //     .into_iter()
+    //     .map(|(name, object)| {
+    //         let vertices = object
+    //             .mesh
+    //             .faces
+    //             .iter()
+    //             .flatten()
+    //             .map(|v| Vertex3 {
+    //                 a_position: [v.0[0], v.0[1], v.0[2]],
+    //                 a_normal: [v.1[0], v.1[1], v.1[2]],
+    //                 a_tangent: [0.0, 0.0, 0.0],
+    //                 a_uv: [v.2[0], v.2[1]],
+    //                 a_padding: 0.0,
+    //             })
+    //             .collect::<Vec<Vertex3>>();
+    //         let mesh = Arc::new(Mesh::try_new(context, vertices)?);
+    //         Ok((name, mesh))
+    //     })
+    //     .collect::<Result<HashMap<String, Arc<Mesh>>>>()?;
+    info!("Loaded meshes: {}", meshes_by_name.keys().join(", "));
     Ok(MeshCollection { meshes_by_name })
 }
+
+// #[instrument(skip_all)]
+// fn load_mesh_collection(
+//     context: &VulkanContext,
+//     content: &[u8],
+//     resource_name: &str,
+// ) -> Result<MeshCollection> {
+//     let blend_file = Scene::from_buffer(content,
+//                                         vec![PostProcess::CalculateTangentSpace,
+//                                              PostProcess::Triangulate,
+//                                              PostProcess::JoinIdenticalVertices,
+//                                              PostProcess::SortByPrimitiveType,
+//                                         PostProcess::GenerateSmoothNormals],
+//     "")?;
+//     if blend_file.meshes.len() == 0 {
+//         return Err(anyhow!("No meshes found in file '{resource_name}'"));
+//     }
+//
+//     for mesh in blend_file.meshes {
+//         let name = mesh.name.clone();
+//         if mesh.vertices.len() == 0 {
+//             warn!("No vertices found in mesh '{name}'");
+//             continue;
+//         }
+//     }
+//
+//     // blend_file.meshes.iter().map(|mesh| {
+//     //     let vertices = mesh.vertices.iter().map(|v| Vertex3 {
+//     //         a_position: [v.position[0], v.position[1], v.position[2]],
+//     //         a_normal: [v.normal[0], v.normal[1], v.normal[2]],
+//     //         a_tangent: [0.0, 0.0, 0.0],
+//     //         a_uv: [v.texcoords[0], v.texcoords[1]],
+//     //         a_padding: 0.0,
+//     //     }).collect::<Vec<Vertex3>>();
+//     //     let mesh = Arc::new(Mesh::try_new(context, vertices)?);
+//     //     Ok((mesh.name.clone(), mesh))
+//     // }).collect::<Result<HashMap<String, Arc<Mesh>>>>().map(|meshes_by_name| MeshCollection { meshes_by_name }
+// }
 
 #[instrument(skip_all)]
 fn load_texture(

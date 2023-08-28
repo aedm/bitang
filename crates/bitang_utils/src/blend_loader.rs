@@ -2,8 +2,16 @@ use anyhow::Result;
 use blend::{Blend, Instance};
 use std::collections::HashMap;
 
-type Vertex = ([f32; 3], [f32; 3], [f32; 2]);
-type Face = [Vertex; 3];
+type BlendVertex = ([f32; 3], [f32; 3], [f32; 2]);
+type Face = [BlendVertex; 3];
+
+// #[derive(Debug)]
+// struct BlendVertex {
+//     position: [f32; 3],
+//     normal: [f32; 3],
+//     uv: [f32; 2],
+//     // tangent: [f32; 3],
+// }
 
 #[derive(Debug)]
 pub struct Mesh {
@@ -118,7 +126,7 @@ fn instance_to_mesh(mesh: Instance) -> Option<Mesh> {
                 [uv_buffer[i * 2], uv_buffer[i * 2 + 1]],
             )
         })
-        .collect::<Vec<Vertex>>();
+        .collect::<Vec<BlendVertex>>();
 
     let faces: Vec<_> = faces.chunks(3).map(|f| [f[0], f[1], f[2]]).collect();
 
