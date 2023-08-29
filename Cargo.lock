@@ -283,7 +283,6 @@ version = "0.0.0"
 dependencies = [
  "ahash",
  "anyhow",
- "bitang_utils",
  "build-time",
  "egui",
  "egui-winit",
