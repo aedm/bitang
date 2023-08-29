@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "crates/bitang",
-    "crates/bitang_utils",
 ]
 
 [profile.dev.package."*"]
@@ -13,11 +12,6 @@ debug = false
 opt-level = 0
 overflow-checks = true
 debug = true
-
-[profile.dev.package.bitang_utils]
-opt-level = 2
-overflow-checks = false
-debug = false
 
 [profile.dev.package.vulkano]
 opt-level = 2
