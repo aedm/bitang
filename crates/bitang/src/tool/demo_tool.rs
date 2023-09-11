@@ -2,6 +2,7 @@ use crate::control::controls::{ControlRepository, ControlSet};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::resource_repository::ResourceRepository;
 use crate::render::chart::Chart;
+use crate::render::image::ImageSizeRule;
 use crate::render::project::Project;
 use crate::render::vulkan_window::{
     PaintResult, RenderContext, VulkanApp, VulkanContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT,
@@ -216,9 +217,14 @@ impl DemoTool {
     }
 
     fn save_frame_buffer_to_file(mut content: Vec<u8>, frame_number: usize) {
-        // Fix the alpha channel
         for i in 0..content.len() / 4 {
+            // Fix the alpha channel
             content[i * 4 + 3] = 255;
+
+            // Fix the alpha channel
+            let r = content[i * 4 + 0];
+            content[i * 4 + 0] = content[i * 4 + 2];
+            content[i * 4 + 2] = r;
         }
 
         let path = format!("framedump/dump-{:0>8}.png", frame_number);
@@ -351,15 +357,19 @@ impl DemoTool {
         let target_image = vulkan_context
             .swapchain_render_targets_by_id
             .get(SCREEN_RENDER_TARGET_ID)
-            .unwrap()
-            .get_view()
             .unwrap();
-        let size = target_image.dimensions();
+        let size = match target_image.size_rule {
+            ImageSizeRule::Fixed(w, h) => [w, h],
+            _ => panic!("Screen render target must have a fixed size"),
+        };
         let screen_viewport = Viewport {
             origin: [0.0, 0.0],
-            dimensions: [size.width() as f32, size.height() as f32],
+            dimensions: [size[0] as f32, size[1] as f32],
             depth_range: 0.0..1.0,
         };
+        target_image
+            .enforce_size_rule(&vulkan_context, screen_viewport.dimensions)
+            .unwrap();
 
         // Make command buffer
         let mut command_builder = AutoCommandBufferBuilder::primary(
@@ -372,7 +382,7 @@ impl DemoTool {
         // Render content
         let mut context = RenderContext {
             vulkan_context,
-            screen_buffer: target_image,
+            screen_buffer: target_image.get_view().unwrap(),
             screen_viewport,
             command_builder: &mut command_builder,
             globals: Default::default(),

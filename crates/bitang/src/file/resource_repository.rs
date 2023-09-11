@@ -145,11 +145,11 @@ impl ResourceRepository {
 }
 
 fn to_vec3_neg(v: &russimp::Vector3D) -> [f32; 3] {
-    [-v.x, -v.z, -v.y]
+    [v.x, v.y, -v.z]
 }
 
 fn to_vec3_b(v: &russimp::Vector3D) -> [f32; 3] {
-    [v.x, v.z, v.y]
+    [v.x, v.y, -v.z]
 }
 fn to_vec2(v: &russimp::Vector3D) -> [f32; 2] {
     [v.x, v.y]
@@ -168,8 +168,8 @@ fn load_mesh_collection(
             PostProcess::Triangulate,
             PostProcess::JoinIdenticalVertices,
             PostProcess::SortByPrimitiveType,
-            PostProcess::GenerateSmoothNormals,
             PostProcess::FlipUVs,
+            PostProcess::OptimizeMeshes,
         ],
         "",
     )?;

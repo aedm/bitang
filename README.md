@@ -2,7 +2,7 @@
 
 A framework for creative coding, mainly targeted at demoscene productions. Currently in a very early stage of development.
 
-![screenshot](screenshot.png)
+![screenshot2](screenshot2.png)
 
 
 ## Features
@@ -27,11 +27,10 @@ The development platform is Windows, but Linux and MacOS should work as well.
 
 Anything that supports Vulkan.
 
-Known limitations: Radeon RX cards crash in full screen.
-
 
 ## License
 
 MIT
 
 
+![screenshot](screenshot.png)

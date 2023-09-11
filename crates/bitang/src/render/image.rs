@@ -1,4 +1,4 @@
-use crate::render::vulkan_window::RenderContext;
+use crate::render::vulkan_window::VulkanContext;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::cell::{Cell, RefCell};
@@ -146,7 +146,11 @@ impl Image {
     }
 
     /// Enforce the size rule.
-    pub fn enforce_size_rule(&self, context: &RenderContext) -> Result<()> {
+    pub fn enforce_size_rule(
+        &self,
+        context: &VulkanContext,
+        viewport_size: [f32; 2],
+    ) -> Result<()> {
         // Only attachments need to be resized.
         let ImageInner::SingleLevelAttachment(attachment) = &self.inner else {
             return Ok(());
@@ -156,12 +160,10 @@ impl Image {
         let size = match self.size_rule {
             ImageSizeRule::Fixed(w, h) => [w, h],
             ImageSizeRule::CanvasRelative(r) => {
-                let [w, h] = context.screen_viewport.dimensions;
-                [(w * r) as u32, (h * r) as u32]
+                [(viewport_size[0] * r) as u32, (viewport_size[1] * r) as u32]
             }
             ImageSizeRule::At4k(w, h) => {
-                let [sw, _sh] = context.screen_viewport.dimensions;
-                let scale = 4096.0 / sw;
+                let scale = 4096.0 / viewport_size[0];
                 [(w as f32 * scale) as u32, (h as f32 * scale) as u32]
             }
         };
@@ -176,10 +178,10 @@ impl Image {
 
         // Create a new image with the correct size.
         let image = AttachmentImage::with_usage(
-            context.vulkan_context.context.memory_allocator(),
+            context.context.memory_allocator(),
             size,
             self.vulkan_format,
-            ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST,
+            ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC,
         )?;
         *attachment = Some(image);
         self.size.set(Some((size[0], size[1])));

@@ -44,7 +44,7 @@ impl Chart {
 
     pub fn render(&self, context: &mut RenderContext) -> Result<()> {
         for image in &self.images {
-            image.enforce_size_rule(context)?;
+            image.enforce_size_rule(&context.vulkan_context, context.screen_viewport.dimensions)?;
         }
         for buffer_generator in &self.buffer_generators {
             buffer_generator.generate()?;
