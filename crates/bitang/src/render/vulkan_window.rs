@@ -31,7 +31,7 @@ use winit::{
 const START_IN_DEMO_MODE: bool = false;
 const BORDERLESS_FULL_SCREEN: bool = true;
 
-pub const FRAMEDUMP_MODE: bool = !true;
+pub const FRAMEDUMP_MODE: bool = false;
 pub const FRAMEDUMP_WIDTH: u32 = 3840;
 pub const FRAMEDUMP_HEIGHT: u32 = 2160;
 pub const FRAMEDUMP_FPS: u32 = 60;
@@ -108,17 +108,11 @@ impl VulkanWindow {
         );
 
         let swapchain_render_targets_by_id = if FRAMEDUMP_MODE {
-            let size = (FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
-            let screen_render_target = Image::new_attachment(
-                SCREEN_RENDER_TARGET_ID,
-                ImageFormat::Rgba8U,
-                ImageSizeRule::Fixed(size.0, size.1),
-            );
-            let depth_render_target = Image::new_attachment(
-                SCREEN_DEPTH_RENDER_TARGET_ID,
-                ImageFormat::Depth32F,
-                ImageSizeRule::Fixed(size.0, size.1),
-            );
+            let size = ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
+            let screen_render_target =
+                Image::new_attachment(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT, size);
+            let depth_render_target =
+                Image::new_attachment(SCREEN_DEPTH_RENDER_TARGET_ID, DEPTH_BUFFER_FORMAT, size);
             HashMap::from([
                 (screen_render_target.id.clone(), screen_render_target),
                 (depth_render_target.id.clone(), depth_render_target),

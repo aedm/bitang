@@ -168,8 +168,8 @@ fn load_mesh_collection(
             PostProcess::Triangulate,
             PostProcess::JoinIdenticalVertices,
             PostProcess::SortByPrimitiveType,
-            // PostProcess::GenerateSmoothNormals,
             PostProcess::FlipUVs,
+            PostProcess::OptimizeMeshes,
         ],
         "",
     )?;
