@@ -1,5 +1,5 @@
 use crate::control::controls::Globals;
-use crate::render::image::{Image, ImageFormat, ImageSizeRule};
+use crate::render::image::{Image, ImageSizeRule};
 use crate::render::{
     DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT, SCREEN_DEPTH_RENDER_TARGET_ID,
     SCREEN_RENDER_TARGET_ID,
