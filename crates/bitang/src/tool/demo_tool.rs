@@ -8,7 +8,6 @@ use crate::render::vulkan_window::{
     PaintResult, RenderContext, VulkanApp, VulkanContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT,
     FRAMEDUMP_MODE, FRAMEDUMP_WIDTH,
 };
-use crate::render::SCREEN_RENDER_TARGET_ID;
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{anyhow, Result};
