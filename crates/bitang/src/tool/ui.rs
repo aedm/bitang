@@ -242,7 +242,11 @@ impl Ui {
     }
 
     fn render_to_swapchain(&mut self, context: &mut RenderContext) {
-        let target_image = context.screen_buffer.clone();
+        let target_image = context
+            .vulkan_context
+            .final_render_target
+            .get_view()
+            .unwrap();
         let dimensions = target_image.dimensions().width_height();
         let framebuffer = Framebuffer::new(
             self.subpass.render_pass().clone(),

@@ -8,7 +8,7 @@ use crate::render::vulkan_window::{
     PaintResult, RenderContext, VulkanApp, VulkanContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT,
     FRAMEDUMP_MODE, FRAMEDUMP_WIDTH,
 };
-use crate::render::{SCREEN_DEPTH_RENDER_TARGET_ID, SCREEN_RENDER_TARGET_ID};
+use crate::render::SCREEN_RENDER_TARGET_ID;
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{anyhow, Result};
@@ -199,9 +199,7 @@ impl DemoTool {
         let buf = self.dumped_frame_buffer.as_ref().unwrap();
         let image = render_context
             .vulkan_context
-            .swapchain_render_targets_by_id
-            .get(SCREEN_RENDER_TARGET_ID)
-            .unwrap()
+            .final_render_target
             .get_image_access();
         render_context
             .command_builder
@@ -251,21 +249,13 @@ impl DemoTool {
         vulkan_context: &VulkanContext,
         renderer: &mut VulkanoWindowRenderer,
     ) -> PaintResult {
-        // Update swapchain targets
         let before_future = renderer.acquire().unwrap();
-        let target_image = renderer.swapchain_image_view();
-        let depth_image = renderer.get_additional_image_view(1);
 
+        // Update swapchain target
+        let target_image = renderer.swapchain_image_view();
         vulkan_context
-            .swapchain_render_targets_by_id
-            .get(SCREEN_RENDER_TARGET_ID)
-            .unwrap()
+            .final_render_target
             .set_swapchain_image(target_image.clone());
-        vulkan_context
-            .swapchain_render_targets_by_id
-            .get(SCREEN_DEPTH_RENDER_TARGET_ID)
-            .unwrap()
-            .set_swapchain_image(depth_image);
 
         // Calculate viewport
         let window_size = target_image.dimensions();
@@ -311,7 +301,6 @@ impl DemoTool {
         // Make render context
         let mut context = RenderContext {
             vulkan_context,
-            screen_buffer: target_image,
             screen_viewport,
             command_builder: &mut command_builder,
             globals: Default::default(),
@@ -354,11 +343,7 @@ impl DemoTool {
     }
 
     fn render_frame_to_buffer(&mut self, vulkan_context: &VulkanContext) -> Arc<Project> {
-        let target_image = vulkan_context
-            .swapchain_render_targets_by_id
-            .get(SCREEN_RENDER_TARGET_ID)
-            .unwrap();
-        let size = match target_image.size_rule {
+        let size = match vulkan_context.final_render_target.size_rule {
             ImageSizeRule::Fixed(w, h) => [w, h],
             _ => panic!("Screen render target must have a fixed size"),
         };
@@ -367,7 +352,8 @@ impl DemoTool {
             dimensions: [size[0] as f32, size[1] as f32],
             depth_range: 0.0..1.0,
         };
-        target_image
+        vulkan_context
+            .final_render_target
             .enforce_size_rule(&vulkan_context, screen_viewport.dimensions)
             .unwrap();
 
@@ -382,7 +368,6 @@ impl DemoTool {
         // Render content
         let mut context = RenderContext {
             vulkan_context,
-            screen_buffer: target_image.get_view().unwrap(),
             screen_viewport,
             command_builder: &mut command_builder,
             globals: Default::default(),
