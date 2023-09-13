@@ -13,6 +13,7 @@ use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::{array, slice};
+use strum::EnumString;
 use tracing::{debug, info, instrument, warn};
 
 const CONTROLS_FILE_NAME: &str = "controls.ron";
@@ -324,8 +325,8 @@ impl Control {
     }
 }
 
-// TODO: generate this automatically from the Globals struct somehow
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, EnumString, Debug)]
+#[strum(serialize_all = "snake_case")]
 pub enum GlobalType {
     AppTime,
     ChartTime,
@@ -345,30 +346,6 @@ pub enum GlobalType {
     ShadowMapSize,
 }
 
-impl GlobalType {
-    pub fn from_str(s: &str) -> Result<GlobalType> {
-        match s {
-            "app_time" => Ok(GlobalType::AppTime),
-            "instance_count" => Ok(GlobalType::InstanceCount),
-            "chart_time" => Ok(GlobalType::ChartTime),
-            "projection_from_model" => Ok(GlobalType::ProjectionFromModel),
-            "light_projection_from_model" => Ok(GlobalType::LightProjectionFromModel),
-            "light_projection_from_world" => Ok(GlobalType::LightProjectionFromWorld),
-            "projection_from_camera" => Ok(GlobalType::ProjectionFromCamera),
-            "camera_from_model" => Ok(GlobalType::CameraFromModel),
-            "camera_from_world" => Ok(GlobalType::CameraFromWorld),
-            "world_from_model" => Ok(GlobalType::WorldFromModel),
-            "pixel_size" => Ok(GlobalType::PixelSize),
-            "aspect_ratio" => Ok(GlobalType::AspectRatio),
-            "z_near" => Ok(GlobalType::ZNear),
-            "field_of_view" => Ok(GlobalType::FieldOfView),
-            "light_dir" => Ok(GlobalType::LightDir),
-            "shadow_map_size" => Ok(GlobalType::ShadowMapSize),
-            _ => Err(anyhow!("Unknown global type: {}", s)),
-        }
-    }
-}
-
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Globals {
     pub projection_from_model: Mat4,
@@ -385,7 +362,6 @@ pub struct Globals {
     pub aspect_ratio: f32,
     pub z_near: f32,
     pub field_of_view: f32,
-
     pub light_dir: Vec3,
     pub shadow_map_size: f32,
 }
@@ -415,7 +391,6 @@ impl Globals {
     pub fn update_compound_matrices(&mut self) {
         self.camera_from_model = self.camera_from_world * self.world_from_model;
         self.projection_from_model = self.projection_from_camera * self.camera_from_model;
-
         self.light_projection_from_model = self.light_projection_from_world * self.world_from_model;
     }
 }

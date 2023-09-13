@@ -3,13 +3,10 @@ name = "bitang"
 version = "0.0.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-#bitang_utils = { path = "../bitang_utils" }
-
 anyhow = { version = "1.0.66", features = ["backtrace"] }
 itertools = "0.11.0"
+strum = { version = "0.25.0", features = ["derive"] }
 
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", features = ["fmt", "env-filter"] }

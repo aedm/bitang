@@ -1,6 +1,7 @@
 use crate::control::controls::GlobalType;
 use crate::file::file_hash_cache::{hash_content, ContentHash, FileCache, FileCacheEntry};
 use crate::file::ResourcePath;
+use crate::render::shader::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, Context, Error, Result};
 use spirv_reflect::types::ReflectDescriptorType;
@@ -8,10 +9,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::mem::size_of;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{debug, info, instrument, trace};
 use vulkano::shader::ShaderModule;
-use crate::render::shader::GlobalUniformMapping;
 
 #[derive(Hash, PartialEq, Eq, Clone)]
 struct ShaderCacheKey {
@@ -218,7 +219,7 @@ impl ShaderCache {
                                 },
                             )
                         })
-                        .collect::<Result<Vec<_>>>()?;
+                        .collect::<::core::result::Result<Vec<_>, _>>()?;
                     let uniform_buffer_size = binding.block.size as usize;
                     (
                         local_uniform_bindings,
