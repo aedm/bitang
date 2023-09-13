@@ -1,5 +1,5 @@
 use crate::control::controls::Globals;
-use crate::render::image::{Image, ImageFormat, ImageSizeRule};
+use crate::render::image::{Image, ImageSizeRule};
 use crate::render::{
     DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT, SCREEN_DEPTH_RENDER_TARGET_ID,
     SCREEN_RENDER_TARGET_ID,
@@ -11,7 +11,7 @@ use tracing::{error, info};
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
-use vulkano::device::{DeviceOwned, Queue};
+use vulkano::device::Queue;
 use vulkano::format::Format;
 use vulkano::image::{ImageUsage, ImageViewAbstract};
 use vulkano::pipeline::graphics::viewport::Viewport;
