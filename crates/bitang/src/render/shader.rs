@@ -3,6 +3,7 @@ use crate::render::buffer_generator::BufferGenerator;
 use crate::render::image::Image;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
+use smallvec::SmallVec;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -102,8 +103,7 @@ impl Shader {
             .get(self.kind.get_descriptor_set_index() as usize)
             .context("Failed to get descriptor set layout")?;
 
-        // TODO: avoid memory allocation, maybe use tinyvec
-        let mut descriptors = vec![];
+        let mut descriptors = SmallVec::<[_; 64]>::new();
 
         if self.uniform_buffer_size > 0 {
             // Fill uniform array
