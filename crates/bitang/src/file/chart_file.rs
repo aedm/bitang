@@ -5,6 +5,7 @@ use crate::file::ResourcePath;
 use crate::render::buffer_generator::BufferGeneratorType;
 use crate::render::image::ImageSizeRule;
 use crate::render::vulkan_window::VulkanContext;
+use crate::render::SCREEN_RENDER_TARGET_ID;
 use crate::{file, render};
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
@@ -45,10 +46,11 @@ impl Chart {
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
-        // Add default swapchain images to the image map
-        for (id, image) in &context.swapchain_render_targets_by_id {
-            images_by_id.insert(id.clone(), image.clone());
-        }
+        // Add swapchain image to the image map
+        images_by_id.insert(
+            SCREEN_RENDER_TARGET_ID.to_string(),
+            context.final_render_target.clone(),
+        );
 
         let buffer_generators_by_id = self
             .buffer_generators

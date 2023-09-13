@@ -29,7 +29,5 @@ pub struct Vertex3 {
     pub a_padding: f32,
 }
 
-pub const DEPTH_BUFFER_FORMAT: ImageFormat = ImageFormat::Depth32F;
 pub const SCREEN_COLOR_FORMAT: ImageFormat = ImageFormat::Rgba8Srgb;
 pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
-pub const SCREEN_DEPTH_RENDER_TARGET_ID: &str = "screen_depth";

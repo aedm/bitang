@@ -1,11 +1,7 @@
 use crate::control::controls::Globals;
 use crate::render::image::{Image, ImageSizeRule};
-use crate::render::{
-    DEPTH_BUFFER_FORMAT, SCREEN_COLOR_FORMAT, SCREEN_DEPTH_RENDER_TARGET_ID,
-    SCREEN_RENDER_TARGET_ID,
-};
+use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use anyhow::{Context, Result};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{error, info};
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
@@ -13,7 +9,6 @@ use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::device::Queue;
 use vulkano::format::Format;
-use vulkano::image::{ImageUsage, ImageViewAbstract};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::Surface;
 use vulkano_util::renderer::VulkanoWindowRenderer;
@@ -44,12 +39,11 @@ pub struct VulkanContext {
     pub swapchain_format: Format,
     pub surface: Arc<Surface>,
     pub gfx_queue: Arc<Queue>,
-    pub swapchain_render_targets_by_id: HashMap<String, Arc<Image>>,
+    pub final_render_target: Arc<Image>,
 }
 
 pub struct RenderContext<'a> {
     pub vulkan_context: &'a VulkanContext,
-    pub screen_buffer: Arc<dyn ImageViewAbstract>, //SwapchainImageView,
     pub screen_viewport: Viewport,
     pub command_builder: &'a mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
     pub globals: Globals,
@@ -101,32 +95,12 @@ impl VulkanWindow {
         let renderer = windows
             .get_primary_renderer_mut()
             .context("No primary renderer")?;
-        renderer.add_additional_image_view(
-            1,
-            DEPTH_BUFFER_FORMAT.vulkan_format(),
-            ImageUsage::DEPTH_STENCIL_ATTACHMENT,
-        );
 
-        let swapchain_render_targets_by_id = if FRAMEDUMP_MODE {
+        let final_render_target = if FRAMEDUMP_MODE {
             let size = ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
-            let screen_render_target =
-                Image::new_attachment(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT, size);
-            let depth_render_target =
-                Image::new_attachment(SCREEN_DEPTH_RENDER_TARGET_ID, DEPTH_BUFFER_FORMAT, size);
-            HashMap::from([
-                (screen_render_target.id.clone(), screen_render_target),
-                (depth_render_target.id.clone(), depth_render_target),
-            ])
+            Image::new_attachment(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT, size)
         } else {
-            let screen_render_target =
-                Image::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
-            let depth_render_target =
-                Image::new_swapchain(SCREEN_DEPTH_RENDER_TARGET_ID, DEPTH_BUFFER_FORMAT);
-
-            HashMap::from([
-                (screen_render_target.id.clone(), screen_render_target),
-                (depth_render_target.id.clone(), depth_render_target),
-            ])
+            Image::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT)
         };
 
         let command_buffer_allocator = StandardCommandBufferAllocator::new(
@@ -143,7 +117,7 @@ impl VulkanWindow {
             swapchain_format: renderer.swapchain_format(),
             surface: renderer.surface(),
             gfx_queue: renderer.graphics_queue(),
-            swapchain_render_targets_by_id,
+            final_render_target,
         };
 
         Ok(Self {
