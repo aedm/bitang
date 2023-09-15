@@ -9,7 +9,7 @@ use crate::render::mesh::Mesh;
 use crate::render::project::Project;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::Vertex3;
-use anyhow::{anyhow, bail, ensure, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
 use std::cell::RefCell;

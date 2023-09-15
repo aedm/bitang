@@ -3,7 +3,7 @@ use crate::render::camera::Camera;
 use crate::render::pass::Pass;
 use crate::render::render_object::RenderObject;
 use crate::render::vulkan_window::RenderContext;
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
 use std::sync::Arc;

@@ -1,6 +1,6 @@
 use crate::render::image::Image;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
 use vulkano::command_buffer::RenderPassBeginInfo;
 use vulkano::image::ImageViewAbstract;
