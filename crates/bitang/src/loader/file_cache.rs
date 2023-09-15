@@ -1,10 +1,8 @@
-use crate::file::ResourcePath;
-use ahash::AHasher;
-use anyhow::{Context, Result};
+use crate::loader::cache::Cache;
+use crate::loader::{compute_hash, ResourcePath};
+use ahash::AHashSet;
+use anyhow::{bail, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use std::collections::hash_map::Entry::{Occupied, Vacant};
-use std::collections::{HashMap, HashSet};
-use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::{env, mem};
@@ -15,20 +13,20 @@ pub type ContentHash = u64;
 #[derive(Clone)]
 pub struct FileCacheEntry {
     pub hash: ContentHash,
-    pub content: Option<Vec<u8>>,
+    pub content: Vec<u8>,
 }
 
 pub struct FileCache {
     current_dir: PathBuf,
-    cache_map: HashMap<PathBuf, FileCacheEntry>,
+    cache: Cache<PathBuf, FileCacheEntry>,
 
     // Listening for file changes
     file_watcher: RecommendedWatcher,
     file_change_events: Receiver<Result<notify::Event, notify::Error>>,
-    watched_paths: HashSet<PathBuf>,
+    watched_paths: AHashSet<PathBuf>,
 
     // Stores every path during the current document loading cycle
-    new_watched_paths: HashSet<PathBuf>,
+    new_watched_paths: AHashSet<PathBuf>,
 
     // Did we encounter a missing file during loading?
     pub has_missing_files: bool,
@@ -39,11 +37,12 @@ impl FileCache {
         let (sender, receiver) = std::sync::mpsc::channel();
         let watcher = notify::recommended_watcher(sender)?;
         Ok(Self {
-            cache_map: HashMap::new(),
+            // cache_map: HashMap::new(),
+            cache: Cache::new(),
             file_watcher: watcher,
             file_change_events: receiver,
-            watched_paths: HashSet::new(),
-            new_watched_paths: HashSet::new(),
+            watched_paths: AHashSet::new(),
+            new_watched_paths: AHashSet::new(),
             current_dir: env::current_dir()?,
             has_missing_files: false,
         })
@@ -56,7 +55,7 @@ impl FileCache {
                 Ok(event) => {
                     for path in event.paths {
                         debug!("File change detected: {:?}", path);
-                        self.cache_map.remove(&path);
+                        self.cache.remove(&path);
                     }
                     has_changes = true;
                 }
@@ -87,33 +86,22 @@ impl FileCache {
         self.has_missing_files = false;
     }
 
-    pub fn get(&mut self, path: &ResourcePath, store_content: bool) -> Result<FileCacheEntry> {
+    pub fn get(&mut self, path: &ResourcePath, _store_content: bool) -> Result<&FileCacheEntry> {
         let path_string = path.to_string();
         let absolute_path = self.to_absolute_path(&path_string);
         self.new_watched_paths.insert(absolute_path.clone());
-        let result = match self.cache_map.entry(absolute_path.clone()) {
-            Vacant(e) => {
-                debug!("Reading file: '{path_string}'");
-                let source = std::fs::read(absolute_path);
-                if source.is_err() {
-                    self.has_missing_files = true;
-                }
-                let source = source
-                    .with_context(|| anyhow::format_err!("Failed to read file: '{path_string}'"))?;
-                let hash = hash_content(&source);
-                let entry = FileCacheEntry {
-                    hash,
-                    content: store_content.then(|| source.clone()),
-                };
-                e.insert(entry);
-                FileCacheEntry {
-                    hash,
-                    content: Some(source),
-                }
-            }
-            Occupied(e) => (*e.get()).clone(),
-        };
-        Ok(result)
+
+        self.cache.get_or_try_insert_with_key(absolute_path, |key| {
+            debug!("Reading file: '{path_string}'");
+            let Ok(content) = std::fs::read(key) else {
+                self.has_missing_files = true;
+                bail!("Failed to read file: '{path_string}'");
+            };
+            Ok(FileCacheEntry {
+                hash: compute_hash(&content),
+                content,
+            })
+        })
     }
 
     fn to_absolute_path(&self, path: &str) -> PathBuf {
@@ -124,10 +112,4 @@ impl FileCache {
             self.current_dir.join(path)
         }
     }
-}
-
-pub fn hash_content(content: &[u8]) -> u64 {
-    let mut hasher = AHasher::default();
-    hasher.write(content);
-    hasher.finish()
 }

@@ -1,6 +1,6 @@
 use crate::control::controls::{ControlRepository, ControlSet};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::resource_repository::ResourceRepository;
+use crate::loader::resource_repository::ResourceRepository;
 use crate::render::chart::Chart;
 use crate::render::image::ImageSizeRule;
 use crate::render::project::Project;

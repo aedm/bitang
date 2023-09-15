@@ -1,4 +1,4 @@
-use crate::file::ROOT_FOLDER;
+use crate::loader::ROOT_FOLDER;
 use anyhow::{bail, Context, Result};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;

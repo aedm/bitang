@@ -1,8 +1,9 @@
 use crate::control::controls::ControlRepository;
-use crate::file::binary_file_cache::BinaryFileCache;
-use crate::file::file_hash_cache::FileCache;
-use crate::file::shader_loader::ShaderCache;
-use crate::file::{chart_file, project_file, ResourcePath};
+use crate::file::{chart_file, project_file};
+use crate::loader::file_cache::FileCache;
+use crate::loader::resource_cache::ResourceCache;
+use crate::loader::shader_loader::ShaderCache;
+use crate::loader::ResourcePath;
 use crate::render::chart::Chart;
 use crate::render::image::Image;
 use crate::render::mesh::Mesh;
@@ -30,10 +31,10 @@ struct MeshCollection {
 
 pub struct ResourceRepository {
     file_hash_cache: Rc<RefCell<FileCache>>,
-    texture_cache: BinaryFileCache<Arc<Image>>,
-    mesh_cache: BinaryFileCache<MeshCollection>,
-    chart_file_cache: BinaryFileCache<Arc<chart_file::Chart>>,
-    project_file_cache: BinaryFileCache<Arc<project_file::Project>>,
+    texture_cache: ResourceCache<Arc<Image>>,
+    mesh_cache: ResourceCache<MeshCollection>,
+    chart_file_cache: ResourceCache<Arc<chart_file::Chart>>,
+    project_file_cache: ResourceCache<Arc<project_file::Project>>,
 
     pub shader_cache: ShaderCache,
     pub control_repository: Rc<RefCell<ControlRepository>>,
@@ -56,11 +57,11 @@ impl ResourceRepository {
         let control_repository = ControlRepository::load_control_files()?;
 
         Ok(Self {
-            texture_cache: BinaryFileCache::new(&file_hash_cache, load_texture),
-            mesh_cache: BinaryFileCache::new(&file_hash_cache, load_mesh_collection),
+            texture_cache: ResourceCache::new(&file_hash_cache, load_texture),
+            mesh_cache: ResourceCache::new(&file_hash_cache, load_mesh_collection),
             shader_cache: ShaderCache::new(&file_hash_cache),
-            chart_file_cache: BinaryFileCache::new(&file_hash_cache, load_chart_file),
-            project_file_cache: BinaryFileCache::new(&file_hash_cache, load_project_file),
+            chart_file_cache: ResourceCache::new(&file_hash_cache, load_chart_file),
+            project_file_cache: ResourceCache::new(&file_hash_cache, load_project_file),
             file_hash_cache,
             cached_root: None,
             control_repository: Rc::new(RefCell::new(control_repository)),

@@ -1,4 +1,4 @@
-use crate::file::resource_repository::ResourceRepository;
+use crate::loader::resource_repository::ResourceRepository;
 use crate::render;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
