@@ -184,7 +184,7 @@ impl ImageSelector {
                 .get(id)
                 .cloned()
                 .map(render::pass::ImageSelector::Image)
-                .ok_or_else(|| anyhow!("Render target not found: {}", id)),
+                .ok_or_else(|| anyhow!("Render target not found: {id}")),
         }
     }
 }

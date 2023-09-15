@@ -3,7 +3,7 @@ use crate::render::camera::Camera;
 use crate::render::pass::Pass;
 use crate::render::render_object::RenderObject;
 use crate::render::vulkan_window::RenderContext;
-use anyhow::{anyhow, Result};
+use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -73,9 +73,7 @@ impl Draw {
     }
 
     pub fn render(&self, context: &mut RenderContext, camera: &Camera) -> Result<()> {
-        if self.passes.is_empty() {
-            return Err(anyhow!("Draw '{}' has no passes", self.id));
-        }
+        ensure!(!self.passes.is_empty(), "Draw '{}' has no passes", self.id);
 
         for (pass_index, pass) in self.passes.iter().enumerate() {
             let viewport = pass.get_viewport(context)?;

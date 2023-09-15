@@ -10,7 +10,7 @@ use crate::render::vulkan_window::{
 };
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 use std::cell::RefCell;
 use std::cmp::max;
 use std::rc::Rc;
@@ -168,7 +168,7 @@ impl DemoTool {
 
     fn draw_project(&mut self, context: &mut RenderContext) -> Result<()> {
         let Some(project) = &self.ui_state.project else {
-            return Err(anyhow!("No project loaded"));
+            bail!("No project loaded");
         };
 
         // Evaluate control splines and draw charts
@@ -236,9 +236,7 @@ impl DemoTool {
         )
         .unwrap();
         info!(
-            "Saved frame {} to {} ({}ms)",
-            frame_number,
-            path,
+            "Saved frame {frame_number} to {path} ({}ms)",
             save_timer.elapsed().as_millis()
         );
     }
