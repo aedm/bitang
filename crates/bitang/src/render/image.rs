@@ -133,8 +133,8 @@ impl Image {
         &self,
         layout: ImageLayout,
         load_op: LoadOp,
-    ) -> Result<AttachmentDescription> {
-        Ok(AttachmentDescription {
+    ) -> AttachmentDescription {
+        AttachmentDescription {
             format: Some(self.vulkan_format),
             samples: SampleCount::Sample1, // TODO
             load_op,
@@ -142,7 +142,7 @@ impl Image {
             initial_layout: layout,
             final_layout: layout,
             ..Default::default()
-        })
+        }
     }
 
     /// Enforce the size rule.

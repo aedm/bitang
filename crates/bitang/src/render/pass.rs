@@ -118,16 +118,9 @@ impl Pass {
         };
 
         let attachment_description = match selector {
-            ImageSelector::Image(image) => AttachmentDescription {
-                format: Some(image.vulkan_format),
-                samples: SampleCount::Sample1, // TODO
-                load_op,
-                store_op: StoreOp::Store,
-                initial_layout: layout,
-                final_layout: layout,
-                ..Default::default()
-            },
+            ImageSelector::Image(image) => image.make_attachment_description(layout, load_op),
         };
+
         attachments.push(attachment_description);
         reference
     }
