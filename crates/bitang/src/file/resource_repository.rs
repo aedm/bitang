@@ -235,12 +235,15 @@ fn load_texture(
 
     let mut cbb = AutoCommandBufferBuilder::primary(
         &context.command_buffer_allocator,
-        context.context.graphics_queue().queue_family_index(),
+        context
+            .vulkano_context
+            .graphics_queue()
+            .queue_family_index(),
         CommandBufferUsage::OneTimeSubmit,
     )?;
 
     let image = ImmutableImage::from_iter(
-        context.context.memory_allocator(),
+        context.vulkano_context.memory_allocator(),
         rgba.into_raw(),
         dimensions,
         MipmapsCount::Log2,
@@ -249,7 +252,7 @@ fn load_texture(
     )?;
     let _fut = cbb
         .build()?
-        .execute(context.context.graphics_queue().clone())?;
+        .execute(context.vulkano_context.graphics_queue().clone())?;
 
     let image = Image::new_immutable(resource_name, image);
     Ok(image)

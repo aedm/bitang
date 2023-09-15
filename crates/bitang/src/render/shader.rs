@@ -26,7 +26,7 @@ impl ShaderKind {
     /// Returns the descriptor set index for this shader stage.
     ///
     /// Descriptor sets are shared between all shader stages in a pipeline. To distinguish,
-    /// Bitang uses unique descriptor set for each shader stage:
+    /// Bitang uses a unique descriptor set for each shader stage:
     /// - Vertex shader: `set = 0`
     /// - Fragment shader: `set = 1`
     ///
@@ -71,7 +71,7 @@ impl Shader {
         descriptor_resources: Vec<DescriptorResource>,
     ) -> Shader {
         let uniform_buffer_pool = SubbufferAllocator::new(
-            context.context.memory_allocator().clone(),
+            context.vulkano_context.memory_allocator().clone(),
             SubbufferAllocatorCreateInfo {
                 buffer_usage: BufferUsage::UNIFORM_BUFFER,
                 ..Default::default()
@@ -110,10 +110,9 @@ impl Shader {
             let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
             for global_mapping in &self.global_uniform_bindings {
                 let values = context.globals.get(global_mapping.global_type);
-                // TODO: store f32 offset instead of byte offset
-                let offset = global_mapping.offset / size_of::<f32>();
+                let start_index = global_mapping.f32_offset;
                 for (i, value) in values.iter().enumerate() {
-                    uniform_values[offset + i] = *value;
+                    uniform_values[start_index + i] = *value;
                 }
             }
             for local_mapping in &self.local_uniform_bindings {
@@ -136,7 +135,7 @@ impl Shader {
                 DescriptorSource::Image(image_descriptor) => {
                     let image_view = image_descriptor.image.get_view()?;
                     let sampler = Sampler::new(
-                        context.vulkan_context.context.device().clone(),
+                        context.vulkan_context.vulkano_context.device().clone(),
                         SamplerCreateInfo {
                             address_mode: [image_descriptor.address_mode; 3],
                             ..SamplerCreateInfo::simple_repeat_linear()
@@ -208,5 +207,5 @@ pub struct LocalUniformMapping {
 #[derive(Copy, Clone, Debug)]
 pub struct GlobalUniformMapping {
     pub global_type: GlobalType,
-    pub offset: usize,
+    pub f32_offset: usize,
 }

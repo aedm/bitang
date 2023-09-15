@@ -135,7 +135,7 @@ impl Image {
     ) -> AttachmentDescription {
         AttachmentDescription {
             format: Some(self.vulkan_format),
-            samples: SampleCount::Sample1, // TODO
+            samples: SampleCount::Sample1,
             load_op,
             store_op: StoreOp::Store,
             initial_layout: layout,
@@ -177,7 +177,7 @@ impl Image {
 
         // Create a new image with the correct size.
         let image = AttachmentImage::with_usage(
-            context.context.memory_allocator(),
+            context.vulkano_context.memory_allocator(),
             size,
             self.vulkan_format,
             ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC,

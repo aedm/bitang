@@ -20,7 +20,7 @@ pub struct Ui {
 impl Ui {
     pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<Ui> {
         let render_pass = vulkano::single_pass_renderpass!(
-            context.context.device().clone(),
+            context.vulkano_context.device().clone(),
             attachments: {
                 color: {
                     load: DontCare,

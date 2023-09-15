@@ -112,7 +112,7 @@ impl DemoTool {
 
         let dumped_frame_buffer = if FRAMEDUMP_MODE {
             let buffer = Buffer::from_iter(
-                context.context.memory_allocator(),
+                context.vulkano_context.memory_allocator(),
                 BufferCreateInfo {
                     usage: BufferUsage::TRANSFER_DST,
                     ..Default::default()
@@ -290,7 +290,10 @@ impl DemoTool {
         // Make command buffer
         let mut command_builder = AutoCommandBufferBuilder::primary(
             &vulkan_context.command_buffer_allocator,
-            vulkan_context.context.graphics_queue().queue_family_index(),
+            vulkan_context
+                .vulkano_context
+                .graphics_queue()
+                .queue_family_index(),
             CommandBufferUsage::OneTimeSubmit,
         )
         .unwrap();
@@ -329,7 +332,7 @@ impl DemoTool {
         let command_buffer = command_builder.build().unwrap();
         let after_future = before_future
             .then_execute(
-                vulkan_context.context.graphics_queue().clone(),
+                vulkan_context.vulkano_context.graphics_queue().clone(),
                 command_buffer,
             )
             .unwrap()
@@ -357,7 +360,10 @@ impl DemoTool {
         // Make command buffer
         let mut command_builder = AutoCommandBufferBuilder::primary(
             &vulkan_context.command_buffer_allocator,
-            vulkan_context.context.graphics_queue().queue_family_index(),
+            vulkan_context
+                .vulkano_context
+                .graphics_queue()
+                .queue_family_index(),
             CommandBufferUsage::OneTimeSubmit,
         )
         .unwrap();
@@ -378,7 +384,7 @@ impl DemoTool {
 
         // Execute commands on the graphics queue and dump it to a file
         let command_buffer = command_builder.build().unwrap();
-        let queue = vulkan_context.context.graphics_queue().clone();
+        let queue = vulkan_context.vulkano_context.graphics_queue().clone();
         let finished = command_buffer.execute(queue).unwrap();
         finished
             .then_signal_fence_and_flush()
