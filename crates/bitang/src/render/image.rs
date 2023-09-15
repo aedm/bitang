@@ -128,7 +128,6 @@ impl Image {
         }
     }
 
-    // TODO: use this in Pass to create the attachment description
     pub fn make_attachment_description(
         &self,
         layout: ImageLayout,

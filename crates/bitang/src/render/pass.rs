@@ -3,12 +3,12 @@ use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
 use vulkano::command_buffer::RenderPassBeginInfo;
+use vulkano::image::ImageLayout;
 use vulkano::image::ImageViewAbstract;
-use vulkano::image::{ImageLayout, SampleCount};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
-    RenderPassCreateInfo, StoreOp, SubpassDescription,
+    RenderPassCreateInfo, SubpassDescription,
 };
 
 pub enum ImageSelector {
