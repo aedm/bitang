@@ -1,10 +1,9 @@
 use crate::control::controls::GlobalType;
 use crate::file::ResourcePath;
-use crate::loader::compute_hash;
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
+use crate::loader::{compute_hash, Cache};
 use crate::render::shader::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
-use ahash::AHashMap;
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
 use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
 use std::cell::RefCell;
@@ -53,7 +52,8 @@ pub struct ShaderCompilationLocalUniform {
 
 pub struct ShaderCache {
     file_hash_cache: Rc<RefCell<FileCache>>,
-    shader_cache: AHashMap<ShaderCacheKey, ShaderCacheValue>,
+    // shader_cache: AHashMap<ShaderCacheKey, ShaderCacheValue>,
+    shader_cache: Cache<ShaderCacheKey, ShaderCacheValue>,
 }
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
@@ -62,7 +62,7 @@ impl ShaderCache {
     pub fn new(file_hash_cache: &Rc<RefCell<FileCache>>) -> Self {
         Self {
             file_hash_cache: file_hash_cache.clone(),
-            shader_cache: AHashMap::new(),
+            shader_cache: Cache::new(),
         }
     }
 
@@ -83,7 +83,7 @@ impl ShaderCache {
             vertex_shader_hash: vs_hash,
             fragment_shader_hash: fs_hash,
         };
-        if !self.shader_cache.contains_key(&key) {
+        self.shader_cache.get_or_try_insert_with_key(key, |_key| {
             let vs_result = Self::compile_shader_module(
                 context,
                 &vs_source,
@@ -100,10 +100,8 @@ impl ShaderCache {
                 vertex_shader: vs_result,
                 fragment_shader: fs_result,
             };
-            self.shader_cache.insert(key.clone(), value);
-        }
-        // Unwrap is safe: we just inserted the shader
-        Ok(self.shader_cache.get(&key).unwrap())
+            Ok(value)
+        })
     }
 
     #[instrument(skip(context, source))]
