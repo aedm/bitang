@@ -99,7 +99,7 @@ impl Ui {
                     .borrow()
                     .save_control_files(project)
                 {
-                    error!("Failed to save controls: {}", err);
+                    error!("Failed to save controls: {err}");
                 }
             }
         }
@@ -168,7 +168,7 @@ impl Ui {
             };
             ui.toggle_value(
                 &mut new_selected,
-                format!("{} {}", icon, control_id_part.name),
+                format!("{icon} {}", control_id_part.name),
             );
             if new_selected && !selected {
                 ui_state.selected_control_id = node.id_prefix.clone();

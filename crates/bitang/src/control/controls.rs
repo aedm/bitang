@@ -168,8 +168,8 @@ impl ControlRepository {
     pub fn save_control_files(&self, project: &Project) -> Result<()> {
         for chart in project.charts_by_id.values() {
             let path = format!(
-                "{}/{}/{}/{}",
-                ROOT_FOLDER, CHARTS_FOLDER, chart.id, CONTROLS_FILE_NAME
+                "{ROOT_FOLDER}/{CHARTS_FOLDER}/{}/{CONTROLS_FILE_NAME}",
+                chart.id
             );
             let controls = self
                 .by_id
@@ -180,7 +180,7 @@ impl ControlRepository {
             let serialized = SerializedControls { controls };
             let ron = ron::ser::to_string_pretty(&serialized, ron::ser::PrettyConfig::default())?;
             std::fs::write(&path, ron)
-                .with_context(|| format!("Failed to write controls to '{}'.", path))?;
+                .with_context(|| format!("Failed to write controls to '{path}'."))?;
             debug!("Saved controls to '{path}'.");
         }
         Ok(())
@@ -189,18 +189,18 @@ impl ControlRepository {
     #[instrument]
     pub fn load_control_files() -> Result<Self> {
         let mut by_id = HashMap::new();
-        let path = format!("{}/{}/", ROOT_FOLDER, CHARTS_FOLDER);
+        let path = format!("{ROOT_FOLDER}/{CHARTS_FOLDER}/");
         for entry in std::fs::read_dir(path)? {
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
                 let chart_id = path.file_name().unwrap().to_str().unwrap();
                 let controls_path = format!(
-                    "{}/{}/{}/{}",
-                    ROOT_FOLDER, CHARTS_FOLDER, chart_id, CONTROLS_FILE_NAME
+                    "{ROOT_FOLDER}/{CHARTS_FOLDER}/{}/{CONTROLS_FILE_NAME}",
+                    chart_id
                 );
                 if let Ok(ron) = std::fs::read_to_string(&controls_path) {
-                    info!("Loading '{}'.", controls_path);
+                    info!("Loading '{controls_path}'.");
                     let deserialized: DeserializedControls = ron::de::from_str(&ron)?;
                     for mut control in deserialized.controls {
                         control.id.parts.insert(
@@ -213,7 +213,7 @@ impl ControlRepository {
                         by_id.insert(control.id.clone(), Rc::new(control));
                     }
                 } else {
-                    warn!("No controls file found at '{}'.", controls_path);
+                    warn!("No controls file found at '{controls_path}'.");
                 }
             }
         }

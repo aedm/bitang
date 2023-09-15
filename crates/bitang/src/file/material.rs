@@ -53,7 +53,7 @@ impl Material {
                         .clone(),
                     SamplerSource::Image(id) => images_by_id
                         .get(id)
-                        .with_context(|| anyhow!("Render target '{}' not found", id))?
+                        .with_context(|| anyhow!("Render target '{id}' not found"))?
                         .clone(),
                 };
                 Ok((name.clone(), (image, sampler)))
@@ -67,7 +67,7 @@ impl Material {
                 let buffer_generator = match buffer {
                     BufferSource::BufferGenerator(id) => buffer_generators_by_id
                         .get(id)
-                        .with_context(|| anyhow!("Buffer generator '{}' not found", id))?
+                        .with_context(|| anyhow!("Buffer generator '{id}' not found"))?
                         .clone(),
                 };
                 Ok((name.clone(), buffer_generator.clone()))

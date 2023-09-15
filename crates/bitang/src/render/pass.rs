@@ -1,6 +1,6 @@
 use crate::render::image::Image;
 use crate::render::vulkan_window::{RenderContext, VulkanContext};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, ensure, Result};
 use std::sync::Arc;
 use vulkano::command_buffer::RenderPassBeginInfo;
 use vulkano::image::ImageViewAbstract;
@@ -138,20 +138,19 @@ impl Pass {
         } else if let Some(img) = &self.depth_buffer {
             img.get_image()
         } else {
-            return Err(anyhow!("Pass {} has no color or depth buffers", self.id));
+            bail!("Pass {} has no color or depth buffers", self.id);
         };
 
         // Check that all render targets have the same size
         let size = first_image.get_size()?;
         for img_selector in &self.color_buffers {
             let image = img_selector.get_image();
-            if image.get_size()? != size {
-                return Err(anyhow!(
-                    "Image '{}' in Pass '{}' has different size than other images",
-                    image.id,
-                    self.id
-                ));
-            }
+            ensure!(
+                image.get_size()? == size,
+                "Image '{}' in Pass '{}' has different size than other images",
+                image.id,
+                self.id
+            );
         }
 
         let viewport = if first_image.is_swapchain() {

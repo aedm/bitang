@@ -9,7 +9,7 @@ use crate::render::mesh::Mesh;
 use crate::render::project::Project;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::Vertex3;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
 use std::cell::RefCell;
@@ -121,13 +121,9 @@ impl ResourceRepository {
         selector: &str,
     ) -> Result<&Arc<Mesh>> {
         let co = self.mesh_cache.get_or_load(context, path)?;
-        co.meshes_by_name.get(selector).with_context(|| {
-            anyhow!(
-                "Could not find mesh '{}' in '{}'",
-                selector,
-                path.to_string()
-            )
-        })
+        co.meshes_by_name
+            .get(selector)
+            .with_context(|| anyhow!("Could not find mesh '{selector}' in '{}'", path.to_string()))
     }
 
     #[instrument(skip(self, context))]
@@ -198,12 +194,11 @@ fn load_mesh_collection(
             .context("No texture coordinates found")?;
         let mut vertices = vec![];
         for (index, face) in mesh.faces.iter().enumerate() {
-            if face.0.len() != 3 {
-                return Err(anyhow!(
-                    "Face {index} in mesh '{name}' has {} vertices, expected 3",
-                    face.0.len()
-                ));
-            }
+            ensure!(
+                face.0.len() == 3,
+                "Face {index} in mesh '{name}' has {} vertices, expected 3",
+                face.0.len()
+            );
             for i in 0..3 {
                 let vertex = Vertex3 {
                     a_position: to_vec3_b(&mesh.vertices[face.0[i] as usize]),

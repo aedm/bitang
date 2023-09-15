@@ -1,5 +1,5 @@
 use crate::render::vulkan_window::VulkanContext;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::cell::{Cell, RefCell};
 use std::sync::Arc;
@@ -98,14 +98,14 @@ impl Image {
                 if let Some(image) = image.borrow().as_ref() {
                     ImageView::new_default(image.clone())?
                 } else {
-                    return Err(anyhow::anyhow!("Attachment image not initialized"));
+                    bail!("Attachment image not initialized");
                 }
             }
             ImageInner::Swapchain(image) => {
                 if let Some(image) = image.borrow().as_ref() {
                     image.clone()
                 } else {
-                    return Err(anyhow::anyhow!("Swapchain image not initialized"));
+                    bail!("Swapchain image not initialized");
                 }
             }
         };
