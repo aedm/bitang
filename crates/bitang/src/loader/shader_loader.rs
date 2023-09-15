@@ -8,7 +8,6 @@ use ahash::AHashMap;
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
 use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::str::FromStr;

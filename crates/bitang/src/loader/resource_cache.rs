@@ -4,8 +4,6 @@ use crate::loader::Cache;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
 use std::cell::RefCell;
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::rc::Rc;
 use tracing::info;
 
@@ -32,7 +30,7 @@ impl<T> ResourceCache<T> {
         let FileCacheEntry { hash, content } = cache.get(path, true)?;
 
         self.resource_cache
-            .get_or_try_insert_with_key(*hash, |key| {
+            .get_or_try_insert_with_key(*hash, |_key| {
                 let now = std::time::Instant::now();
                 let resource = (self.loader_func)(context, content, &path.file_name)?;
                 info!("Loading {} took {:?}", &path.to_string(), now.elapsed());
