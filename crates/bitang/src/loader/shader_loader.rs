@@ -1,7 +1,8 @@
 use crate::control::controls::GlobalType;
 use crate::file::ResourcePath;
+use crate::loader::cache::Cache;
+use crate::loader::compute_hash;
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
-use crate::loader::{compute_hash, Cache};
 use crate::render::shader::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
@@ -52,7 +53,6 @@ pub struct ShaderCompilationLocalUniform {
 
 pub struct ShaderCache {
     file_hash_cache: Rc<RefCell<FileCache>>,
-    // shader_cache: AHashMap<ShaderCacheKey, ShaderCacheValue>,
     shader_cache: Cache<ShaderCacheKey, ShaderCacheValue>,
 }
 

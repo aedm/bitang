@@ -1,6 +1,6 @@
 use crate::file::ResourcePath;
+use crate::loader::cache::Cache;
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
-use crate::loader::Cache;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
 use std::cell::RefCell;

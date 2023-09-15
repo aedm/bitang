@@ -1,5 +1,6 @@
 use crate::file::ResourcePath;
-use crate::loader::{compute_hash, Cache};
+use crate::loader::cache::Cache;
+use crate::loader::compute_hash;
 use ahash::AHashSet;
 use anyhow::{bail, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
