@@ -128,21 +128,20 @@ impl Image {
         }
     }
 
-    // TODO: use this in Pass to create the attachment description
     pub fn make_attachment_description(
         &self,
         layout: ImageLayout,
         load_op: LoadOp,
-    ) -> Result<AttachmentDescription> {
-        Ok(AttachmentDescription {
+    ) -> AttachmentDescription {
+        AttachmentDescription {
             format: Some(self.vulkan_format),
-            samples: SampleCount::Sample1, // TODO
+            samples: SampleCount::Sample1,
             load_op,
             store_op: StoreOp::Store,
             initial_layout: layout,
             final_layout: layout,
             ..Default::default()
-        })
+        }
     }
 
     /// Enforce the size rule.
@@ -178,7 +177,7 @@ impl Image {
 
         // Create a new image with the correct size.
         let image = AttachmentImage::with_usage(
-            context.context.memory_allocator(),
+            context.vulkano_context.memory_allocator(),
             size,
             self.vulkan_format,
             ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC,

@@ -3,12 +3,12 @@ use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
 use vulkano::command_buffer::RenderPassBeginInfo;
+use vulkano::image::ImageLayout;
 use vulkano::image::ImageViewAbstract;
-use vulkano::image::{ImageLayout, SampleCount};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
-    RenderPassCreateInfo, StoreOp, SubpassDescription,
+    RenderPassCreateInfo, SubpassDescription,
 };
 
 pub enum ImageSelector {
@@ -100,8 +100,10 @@ impl Pass {
             subpasses,
             ..Default::default()
         };
-        let render_pass =
-            vulkano::render_pass::RenderPass::new(context.context.device().clone(), create_info)?;
+        let render_pass = vulkano::render_pass::RenderPass::new(
+            context.vulkano_context.device().clone(),
+            create_info,
+        )?;
         Ok(render_pass)
     }
 
@@ -118,16 +120,9 @@ impl Pass {
         };
 
         let attachment_description = match selector {
-            ImageSelector::Image(image) => AttachmentDescription {
-                format: Some(image.vulkan_format),
-                samples: SampleCount::Sample1, // TODO
-                load_op,
-                store_op: StoreOp::Store,
-                initial_layout: layout,
-                final_layout: layout,
-                ..Default::default()
-            },
+            ImageSelector::Image(image) => image.make_attachment_description(layout, load_op),
         };
+
         attachments.push(attachment_description);
         reference
     }

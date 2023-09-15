@@ -32,8 +32,7 @@ pub const FRAMEDUMP_HEIGHT: u32 = 2160;
 pub const FRAMEDUMP_FPS: u32 = 60;
 
 pub struct VulkanContext {
-    // TODO: expand and remove
-    pub context: VulkanoContext,
+    pub vulkano_context: VulkanoContext,
     pub command_buffer_allocator: StandardCommandBufferAllocator,
     pub descriptor_set_allocator: StandardDescriptorSetAllocator,
     pub swapchain_format: Format,
@@ -111,7 +110,7 @@ impl VulkanWindow {
             StandardDescriptorSetAllocator::new(vulkano_context.device().clone());
 
         let context = VulkanContext {
-            context: vulkano_context,
+            vulkano_context: vulkano_context,
             command_buffer_allocator,
             descriptor_set_allocator,
             swapchain_format: renderer.swapchain_format(),

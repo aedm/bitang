@@ -41,7 +41,7 @@ impl BufferGenerator {
         generator_type: &BufferGeneratorType,
     ) -> Self {
         let buffer_pool = SubbufferAllocator::new(
-            context.context.memory_allocator().clone(),
+            context.vulkano_context.memory_allocator().clone(),
             SubbufferAllocatorCreateInfo {
                 buffer_usage: BufferUsage::STORAGE_BUFFER,
                 ..Default::default()

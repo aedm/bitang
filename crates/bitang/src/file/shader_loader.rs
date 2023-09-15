@@ -3,8 +3,8 @@ use crate::file::file_hash_cache::{hash_content, ContentHash, FileCache, FileCac
 use crate::file::ResourcePath;
 use crate::render::shader::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
-use anyhow::{anyhow, Context, Error, Result};
-use spirv_reflect::types::ReflectDescriptorType;
+use anyhow::{anyhow, bail, ensure, Context, Error, Result};
+use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::mem::size_of;
@@ -133,8 +133,9 @@ impl ShaderCache {
             .find(|ep| ep.name == "main")
             .with_context(|| format!("Failed to find entry point 'main' in '{path}'"))?;
 
-        let module =
-            unsafe { ShaderModule::from_bytes(context.context.device().clone(), spirv_binary) }?;
+        let module = unsafe {
+            ShaderModule::from_bytes(context.vulkano_context.device().clone(), spirv_binary)
+        }?;
 
         let descriptor_set_index = match kind {
             shaderc::ShaderKind::Vertex => 0,
@@ -201,13 +202,26 @@ impl ShaderCache {
                     let local_uniform_bindings = members
                         .iter()
                         .filter(|var| !var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
-                        .map(|var| ShaderCompilationLocalUniform {
-                            name: var.name.clone(),
-                            // TODO: assert that type is FLOAT
-                            f32_offset: var.offset as usize / size_of::<f32>(),
-                            f32_count: var.size as usize / size_of::<f32>(),
+                        .map(|var| {
+                            let Some(type_desc) = &var.type_description else {
+                                bail!(
+                                    "Failed to get type description for uniform variable {}",
+                                    var.name
+                                );
+                            };
+                            ensure!(
+                                (type_desc.type_flags & !ReflectTypeFlags::VECTOR)
+                                    == ReflectTypeFlags::FLOAT,
+                                "Uniform variable {} is not a float or vector",
+                                var.name
+                            );
+                            Ok(ShaderCompilationLocalUniform {
+                                name: var.name.clone(),
+                                f32_offset: var.offset as usize / size_of::<f32>(),
+                                f32_count: var.size as usize / size_of::<f32>(),
+                            })
                         })
-                        .collect();
+                        .collect::<Result<Vec<_>>>()?;
                     let global_uniform_bindings = members
                         .iter()
                         .filter(|var| var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
@@ -215,7 +229,7 @@ impl ShaderCache {
                             GlobalType::from_str(&var.name[(GLOBAL_UNIFORM_PREFIX.len())..]).map(
                                 |global_type| GlobalUniformMapping {
                                     global_type,
-                                    offset: var.offset as usize,
+                                    f32_offset: var.offset as usize / size_of::<f32>(),
                                 },
                             )
                         })

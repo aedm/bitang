@@ -114,7 +114,7 @@ impl MaterialPass {
             .depth_stencil_state(depth_stencil_state)
             // Unwrap is safe: every pass has one subpass
             .render_pass(Subpass::from(vulkan_render_pass, 0).unwrap())
-            .build(context.context.device().clone())?;
+            .build(context.vulkano_context.device().clone())?;
 
         Ok(MaterialPass {
             id,

@@ -14,7 +14,7 @@ pub struct Mesh {
 impl Mesh {
     pub fn try_new(context: &VulkanContext, vertices: Vec<Vertex3>) -> Result<Mesh> {
         let vertex_buffer = Buffer::from_iter(
-            context.context.memory_allocator(),
+            context.vulkano_context.memory_allocator(),
             BufferCreateInfo {
                 usage: BufferUsage::VERTEX_BUFFER,
                 ..Default::default()
