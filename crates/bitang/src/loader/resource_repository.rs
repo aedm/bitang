@@ -1,8 +1,9 @@
 use crate::control::controls::ControlRepository;
-use crate::file::{chart_file, project_file, ResourcePath};
+use crate::file::{chart_file, project_file};
 use crate::loader::file_cache::FileCache;
 use crate::loader::resource_cache::ResourceCache;
 use crate::loader::shader_loader::ShaderCache;
+use crate::loader::ResourcePath;
 use crate::render::chart::Chart;
 use crate::render::image::Image;
 use crate::render::mesh::Mesh;

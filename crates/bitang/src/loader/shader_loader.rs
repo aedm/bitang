@@ -1,8 +1,7 @@
 use crate::control::controls::GlobalType;
-use crate::file::ResourcePath;
 use crate::loader::cache::Cache;
-use crate::loader::compute_hash;
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
+use crate::loader::{compute_hash, ResourcePath};
 use crate::render::shader::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
