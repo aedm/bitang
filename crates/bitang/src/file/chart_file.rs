@@ -1,7 +1,7 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::resource_repository::ResourceRepository;
 use crate::file::ResourcePath;
+use crate::loader::resource_repository::ResourceRepository;
 use crate::render::buffer_generator::BufferGeneratorType;
 use crate::render::image::ImageSizeRule;
 use crate::render::vulkan_window::VulkanContext;

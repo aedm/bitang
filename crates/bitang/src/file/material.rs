@@ -1,9 +1,9 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::default_true;
-use crate::file::resource_repository::ResourceRepository;
-use crate::file::shader_loader::ShaderCompilationResult;
 use crate::file::ResourcePath;
+use crate::loader::resource_repository::ResourceRepository;
+use crate::loader::shader_loader::ShaderCompilationResult;
 use crate::render;
 use crate::render::image::Image;
 use crate::render::material::BlendMode;

@@ -1,12 +1,8 @@
 use std::fmt;
 
-mod binary_file_cache;
-mod chart_file;
-pub mod file_hash_cache;
+pub mod chart_file;
 mod material;
-mod project_file;
-pub mod resource_repository;
-mod shader_loader;
+pub mod project_file;
 
 /// The root folder for all content.
 pub const ROOT_FOLDER: &str = "app";
@@ -18,7 +14,7 @@ pub struct ResourcePath {
 }
 
 impl ResourcePath {
-    fn new(directory: &str, file_name: &str) -> Self {
+    pub fn new(directory: &str, file_name: &str) -> Self {
         Self {
             directory: directory.to_owned(),
             file_name: file_name.to_owned(),

@@ -1,8 +1,10 @@
 use crate::control::controls::GlobalType;
-use crate::file::file_hash_cache::{hash_content, ContentHash, FileCache, FileCacheEntry};
 use crate::file::ResourcePath;
+use crate::loader::compute_hash;
+use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::render::shader::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
+use ahash::AHashMap;
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
 use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
 use std::cell::RefCell;
@@ -52,7 +54,7 @@ pub struct ShaderCompilationLocalUniform {
 
 pub struct ShaderCache {
     file_hash_cache: Rc<RefCell<FileCache>>,
-    shader_cache: HashMap<ShaderCacheKey, ShaderCacheValue>,
+    shader_cache: AHashMap<ShaderCacheKey, ShaderCacheValue>,
 }
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
@@ -61,7 +63,7 @@ impl ShaderCache {
     pub fn new(file_hash_cache: &Rc<RefCell<FileCache>>) -> Self {
         Self {
             file_hash_cache: file_hash_cache.clone(),
-            shader_cache: HashMap::new(),
+            shader_cache: AHashMap::new(),
         }
     }
 
@@ -76,8 +78,8 @@ impl ShaderCache {
         let vs_source = format!("{header}\n{}", self.load_source(vs_path)?);
         let fs_source = format!("{header}\n{}", self.load_source(fs_path)?);
 
-        let vs_hash = hash_content(vs_source.as_bytes());
-        let fs_hash = hash_content(fs_source.as_bytes());
+        let vs_hash = compute_hash(vs_source.as_bytes());
+        let fs_hash = compute_hash(fs_source.as_bytes());
         let key = ShaderCacheKey {
             vertex_shader_hash: vs_hash,
             fragment_shader_hash: fs_hash,
@@ -283,11 +285,8 @@ impl ShaderCache {
         let mut file_cache = self.file_hash_cache.borrow_mut();
         let FileCacheEntry {
             hash: _,
-            content: vs_source,
+            content: source,
         } = file_cache.get(path, true)?;
-        Ok(
-            std::str::from_utf8(&vs_source.context("Failed to read vertex shader source")?)?
-                .to_string(),
-        )
+        Ok(std::str::from_utf8(source)?.to_string())
     }
 }

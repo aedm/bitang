@@ -1,8 +1,8 @@
 use crate::control::spline::Spline;
 use crate::control::ControlIdPartType::Chart;
 use crate::control::{ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
-use crate::file::resource_repository::CHARTS_FOLDER;
 use crate::file::ROOT_FOLDER;
+use crate::loader::resource_repository::CHARTS_FOLDER;
 use crate::render::project::Project;
 use anyhow::Context;
 use anyhow::Result;
