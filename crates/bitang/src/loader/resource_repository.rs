@@ -56,11 +56,16 @@ impl ResourceRepository {
     pub fn try_new() -> Result<Self> {
         let file_hash_cache = Arc::new(FileCache::new());
         let control_repository = ControlRepository::load_control_files()?;
+        let resource_loader_thread_pool = Arc::new(
+            threadpool::Builder::new()
+                .thread_name("ResourceLoader".to_string())
+                .build(),
+        );
 
         Ok(Self {
             texture_cache: ResourceCache::new(&file_hash_cache, load_texture),
             mesh_cache: ResourceCache::new(&file_hash_cache, load_mesh_collection),
-            shader_cache: ShaderCache::new(&file_hash_cache),
+            shader_cache: ShaderCache::new(&file_hash_cache, &resource_loader_thread_pool),
             chart_file_cache: ResourceCache::new(&file_hash_cache, load_chart_file),
             project_file_cache: ResourceCache::new(&file_hash_cache, load_project_file),
             file_hash_cache,
@@ -72,7 +77,7 @@ impl ResourceRepository {
     }
 
     #[instrument(skip_all, name = "load")]
-    pub fn get_or_load_project(&mut self, context: &VulkanContext) -> Option<Arc<Project>> {
+    pub fn get_or_load_project(&mut self, context: &Arc<VulkanContext>) -> Option<Arc<Project>> {
         let has_file_changes = self.file_hash_cache.handle_file_changes();
         if has_file_changes
             || self.is_first_load
@@ -112,7 +117,7 @@ impl ResourceRepository {
     #[instrument(skip(self, context))]
     pub fn get_texture(
         &mut self,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         path: &ResourcePath,
     ) -> Result<&Arc<Image>> {
         self.texture_cache.get_or_load(context, path)
@@ -121,7 +126,7 @@ impl ResourceRepository {
     #[instrument(skip(self, context))]
     pub fn get_mesh(
         &mut self,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         path: &ResourcePath,
         selector: &str,
     ) -> Result<&Arc<Mesh>> {
@@ -132,13 +137,13 @@ impl ResourceRepository {
     }
 
     #[instrument(skip(self, context))]
-    pub fn load_chart(&mut self, id: &str, context: &VulkanContext) -> Result<Chart> {
+    pub fn load_chart(&mut self, id: &str, context: &Arc<VulkanContext>) -> Result<Chart> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
         let chart = self.chart_file_cache.get_or_load(context, &path)?.clone();
         chart.load(id, context, self, &path)
     }
 
-    pub fn load_project(&mut self, context: &VulkanContext) -> Result<Project> {
+    pub fn load_project(&mut self, context: &Arc<VulkanContext>) -> Result<Project> {
         let path = ResourcePath::new("", PROJECT_FILE_NAME);
         let project = self.project_file_cache.get_or_load(context, &path)?.clone();
         project.load(context, self)
@@ -158,7 +163,7 @@ fn to_vec2(v: &russimp::Vector3D) -> [f32; 2] {
 
 #[instrument(skip_all)]
 fn load_mesh_collection(
-    context: &VulkanContext,
+    context: &Arc<VulkanContext>,
     content: &[u8],
     _resource_name: &str,
 ) -> Result<MeshCollection> {
@@ -225,7 +230,7 @@ fn load_mesh_collection(
 
 #[instrument(skip_all)]
 fn load_texture(
-    context: &VulkanContext,
+    context: &Arc<VulkanContext>,
     content: &[u8],
     resource_name: &str,
 ) -> Result<Arc<Image>> {
@@ -265,7 +270,7 @@ fn load_texture(
 
 #[instrument(skip_all)]
 pub fn load_chart_file(
-    _context: &VulkanContext,
+    _context: &Arc<VulkanContext>,
     content: &[u8],
     _resource_name: &str,
 ) -> Result<Arc<chart_file::Chart>> {
@@ -277,7 +282,7 @@ pub fn load_chart_file(
 
 #[instrument(skip_all)]
 pub fn load_project_file(
-    _context: &VulkanContext,
+    _context: &Arc<VulkanContext>,
     content: &[u8],
     _resource_name: &str,
 ) -> Result<Arc<project_file::Project>> {

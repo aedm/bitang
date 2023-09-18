@@ -8,7 +8,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 use tracing::info;
 
-type LoaderFunc<T> = fn(context: &VulkanContext, blob: &[u8], resource_name: &str) -> Result<T>;
+type LoaderFunc<T> =
+    fn(context: &Arc<VulkanContext>, blob: &[u8], resource_name: &str) -> Result<T>;
 
 /// Cache mechanism for file-based resources like images and meshes.
 pub struct ResourceCache<T> {
@@ -26,7 +27,7 @@ impl<T> ResourceCache<T> {
         }
     }
 
-    pub fn get_or_load(&mut self, context: &VulkanContext, path: &ResourcePath) -> Result<&T> {
+    pub fn get_or_load(&mut self, context: &Arc<VulkanContext>, path: &ResourcePath) -> Result<&T> {
         let cache_entry = self.file_hash_cache.get(path, true)?;
         let FileCacheEntry { hash, content } = cache_entry.as_ref();
 

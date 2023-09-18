@@ -27,7 +27,7 @@ impl Chart {
     pub fn load(
         &self,
         id: &str,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         resource_repository: &mut ResourceRepository,
         path: &ResourcePath,
     ) -> Result<render::chart::Chart> {
@@ -123,7 +123,7 @@ impl Draw {
     #[allow(clippy::too_many_arguments)]
     pub fn load(
         &self,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         resource_repository: &mut ResourceRepository,
         control_set_builder: &mut ControlSetBuilder,
         images_by_id: &HashMap<String, Arc<render::image::Image>>,
@@ -202,7 +202,7 @@ pub struct Pass {
 impl Pass {
     pub fn load(
         &self,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         render_targets_by_id: &HashMap<String, Arc<render::image::Image>>,
     ) -> Result<render::pass::Pass> {
         let depth_buffer = self
@@ -236,7 +236,7 @@ pub struct BufferGenerator {
 impl BufferGenerator {
     pub fn load(
         &self,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         parent_id: &ControlId,
         control_set_builder: &mut ControlSetBuilder,
     ) -> render::buffer_generator::BufferGenerator {
@@ -269,7 +269,7 @@ impl Object {
         &self,
         parent_id: &ControlId,
         chart_id: &ControlId,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         resource_repository: &mut ResourceRepository,
         control_set_builder: &mut ControlSetBuilder,
         images_by_id: &HashMap<String, Arc<render::image::Image>>,

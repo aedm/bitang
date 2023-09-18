@@ -62,7 +62,7 @@ pub struct Shader {
 
 impl Shader {
     pub fn new(
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         shader_module: Arc<ShaderModule>,
         kind: ShaderKind,
         global_uniform_bindings: Vec<GlobalUniformMapping>,

@@ -6,6 +6,7 @@ use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;
 use egui_winit_vulkano::{Gui, GuiConfig};
 use std::rc::Rc;
+use std::sync::Arc;
 use tracing::error;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
@@ -18,7 +19,7 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<Ui> {
+    pub fn new(context: &Arc<VulkanContext>, event_loop: &EventLoop<()>) -> Result<Ui> {
         let render_pass = vulkano::single_pass_renderpass!(
             context.vulkano_context.device().clone(),
             attachments: {

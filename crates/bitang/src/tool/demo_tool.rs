@@ -94,7 +94,7 @@ impl UiState {
 }
 
 impl DemoTool {
-    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
+    pub fn new(context: &Arc<VulkanContext>, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let music_player = MusicPlayer::new();
 
         let mut resource_repository = ResourceRepository::try_new()?;
@@ -243,7 +243,7 @@ impl DemoTool {
 
     fn render_frame_to_screen(
         &mut self,
-        vulkan_context: &VulkanContext,
+        vulkan_context: &Arc<VulkanContext>,
         renderer: &mut VulkanoWindowRenderer,
     ) -> PaintResult {
         let before_future = renderer.acquire().unwrap();
@@ -300,7 +300,7 @@ impl DemoTool {
 
         // Make render context
         let mut context = RenderContext {
-            vulkan_context,
+            vulkan_context: vulkan_context.clone(),
             screen_viewport,
             command_builder: &mut command_builder,
             globals: Default::default(),
@@ -342,7 +342,7 @@ impl DemoTool {
         paint_result
     }
 
-    fn render_frame_to_buffer(&mut self, vulkan_context: &VulkanContext) -> Arc<Project> {
+    fn render_frame_to_buffer(&mut self, vulkan_context: &Arc<VulkanContext>) -> Arc<Project> {
         let size = match vulkan_context.final_render_target.size_rule {
             ImageSizeRule::Fixed(w, h) => [w, h],
             _ => panic!("Screen render target must have a fixed size"),
@@ -354,7 +354,7 @@ impl DemoTool {
         };
         vulkan_context
             .final_render_target
-            .enforce_size_rule(&vulkan_context, screen_viewport.dimensions)
+            .enforce_size_rule(vulkan_context, screen_viewport.dimensions)
             .unwrap();
 
         // Make command buffer
@@ -370,7 +370,7 @@ impl DemoTool {
 
         // Render content
         let mut context = RenderContext {
-            vulkan_context,
+            vulkan_context: vulkan_context.clone(),
             screen_viewport,
             command_builder: &mut command_builder,
             globals: Default::default(),
@@ -398,7 +398,7 @@ impl DemoTool {
     fn issue_render_commands(&mut self, context: &mut RenderContext) -> Option<Arc<Project>> {
         let Some(project) = self
             .resource_repository
-            .get_or_load_project(context.vulkan_context) else {
+            .get_or_load_project(&context.vulkan_context) else {
             return None;
         };
 
@@ -426,7 +426,7 @@ impl DemoTool {
         Some(project)
     }
 
-    fn render_demo_to_file(&mut self, vulkan_context: &VulkanContext) {
+    fn render_demo_to_file(&mut self, vulkan_context: &Arc<VulkanContext>) {
         let timer = Instant::now();
         // PNG compression is slow, so let's use all the CPU cores
         rayon::in_place_scope(|scope| {
@@ -469,7 +469,7 @@ impl DemoTool {
 impl VulkanApp for DemoTool {
     fn paint(
         &mut self,
-        vulkan_context: &VulkanContext,
+        vulkan_context: &Arc<VulkanContext>,
         renderer: &mut VulkanoWindowRenderer,
     ) -> PaintResult {
         if FRAMEDUMP_MODE {

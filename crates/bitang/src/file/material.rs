@@ -1,8 +1,9 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::default_true;
+use crate::loader::concurrent_cache::Loading;
 use crate::loader::resource_repository::ResourceRepository;
-use crate::loader::shader_loader::ShaderCompilationResult;
+use crate::loader::shader_loader::{ShaderCacheValue, ShaderCompilationResult};
 use crate::loader::ResourcePath;
 use crate::render;
 use crate::render::image::Image;
@@ -11,6 +12,7 @@ use crate::render::shader::{
     DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, Shader, ShaderKind,
 };
 use crate::render::vulkan_window::VulkanContext;
+use ahash::AHashMap;
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -32,7 +34,7 @@ pub struct Material {
 impl Material {
     pub fn load(
         &self,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         resource_repository: &mut ResourceRepository,
         images_by_id: &HashMap<String, Arc<render::image::Image>>,
         path: &ResourcePath,
@@ -43,6 +45,15 @@ impl Material {
         chart_id: &ControlId,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
     ) -> Result<crate::render::material::Material> {
+        // Start loading shaders
+        let mut shader_futures = AHashMap::new();
+        for pass in passes {
+            if let Some(material_pass) = self.passes.get(&pass.id) {
+                let future = material_pass.get_shader_future(context, resource_repository, path)?;
+                shader_futures.insert(pass.id.clone(), future);
+            }
+        }
+
         let sampler_images = self
             .samplers
             .iter()
@@ -78,11 +89,12 @@ impl Material {
             .iter()
             .map(|pass| {
                 if let Some(material_pass) = self.passes.get(&pass.id) {
+                    let shader_future = shader_futures.get(&pass.id).with_context(|| {
+                        anyhow!("Shader future for pass '{}' not found", pass.id)
+                    })?;
                     let pass = material_pass.load(
                         &pass.id,
                         context,
-                        resource_repository,
-                        path,
                         control_set_builder,
                         control_map,
                         parent_id,
@@ -90,6 +102,7 @@ impl Material {
                         &sampler_images,
                         &buffer_generators_by_id,
                         pass.vulkan_render_pass.clone(),
+                        shader_future,
                     )?;
                     Ok(Some(pass))
                 } else {
@@ -122,7 +135,7 @@ struct MaterialPass {
 impl MaterialPass {
     fn make_shader(
         &self,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         kind: ShaderKind,
         shader_compilation_result: &ShaderCompilationResult,
         control_set_builder: &mut ControlSetBuilder,
@@ -198,12 +211,24 @@ impl MaterialPass {
         Ok(shader)
     }
 
+    fn get_shader_future(
+        &self,
+        context: &Arc<VulkanContext>,
+        resource_repository: &mut ResourceRepository,
+        path: &ResourcePath,
+    ) -> Result<Loading<ShaderCacheValue>> {
+        resource_repository.shader_cache.get_or_load(
+            &context,
+            &path.relative_path(&self.vertex_shader),
+            &path.relative_path(&self.fragment_shader),
+            &path.relative_path(COMMON_SHADER_FILE),
+        )
+    }
+
     fn load(
         &self,
         id: &str,
-        context: &VulkanContext,
-        resource_repository: &mut ResourceRepository,
-        path: &ResourcePath,
+        context: &Arc<VulkanContext>,
         control_set_builder: &mut ControlSetBuilder,
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
@@ -211,18 +236,14 @@ impl MaterialPass {
         sampler_images: &HashMap<String, (Arc<Image>, &Sampler)>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
+        shader_future: &Loading<ShaderCacheValue>,
     ) -> Result<render::material::MaterialPass> {
-        let shader_cache_value = resource_repository.shader_cache.get_or_load(
-            context,
-            &path.relative_path(&self.vertex_shader),
-            &path.relative_path(&self.fragment_shader),
-            &path.relative_path(COMMON_SHADER_FILE),
-        )?;
+        let compiled_shader = shader_future.get()?;
 
         let vertex_shader = self.make_shader(
             context,
             ShaderKind::Vertex,
-            &shader_cache_value.vertex_shader,
+            &compiled_shader.vertex_shader,
             control_set_builder,
             control_map,
             parent_id,
@@ -234,7 +255,7 @@ impl MaterialPass {
         let fragment_shader = self.make_shader(
             context,
             ShaderKind::Fragment,
-            &shader_cache_value.fragment_shader,
+            &compiled_shader.fragment_shader,
             control_set_builder,
             control_map,
             parent_id,

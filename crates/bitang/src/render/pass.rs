@@ -40,7 +40,7 @@ pub struct Pass {
 impl Pass {
     pub fn new(
         id: &str,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         color_buffers: Vec<ImageSelector>,
         depth_buffer: Option<ImageSelector>,
         clear_color: Option<[f32; 4]>,
@@ -61,7 +61,7 @@ impl Pass {
     }
 
     fn make_vulkan_render_pass(
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         color_buffers: &[ImageSelector],
         depth_buffer: &Option<ImageSelector>,
         clear_buffers: bool,

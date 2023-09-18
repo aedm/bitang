@@ -5,6 +5,7 @@ use anyhow::Result;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
 pub struct Project {
@@ -22,7 +23,7 @@ pub struct Cut {
 impl Project {
     pub fn load(
         &self,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         resource_repository: &mut ResourceRepository,
     ) -> Result<render::project::Project> {
         let chart_ids: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();

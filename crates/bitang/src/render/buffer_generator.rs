@@ -6,6 +6,7 @@ use glam::Vec3;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::{BufferUsage, Subbuffer};
 
@@ -35,7 +36,7 @@ pub struct BufferGenerator {
 impl BufferGenerator {
     pub fn new(
         size: u32,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         control_id: &ControlId,
         control_set_builder: &mut ControlSetBuilder,
         generator_type: &BufferGeneratorType,
