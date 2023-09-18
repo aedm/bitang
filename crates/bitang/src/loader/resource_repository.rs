@@ -16,6 +16,7 @@ use russimp::scene::{PostProcess, Scene};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, error, info, instrument, warn};
@@ -30,7 +31,7 @@ struct MeshCollection {
 }
 
 pub struct ResourceRepository {
-    file_hash_cache: Rc<RefCell<FileCache>>,
+    file_hash_cache: Arc<FileCache>,
     texture_cache: ResourceCache<Arc<Image>>,
     mesh_cache: ResourceCache<MeshCollection>,
     chart_file_cache: ResourceCache<Arc<chart_file::Chart>>,
@@ -53,7 +54,7 @@ const CHART_FILE_NAME: &str = "chart.ron";
 
 impl ResourceRepository {
     pub fn try_new() -> Result<Self> {
-        let file_hash_cache = Rc::new(RefCell::new(FileCache::new()?));
+        let file_hash_cache = Arc::new(FileCache::new());
         let control_repository = ControlRepository::load_control_files()?;
 
         Ok(Self {
@@ -72,20 +73,23 @@ impl ResourceRepository {
 
     #[instrument(skip_all, name = "load")]
     pub fn get_or_load_project(&mut self, context: &VulkanContext) -> Option<Arc<Project>> {
-        let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
+        let has_file_changes = self.file_hash_cache.handle_file_changes();
         if has_file_changes
             || self.is_first_load
             || (self.cached_root.is_none()
-                && self.file_hash_cache.borrow_mut().has_missing_files
+                && self
+                    .file_hash_cache
+                    .has_missing_files
+                    .load(Ordering::Relaxed)
                 && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
         {
             let now = Instant::now();
             self.control_repository
                 .borrow()
                 .reset_component_usage_counts();
-            self.file_hash_cache.borrow_mut().prepare_loading_cycle();
+            self.file_hash_cache.prepare_loading_cycle();
             let result = self.load_project(context);
-            self.file_hash_cache.borrow_mut().update_watchers();
+            self.file_hash_cache.update_watchers();
             match result {
                 Ok(project) => {
                     info!("Project length: {} seconds", project.length);

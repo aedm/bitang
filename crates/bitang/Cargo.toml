@@ -32,6 +32,8 @@ image = { version = "0.24.4", default-features = false, features = ["jpeg", "png
 ahash = "0.8.3"
 rayon = "1.7.0"
 russimp = { version = "2.0.5", features = ["prebuilt"] }
+threadpool = "1.8.1"
+dashmap = "5.5.3"
 
 rodio = { version = "0.17.1", default-features = false, features = ["mp3"] }
 build-time = "0.1.3"

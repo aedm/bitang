@@ -5,19 +5,20 @@ use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 use tracing::info;
 
 type LoaderFunc<T> = fn(context: &VulkanContext, blob: &[u8], resource_name: &str) -> Result<T>;
 
 /// Cache mechanism for file-based resources like images and meshes.
 pub struct ResourceCache<T> {
-    file_hash_cache: Rc<RefCell<FileCache>>,
+    file_hash_cache: Arc<FileCache>,
     resource_cache: Cache<ContentHash, T>,
     loader_func: LoaderFunc<T>,
 }
 
 impl<T> ResourceCache<T> {
-    pub fn new(file_hash_cache: &Rc<RefCell<FileCache>>, loader_func: LoaderFunc<T>) -> Self {
+    pub fn new(file_hash_cache: &Arc<FileCache>, loader_func: LoaderFunc<T>) -> Self {
         Self {
             file_hash_cache: file_hash_cache.clone(),
             resource_cache: Cache::new(),
@@ -26,8 +27,8 @@ impl<T> ResourceCache<T> {
     }
 
     pub fn get_or_load(&mut self, context: &VulkanContext, path: &ResourcePath) -> Result<&T> {
-        let mut cache = self.file_hash_cache.borrow_mut();
-        let FileCacheEntry { hash, content } = cache.get(path, true)?;
+        let cache_entry = self.file_hash_cache.get(path, true)?;
+        let FileCacheEntry { hash, content } = cache_entry.as_ref();
 
         self.resource_cache
             .get_or_try_insert_with_key(*hash, |_key| {

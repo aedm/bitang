@@ -3,6 +3,7 @@ use std::fmt;
 use std::hash::Hasher;
 
 mod cache;
+mod concurrent_cache;
 pub mod file_cache;
 pub mod resource_cache;
 pub mod resource_repository;

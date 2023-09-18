@@ -51,14 +51,14 @@ pub struct ShaderCompilationLocalUniform {
 }
 
 pub struct ShaderCache {
-    file_hash_cache: Rc<RefCell<FileCache>>,
+    file_hash_cache: Arc<FileCache>,
     shader_cache: Cache<ShaderCacheKey, ShaderCacheValue>,
 }
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
 
 impl ShaderCache {
-    pub fn new(file_hash_cache: &Rc<RefCell<FileCache>>) -> Self {
+    pub fn new(file_hash_cache: &Arc<FileCache>) -> Self {
         Self {
             file_hash_cache: file_hash_cache.clone(),
             shader_cache: Cache::new(),
@@ -278,11 +278,11 @@ impl ShaderCache {
     }
 
     fn load_source(&mut self, path: &ResourcePath) -> Result<String> {
-        let mut file_cache = self.file_hash_cache.borrow_mut();
+        let cache_entry = self.file_hash_cache.get(path, true)?;
         let FileCacheEntry {
             hash: _,
             content: source,
-        } = file_cache.get(path, true)?;
+        } = cache_entry.as_ref();
         Ok(std::str::from_utf8(source)?.to_string())
     }
 }
