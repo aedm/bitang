@@ -1,5 +1,6 @@
 use crate::control::controls::ControlRepository;
 use crate::file::{chart_file, project_file};
+use crate::loader::async_cache::LoadFuture;
 use crate::loader::file_cache::FileCache;
 use crate::loader::resource_cache::ResourceCache;
 use crate::loader::shader_loader::ShaderCache;
@@ -16,9 +17,9 @@ use russimp::scene::{PostProcess, Scene};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tracing::{debug, error, info, instrument, warn};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
@@ -32,21 +33,23 @@ struct MeshCollection {
 
 pub struct ResourceRepository {
     file_hash_cache: Arc<FileCache>,
-    texture_cache: ResourceCache<Arc<Image>>,
+    texture_cache: ResourceCache<Image>,
     mesh_cache: ResourceCache<MeshCollection>,
-    chart_file_cache: ResourceCache<Arc<chart_file::Chart>>,
-    project_file_cache: ResourceCache<Arc<project_file::Project>>,
-
+    chart_file_cache: ResourceCache<chart_file::Chart>,
+    project_file_cache: ResourceCache<project_file::Project>,
     pub shader_cache: ShaderCache,
-    pub control_repository: Rc<RefCell<ControlRepository>>,
+    pub control_repository: Arc<ControlRepository>,
+}
 
+pub struct ResourceLoader {
+    pub resource_repository: Arc<ResourceRepository>,
     cached_root: Option<Arc<Project>>,
     last_load_time: Instant,
     is_first_load: bool,
 }
 
 // If loading fails, we want to retry periodically.
-const LOAD_RETRY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
 
 const PROJECT_FILE_NAME: &str = "project.ron";
 pub const CHARTS_FOLDER: &str = "charts";
@@ -116,37 +119,44 @@ impl ResourceRepository {
 
     #[instrument(skip(self, context))]
     pub fn get_texture(
-        &mut self,
+        &self,
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
-    ) -> Result<&Arc<Image>> {
-        self.texture_cache.get_or_load(context, path)
+    ) -> LoadFuture<Image> {
+        self.texture_cache.get_future(context, path)
     }
 
     #[instrument(skip(self, context))]
     pub fn get_mesh(
-        &mut self,
+        &self,
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
         selector: &str,
-    ) -> Result<&Arc<Mesh>> {
-        let co = self.mesh_cache.get_or_load(context, path)?;
-        co.meshes_by_name
-            .get(selector)
-            .with_context(|| anyhow!("Could not find mesh '{selector}' in '{}'", path.to_string()))
+    ) -> LoadFuture<Mesh> {
+        let loader = async move {
+            let co = self.mesh_cache.load(context, path).await?;
+            co.meshes_by_name.get(selector).cloned().with_context(|| {
+                anyhow!("Could not find mesh '{selector}' in '{}'", path.to_string())
+            })
+        };
+        LoadFuture::new(loader)
     }
 
     #[instrument(skip(self, context))]
-    pub fn load_chart(&mut self, id: &str, context: &Arc<VulkanContext>) -> Result<Chart> {
+    pub async fn load_chart(
+        self: &Arc<Self>,
+        id: &str,
+        context: &Arc<VulkanContext>,
+    ) -> Result<Arc<Chart>> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
-        let chart = self.chart_file_cache.get_or_load(context, &path)?.clone();
-        chart.load(id, context, self, &path)
+        let chart = self.chart_file_cache.load(context, &path).await?;
+        chart.load(id, context, self, &path).await
     }
 
-    pub fn load_project(&mut self, context: &Arc<VulkanContext>) -> Result<Project> {
+    pub async fn load_project(self: &Arc<Self>, context: &Arc<VulkanContext>) -> Result<Project> {
         let path = ResourcePath::new("", PROJECT_FILE_NAME);
-        let project = self.project_file_cache.get_or_load(context, &path)?.clone();
-        project.load(context, self)
+        let project = self.project_file_cache.load(context, &path).await?;
+        project.load(context, self).await
     }
 }
 

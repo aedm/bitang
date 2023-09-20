@@ -1,6 +1,6 @@
 use crate::control::controls::GlobalType;
+use crate::loader::async_cache::AsyncCache;
 use crate::loader::cache::Cache;
-use crate::loader::concurrent_cache::{ConcurrentCache, Loading};
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::loader::{compute_hash, ResourcePath};
 use crate::render::shader::GlobalUniformMapping;
@@ -56,7 +56,7 @@ pub struct ShaderCompilationLocalUniform {
 
 pub struct ShaderCache {
     file_hash_cache: Arc<FileCache>,
-    shader_cache: ConcurrentCache<ShaderCacheKey, ShaderCacheValue>,
+    shader_cache: AsyncCache<ShaderCacheKey, ShaderCacheValue>,
 }
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
@@ -65,20 +65,20 @@ impl ShaderCache {
     pub fn new(file_hash_cache: &Arc<FileCache>, thread_pool: &Arc<ThreadPool>) -> Self {
         Self {
             file_hash_cache: file_hash_cache.clone(),
-            shader_cache: ConcurrentCache::new(thread_pool.clone()),
+            shader_cache: AsyncCache::new(),
         }
     }
 
-    pub fn get_or_load(
-        &mut self,
+    pub async fn get(
+        &self,
         context: &Arc<VulkanContext>,
         vs_path: &ResourcePath,
         fs_path: &ResourcePath,
         common_path: &ResourcePath,
-    ) -> Result<Loading<ShaderCacheValue>> {
-        let header = self.load_source(common_path)?;
-        let vs_source = format!("{header}\n{}", self.load_source(vs_path)?);
-        let fs_source = format!("{header}\n{}", self.load_source(fs_path)?);
+    ) -> Result<Arc<ShaderCacheValue>> {
+        let header = self.load_source(common_path).await?;
+        let vs_source = format!("{header}\n{}", self.load_source(vs_path).await?);
+        let fs_source = format!("{header}\n{}", self.load_source(fs_path).await?);
 
         let vs_hash = compute_hash(vs_source.as_bytes());
         let fs_hash = compute_hash(fs_source.as_bytes());
@@ -86,31 +86,31 @@ impl ShaderCache {
             vertex_shader_hash: vs_hash,
             fragment_shader_hash: fs_hash,
         };
-        let loading = {
-            let context = context.clone();
-            let vs_path = vs_path.clone();
-            let fs_path = fs_path.clone();
-            self.shader_cache.load(key, move || {
-                let vs_result = Self::compile_shader_module(
-                    &context,
-                    &vs_source,
-                    &vs_path,
-                    shaderc::ShaderKind::Vertex,
-                )?;
-                let fs_result = Self::compile_shader_module(
-                    &context,
-                    &fs_source,
-                    &fs_path,
-                    shaderc::ShaderKind::Fragment,
-                )?;
-                let value = ShaderCacheValue {
-                    vertex_shader: vs_result,
-                    fragment_shader: fs_result,
-                };
-                Ok(Arc::new(value))
-            })
+
+        let context = context.clone();
+        let vs_path = vs_path.clone();
+        let fs_path = fs_path.clone();
+
+        let shader_load_func = async move {
+            let vs_result = Self::compile_shader_module(
+                &context,
+                &vs_source,
+                &vs_path,
+                shaderc::ShaderKind::Vertex,
+            )?;
+            let fs_result = Self::compile_shader_module(
+                &context,
+                &fs_source,
+                &fs_path,
+                shaderc::ShaderKind::Fragment,
+            )?;
+            let value = ShaderCacheValue {
+                vertex_shader: vs_result,
+                fragment_shader: fs_result,
+            };
+            Ok(Arc::new(value))
         };
-        Ok(loading)
+        self.shader_cache.get(key, shader_load_func).await
     }
 
     #[instrument(skip(context, source))]
@@ -287,8 +287,8 @@ impl ShaderCache {
         Ok(result)
     }
 
-    fn load_source(&mut self, path: &ResourcePath) -> Result<String> {
-        let cache_entry = self.file_hash_cache.get(path, true)?;
+    async fn load_source(&self, path: &ResourcePath) -> Result<String> {
+        let cache_entry = self.file_hash_cache.get(path, true).await?;
         let FileCacheEntry {
             hash: _,
             content: source,

@@ -199,7 +199,7 @@ pub struct DescriptorResource {
 
 #[derive(Clone)]
 pub struct LocalUniformMapping {
-    pub control: Rc<Control>,
+    pub control: Arc<Control>,
     pub f32_count: usize,
     pub f32_offset: usize,
 }

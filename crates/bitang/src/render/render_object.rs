@@ -11,9 +11,9 @@ pub struct RenderObject {
     pub id: String,
     pub mesh: Arc<Mesh>,
     pub material: Material,
-    pub position: Rc<Control>,
-    pub rotation: Rc<Control>,
-    pub instances: Rc<Control>,
+    pub position: Arc<Control>,
+    pub rotation: Arc<Control>,
+    pub instances: Arc<Control>,
 }
 
 impl RenderObject {

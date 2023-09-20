@@ -1,7 +1,7 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::default_true;
-use crate::loader::concurrent_cache::Loading;
+use crate::loader::async_cache::{LoadFuture, ResourceFuture};
 use crate::loader::resource_repository::ResourceRepository;
 use crate::loader::shader_loader::{ShaderCacheValue, ShaderCompilationResult};
 use crate::loader::ResourcePath;
@@ -14,6 +14,8 @@ use crate::render::shader::{
 use crate::render::vulkan_window::VulkanContext;
 use ahash::AHashMap;
 use anyhow::{anyhow, Context, Result};
+use futures::future::join_all;
+use futures::stream::FuturesOrdered;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -32,42 +34,45 @@ pub struct Material {
 }
 
 impl Material {
-    pub fn load(
+    pub async fn load(
         &self,
         context: &Arc<VulkanContext>,
-        resource_repository: &mut ResourceRepository,
-        images_by_id: &HashMap<String, Arc<render::image::Image>>,
+        resource_repository: &Arc<ResourceRepository>,
+        images_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
         path: &ResourcePath,
         passes: &[render::pass::Pass],
-        control_set_builder: &mut ControlSetBuilder,
+        control_set_builder: &Arc<ControlSetBuilder>,
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
         chart_id: &ControlId,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
     ) -> Result<crate::render::material::Material> {
-        // Start loading shaders
-        let mut shader_futures = AHashMap::new();
-        for pass in passes {
-            if let Some(material_pass) = self.passes.get(&pass.id) {
-                let future = material_pass.get_shader_future(context, resource_repository, path)?;
-                shader_futures.insert(pass.id.clone(), future);
-            }
-        }
+        // // Start loading shaders
+        // let mut shader_futures = AHashMap::new();
+        // for pass in passes {
+        //     if let Some(material_pass) = self.passes.get(&pass.id) {
+        //         let future = material_pass.get_shader_future(context, resource_repository, path)?;
+        //         shader_futures.insert(pass.id.clone(), future);
+        //     }
+        // }
 
-        let sampler_images = self
+        let sampler_futures = self
             .samplers
             .iter()
             .map(|(name, sampler)| {
-                let image: Arc<Image> = match &sampler.bind {
-                    SamplerSource::File(texture_path) => resource_repository
-                        .get_texture(context, &path.relative_path(texture_path))?
-                        .clone(),
-                    SamplerSource::Image(id) => images_by_id
-                        .get(id)
-                        .with_context(|| anyhow!("Render target '{id}' not found"))?
-                        .clone(),
+                let resource_repository = resource_repository.clone();
+                let image: LoadFuture<Image> = {
+                    match &sampler.bind {
+                        SamplerSource::File(texture_path) => resource_repository
+                            .get_texture(context, &path.relative_path(texture_path)),
+                        SamplerSource::Image(id) => images_by_id
+                            .get(id)
+                            .with_context(|| anyhow!("Render target '{id}' not found"))?
+                            .clone(),
+                    }
                 };
-                Ok((name.clone(), (image, sampler)))
+                let value = (image, sampler);
+                Ok((name.clone(), value))
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
@@ -85,30 +90,31 @@ impl Material {
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
-        let material_passes = passes
-            .iter()
-            .map(|pass| {
-                if let Some(material_pass) = self.passes.get(&pass.id) {
-                    let shader_future = shader_futures.get(&pass.id).with_context(|| {
-                        anyhow!("Shader future for pass '{}' not found", pass.id)
-                    })?;
-                    let pass = material_pass.load(
+        let material_pass_futures = passes.iter().map(|pass| async {
+            if let Some(material_pass) = self.passes.get(&pass.id) {
+                let pass = material_pass
+                    .load(
                         &pass.id,
                         context,
+                        resource_repository,
+                        path,
                         control_set_builder,
                         control_map,
                         parent_id,
                         chart_id,
-                        &sampler_images,
+                        &sampler_futures,
                         &buffer_generators_by_id,
                         pass.vulkan_render_pass.clone(),
-                        shader_future,
-                    )?;
-                    Ok(Some(pass))
-                } else {
-                    Ok(None)
-                }
-            })
+                    )
+                    .await?;
+                Ok(Some(pass))
+            } else {
+                Ok(None)
+            }
+        });
+        let material_passes = join_all(material_pass_futures)
+            .await
+            .into_iter()
             .collect::<Result<Vec<_>>>()?;
 
         Ok(render::material::Material {
@@ -133,16 +139,16 @@ struct MaterialPass {
 }
 
 impl MaterialPass {
-    fn make_shader(
+    async fn make_shader(
         &self,
         context: &Arc<VulkanContext>,
         kind: ShaderKind,
         shader_compilation_result: &ShaderCompilationResult,
-        control_set_builder: &mut ControlSetBuilder,
+        control_set_builder: &Arc<ControlSetBuilder>,
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
         chart_id: &ControlId,
-        sampler_images: &HashMap<String, (Arc<Image>, &Sampler)>,
+        sampler_images: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
     ) -> Result<Shader> {
         let mut descriptor_resources = vec![];
@@ -152,12 +158,14 @@ impl MaterialPass {
             let source = sampler_images
                 .get(&sampler.name)
                 .with_context(|| anyhow!("Sampler definition for '{}' not found", sampler.name))?;
+            // Wait for image to load
+            let image = source.0.get().await?;
             let sampler_descriptor = DescriptorResource {
                 id: sampler.name.clone(),
                 binding: sampler.binding,
                 source: DescriptorSource::Image(ImageDescriptor {
                     address_mode: source.1.address_mode.load(),
-                    image: source.0.clone(),
+                    image,
                 }),
             };
             descriptor_resources.push(sampler_descriptor);
@@ -211,58 +219,57 @@ impl MaterialPass {
         Ok(shader)
     }
 
-    fn get_shader_future(
-        &self,
-        context: &Arc<VulkanContext>,
-        resource_repository: &mut ResourceRepository,
-        path: &ResourcePath,
-    ) -> Result<Loading<ShaderCacheValue>> {
-        resource_repository.shader_cache.get_or_load(
-            &context,
-            &path.relative_path(&self.vertex_shader),
-            &path.relative_path(&self.fragment_shader),
-            &path.relative_path(COMMON_SHADER_FILE),
-        )
-    }
-
-    fn load(
+    async fn load(
         &self,
         id: &str,
         context: &Arc<VulkanContext>,
-        control_set_builder: &mut ControlSetBuilder,
+        resource_repository: &Arc<ResourceRepository>,
+        path: &ResourcePath,
+        control_set_builder: &Arc<ControlSetBuilder>,
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
         chart_id: &ControlId,
-        sampler_images: &HashMap<String, (Arc<Image>, &Sampler)>,
+        sampler_images: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
-        shader_future: &Loading<ShaderCacheValue>,
     ) -> Result<render::material::MaterialPass> {
-        let compiled_shader = shader_future.get()?;
+        let shader_cache_value = resource_repository
+            .shader_cache
+            .get(
+                context,
+                &path.relative_path(&self.vertex_shader),
+                &path.relative_path(&self.fragment_shader),
+                &path.relative_path(COMMON_SHADER_FILE),
+            )
+            .await?;
 
-        let vertex_shader = self.make_shader(
-            context,
-            ShaderKind::Vertex,
-            &compiled_shader.vertex_shader,
-            control_set_builder,
-            control_map,
-            parent_id,
-            chart_id,
-            sampler_images,
-            buffer_generators_by_id,
-        )?;
+        let vertex_shader = self
+            .make_shader(
+                context,
+                ShaderKind::Vertex,
+                &shader_cache_value.vertex_shader,
+                control_set_builder,
+                control_map,
+                parent_id,
+                chart_id,
+                sampler_images,
+                buffer_generators_by_id,
+            )
+            .await?;
 
-        let fragment_shader = self.make_shader(
-            context,
-            ShaderKind::Fragment,
-            &compiled_shader.fragment_shader,
-            control_set_builder,
-            control_map,
-            parent_id,
-            chart_id,
-            sampler_images,
-            buffer_generators_by_id,
-        )?;
+        let fragment_shader = self
+            .make_shader(
+                context,
+                ShaderKind::Fragment,
+                &shader_cache_value.fragment_shader,
+                control_set_builder,
+                control_map,
+                parent_id,
+                chart_id,
+                sampler_images,
+                buffer_generators_by_id,
+            )
+            .await?;
 
         render::material::MaterialPass::new(
             context,

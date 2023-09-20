@@ -22,13 +22,13 @@ impl Chart {
     pub fn new(
         id: &str,
         control_id: &ControlId,
-        mut control_set_builder: ControlSetBuilder,
+        control_set_builder: &ControlSetBuilder,
         images: Vec<Arc<Image>>,
         buffer_generators: Vec<Arc<BufferGenerator>>,
         passes: Vec<Draw>,
     ) -> Self {
         let _camera = Camera::new(
-            &mut control_set_builder,
+            control_set_builder,
             &control_id.add(ControlIdPartType::Camera, "camera"),
         );
         let controls = Rc::new(control_set_builder.into_control_set());

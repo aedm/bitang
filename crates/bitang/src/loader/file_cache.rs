@@ -1,5 +1,5 @@
+use crate::loader::async_cache::AsyncCache;
 use crate::loader::cache::Cache;
-use crate::loader::concurrent_cache::ConcurrentCache;
 use crate::loader::{compute_hash, ResourcePath};
 use ahash::AHashSet;
 use anyhow::{bail, Result};
@@ -8,9 +8,10 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::{env, mem};
 use threadpool::ThreadPool;
+use tokio::sync::Mutex;
 use tracing::{debug, error, trace};
 
 pub type ContentHash = u64;
@@ -26,9 +27,6 @@ pub struct WatchedPaths {
 
     // Stores every path during the current document loading cycle
     new_watched_paths: AHashSet<PathBuf>,
-
-    // Listening for file changes
-    file_watcher: RecommendedWatcher,
 }
 
 impl WatchedPaths {
@@ -51,37 +49,27 @@ impl WatchedPaths {
 }
 
 pub struct FileCache {
-    current_dir: PathBuf,
-    cache: ConcurrentCache<PathBuf, FileCacheEntry>,
-
-    file_change_events: Receiver<Result<notify::Event, notify::Error>>,
+    cache: AsyncCache<PathBuf, FileCacheEntry>,
 
     paths: Mutex<WatchedPaths>,
 
     // Did we encounter a missing file during loading?
     pub has_missing_files: AtomicBool,
 
-    // Loader thread pool
-    thread_pool: Arc<ThreadPool>,
+    current_dir: PathBuf,
 }
 
 impl FileCache {
     pub fn new() -> Self {
-        let (sender, receiver) = std::sync::mpsc::channel();
-        let watcher = notify::recommended_watcher(sender).unwrap();
-        let thread_pool = Arc::new(threadpool::Builder::new().build());
         Self {
             // cache_map: HashMap::new(),
-            cache: ConcurrentCache::new(thread_pool.clone()),
-            file_change_events: receiver,
+            cache: AsyncCache::new(),
             paths: Mutex::new(WatchedPaths {
                 watched_paths: AHashSet::new(),
                 new_watched_paths: AHashSet::new(),
-                file_watcher: watcher,
             }),
-            current_dir: env::current_dir().unwrap(),
             has_missing_files: AtomicBool::new(false),
-            thread_pool,
+            current_dir: env::current_dir().unwrap(),
         }
     }
 
@@ -102,8 +90,8 @@ impl FileCache {
         has_changes
     }
 
-    pub fn update_watchers(&self) {
-        let mut paths = self.paths.lock().unwrap();
+    pub async fn update_watchers(&self) {
+        let mut paths = self.paths.lock().await;
         paths.update_watchers();
     }
 
@@ -111,26 +99,32 @@ impl FileCache {
         self.has_missing_files.store(false, Ordering::Relaxed);
     }
 
-    pub fn get(&self, path: &ResourcePath, _store_content: bool) -> Result<Arc<FileCacheEntry>> {
+    pub async fn get(
+        &self,
+        path: &ResourcePath,
+        _store_content: bool,
+    ) -> Result<Arc<FileCacheEntry>> {
         let path_string = path.to_string();
         let absolute_path = self.to_absolute_path(&path_string);
 
         {
-            let mut paths = self.paths.lock().unwrap();
+            let mut paths = self.paths.lock().await;
             paths.new_watched_paths.insert(absolute_path.clone());
         }
 
-        let loader = self.cache.load(absolute_path.clone(), move || {
-            debug!("Reading file: '{path_string}'");
-            let Ok(content) = std::fs::read(absolute_path) else {
+        let value = self
+            .cache
+            .get(absolute_path.clone(), async move {
+                debug!("Reading file: '{path_string}'");
+                let Ok(content) = tokio::fs::read(absolute_path).await else {
                 bail!("Failed to read file: '{path_string}'");
             };
-            Ok(Arc::new(FileCacheEntry {
-                hash: compute_hash(&content),
-                content,
-            }))
-        });
-        let value = loader.get();
+                Ok(Arc::new(FileCacheEntry {
+                    hash: compute_hash(&content),
+                    content,
+                }))
+            })
+            .await;
         if value.is_err() {
             self.has_missing_files.store(true, Ordering::Relaxed);
         }
@@ -143,6 +137,26 @@ impl FileCache {
             path.to_path_buf()
         } else {
             self.current_dir.join(path)
+        }
+    }
+}
+
+pub struct FileLoader {
+    cache: Arc<FileCache>,
+    file_change_events: Receiver<Result<notify::Event, notify::Error>>,
+
+    // Listening for file changes
+    file_watcher: RecommendedWatcher,
+}
+
+impl FileLoader {
+    pub fn new() -> Self {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let watcher = notify::recommended_watcher(sender).unwrap();
+        Self {
+            cache: Arc::new(FileCache::new()),
+            file_change_events: receiver,
+            file_watcher: watcher,
         }
     }
 }

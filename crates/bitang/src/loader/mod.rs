@@ -2,6 +2,7 @@ use ahash::AHasher;
 use std::fmt;
 use std::hash::Hasher;
 
+pub mod async_cache;
 mod cache;
 pub mod concurrent_cache;
 pub mod file_cache;

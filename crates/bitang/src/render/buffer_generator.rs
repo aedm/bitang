@@ -38,7 +38,7 @@ impl BufferGenerator {
         size: u32,
         context: &Arc<VulkanContext>,
         control_id: &ControlId,
-        control_set_builder: &mut ControlSetBuilder,
+        control_set_builder: &ControlSetBuilder,
         generator_type: &BufferGeneratorType,
     ) -> Self {
         let buffer_pool = SubbufferAllocator::new(
@@ -93,13 +93,13 @@ impl BufferGenerator {
 }
 
 struct LorenzGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params: Arc<Control>,
 }
 
 impl LorenzGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_id = control_id.add(ControlIdPartType::Value, "lorenz-params");
@@ -137,13 +137,13 @@ impl BufferGeneratorImpl for LorenzGenerator {
 }
 
 struct RoesslerGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params: Arc<Control>,
 }
 
 impl RoesslerGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_id = control_id.add(ControlIdPartType::Value, "roessler-params");
@@ -180,13 +180,13 @@ impl BufferGeneratorImpl for RoesslerGenerator {
 }
 
 struct ThomasGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params: Arc<Control>,
 }
 
 impl ThomasGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_id = control_id.add(ControlIdPartType::Value, "thomas-params");
@@ -227,14 +227,14 @@ impl BufferGeneratorImpl for ThomasGenerator {
 }
 
 struct AizawaGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params_1: Rc<Control>,
-    params_2: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params_1: Arc<Control>,
+    params_2: Arc<Control>,
 }
 
 impl AizawaGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_1_id = control_id.add(ControlIdPartType::Value, "aizawa-params-1");
@@ -279,14 +279,14 @@ impl BufferGeneratorImpl for AizawaGenerator {
 }
 
 struct DadrasGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params_1: Rc<Control>,
-    params_2: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params_1: Arc<Control>,
+    params_2: Arc<Control>,
 }
 
 impl DadrasGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_1_id = control_id.add(ControlIdPartType::Value, "dadras-params-1");
@@ -330,13 +330,13 @@ impl BufferGeneratorImpl for DadrasGenerator {
 }
 
 struct RabinovichFabrikantGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params: Arc<Control>,
 }
 
 impl RabinovichFabrikantGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_id = control_id.add(ControlIdPartType::Value, "rabinovich-fabrikant-params");

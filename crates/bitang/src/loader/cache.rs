@@ -16,7 +16,7 @@ impl<Key: Hash + Eq + Clone, Value> Cache<Key, Value> {
     }
 
     pub fn get_or_try_insert_with_key<F: FnOnce(&Key) -> Result<Value>>(
-        &mut self,
+        &self,
         key: Key,
         loader: F,
     ) -> Result<&Value> {
