@@ -121,7 +121,7 @@ impl ResourceRepository {
 impl ResourceLoader {
     pub fn try_new() -> Result<Self> {
         let file_loader = FileLoader::new();
-        let async_runtime = tokio::runtime::Builder::new_current_thread()
+        let async_runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?;
         Ok(Self {

@@ -64,20 +64,14 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
 
     async fn resolve(inner: &mut MutexGuard<'_, LoadFutureInner<T>>) {
         if let Some(join_handle) = inner.handle.take() {
-            println!("Resolving...");
             match join_handle.await {
-                Ok(result) => {
-                    println!("Resolved.");
-                    inner.value = Some(Arc::new(result))
-                }
+                Ok(result) => inner.value = Some(Arc::new(result)),
                 Err(err) => {
                     inner.value = Some(Arc::new(Err(anyhow::anyhow!(
                         "Unhandled load error: {err:?}"
                     ))))
                 }
             }
-        } else {
-            println!("Already resolved.");
         }
     }
 

@@ -4,6 +4,7 @@ use crate::loader::ResourcePath;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
 use std::sync::Arc;
+use tokio::task::spawn_blocking;
 use tracing::info;
 
 type LoaderFunc<T> =
@@ -33,11 +34,15 @@ impl<T: Send + Sync> ResourceCache<T> {
         let context = context.clone();
         let path = path.clone();
         let async_loader = async move {
-            let FileCacheEntry { hash, content } = cache_entry.as_ref();
-            let now = std::time::Instant::now();
-            let resource = loader_func(&context, content, &path.file_name)?;
-            info!("Loading {} took {:?}", &path.to_string(), now.elapsed());
-            Ok(resource)
+            let sync_loader = move || {
+                let FileCacheEntry { hash, content } = cache_entry.as_ref();
+                let now = std::time::Instant::now();
+                let resource = loader_func(&context, content, &path.file_name)?;
+                info!("Loading {} took {:?}", &path.to_string(), now.elapsed());
+                Ok(resource)
+            };
+            // Run the loader function in a blocking thread pool.
+            spawn_blocking(sync_loader).await?
         };
         self.resource_cache.get(hash, async_loader).await
     }
