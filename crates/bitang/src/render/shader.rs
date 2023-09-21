@@ -5,7 +5,6 @@ use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use std::mem::size_of;
-use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;

@@ -5,7 +5,6 @@ use crate::render::render_object::RenderObject;
 use crate::render::vulkan_window::RenderContext;
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
-use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::command_buffer::SubpassContents;
 

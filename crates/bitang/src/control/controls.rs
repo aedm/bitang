@@ -12,8 +12,6 @@ use glam::{Mat4, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
-use std::collections::{HashMap, HashSet};
-use std::io::Read;
 use std::sync::{Arc, Mutex};
 use std::{array, mem, slice};
 use strum::EnumString;
@@ -192,7 +190,7 @@ impl ControlRepository {
 
     #[instrument]
     pub fn load_control_files() -> Result<Self> {
-        let mut by_id = DashMap::new();
+        let by_id = DashMap::new();
         let path = format!("{ROOT_FOLDER}/{CHARTS_FOLDER}/");
         for entry in std::fs::read_dir(path)? {
             let entry = entry?;

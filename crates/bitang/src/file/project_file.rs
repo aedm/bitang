@@ -5,7 +5,6 @@ use anyhow::Result;
 use futures::future::join_all;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]

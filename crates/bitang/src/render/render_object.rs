@@ -4,7 +4,6 @@ use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::RenderContext;
 use anyhow::Result;
 use glam::{EulerRot, Mat4};
-use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct RenderObject {

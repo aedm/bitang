@@ -5,7 +5,6 @@ use crate::tool::demo_tool::UiState;
 use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;
 use egui_winit_vulkano::{Gui, GuiConfig};
-use std::rc::Rc;
 use std::sync::Arc;
 use tracing::error;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};

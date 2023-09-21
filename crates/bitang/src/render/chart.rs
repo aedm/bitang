@@ -6,7 +6,6 @@ use crate::render::draw::Draw;
 use crate::render::image::Image;
 use crate::render::vulkan_window::RenderContext;
 use anyhow::Result;
-use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct Chart {

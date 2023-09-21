@@ -1,6 +1,6 @@
 use crate::control::controls::{ControlRepository, ControlSet};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::loader::resource_repository::{ResourceLoader, ResourceRepository};
+use crate::loader::resource_repository::ResourceLoader;
 use crate::render::chart::Chart;
 use crate::render::image::ImageSizeRule;
 use crate::render::project::Project;
@@ -11,9 +11,7 @@ use crate::render::vulkan_window::{
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{bail, Result};
-use std::cell::RefCell;
 use std::cmp::max;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::sleep;

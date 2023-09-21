@@ -1,7 +1,6 @@
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
-use std::cell::{Cell, RefCell};
 use std::sync::{Arc, RwLock};
 use vulkano::image::view::ImageView;
 use vulkano::image::{

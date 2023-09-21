@@ -4,9 +4,7 @@ use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
 use glam::Vec3;
 use serde::Deserialize;
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::{BufferUsage, Subbuffer};
 

@@ -34,7 +34,7 @@ impl Chart {
         path: &ResourcePath,
     ) -> Result<Arc<render::chart::Chart>> {
         let control_id = ControlId::default().add(ControlIdPartType::Chart, id);
-        let mut control_set_builder = ControlSetBuilder::new(
+        let control_set_builder = ControlSetBuilder::new(
             control_id.clone(),
             resource_repository.control_repository.clone(),
         );

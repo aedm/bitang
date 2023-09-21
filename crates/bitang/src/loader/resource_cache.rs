@@ -35,7 +35,7 @@ impl<T: Send + Sync> ResourceCache<T> {
         let path = path.clone();
         let async_loader = async move {
             let sync_loader = move || {
-                let FileCacheEntry { hash, content } = cache_entry.as_ref();
+                let FileCacheEntry { hash: _, content } = cache_entry.as_ref();
                 let now = std::time::Instant::now();
                 let resource = loader_func(&context, content, &path.file_name)?;
                 info!("Loading {} took {:?}", &path.to_string(), now.elapsed());
