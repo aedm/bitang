@@ -5,16 +5,11 @@ use crate::loader::{compute_hash, ResourcePath};
 use crate::render::shader::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
-use image::load;
 use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
-use std::cell::RefCell;
 use std::mem::size_of;
-use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
-use threadpool::ThreadPool;
 use tracing::{debug, info, instrument, trace};
-use vulkano::library::Loader;
 use vulkano::shader::ShaderModule;
 
 #[derive(Hash, PartialEq, Eq, Clone)]

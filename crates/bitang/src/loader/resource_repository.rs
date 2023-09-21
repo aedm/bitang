@@ -121,9 +121,7 @@ impl ResourceRepository {
 impl ResourceLoader {
     pub fn try_new() -> Result<Self> {
         let file_loader = FileLoader::new();
-        let async_runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()?;
+        let async_runtime = tokio::runtime::Runtime::new()?;
         Ok(Self {
             resource_repository: Arc::new(ResourceRepository::try_new(
                 file_loader.file_cache.clone(),
@@ -136,34 +134,27 @@ impl ResourceLoader {
         })
     }
 
-    fn run_project_loader(&self, context: &Arc<VulkanContext>) -> Result<Project> {
-        let resource_repository = self.resource_repository.clone();
-        let context = context.clone();
-        self.async_runtime
-            .block_on(async move { resource_repository.load_project(&context).await })
+    fn run_project_loader(&mut self, context: &Arc<VulkanContext>) -> Result<Project> {
+        self.async_runtime.block_on(async {
+            let result = self.resource_repository.load_project(context).await;
+            self.file_loader.update_watchers().await;
+            result
+        })
     }
 
     #[instrument(skip_all, name = "load")]
     pub fn get_or_load_project(&mut self, context: &Arc<VulkanContext>) -> Option<Arc<Project>> {
         let has_file_changes = self.file_loader.handle_file_changes();
-        if has_file_changes
-            || self.is_first_load
-            || (self.cached_root.is_none()
-                && self
-                    .file_loader
-                    .file_cache
-                    .has_missing_files
-                    .load(Ordering::Relaxed)
-                && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
-        {
+        let needs_retry = self.cached_root.is_none()
+            && self.file_loader.has_missing_files()
+            && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL;
+        if has_file_changes || self.is_first_load || needs_retry {
             let now = Instant::now();
             self.resource_repository
                 .control_repository
                 .reset_component_usage_counts();
             self.file_loader.file_cache.prepare_loading_cycle();
-            let result = self.run_project_loader(context);
-            self.file_loader.update_watchers();
-            match result {
+            match self.run_project_loader(context) {
                 Ok(project) => {
                     info!("Project length: {} seconds", project.length);
                     info!("Loading took {:?}", now.elapsed());

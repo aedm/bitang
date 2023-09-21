@@ -88,7 +88,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
     // Displays the root case of a load error.
     async fn display_load_error(&self) {
         let mut inner = self.inner.lock().await;
-        Self::resolve(&mut inner);
+        Self::resolve(&mut inner).await;
         match inner.value.as_ref().unwrap().as_ref() {
             Ok(_) => {}
             Err(err) => {
@@ -145,9 +145,9 @@ impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value
         self.items.remove(key);
     }
 
-    pub fn display_load_errors(&self) {
+    pub async fn display_load_errors(&self) {
         for future in self.accessed_in_current_load_cycle.iter() {
-            future.display_load_error();
+            future.display_load_error().await;
         }
     }
 }

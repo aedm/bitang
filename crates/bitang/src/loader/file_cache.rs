@@ -2,14 +2,12 @@ use crate::loader::async_cache::AsyncCache;
 use crate::loader::{compute_hash, ResourcePath};
 use ahash::AHashSet;
 use anyhow::{bail, Result};
-use dashmap::DashSet;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::{env, mem};
-use threadpool::ThreadPool;
 use tokio::sync::Mutex;
 use tracing::{debug, error, trace};
 
@@ -148,6 +146,7 @@ impl FileLoader {
             .await;
     }
 
+    /// Returns true if there were any file changes
     pub fn handle_file_changes(&self) -> bool {
         let mut has_changes = false;
         for res in self.file_change_events.try_iter() {
@@ -163,5 +162,9 @@ impl FileLoader {
             }
         }
         has_changes
+    }
+
+    pub fn has_missing_files(&self) -> bool {
+        self.file_cache.has_missing_files.load(Ordering::Relaxed)
     }
 }
