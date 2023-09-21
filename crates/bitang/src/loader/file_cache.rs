@@ -15,64 +15,35 @@ pub type ContentHash = u64;
 
 #[derive(Clone)]
 pub struct FileCacheEntry {
+    /// Hash of the file content
     pub hash: ContentHash,
+
+    /// The file content
     pub content: Vec<u8>,
 }
 
-pub struct WatchedPaths {
-    watched_paths: AHashSet<PathBuf>,
-
-    // Stores every path during the current document loading cycle
-    new_watched_paths: AHashSet<PathBuf>,
-}
-
-impl WatchedPaths {
-    pub fn update_watchers(&mut self, file_watcher: &mut RecommendedWatcher) {
-        // Best effort: if a file is missing, creating a watcher will fail
-        for path in self.watched_paths.difference(&self.new_watched_paths) {
-            if let Some(path) = path.to_str() {
-                trace!("Unwatching: {:?}", path.replace('\\', "/"));
-            }
-            let _ = file_watcher.unwatch(path);
-        }
-        for path in self.new_watched_paths.difference(&self.watched_paths) {
-            if let Some(path) = path.to_str() {
-                trace!("Watching: {:?}", path.replace('\\', "/"));
-            }
-            let _ = file_watcher.watch(path, RecursiveMode::NonRecursive);
-        }
-        self.watched_paths = mem::take(&mut self.new_watched_paths);
-    }
-}
-
 pub struct FileCache {
+    /// Stores the content of files
     cache: AsyncCache<PathBuf, FileCacheEntry>,
 
-    paths: Mutex<WatchedPaths>,
+    /// Stores every path during the current document loading cycle
+    paths_accessed_in_loading_cycle: Mutex<AHashSet<PathBuf>>,
 
-    // Did we encounter a missing file during loading?
+    /// True if we encountered a missing file during loading
     pub has_missing_files: AtomicBool,
 
+    /// The app's working directory
     current_dir: PathBuf,
 }
 
 impl FileCache {
     pub fn new() -> Self {
         Self {
-            // cache_map: HashMap::new(),
             cache: AsyncCache::new(),
-            paths: Mutex::new(WatchedPaths {
-                watched_paths: AHashSet::new(),
-                new_watched_paths: AHashSet::new(),
-            }),
+            paths_accessed_in_loading_cycle: Mutex::new(AHashSet::new()),
             has_missing_files: AtomicBool::new(false),
             current_dir: env::current_dir().unwrap(),
         }
-    }
-
-    async fn update_watchers(&self, file_watcher: &mut RecommendedWatcher) {
-        let mut paths = self.paths.lock().await;
-        paths.update_watchers(file_watcher);
     }
 
     pub fn prepare_loading_cycle(&self) {
@@ -88,8 +59,8 @@ impl FileCache {
         let absolute_path = self.to_absolute_path(&path_string);
 
         {
-            let mut paths = self.paths.lock().await;
-            paths.new_watched_paths.insert(absolute_path.clone());
+            let mut load_cycle_paths = self.paths_accessed_in_loading_cycle.lock().await;
+            load_cycle_paths.insert(absolute_path.clone());
         }
 
         let value = self
@@ -97,8 +68,8 @@ impl FileCache {
             .get(absolute_path.clone(), async move {
                 debug!("Reading file: '{path_string}'");
                 let Ok(content) = tokio::fs::read(absolute_path).await else {
-                bail!("Failed to read file: '{path_string}'");
-            };
+                    bail!("Failed to read file: '{path_string}'");
+                };
                 Ok(Arc::new(FileCacheEntry {
                     hash: compute_hash(&content),
                     content,
@@ -121,15 +92,18 @@ impl FileCache {
     }
 }
 
-pub struct FileLoader {
+/// Takes care of file change events
+pub struct FileManager {
     pub file_cache: Arc<FileCache>,
     file_change_events: Receiver<Result<notify::Event, notify::Error>>,
+
+    watched_paths: AHashSet<PathBuf>,
 
     // Listening for file changes
     file_watcher: RecommendedWatcher,
 }
 
-impl FileLoader {
+impl FileManager {
     pub fn new() -> Self {
         let (sender, receiver) = std::sync::mpsc::channel();
         let watcher = notify::recommended_watcher(sender).unwrap();
@@ -137,13 +111,8 @@ impl FileLoader {
             file_cache: Arc::new(FileCache::new()),
             file_change_events: receiver,
             file_watcher: watcher,
+            watched_paths: AHashSet::new(),
         }
-    }
-
-    pub async fn update_watchers(&mut self) {
-        self.file_cache
-            .update_watchers(&mut self.file_watcher)
-            .await;
     }
 
     /// Returns true if there were any file changes
@@ -162,6 +131,25 @@ impl FileLoader {
             }
         }
         has_changes
+    }
+
+    pub async fn update_watchers(&mut self) {
+        let mut paths = self.file_cache.paths_accessed_in_loading_cycle.lock().await;
+
+        // Best effort: if a file is missing, creating a watcher will fail
+        for path in self.watched_paths.difference(&paths) {
+            if let Some(path) = path.to_str() {
+                trace!("Unwatching: {:?}", path.replace('\\', "/"));
+            }
+            let _ = self.file_watcher.unwatch(path);
+        }
+        for path in paths.difference(&self.watched_paths) {
+            if let Some(path) = path.to_str() {
+                trace!("Watching: {:?}", path.replace('\\', "/"));
+            }
+            let _ = self.file_watcher.watch(path, RecursiveMode::NonRecursive);
+        }
+        self.watched_paths = mem::take(&mut paths);
     }
 
     pub fn has_missing_files(&self) -> bool {

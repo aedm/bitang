@@ -36,7 +36,7 @@ impl Material {
         &self,
         context: &Arc<VulkanContext>,
         resource_repository: &Arc<ResourceRepository>,
-        images_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
+        image_futures_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
         path: &ResourcePath,
         passes: &[render::pass::Pass],
         control_set_builder: &ControlSetBuilder,
@@ -45,15 +45,6 @@ impl Material {
         chart_id: &ControlId,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
     ) -> Result<crate::render::material::Material> {
-        // // Start loading shaders
-        // let mut shader_futures = AHashMap::new();
-        // for pass in passes {
-        //     if let Some(material_pass) = self.passes.get(&pass.id) {
-        //         let future = material_pass.get_shader_future(context, resource_repository, path)?;
-        //         shader_futures.insert(pass.id.clone(), future);
-        //     }
-        // }
-
         let sampler_futures = self
             .samplers
             .iter()
@@ -63,7 +54,7 @@ impl Material {
                     match &sampler.bind {
                         SamplerSource::File(texture_path) => resource_repository
                             .get_texture(context, &path.relative_path(texture_path)),
-                        SamplerSource::Image(id) => images_by_id
+                        SamplerSource::Image(id) => image_futures_by_id
                             .get(id)
                             .with_context(|| anyhow!("Render target '{id}' not found"))?
                             .clone(),
@@ -110,6 +101,7 @@ impl Material {
                 Ok(None)
             }
         });
+
         let material_passes = join_all(material_pass_futures)
             .await
             .into_iter()
@@ -146,28 +138,28 @@ impl MaterialPass {
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
         chart_id: &ControlId,
-        sampler_images: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
+        sampler_futures: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
     ) -> Result<Shader> {
-        let mut descriptor_resources = vec![];
+        let local_uniform_bindings = shader_compilation_result
+            .local_uniform_bindings
+            .iter()
+            .map(|binding| {
+                let control_id = if let Some(mapped_name) = control_map.get(&binding.name) {
+                    chart_id.add(ControlIdPartType::Value, mapped_name)
+                } else {
+                    parent_id.add(ControlIdPartType::Value, &binding.name)
+                };
+                let control = control_set_builder.get_vec(&control_id, binding.f32_count);
+                LocalUniformMapping {
+                    control,
+                    f32_count: binding.f32_count,
+                    f32_offset: binding.f32_offset,
+                }
+            })
+            .collect::<Vec<_>>();
 
-        // Collect sampler bindings
-        for sampler in &shader_compilation_result.samplers {
-            let source = sampler_images
-                .get(&sampler.name)
-                .with_context(|| anyhow!("Sampler definition for '{}' not found", sampler.name))?;
-            // Wait for image to load
-            let image = source.0.get().await?;
-            let sampler_descriptor = DescriptorResource {
-                id: sampler.name.clone(),
-                binding: sampler.binding,
-                source: DescriptorSource::Image(ImageDescriptor {
-                    address_mode: source.1.address_mode.load(),
-                    image,
-                }),
-            };
-            descriptor_resources.push(sampler_descriptor);
-        }
+        let mut descriptor_resources = vec![];
 
         // Collect buffer generator bindings
         for buffer in &shader_compilation_result.buffers {
@@ -186,23 +178,23 @@ impl MaterialPass {
             descriptor_resources.push(buffer_descriptor);
         }
 
-        let local_uniform_bindings = shader_compilation_result
-            .local_uniform_bindings
-            .iter()
-            .map(|binding| {
-                let control_id = if let Some(mapped_name) = control_map.get(&binding.name) {
-                    chart_id.add(ControlIdPartType::Value, mapped_name)
-                } else {
-                    parent_id.add(ControlIdPartType::Value, &binding.name)
-                };
-                let control = control_set_builder.get_vec(&control_id, binding.f32_count);
-                LocalUniformMapping {
-                    control,
-                    f32_count: binding.f32_count,
-                    f32_offset: binding.f32_offset,
-                }
-            })
-            .collect::<Vec<_>>();
+        // Collect sampler bindings
+        for sampler in &shader_compilation_result.samplers {
+            let source = sampler_futures
+                .get(&sampler.name)
+                .with_context(|| anyhow!("Sampler definition for '{}' not found", sampler.name))?;
+            // Wait for the image to load
+            let image = source.0.get().await?;
+            let sampler_descriptor = DescriptorResource {
+                id: sampler.name.clone(),
+                binding: sampler.binding,
+                source: DescriptorSource::Image(ImageDescriptor {
+                    address_mode: source.1.address_mode.load(),
+                    image,
+                }),
+            };
+            descriptor_resources.push(sampler_descriptor);
+        }
 
         let shader = Shader::new(
             context,
@@ -227,7 +219,7 @@ impl MaterialPass {
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
         chart_id: &ControlId,
-        sampler_images: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
+        sampler_futures: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<render::material::MaterialPass> {
@@ -250,7 +242,7 @@ impl MaterialPass {
                 control_map,
                 parent_id,
                 chart_id,
-                sampler_images,
+                sampler_futures,
                 buffer_generators_by_id,
             )
             .await?;
@@ -264,7 +256,7 @@ impl MaterialPass {
                 control_map,
                 parent_id,
                 chart_id,
-                sampler_images,
+                sampler_futures,
                 buffer_generators_by_id,
             )
             .await?;

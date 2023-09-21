@@ -10,7 +10,7 @@ use tracing::info;
 type LoaderFunc<T> =
     fn(context: &Arc<VulkanContext>, blob: &[u8], resource_name: &str) -> Result<Arc<T>>;
 
-/// Cache mechanism for file-based resources like images and meshes.
+/// Async cache for CPU bound resources.
 pub struct ResourceCache<T: Send + Sync + 'static> {
     file_hash_cache: Arc<FileCache>,
     resource_cache: AsyncCache<ContentHash, T>,

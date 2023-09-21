@@ -8,14 +8,12 @@ use tokio::sync::{Mutex, MutexGuard};
 use tokio::task::JoinHandle;
 use tracing::error;
 
-pub trait ResourceFuture<T>: Future<Output = Result<Arc<T>>> + Sized + Send + 'static {}
-
 struct LoadFutureInner<T> {
     value: Option<Arc<Result<Arc<T>>>>,
     handle: Option<JoinHandle<Result<Arc<T>>>>,
 }
 
-/// A future that loads a value in a background thread.
+/// A shareable future that loads a resource
 pub struct LoadFuture<T> {
     inner: Arc<Mutex<LoadFutureInner<T>>>,
 }
@@ -43,7 +41,7 @@ impl<T> Hash for LoadFuture<T> {
 }
 
 impl<T: Send + Sync + 'static> LoadFuture<T> {
-    // fn new<F: FnOnce() -> Result<Arc<T>> + Send + 'static>(func: F) -> Self {
+    /// Executes the future and returns a LoadFuture that resolves to the result.
     pub fn new<F: Future<Output = Result<Arc<T>>> + Send + 'static>(func: F) -> Self {
         let join_handle = tokio::spawn(func);
         let inner = Arc::new(Mutex::new(LoadFutureInner {
@@ -53,6 +51,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         Self { inner }
     }
 
+    /// Creates a LoadFuture that is already resolved to the given value.
     pub fn new_from_value(value: Arc<T>) -> Self {
         let inner = Arc::new(Mutex::new(LoadFutureInner {
             value: Some(Arc::new(Ok(value))),
@@ -61,6 +60,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         Self { inner }
     }
 
+    /// Waits for the future if it is not already resolved.
     async fn resolve(inner: &mut MutexGuard<'_, LoadFutureInner<T>>) {
         if let Some(join_handle) = inner.handle.take() {
             match join_handle.await {
@@ -74,7 +74,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         }
     }
 
-    // Returns the value if it is already loaded, otherwise blocks until it is loaded.
+    /// Resolves the future and returns its value.
     pub async fn get(&self) -> Result<Arc<T>> {
         let mut inner = self.inner.lock().await;
         Self::resolve(&mut inner).await;
@@ -84,7 +84,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         }
     }
 
-    // Displays the root case of a load error.
+    /// Displays the root case of a load error.
     async fn display_load_error(&self) {
         let mut inner = self.inner.lock().await;
         Self::resolve(&mut inner).await;
@@ -97,6 +97,8 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
     }
 }
 
+/// A cache that loads resources asynchronously.
+/// For every key, only the first load operation is executed and its result is shared between all requests with the same key.
 pub struct AsyncCache<Key: Hash + Eq + Clone, Value: Send + Sync> {
     items: DashMap<Key, LoadFuture<Value>>,
     accessed_in_current_load_cycle: DashSet<LoadFuture<Value>>,
@@ -110,6 +112,7 @@ impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value
         }
     }
 
+    /// Returns a shareable future for a particular cache key. Executes the loader if not cached.
     pub fn load<F: Future<Output = Result<Arc<Value>>> + Send + 'static>(
         &self,
         key: Key,
@@ -127,6 +130,7 @@ impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value
         future
     }
 
+    /// Returns the value for a particular cache key. Loads it if not cached.
     pub async fn get<F: Future<Output = Result<Arc<Value>>> + Send + 'static>(
         &self,
         key: Key,
@@ -136,28 +140,20 @@ impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value
         future.get().await
     }
 
+    /// Call this before starting a new loading cycle.
     pub fn reset_load_cycle(&mut self) {
         self.accessed_in_current_load_cycle.clear();
     }
 
+    /// Removes a key from the cache.
     pub fn remove(&self, key: &Key) {
         self.items.remove(key);
     }
 
+    /// Displays the root cause of all load errors that occurred during the current loading cycle.
     pub async fn display_load_errors(&self) {
         for future in self.accessed_in_current_load_cycle.iter() {
             future.display_load_error().await;
         }
     }
 }
-
-trait Flomp<T>: Future<Output = Result<Arc<T>>> + Sized {}
-
-// pub async fn load_all<T, I: IntoIterator<Item = dyn Future<Output = Result<Arc<T>>>> + 'static>(
-//     iter: I,
-// ) -> Result<Vec<Arc<T>>> {
-//     join_all(iter)
-//         .await
-//         .into_iter()
-//         .collect::<Result<Vec<Arc<T>>>>()
-// }

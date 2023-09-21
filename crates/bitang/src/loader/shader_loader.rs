@@ -9,6 +9,7 @@ use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio::task::spawn_blocking;
 use tracing::{debug, info, instrument, trace};
 use vulkano::shader::ShaderModule;
 
@@ -85,23 +86,50 @@ impl ShaderCache {
         let vs_path = vs_path.clone();
         let fs_path = fs_path.clone();
 
+        let key_clone = key.clone();
         let shader_load_func = async move {
-            let vs_result = Self::compile_shader_module(
-                &context,
-                &vs_source,
-                &vs_path,
-                shaderc::ShaderKind::Vertex,
-            )?;
-            let fs_result = Self::compile_shader_module(
-                &context,
-                &fs_source,
-                &fs_path,
-                shaderc::ShaderKind::Fragment,
-            )?;
-            let value = ShaderCacheValue {
-                vertex_shader: vs_result,
-                fragment_shader: fs_result,
+            // let vs_result = Self::compile_shader_module(
+            //     &context,
+            //     &vs_source,
+            //     &vs_path,
+            //     shaderc::ShaderKind::Vertex,
+            // )?;
+            // let fs_result = Self::compile_shader_module(
+            //     &context,
+            //     &fs_source,
+            //     &fs_path,
+            //     shaderc::ShaderKind::Fragment,
+            // )?;
+
+            let vs_handle = {
+                let context = context.clone();
+                spawn_blocking(move || {
+                    Self::compile_shader_module(
+                        &context,
+                        &vs_source,
+                        &vs_path,
+                        shaderc::ShaderKind::Vertex,
+                    )
+                })
             };
+
+            let fs_handle = {
+                let context = context.clone();
+                spawn_blocking(move || {
+                    Self::compile_shader_module(
+                        &context,
+                        &fs_source,
+                        &fs_path,
+                        shaderc::ShaderKind::Fragment,
+                    )
+                })
+            };
+
+            let value = ShaderCacheValue {
+                vertex_shader: vs_handle.await??,
+                fragment_shader: fs_handle.await??,
+            };
+
             Ok(Arc::new(value))
         };
         self.shader_cache.get(key, shader_load_func).await

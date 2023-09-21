@@ -1,6 +1,6 @@
 use crate::control::controls::{ControlRepository, ControlSet};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::loader::resource_repository::ResourceLoader;
+use crate::loader::project_loader::ProjectLoader;
 use crate::render::chart::Chart;
 use crate::render::image::ImageSizeRule;
 use crate::render::project::Project;
@@ -35,7 +35,7 @@ const SCREEN_RATIO: (u32, u32) = (16, 9);
 pub struct DemoTool {
     ui: Ui,
     start_time: Instant,
-    resource_loader: ResourceLoader,
+    resource_loader: ProjectLoader,
     has_render_failure: bool,
     ui_state: UiState,
     play_start_time: Instant,
@@ -95,7 +95,7 @@ impl DemoTool {
     pub fn new(context: &Arc<VulkanContext>, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let music_player = MusicPlayer::new();
 
-        let mut resource_loader = ResourceLoader::try_new()?;
+        let mut resource_loader = ProjectLoader::try_new()?;
         let project = resource_loader.get_or_load_project(context);
         let ui = Ui::new(context, event_loop)?;
         let has_render_failure = project.is_none();

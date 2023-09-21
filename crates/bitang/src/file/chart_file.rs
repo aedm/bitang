@@ -39,7 +39,7 @@ impl Chart {
             resource_repository.control_repository.clone(),
         );
 
-        let mut images_by_id = self
+        let mut image_futures_by_id = self
             .images
             .iter()
             .map(|image_desc| {
@@ -49,7 +49,7 @@ impl Chart {
             .collect::<Result<HashMap<_, _>>>()?;
 
         // Add swapchain image to the image map
-        images_by_id.insert(
+        image_futures_by_id.insert(
             SCREEN_RENDER_TARGET_ID.to_string(),
             LoadFuture::new_from_value(context.final_render_target.clone()),
         );
@@ -68,7 +68,7 @@ impl Chart {
                 context,
                 resource_repository,
                 &control_set_builder,
-                &images_by_id,
+                &image_futures_by_id,
                 &buffer_generators_by_id,
                 &control_id,
                 path,
@@ -81,7 +81,7 @@ impl Chart {
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
 
-        let image_futures = images_by_id
+        let image_futures = image_futures_by_id
             .into_values()
             .map(|image_future| async move { image_future.get().await });
         let images = join_all(image_futures)
@@ -136,7 +136,7 @@ impl Draw {
         context: &Arc<VulkanContext>,
         resource_repository: &Arc<ResourceRepository>,
         control_set_builder: &ControlSetBuilder,
-        images_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
+        image_futures_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         chart_id: &ControlId,
         path: &ResourcePath,
@@ -146,23 +146,22 @@ impl Draw {
         let pass_futures = self
             .passes
             .iter()
-            .map(|pass| pass.load(context, images_by_id));
+            .map(|pass| pass.load(context, image_futures_by_id));
 
-        // Pass render targets don't need to be loaded, no problem resolving it early
+        // Pass render targets rarely need an image to be loaded, no problem resolving it early
         let passes = join_all(pass_futures)
             .await
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
 
         let object_futures = self.objects.iter().map(|object| {
-            // let resource_repository = resource_repository.clone();
             object.load(
                 &control_prefix,
                 &chart_id,
                 context,
                 resource_repository,
                 control_set_builder,
-                images_by_id,
+                image_futures_by_id,
                 buffer_generators_by_id,
                 path,
                 &passes,
@@ -293,7 +292,7 @@ impl Object {
         context: &Arc<VulkanContext>,
         resource_repository: &Arc<ResourceRepository>,
         control_set_builder: &ControlSetBuilder,
-        images_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
+        image_futures_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         path: &ResourcePath,
         passes: &[render::pass::Pass],
@@ -308,7 +307,7 @@ impl Object {
         let material_future = self.material.load(
             context,
             resource_repository,
-            images_by_id,
+            image_futures_by_id,
             path,
             passes,
             control_set_builder,
