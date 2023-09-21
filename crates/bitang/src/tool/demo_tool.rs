@@ -1,6 +1,6 @@
 use crate::control::controls::{ControlRepository, ControlSet};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::loader::resource_repository::ResourceRepository;
+use crate::loader::resource_repository::{ResourceLoader, ResourceRepository};
 use crate::render::chart::Chart;
 use crate::render::image::ImageSizeRule;
 use crate::render::project::Project;
@@ -37,7 +37,7 @@ const SCREEN_RATIO: (u32, u32) = (16, 9);
 pub struct DemoTool {
     ui: Ui,
     start_time: Instant,
-    resource_repository: ResourceRepository,
+    resource_loader: ResourceLoader,
     has_render_failure: bool,
     ui_state: UiState,
     play_start_time: Instant,
@@ -54,11 +54,11 @@ pub struct UiState {
     pub selected_control_id: ControlId,
     pub time: f32,
     pub is_playing: bool,
-    pub control_repository: Rc<RefCell<ControlRepository>>,
+    pub control_repository: Arc<ControlRepository>,
 }
 
 impl UiState {
-    pub fn get_chart(&self) -> Option<Rc<Chart>> {
+    pub fn get_chart(&self) -> Option<Arc<Chart>> {
         let id_first = self.selected_control_id.parts.first();
         if let Some(project) = &self.project {
             if let Some(id_first) = id_first {
@@ -70,7 +70,7 @@ impl UiState {
         None
     }
 
-    pub fn get_current_chart_control_set(&self) -> Option<Rc<ControlSet>> {
+    pub fn get_current_chart_control_set(&self) -> Option<Arc<ControlSet>> {
         self.get_chart().map(|chart| chart.controls.clone())
     }
 
@@ -97,8 +97,8 @@ impl DemoTool {
     pub fn new(context: &Arc<VulkanContext>, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let music_player = MusicPlayer::new();
 
-        let mut resource_repository = ResourceRepository::try_new()?;
-        let project = resource_repository.get_or_load_project(context);
+        let mut resource_loader = ResourceLoader::try_new()?;
+        let project = resource_loader.get_or_load_project(context);
         let ui = Ui::new(context, event_loop)?;
         let has_render_failure = project.is_none();
 
@@ -106,7 +106,10 @@ impl DemoTool {
             time: 0.0,
             is_playing: false,
             project,
-            control_repository: resource_repository.control_repository.clone(),
+            control_repository: resource_loader
+                .resource_repository
+                .control_repository
+                .clone(),
             selected_control_id: ControlId::default(),
         };
 
@@ -131,7 +134,7 @@ impl DemoTool {
         let demo_tool = DemoTool {
             ui,
             start_time: Instant::now(),
-            resource_repository,
+            resource_loader,
             ui_state,
             has_render_failure,
             play_start_time: Instant::now(),
@@ -397,7 +400,7 @@ impl DemoTool {
 
     fn issue_render_commands(&mut self, context: &mut RenderContext) -> Option<Arc<Project>> {
         let Some(project) = self
-            .resource_repository
+            .resource_loader
             .get_or_load_project(&context.vulkan_context) else {
             return None;
         };

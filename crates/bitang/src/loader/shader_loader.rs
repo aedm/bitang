@@ -1,6 +1,5 @@
 use crate::control::controls::GlobalType;
 use crate::loader::async_cache::AsyncCache;
-use crate::loader::cache::Cache;
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::loader::{compute_hash, ResourcePath};
 use crate::render::shader::GlobalUniformMapping;
@@ -62,7 +61,7 @@ pub struct ShaderCache {
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
 
 impl ShaderCache {
-    pub fn new(file_hash_cache: &Arc<FileCache>, thread_pool: &Arc<ThreadPool>) -> Self {
+    pub fn new(file_hash_cache: &Arc<FileCache>) -> Self {
         Self {
             file_hash_cache: file_hash_cache.clone(),
             shader_cache: AsyncCache::new(),

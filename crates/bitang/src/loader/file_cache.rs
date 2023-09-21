@@ -1,5 +1,4 @@
 use crate::loader::async_cache::AsyncCache;
-use crate::loader::cache::Cache;
 use crate::loader::{compute_hash, ResourcePath};
 use ahash::AHashSet;
 use anyhow::{bail, Result};
@@ -30,19 +29,19 @@ pub struct WatchedPaths {
 }
 
 impl WatchedPaths {
-    pub fn update_watchers(&mut self) {
+    pub fn update_watchers(&mut self, file_watcher: &mut RecommendedWatcher) {
         // Best effort: if a file is missing, creating a watcher will fail
         for path in self.watched_paths.difference(&self.new_watched_paths) {
             if let Some(path) = path.to_str() {
                 trace!("Unwatching: {:?}", path.replace('\\', "/"));
             }
-            let _ = self.file_watcher.unwatch(path);
+            let _ = file_watcher.unwatch(path);
         }
         for path in self.new_watched_paths.difference(&self.watched_paths) {
             if let Some(path) = path.to_str() {
                 trace!("Watching: {:?}", path.replace('\\', "/"));
             }
-            let _ = self.file_watcher.watch(path, RecursiveMode::NonRecursive);
+            let _ = file_watcher.watch(path, RecursiveMode::NonRecursive);
         }
         self.watched_paths = mem::take(&mut self.new_watched_paths);
     }
@@ -73,26 +72,9 @@ impl FileCache {
         }
     }
 
-    pub fn handle_file_changes(&self) -> bool {
-        let mut has_changes = false;
-        for res in self.file_change_events.try_iter() {
-            match res {
-                Ok(event) => {
-                    for path in event.paths {
-                        debug!("File change detected: {:?}", path);
-                        self.cache.remove(&path);
-                    }
-                    has_changes = true;
-                }
-                Err(e) => error!("watch error: {:?}", e),
-            }
-        }
-        has_changes
-    }
-
-    pub async fn update_watchers(&self) {
+    async fn update_watchers(&self, file_watcher: &mut RecommendedWatcher) {
         let mut paths = self.paths.lock().await;
-        paths.update_watchers();
+        paths.update_watchers(file_watcher);
     }
 
     pub fn prepare_loading_cycle(&self) {
@@ -142,7 +124,7 @@ impl FileCache {
 }
 
 pub struct FileLoader {
-    cache: Arc<FileCache>,
+    pub file_cache: Arc<FileCache>,
     file_change_events: Receiver<Result<notify::Event, notify::Error>>,
 
     // Listening for file changes
@@ -154,9 +136,32 @@ impl FileLoader {
         let (sender, receiver) = std::sync::mpsc::channel();
         let watcher = notify::recommended_watcher(sender).unwrap();
         Self {
-            cache: Arc::new(FileCache::new()),
+            file_cache: Arc::new(FileCache::new()),
             file_change_events: receiver,
             file_watcher: watcher,
         }
+    }
+
+    pub async fn update_watchers(&mut self) {
+        self.file_cache
+            .update_watchers(&mut self.file_watcher)
+            .await;
+    }
+
+    pub fn handle_file_changes(&self) -> bool {
+        let mut has_changes = false;
+        for res in self.file_change_events.try_iter() {
+            match res {
+                Ok(event) => {
+                    for path in event.paths {
+                        debug!("File change detected: {:?}", path);
+                        self.file_cache.cache.remove(&path);
+                    }
+                    has_changes = true;
+                }
+                Err(e) => error!("watch error: {:?}", e),
+            }
+        }
+        has_changes
     }
 }

@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 pub struct Chart {
     pub id: String,
-    pub controls: Rc<ControlSet>,
+    pub controls: Arc<ControlSet>,
     camera: Camera,
     images: Vec<Arc<Image>>,
     buffer_generators: Vec<Arc<BufferGenerator>>,
@@ -22,16 +22,16 @@ impl Chart {
     pub fn new(
         id: &str,
         control_id: &ControlId,
-        control_set_builder: &ControlSetBuilder,
+        control_set_builder: ControlSetBuilder,
         images: Vec<Arc<Image>>,
         buffer_generators: Vec<Arc<BufferGenerator>>,
         passes: Vec<Draw>,
     ) -> Self {
         let _camera = Camera::new(
-            control_set_builder,
+            &control_set_builder,
             &control_id.add(ControlIdPartType::Camera, "camera"),
         );
-        let controls = Rc::new(control_set_builder.into_control_set());
+        let controls = Arc::new(control_set_builder.into_control_set());
         Chart {
             id: id.to_string(),
             camera: _camera,

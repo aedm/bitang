@@ -13,8 +13,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
+use std::io::Read;
 use std::sync::{Arc, Mutex};
-use std::{array, slice};
+use std::{array, mem, slice};
 use strum::EnumString;
 use tracing::{debug, info, instrument, warn};
 
@@ -85,7 +86,7 @@ impl ControlSetBuilder {
         };
         let mut controls = vec![];
         let mut used_control_list = self.used_control_list.lock().unwrap();
-        for control in *used_control_list {
+        for control in mem::take(&mut *used_control_list) {
             root_node.insert(control.clone());
             controls.push(control);
         }

@@ -34,10 +34,10 @@ impl Chart {
         path: &ResourcePath,
     ) -> Result<Arc<render::chart::Chart>> {
         let control_id = ControlId::default().add(ControlIdPartType::Chart, id);
-        let mut control_set_builder = Arc::new(ControlSetBuilder::new(
+        let mut control_set_builder = ControlSetBuilder::new(
             control_id.clone(),
             resource_repository.control_repository.clone(),
-        ));
+        );
 
         let mut images_by_id = self
             .images
@@ -94,7 +94,7 @@ impl Chart {
         let chart = render::chart::Chart::new(
             id,
             &control_id,
-            &control_set_builder,
+            control_set_builder,
             images,
             buffer_generators,
             passes,
@@ -135,7 +135,7 @@ impl Draw {
         &self,
         context: &Arc<VulkanContext>,
         resource_repository: &Arc<ResourceRepository>,
-        control_set_builder: &Arc<ControlSetBuilder>,
+        control_set_builder: &ControlSetBuilder,
         images_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         chart_id: &ControlId,
@@ -292,7 +292,7 @@ impl Object {
         chart_id: &ControlId,
         context: &Arc<VulkanContext>,
         resource_repository: &Arc<ResourceRepository>,
-        control_set_builder: &Arc<ControlSetBuilder>,
+        control_set_builder: &ControlSetBuilder,
         images_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         path: &ResourcePath,

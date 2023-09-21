@@ -95,11 +95,7 @@ impl Ui {
         let save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
         if ctx.input_mut(|i| i.consume_shortcut(&save_shortcut)) {
             if let Some(project) = &ui_state.project {
-                if let Err(err) = ui_state
-                    .control_repository
-                    .borrow()
-                    .save_control_files(project)
-                {
+                if let Err(err) = ui_state.control_repository.save_control_files(project) {
                     error!("Failed to save controls: {err}");
                 }
             }
@@ -190,7 +186,7 @@ impl Ui {
         ui: &mut egui::Ui,
         ui_state: &mut UiState,
         controls: &'a ControlSet,
-    ) -> Option<(&'a Rc<Control>, usize)> {
+    ) -> Option<(&'a Arc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
         let trim_parts = ui_state.selected_control_id.parts.len();
         let controls_borrow = controls

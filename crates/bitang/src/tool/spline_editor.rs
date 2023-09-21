@@ -4,6 +4,7 @@ use egui::plot::{Line, Plot, PlotBounds, PlotPoint};
 use egui::Color32;
 use glam::Vec2;
 use std::rc::Rc;
+use std::sync::Arc;
 
 enum SplineEditorState {
     Idle,
@@ -16,7 +17,7 @@ pub struct SplineEditor {
     min_x: f32,
     zoom: Vec2,
     state: SplineEditorState,
-    control: Option<Rc<Control>>,
+    control: Option<Arc<Control>>,
     component_index: usize,
     selected_index: Option<usize>,
 }
@@ -34,7 +35,7 @@ impl SplineEditor {
         }
     }
 
-    pub fn set_control(&mut self, control: &Rc<Control>, component_index: usize) {
+    pub fn set_control(&mut self, control: &Arc<Control>, component_index: usize) {
         self.control = Some(control.clone());
         self.component_index = component_index;
         self.selected_index = None;

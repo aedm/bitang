@@ -43,11 +43,13 @@ impl<T: Send + Sync> ResourceCache<T> {
     }
 
     pub fn get_future(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
     ) -> LoadFuture<T> {
         let self_clone = self.clone();
-        LoadFuture::new(async move { self_clone.load(context, path).await })
+        let context = context.clone();
+        let path = path.clone();
+        LoadFuture::new(async move { self_clone.load(&context, &path).await })
     }
 }
