@@ -247,6 +247,12 @@ impl DemoTool {
         vulkan_context: &Arc<VulkanContext>,
         renderer: &mut VulkanoWindowRenderer,
     ) -> PaintResult {
+        // Don't render anything if the window is minimized
+        let window_size = renderer.window().inner_size();
+        if window_size.width == 0 || window_size.height == 0 {
+            return PaintResult::None;
+        }
+
         let before_future = renderer.acquire().unwrap();
 
         // Update swapchain target
