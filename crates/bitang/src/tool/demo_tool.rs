@@ -430,35 +430,35 @@ impl DemoTool {
     fn render_demo_to_file(&mut self, vulkan_context: &Arc<VulkanContext>) {
         let timer = Instant::now();
         // PNG compression is slow, so let's use all the CPU cores
-        rayon::in_place_scope(|scope| {
-            let job_count: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
-            loop {
-                self.ui_state.time = self.frame_counter as f32 / (FRAMEDUMP_FPS as f32);
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let job_count: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
+        let cpu_count = num_cpus::get();
+        loop {
+            self.ui_state.time = self.frame_counter as f32 / (FRAMEDUMP_FPS as f32);
 
-                // Render frame and save it into host memory
-                let project = self.render_frame_to_buffer(vulkan_context);
-                let content = self.get_frame_content();
+            // Render frame and save it into host memory
+            let project = self.render_frame_to_buffer(vulkan_context);
+            let content = self.get_frame_content();
 
-                // If we're rendering too fast, wait a bit
-                while job_count.load(Ordering::Relaxed) >= rayon::current_num_threads() + 10 {
-                    sleep(Duration::from_millis(1));
-                }
-
-                // Save the frame to a file in a separate thread
-                job_count.fetch_add(1, Ordering::Relaxed);
-                let frame_number = self.frame_counter;
-                let job_count_clone = job_count.clone();
-                scope.spawn(move |_| {
-                    Self::save_frame_buffer_to_file(content, frame_number);
-                    job_count_clone.fetch_sub(1, Ordering::Relaxed);
-                });
-
-                if self.ui_state.time >= project.length {
-                    return;
-                }
-                self.frame_counter += 1;
+            // If we're rendering too fast, wait a bit
+            while job_count.load(Ordering::Relaxed) >= cpu_count + 10 {
+                sleep(Duration::from_millis(1));
             }
-        });
+
+            // Save the frame to a file in a separate thread
+            job_count.fetch_add(1, Ordering::Relaxed);
+            let frame_number = self.frame_counter;
+            let job_count_clone = job_count.clone();
+            runtime.spawn_blocking(move || {
+                Self::save_frame_buffer_to_file(content, frame_number);
+                job_count_clone.fetch_sub(1, Ordering::Relaxed);
+            });
+
+            if self.ui_state.time >= project.length {
+                break;
+            }
+            self.frame_counter += 1;
+        }
         info!(
             "Rendered {} frames in {:.1} secs",
             self.frame_counter,

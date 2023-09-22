@@ -281,7 +281,7 @@ dependencies = [
  "itertools",
  "notify",
  "nu-ansi-term 0.49.0",
- "rayon",
+ "num_cpus",
  "rodio",
  "ron",
  "russimp",
