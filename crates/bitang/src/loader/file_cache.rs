@@ -51,11 +51,7 @@ impl FileCache {
         self.has_missing_files.store(false, Ordering::Relaxed);
     }
 
-    pub async fn get(
-        &self,
-        path: &ResourcePath,
-        _store_content: bool,
-    ) -> Result<Arc<FileCacheEntry>> {
+    pub async fn get(&self, path: &ResourcePath) -> Result<Arc<FileCacheEntry>> {
         let path_string = path.to_string();
         let absolute_path = self.to_absolute_path(&path_string);
 

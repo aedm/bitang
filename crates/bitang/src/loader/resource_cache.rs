@@ -28,7 +28,7 @@ impl<T: Send + Sync> ResourceCache<T> {
 
     pub async fn load(&self, context: &Arc<VulkanContext>, path: &ResourcePath) -> Result<Arc<T>> {
         let file_hash_cache = self.file_hash_cache.clone();
-        let cache_entry = file_hash_cache.get(path, true).await?;
+        let cache_entry = file_hash_cache.get(path).await?;
         let hash = cache_entry.hash;
         let loader_func = self.loader_func.clone();
         let context = context.clone();
@@ -56,5 +56,9 @@ impl<T: Send + Sync> ResourceCache<T> {
         let context = context.clone();
         let path = path.clone();
         LoadFuture::new(async move { self_clone.load(&context, &path).await })
+    }
+
+    pub fn display_load_errors(&self) {
+        self.resource_cache.display_load_errors();
     }
 }

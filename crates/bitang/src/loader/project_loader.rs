@@ -65,6 +65,7 @@ impl ProjectLoader {
                     if self.is_first_load || has_file_changes {
                         error!("Error loading project: {:?}", err);
                     }
+                    self.resource_repository.display_load_errors();
                     self.cached_root = None;
                 }
             };

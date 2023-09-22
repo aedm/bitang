@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
 use dashmap::{DashMap, DashSet};
+use futures::executor::block_on;
 use std::future::Future;
 use std::hash::Hash;
 use std::sync::Arc;
@@ -151,9 +152,11 @@ impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value
     }
 
     /// Displays the root cause of all load errors that occurred during the current loading cycle.
-    pub async fn display_load_errors(&self) {
+    pub fn display_load_errors(&self) {
         for future in self.accessed_in_current_load_cycle.iter() {
-            future.display_load_error().await;
+            block_on(async {
+                future.display_load_error().await;
+            });
         }
     }
 }

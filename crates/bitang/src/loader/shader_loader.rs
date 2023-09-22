@@ -297,11 +297,15 @@ impl ShaderCache {
     }
 
     async fn load_source(&self, path: &ResourcePath) -> Result<String> {
-        let cache_entry = self.file_hash_cache.get(path, true).await?;
+        let cache_entry = self.file_hash_cache.get(path).await?;
         let FileCacheEntry {
             hash: _,
             content: source,
         } = cache_entry.as_ref();
         Ok(std::str::from_utf8(source)?.to_string())
+    }
+
+    pub fn display_load_errors(&self) {
+        self.shader_cache.display_load_errors();
     }
 }

@@ -1,7 +1,7 @@
 use crate::control::controls::ControlRepository;
 use crate::file::{chart_file, project_file};
 use crate::loader::async_cache::LoadFuture;
-use crate::loader::file_cache::{FileCache};
+use crate::loader::file_cache::FileCache;
 use crate::loader::resource_cache::ResourceCache;
 use crate::loader::shader_loader::ShaderCache;
 use crate::loader::{ResourcePath, CHARTS_FOLDER, CHART_FILE_NAME, PROJECT_FILE_NAME};
@@ -16,7 +16,7 @@ use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Instant};
+use std::time::Instant;
 use tracing::{debug, info, instrument, warn};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
@@ -50,6 +50,14 @@ impl ResourceRepository {
             file_hash_cache,
             control_repository: Arc::new(control_repository),
         })
+    }
+
+    pub fn display_load_errors(&self) {
+        self.texture_cache.display_load_errors();
+        self.mesh_cache.display_load_errors();
+        self.shader_cache.display_load_errors();
+        self.chart_file_cache.display_load_errors();
+        self.project_file_cache.display_load_errors();
     }
 
     #[instrument(skip(self, context))]
@@ -88,7 +96,7 @@ impl ResourceRepository {
         context: &Arc<VulkanContext>,
     ) -> Result<Arc<Chart>> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
-        let chart = self.chart_file_cache.load(context, &path).await?;
+        let chart = self.chart_file_cache.load(&context, &path).await?;
         chart.load(id, context, self, &path).await
     }
 
