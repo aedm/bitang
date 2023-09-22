@@ -8,7 +8,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::{env, mem};
+use tokio::spawn;
 use tokio::sync::Mutex;
+use tokio::task::spawn_blocking;
 use tracing::{debug, error, trace};
 
 pub type ContentHash = u64;
@@ -70,10 +72,12 @@ impl FileCache {
                 let Ok(content) = tokio::fs::read(absolute_path).await else {
                     bail!("Failed to read file: '{path_string}'");
                 };
-                Ok(Arc::new(FileCacheEntry {
+                let file_cache_entry = spawn_blocking(move || FileCacheEntry {
                     hash: compute_hash(&content),
                     content,
-                }))
+                })
+                .await?;
+                Ok(Arc::new(file_cache_entry))
             })
             .await;
         if value.is_err() {
