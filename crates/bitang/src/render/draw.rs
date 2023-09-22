@@ -5,7 +5,6 @@ use crate::render::render_object::RenderObject;
 use crate::render::vulkan_window::RenderContext;
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
-use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::command_buffer::SubpassContents;
 
@@ -14,8 +13,8 @@ pub struct Draw {
     pub id: String,
     pub passes: Vec<Pass>,
     pub objects: Vec<Arc<RenderObject>>,
-    pub light_dir: Rc<Control>,
-    pub shadow_map_size: Rc<Control>,
+    pub light_dir: Arc<Control>,
+    pub shadow_map_size: Arc<Control>,
 }
 
 impl Draw {
@@ -23,8 +22,8 @@ impl Draw {
         id: &str,
         passes: Vec<Pass>,
         objects: Vec<Arc<RenderObject>>,
-        light_dir: Rc<Control>,
-        shadow_map_size: Rc<Control>,
+        light_dir: Arc<Control>,
+        shadow_map_size: Arc<Control>,
     ) -> Result<Draw> {
         Ok(Draw {
             id: id.to_string(),

@@ -4,16 +4,15 @@ use crate::render::mesh::Mesh;
 use crate::render::vulkan_window::RenderContext;
 use anyhow::Result;
 use glam::{EulerRot, Mat4};
-use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct RenderObject {
     pub id: String,
     pub mesh: Arc<Mesh>,
     pub material: Material,
-    pub position: Rc<Control>,
-    pub rotation: Rc<Control>,
-    pub instances: Rc<Control>,
+    pub position: Arc<Control>,
+    pub rotation: Arc<Control>,
+    pub instances: Arc<Control>,
 }
 
 impl RenderObject {

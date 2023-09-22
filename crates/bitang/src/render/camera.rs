@@ -2,20 +2,20 @@ use crate::control::controls::{Control, ControlSetBuilder, Globals};
 use crate::control::{ControlId, ControlIdPartType};
 use glam::{Mat4, Vec2, Vec3};
 use std::f32::consts::PI;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct Camera {
-    target: Rc<Control>,
-    orientation: Rc<Control>,
-    distance: Rc<Control>,
-    field_of_view: Rc<Control>,
-    shake: Rc<Control>,
-    speed: Rc<Control>,
-    time_adjustment: Rc<Control>,
+    target: Arc<Control>,
+    orientation: Arc<Control>,
+    distance: Arc<Control>,
+    field_of_view: Arc<Control>,
+    shake: Arc<Control>,
+    speed: Arc<Control>,
+    time_adjustment: Arc<Control>,
 }
 
 impl Camera {
-    pub fn new(control_set_builder: &mut ControlSetBuilder, control_id: &ControlId) -> Self {
+    pub fn new(control_set_builder: &ControlSetBuilder, control_id: &ControlId) -> Self {
         let target_id = control_id.add(ControlIdPartType::Value, "target");
         let orientation_id = control_id.add(ControlIdPartType::Value, "orientation");
         let distance_id = control_id.add(ControlIdPartType::Value, "distance");

@@ -2,9 +2,10 @@ use crate::loader::resource_repository::ResourceRepository;
 use crate::render;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
+use futures::future::join_all;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
 pub struct Project {
@@ -20,19 +21,23 @@ pub struct Cut {
 }
 
 impl Project {
-    pub fn load(
+    pub async fn load(
         &self,
-        context: &VulkanContext,
-        resource_repository: &mut ResourceRepository,
+        context: &Arc<VulkanContext>,
+        resource_repository: &Arc<ResourceRepository>,
     ) -> Result<render::project::Project> {
         let chart_ids: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();
-        let charts_by_id: HashMap<_, _> = chart_ids
-            .iter()
-            .map(|&chart_name| {
-                let chart = resource_repository.load_chart(chart_name, context)?;
-                Ok((chart_name.clone(), Rc::new(chart)))
-            })
+        let chart_futures_by_id = chart_ids.iter().map(|&chart_name| async {
+            let chart = resource_repository.load_chart(chart_name, context).await?;
+            Ok((chart_name.clone(), chart))
+        });
+
+        // Load all charts in parallel.
+        let charts_by_id: HashMap<_, _> = join_all(chart_futures_by_id)
+            .await
+            .into_iter()
             .collect::<Result<_>>()?;
+
         let cuts = self
             .cuts
             .iter()

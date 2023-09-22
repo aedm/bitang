@@ -5,7 +5,7 @@ use crate::tool::demo_tool::UiState;
 use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;
 use egui_winit_vulkano::{Gui, GuiConfig};
-use std::rc::Rc;
+use std::sync::Arc;
 use tracing::error;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
@@ -18,7 +18,7 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<Ui> {
+    pub fn new(context: &Arc<VulkanContext>, event_loop: &EventLoop<()>) -> Result<Ui> {
         let render_pass = vulkano::single_pass_renderpass!(
             context.vulkano_context.device().clone(),
             attachments: {
@@ -94,11 +94,7 @@ impl Ui {
         let save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
         if ctx.input_mut(|i| i.consume_shortcut(&save_shortcut)) {
             if let Some(project) = &ui_state.project {
-                if let Err(err) = ui_state
-                    .control_repository
-                    .borrow()
-                    .save_control_files(project)
-                {
+                if let Err(err) = ui_state.control_repository.save_control_files(project) {
                     error!("Failed to save controls: {err}");
                 }
             }
@@ -189,7 +185,7 @@ impl Ui {
         ui: &mut egui::Ui,
         ui_state: &mut UiState,
         controls: &'a ControlSet,
-    ) -> Option<(&'a Rc<Control>, usize)> {
+    ) -> Option<(&'a Arc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
         let trim_parts = ui_state.selected_control_id.parts.len();
         let controls_borrow = controls

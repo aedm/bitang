@@ -1,6 +1,6 @@
 use crate::control::controls::{ControlRepository, ControlSet};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::loader::resource_repository::ResourceRepository;
+use crate::loader::project_loader::ProjectLoader;
 use crate::render::chart::Chart;
 use crate::render::image::ImageSizeRule;
 use crate::render::project::Project;
@@ -11,9 +11,7 @@ use crate::render::vulkan_window::{
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{bail, Result};
-use std::cell::RefCell;
 use std::cmp::max;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::sleep;
@@ -37,7 +35,7 @@ const SCREEN_RATIO: (u32, u32) = (16, 9);
 pub struct DemoTool {
     ui: Ui,
     start_time: Instant,
-    resource_repository: ResourceRepository,
+    resource_loader: ProjectLoader,
     has_render_failure: bool,
     ui_state: UiState,
     play_start_time: Instant,
@@ -54,11 +52,11 @@ pub struct UiState {
     pub selected_control_id: ControlId,
     pub time: f32,
     pub is_playing: bool,
-    pub control_repository: Rc<RefCell<ControlRepository>>,
+    pub control_repository: Arc<ControlRepository>,
 }
 
 impl UiState {
-    pub fn get_chart(&self) -> Option<Rc<Chart>> {
+    pub fn get_chart(&self) -> Option<Arc<Chart>> {
         let id_first = self.selected_control_id.parts.first();
         if let Some(project) = &self.project {
             if let Some(id_first) = id_first {
@@ -70,7 +68,7 @@ impl UiState {
         None
     }
 
-    pub fn get_current_chart_control_set(&self) -> Option<Rc<ControlSet>> {
+    pub fn get_current_chart_control_set(&self) -> Option<Arc<ControlSet>> {
         self.get_chart().map(|chart| chart.controls.clone())
     }
 
@@ -94,11 +92,11 @@ impl UiState {
 }
 
 impl DemoTool {
-    pub fn new(context: &VulkanContext, event_loop: &EventLoop<()>) -> Result<DemoTool> {
+    pub fn new(context: &Arc<VulkanContext>, event_loop: &EventLoop<()>) -> Result<DemoTool> {
         let music_player = MusicPlayer::new();
 
-        let mut resource_repository = ResourceRepository::try_new()?;
-        let project = resource_repository.get_or_load_project(context);
+        let mut resource_loader = ProjectLoader::try_new()?;
+        let project = resource_loader.get_or_load_project(context);
         let ui = Ui::new(context, event_loop)?;
         let has_render_failure = project.is_none();
 
@@ -106,7 +104,10 @@ impl DemoTool {
             time: 0.0,
             is_playing: false,
             project,
-            control_repository: resource_repository.control_repository.clone(),
+            control_repository: resource_loader
+                .resource_repository
+                .control_repository
+                .clone(),
             selected_control_id: ControlId::default(),
         };
 
@@ -131,7 +132,7 @@ impl DemoTool {
         let demo_tool = DemoTool {
             ui,
             start_time: Instant::now(),
-            resource_repository,
+            resource_loader,
             ui_state,
             has_render_failure,
             play_start_time: Instant::now(),
@@ -243,7 +244,7 @@ impl DemoTool {
 
     fn render_frame_to_screen(
         &mut self,
-        vulkan_context: &VulkanContext,
+        vulkan_context: &Arc<VulkanContext>,
         renderer: &mut VulkanoWindowRenderer,
     ) -> PaintResult {
         let before_future = renderer.acquire().unwrap();
@@ -300,7 +301,7 @@ impl DemoTool {
 
         // Make render context
         let mut context = RenderContext {
-            vulkan_context,
+            vulkan_context: vulkan_context.clone(),
             screen_viewport,
             command_builder: &mut command_builder,
             globals: Default::default(),
@@ -342,7 +343,7 @@ impl DemoTool {
         paint_result
     }
 
-    fn render_frame_to_buffer(&mut self, vulkan_context: &VulkanContext) -> Arc<Project> {
+    fn render_frame_to_buffer(&mut self, vulkan_context: &Arc<VulkanContext>) -> Arc<Project> {
         let size = match vulkan_context.final_render_target.size_rule {
             ImageSizeRule::Fixed(w, h) => [w, h],
             _ => panic!("Screen render target must have a fixed size"),
@@ -354,7 +355,7 @@ impl DemoTool {
         };
         vulkan_context
             .final_render_target
-            .enforce_size_rule(&vulkan_context, screen_viewport.dimensions)
+            .enforce_size_rule(vulkan_context, screen_viewport.dimensions)
             .unwrap();
 
         // Make command buffer
@@ -370,7 +371,7 @@ impl DemoTool {
 
         // Render content
         let mut context = RenderContext {
-            vulkan_context,
+            vulkan_context: vulkan_context.clone(),
             screen_viewport,
             command_builder: &mut command_builder,
             globals: Default::default(),
@@ -397,8 +398,8 @@ impl DemoTool {
 
     fn issue_render_commands(&mut self, context: &mut RenderContext) -> Option<Arc<Project>> {
         let Some(project) = self
-            .resource_repository
-            .get_or_load_project(context.vulkan_context) else {
+            .resource_loader
+            .get_or_load_project(&context.vulkan_context) else {
             return None;
         };
 
@@ -426,7 +427,7 @@ impl DemoTool {
         Some(project)
     }
 
-    fn render_demo_to_file(&mut self, vulkan_context: &VulkanContext) {
+    fn render_demo_to_file(&mut self, vulkan_context: &Arc<VulkanContext>) {
         let timer = Instant::now();
         // PNG compression is slow, so let's use all the CPU cores
         rayon::in_place_scope(|scope| {
@@ -469,7 +470,7 @@ impl DemoTool {
 impl VulkanApp for DemoTool {
     fn paint(
         &mut self,
-        vulkan_context: &VulkanContext,
+        vulkan_context: &Arc<VulkanContext>,
         renderer: &mut VulkanoWindowRenderer,
     ) -> PaintResult {
         if FRAMEDUMP_MODE {

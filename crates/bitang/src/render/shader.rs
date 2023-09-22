@@ -5,7 +5,6 @@ use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use std::mem::size_of;
-use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;
@@ -62,7 +61,7 @@ pub struct Shader {
 
 impl Shader {
     pub fn new(
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         shader_module: Arc<ShaderModule>,
         kind: ShaderKind,
         global_uniform_bindings: Vec<GlobalUniformMapping>,
@@ -199,7 +198,7 @@ pub struct DescriptorResource {
 
 #[derive(Clone)]
 pub struct LocalUniformMapping {
-    pub control: Rc<Control>,
+    pub control: Arc<Control>,
     pub f32_count: usize,
     pub f32_offset: usize,
 }

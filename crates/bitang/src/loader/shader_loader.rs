@@ -1,16 +1,15 @@
 use crate::control::controls::GlobalType;
-use crate::loader::cache::Cache;
+use crate::loader::async_cache::AsyncCache;
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::loader::{compute_hash, ResourcePath};
 use crate::render::shader::GlobalUniformMapping;
 use crate::render::vulkan_window::VulkanContext;
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
 use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
-use std::cell::RefCell;
 use std::mem::size_of;
-use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio::task::spawn_blocking;
 use tracing::{debug, info, instrument, trace};
 use vulkano::shader::ShaderModule;
 
@@ -51,30 +50,30 @@ pub struct ShaderCompilationLocalUniform {
 }
 
 pub struct ShaderCache {
-    file_hash_cache: Rc<RefCell<FileCache>>,
-    shader_cache: Cache<ShaderCacheKey, ShaderCacheValue>,
+    file_hash_cache: Arc<FileCache>,
+    shader_cache: AsyncCache<ShaderCacheKey, ShaderCacheValue>,
 }
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
 
 impl ShaderCache {
-    pub fn new(file_hash_cache: &Rc<RefCell<FileCache>>) -> Self {
+    pub fn new(file_hash_cache: &Arc<FileCache>) -> Self {
         Self {
             file_hash_cache: file_hash_cache.clone(),
-            shader_cache: Cache::new(),
+            shader_cache: AsyncCache::new(),
         }
     }
 
-    pub fn get_or_load(
-        &mut self,
-        context: &VulkanContext,
+    pub async fn get(
+        &self,
+        context: &Arc<VulkanContext>,
         vs_path: &ResourcePath,
         fs_path: &ResourcePath,
         common_path: &ResourcePath,
-    ) -> Result<&ShaderCacheValue> {
-        let header = self.load_source(common_path)?;
-        let vs_source = format!("{header}\n{}", self.load_source(vs_path)?);
-        let fs_source = format!("{header}\n{}", self.load_source(fs_path)?);
+    ) -> Result<Arc<ShaderCacheValue>> {
+        let header = self.load_source(common_path).await?;
+        let vs_source = format!("{header}\n{}", self.load_source(vs_path).await?);
+        let fs_source = format!("{header}\n{}", self.load_source(fs_path).await?);
 
         let vs_hash = compute_hash(vs_source.as_bytes());
         let fs_hash = compute_hash(fs_source.as_bytes());
@@ -82,30 +81,50 @@ impl ShaderCache {
             vertex_shader_hash: vs_hash,
             fragment_shader_hash: fs_hash,
         };
-        self.shader_cache.get_or_try_insert_with_key(key, |_key| {
-            let vs_result = Self::compile_shader_module(
-                context,
-                &vs_source,
-                vs_path,
-                shaderc::ShaderKind::Vertex,
-            )?;
-            let fs_result = Self::compile_shader_module(
-                context,
-                &fs_source,
-                fs_path,
-                shaderc::ShaderKind::Fragment,
-            )?;
-            let value = ShaderCacheValue {
-                vertex_shader: vs_result,
-                fragment_shader: fs_result,
+
+        let context = context.clone();
+        let vs_path = vs_path.clone();
+        let fs_path = fs_path.clone();
+
+        let _key_clone = key.clone();
+        let shader_load_func = async move {
+            let vs_handle = {
+                let context = context.clone();
+                spawn_blocking(move || {
+                    Self::compile_shader_module(
+                        &context,
+                        &vs_source,
+                        &vs_path,
+                        shaderc::ShaderKind::Vertex,
+                    )
+                })
             };
-            Ok(value)
-        })
+
+            let fs_handle = {
+                let context = context.clone();
+                spawn_blocking(move || {
+                    Self::compile_shader_module(
+                        &context,
+                        &fs_source,
+                        &fs_path,
+                        shaderc::ShaderKind::Fragment,
+                    )
+                })
+            };
+
+            let value = ShaderCacheValue {
+                vertex_shader: vs_handle.await??,
+                fragment_shader: fs_handle.await??,
+            };
+
+            Ok(Arc::new(value))
+        };
+        self.shader_cache.get(key, shader_load_func).await
     }
 
     #[instrument(skip(context, source))]
     fn compile_shader_module(
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         source: &str,
         path: &ResourcePath,
         kind: shaderc::ShaderKind,
@@ -277,12 +296,20 @@ impl ShaderCache {
         Ok(result)
     }
 
-    fn load_source(&mut self, path: &ResourcePath) -> Result<String> {
-        let mut file_cache = self.file_hash_cache.borrow_mut();
+    async fn load_source(&self, path: &ResourcePath) -> Result<String> {
+        let cache_entry = self.file_hash_cache.get(path).await?;
         let FileCacheEntry {
             hash: _,
             content: source,
-        } = file_cache.get(path, true)?;
+        } = cache_entry.as_ref();
         Ok(std::str::from_utf8(source)?.to_string())
+    }
+
+    pub fn display_load_errors(&self) {
+        self.shader_cache.display_load_errors();
+    }
+
+    pub fn reset_load_cycle(&self) {
+        self.shader_cache.start_load_cycle();
     }
 }

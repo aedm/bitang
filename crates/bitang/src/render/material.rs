@@ -47,7 +47,7 @@ pub struct MaterialPass {
 
 impl MaterialPass {
     pub fn new(
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         id: String,
         vertex_shader: Shader,
         fragment_shader: Shader,

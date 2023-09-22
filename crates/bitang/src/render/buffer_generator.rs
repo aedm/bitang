@@ -4,8 +4,7 @@ use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
 use glam::Vec3;
 use serde::Deserialize;
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::{BufferUsage, Subbuffer};
 
@@ -28,16 +27,16 @@ trait BufferGeneratorImpl {
 pub struct BufferGenerator {
     size: u32,
     buffer_pool: SubbufferAllocator,
-    pub current_buffer: RefCell<Option<Subbuffer<[BufferItem]>>>,
-    generator: Rc<dyn BufferGeneratorImpl>,
+    pub current_buffer: RwLock<Option<Subbuffer<[BufferItem]>>>,
+    generator: Arc<dyn BufferGeneratorImpl>,
 }
 
 impl BufferGenerator {
     pub fn new(
         size: u32,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         control_id: &ControlId,
-        control_set_builder: &mut ControlSetBuilder,
+        control_set_builder: &ControlSetBuilder,
         generator_type: &BufferGeneratorType,
     ) -> Self {
         let buffer_pool = SubbufferAllocator::new(
@@ -48,32 +47,31 @@ impl BufferGenerator {
             },
         );
 
-        let generator: Rc<dyn BufferGeneratorImpl> = match generator_type {
+        let generator: Arc<dyn BufferGeneratorImpl> = match generator_type {
             BufferGeneratorType::Lorenz => {
-                Rc::new(LorenzGenerator::new(control_id, control_set_builder))
+                Arc::new(LorenzGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Roessler => {
-                Rc::new(RoesslerGenerator::new(control_id, control_set_builder))
+                Arc::new(RoesslerGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Thomas => {
-                Rc::new(ThomasGenerator::new(control_id, control_set_builder))
+                Arc::new(ThomasGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Aizawa => {
-                Rc::new(AizawaGenerator::new(control_id, control_set_builder))
+                Arc::new(AizawaGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Dadras => {
-                Rc::new(DadrasGenerator::new(control_id, control_set_builder))
+                Arc::new(DadrasGenerator::new(control_id, control_set_builder))
             }
-            BufferGeneratorType::RabinovichFabrikant => Rc::new(RabinovichFabrikantGenerator::new(
-                control_id,
-                control_set_builder,
-            )),
+            BufferGeneratorType::RabinovichFabrikant => Arc::new(
+                RabinovichFabrikantGenerator::new(control_id, control_set_builder),
+            ),
         };
 
         BufferGenerator {
             size,
             buffer_pool,
-            current_buffer: RefCell::new(None),
+            current_buffer: RwLock::new(None),
             generator,
         }
     }
@@ -82,23 +80,23 @@ impl BufferGenerator {
         let data = self.generator.generate(self.size as usize);
         let buffer = self.buffer_pool.allocate_slice(data.len() as _)?;
         buffer.write()?.copy_from_slice(&data);
-        *self.current_buffer.borrow_mut() = Some(buffer);
+        *self.current_buffer.write().unwrap() = Some(buffer);
         Ok(())
     }
 
     pub fn get_buffer(&self) -> Option<Subbuffer<[BufferItem]>> {
-        self.current_buffer.borrow().clone()
+        self.current_buffer.read().unwrap().clone()
     }
 }
 
 struct LorenzGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params: Arc<Control>,
 }
 
 impl LorenzGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_id = control_id.add(ControlIdPartType::Value, "lorenz-params");
@@ -136,13 +134,13 @@ impl BufferGeneratorImpl for LorenzGenerator {
 }
 
 struct RoesslerGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params: Arc<Control>,
 }
 
 impl RoesslerGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_id = control_id.add(ControlIdPartType::Value, "roessler-params");
@@ -179,13 +177,13 @@ impl BufferGeneratorImpl for RoesslerGenerator {
 }
 
 struct ThomasGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params: Arc<Control>,
 }
 
 impl ThomasGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_id = control_id.add(ControlIdPartType::Value, "thomas-params");
@@ -226,14 +224,14 @@ impl BufferGeneratorImpl for ThomasGenerator {
 }
 
 struct AizawaGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params_1: Rc<Control>,
-    params_2: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params_1: Arc<Control>,
+    params_2: Arc<Control>,
 }
 
 impl AizawaGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_1_id = control_id.add(ControlIdPartType::Value, "aizawa-params-1");
@@ -278,14 +276,14 @@ impl BufferGeneratorImpl for AizawaGenerator {
 }
 
 struct DadrasGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params_1: Rc<Control>,
-    params_2: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params_1: Arc<Control>,
+    params_2: Arc<Control>,
 }
 
 impl DadrasGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_1_id = control_id.add(ControlIdPartType::Value, "dadras-params-1");
@@ -329,13 +327,13 @@ impl BufferGeneratorImpl for DadrasGenerator {
 }
 
 struct RabinovichFabrikantGenerator {
-    init: Rc<Control>,
-    delta: Rc<Control>,
-    params: Rc<Control>,
+    init: Arc<Control>,
+    delta: Arc<Control>,
+    params: Arc<Control>,
 }
 
 impl RabinovichFabrikantGenerator {
-    fn new(control_id: &ControlId, control_set_builder: &mut ControlSetBuilder) -> Self {
+    fn new(control_id: &ControlId, control_set_builder: &ControlSetBuilder) -> Self {
         let init_id = control_id.add(ControlIdPartType::Value, "init");
         let delta_id = control_id.add(ControlIdPartType::Value, "delta");
         let params_id = control_id.add(ControlIdPartType::Value, "rabinovich-fabrikant-params");

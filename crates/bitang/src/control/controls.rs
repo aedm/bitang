@@ -1,18 +1,18 @@
 use crate::control::spline::Spline;
 use crate::control::ControlIdPartType::Chart;
-use crate::control::{ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
-use crate::loader::resource_repository::CHARTS_FOLDER;
-use crate::loader::ROOT_FOLDER;
+use crate::control::{ArcHashRef, ControlId, ControlIdPart, ControlIdPartType};
+use crate::loader::{CHARTS_FOLDER, ROOT_FOLDER};
 use crate::render::project::Project;
 use anyhow::Context;
 use anyhow::Result;
+use dashmap::mapref::entry::Entry::{Occupied, Vacant};
+use dashmap::{DashMap, DashSet};
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
-use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
-use std::{array, slice};
+use std::sync::{Arc, Mutex};
+use std::{array, mem, slice};
 use strum::EnumString;
 use tracing::{debug, info, instrument, warn};
 
@@ -21,12 +21,12 @@ const CONTROLS_FILE_NAME: &str = "controls.ron";
 #[derive(Default)]
 pub struct UsedControlsNode {
     pub id_prefix: ControlId,
-    pub children: Vec<Rc<RefCell<UsedControlsNode>>>,
-    pub control: Option<Rc<Control>>,
+    pub children: Vec<Arc<RefCell<UsedControlsNode>>>,
+    pub control: Option<Arc<Control>>,
 }
 
 impl UsedControlsNode {
-    fn insert(&mut self, control: Rc<Control>) {
+    fn insert(&mut self, control: Arc<Control>) {
         for i in 0..self.id_prefix.parts.len() {
             assert_eq!(self.id_prefix.parts[i], control.id.parts[i]);
         }
@@ -44,7 +44,7 @@ impl UsedControlsNode {
         {
             child.borrow_mut().insert(control);
         } else {
-            let child = Rc::new(RefCell::new(UsedControlsNode {
+            let child = Arc::new(RefCell::new(UsedControlsNode {
                 id_prefix: child_prefix,
                 ..UsedControlsNode::default()
             }));
@@ -55,24 +55,24 @@ impl UsedControlsNode {
 }
 
 pub struct ControlSet {
-    pub used_controls: Vec<Rc<Control>>,
+    pub used_controls: Vec<Arc<Control>>,
     pub root_node: RefCell<UsedControlsNode>,
 }
 
 pub struct ControlSetBuilder {
-    control_repository: Rc<RefCell<ControlRepository>>,
-    used_controls: HashSet<RcHashRef<Control>>,
-    used_control_list: Vec<Rc<Control>>,
+    control_repository: Arc<ControlRepository>,
+    used_controls: DashSet<ArcHashRef<Control>>,
+    used_control_list: Mutex<Vec<Arc<Control>>>,
     root_id: ControlId,
 }
 
 impl ControlSetBuilder {
-    pub fn new(root_id: ControlId, control_repository: Rc<RefCell<ControlRepository>>) -> Self {
+    pub fn new(root_id: ControlId, control_repository: Arc<ControlRepository>) -> Self {
         Self {
             root_id,
             control_repository,
-            used_controls: HashSet::new(),
-            used_control_list: vec![],
+            used_controls: DashSet::new(),
+            used_control_list: Mutex::new(vec![]),
         }
     }
 
@@ -82,7 +82,8 @@ impl ControlSetBuilder {
             ..UsedControlsNode::default()
         };
         let mut controls = vec![];
-        for control in self.used_control_list {
+        let mut used_control_list = self.used_control_list.lock().unwrap();
+        for control in mem::take(&mut *used_control_list) {
             root_node.insert(control.clone());
             controls.push(control);
         }
@@ -92,62 +93,60 @@ impl ControlSetBuilder {
         }
     }
 
-    pub fn get_float_with_default(&mut self, id: &ControlId, default: f32) -> Rc<Control> {
+    pub fn get_float_with_default(&self, id: &ControlId, default: f32) -> Arc<Control> {
         self.get_control(id, 1, &[default, 0.0, 0.0, 0.0])
     }
 
-    pub fn get_vec(&mut self, id: &ControlId, component_count: usize) -> Rc<Control> {
+    pub fn get_vec(&self, id: &ControlId, component_count: usize) -> Arc<Control> {
         self.get_control(id, component_count, &[0.0; 4])
     }
 
-    pub fn get_vec2_with_default(&mut self, id: &ControlId, default: &[f32; 2]) -> Rc<Control> {
+    pub fn get_vec2_with_default(&self, id: &ControlId, default: &[f32; 2]) -> Arc<Control> {
         self.get_control(id, 2, &[default[0], default[1], 0.0, 0.0])
     }
 
-    pub fn get_vec3(&mut self, id: &ControlId) -> Rc<Control> {
+    pub fn get_vec3(&self, id: &ControlId) -> Arc<Control> {
         self.get_control(id, 3, &[0.0; 4])
     }
 
-    pub fn get_vec3_with_default(&mut self, id: &ControlId, default: &[f32; 3]) -> Rc<Control> {
+    pub fn get_vec3_with_default(&self, id: &ControlId, default: &[f32; 3]) -> Arc<Control> {
         self.get_control(id, 3, &[default[0], default[1], default[2], 0.0])
     }
 
-    pub fn get_vec4(&mut self, id: &ControlId) -> Rc<Control> {
+    pub fn get_vec4(&self, id: &ControlId) -> Arc<Control> {
         self.get_control(id, 4, &[0.0; 4])
     }
 
-    pub fn _get_vec4_with_default(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
+    pub fn _get_vec4_with_default(&self, id: &ControlId, default: &[f32; 4]) -> Arc<Control> {
         self.get_control(id, 4, default)
     }
 
     fn get_control(
-        &mut self,
+        &self,
         id: &ControlId,
         component_count: usize,
         default: &[f32; 4],
-    ) -> Rc<Control> {
-        let control = self
-            .control_repository
-            .borrow_mut()
-            .get_control(id, default);
+    ) -> Arc<Control> {
+        let control = self.control_repository.get_control(id, default);
         control
             .used_component_count
             .set(max(control.used_component_count.get(), component_count));
-        if self.used_controls.insert(RcHashRef(control.clone())) {
-            self.used_control_list.push(control.clone());
+        if self.used_controls.insert(ArcHashRef(control.clone())) {
+            let mut used_control_list = self.used_control_list.lock().unwrap();
+            used_control_list.push(control.clone());
         }
         control
     }
 }
 
 pub struct ControlRepository {
-    by_id: HashMap<ControlId, Rc<Control>>,
+    by_id: DashMap<ControlId, Arc<Control>>,
 }
 
 // We want to serialize the controls by reference, but deserialize them by value to avoid cloning them.
 #[derive(Serialize)]
 struct SerializedControls {
-    controls: Vec<Rc<Control>>,
+    controls: Vec<Arc<Control>>,
 }
 
 #[derive(Deserialize)]
@@ -156,13 +155,15 @@ struct DeserializedControls {
 }
 
 impl ControlRepository {
-    fn get_control(&mut self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
-        if let Some(x) = self.by_id.get(id) {
-            return x.clone();
+    fn get_control(&self, id: &ControlId, default: &[f32; 4]) -> Arc<Control> {
+        match self.by_id.entry(id.clone()) {
+            Occupied(x) => x.get().clone(),
+            Vacant(entry) => {
+                let control = Arc::new(Control::new(id.clone(), default));
+                entry.insert(control.clone());
+                control
+            }
         }
-        let control = Rc::new(Control::new(id.clone(), default));
-        self.by_id.insert(id.clone(), control.clone());
-        control
     }
 
     pub fn save_control_files(&self, project: &Project) -> Result<()> {
@@ -174,8 +175,8 @@ impl ControlRepository {
             let controls = self
                 .by_id
                 .iter()
-                .filter(|(id, _)| id.parts[0].part_type == Chart && id.parts[0].name == chart.id)
-                .map(|(_, x)| x.clone())
+                .filter(|it| it.id.parts[0].part_type == Chart && it.id.parts[0].name == chart.id)
+                .map(|it| it.value().clone())
                 .collect();
             let serialized = SerializedControls { controls };
             let ron = ron::ser::to_string_pretty(&serialized, ron::ser::PrettyConfig::default())?;
@@ -188,7 +189,7 @@ impl ControlRepository {
 
     #[instrument]
     pub fn load_control_files() -> Result<Self> {
-        let mut by_id = HashMap::new();
+        let by_id = DashMap::new();
         let path = format!("{ROOT_FOLDER}/{CHARTS_FOLDER}/");
         for entry in std::fs::read_dir(path)? {
             let entry = entry?;
@@ -210,7 +211,7 @@ impl ControlRepository {
                                 name: chart_id.to_string(),
                             },
                         );
-                        by_id.insert(control.id.clone(), Rc::new(control));
+                        by_id.insert(control.id.clone(), Arc::new(control));
                     }
                 } else {
                     warn!("No controls file found at '{controls_path}'.");
@@ -221,8 +222,8 @@ impl ControlRepository {
     }
 
     pub fn reset_component_usage_counts(&self) {
-        for control in self.by_id.values() {
-            control.used_component_count.set(0);
+        for it in self.by_id.iter() {
+            it.value().used_component_count.set(0);
         }
     }
 }

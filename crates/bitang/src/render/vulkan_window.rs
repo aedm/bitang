@@ -42,14 +42,14 @@ pub struct VulkanContext {
 }
 
 pub struct RenderContext<'a> {
-    pub vulkan_context: &'a VulkanContext,
+    pub vulkan_context: Arc<VulkanContext>,
     pub screen_viewport: Viewport,
     pub command_builder: &'a mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
     pub globals: Globals,
 }
 
 pub struct VulkanWindow {
-    pub context: VulkanContext,
+    pub context: Arc<VulkanContext>,
     pub event_loop: Option<EventLoop<()>>,
     windows: VulkanoWindows,
     is_fullscreen: bool,
@@ -63,7 +63,7 @@ pub enum PaintResult {
 pub trait VulkanApp {
     fn paint(
         &mut self,
-        context: &VulkanContext,
+        context: &Arc<VulkanContext>,
         renderer: &mut VulkanoWindowRenderer,
     ) -> PaintResult;
     fn handle_window_event(&mut self, event: &WindowEvent);
@@ -109,7 +109,7 @@ impl VulkanWindow {
         let descriptor_set_allocator =
             StandardDescriptorSetAllocator::new(vulkano_context.device().clone());
 
-        let context = VulkanContext {
+        let context = Arc::new(VulkanContext {
             vulkano_context: vulkano_context,
             command_buffer_allocator,
             descriptor_set_allocator,
@@ -117,7 +117,7 @@ impl VulkanWindow {
             surface: renderer.surface(),
             gfx_queue: renderer.graphics_queue(),
             final_render_target,
-        };
+        });
 
         Ok(Self {
             windows,

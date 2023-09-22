@@ -1,9 +1,10 @@
 use crate::control::controls::ControlRepository;
 use crate::file::{chart_file, project_file};
+use crate::loader::async_cache::LoadFuture;
 use crate::loader::file_cache::FileCache;
 use crate::loader::resource_cache::ResourceCache;
 use crate::loader::shader_loader::ShaderCache;
-use crate::loader::ResourcePath;
+use crate::loader::{ResourcePath, CHARTS_FOLDER, CHART_FILE_NAME, PROJECT_FILE_NAME};
 use crate::render::chart::Chart;
 use crate::render::image::Image;
 use crate::render::mesh::Mesh;
@@ -13,12 +14,10 @@ use crate::render::Vertex3;
 use anyhow::{anyhow, ensure, Context, Result};
 use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 };
@@ -30,114 +29,91 @@ struct MeshCollection {
 }
 
 pub struct ResourceRepository {
-    file_hash_cache: Rc<RefCell<FileCache>>,
-    texture_cache: ResourceCache<Arc<Image>>,
-    mesh_cache: ResourceCache<MeshCollection>,
-    chart_file_cache: ResourceCache<Arc<chart_file::Chart>>,
-    project_file_cache: ResourceCache<Arc<project_file::Project>>,
-
+    file_hash_cache: Arc<FileCache>,
+    texture_cache: Arc<ResourceCache<Image>>,
+    mesh_cache: Arc<ResourceCache<MeshCollection>>,
+    chart_file_cache: Arc<ResourceCache<chart_file::Chart>>,
+    project_file_cache: Arc<ResourceCache<project_file::Project>>,
     pub shader_cache: ShaderCache,
-    pub control_repository: Rc<RefCell<ControlRepository>>,
-
-    cached_root: Option<Arc<Project>>,
-    last_load_time: Instant,
-    is_first_load: bool,
+    pub control_repository: Arc<ControlRepository>,
 }
 
-// If loading fails, we want to retry periodically.
-const LOAD_RETRY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
-
-const PROJECT_FILE_NAME: &str = "project.ron";
-pub const CHARTS_FOLDER: &str = "charts";
-const CHART_FILE_NAME: &str = "chart.ron";
-
 impl ResourceRepository {
-    pub fn try_new() -> Result<Self> {
-        let file_hash_cache = Rc::new(RefCell::new(FileCache::new()?));
+    pub fn try_new(file_hash_cache: Arc<FileCache>) -> Result<Self> {
         let control_repository = ControlRepository::load_control_files()?;
-
         Ok(Self {
-            texture_cache: ResourceCache::new(&file_hash_cache, load_texture),
-            mesh_cache: ResourceCache::new(&file_hash_cache, load_mesh_collection),
+            texture_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_texture)),
+            mesh_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_mesh_collection)),
             shader_cache: ShaderCache::new(&file_hash_cache),
-            chart_file_cache: ResourceCache::new(&file_hash_cache, load_chart_file),
-            project_file_cache: ResourceCache::new(&file_hash_cache, load_project_file),
+            chart_file_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_chart_file)),
+            project_file_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_project_file)),
             file_hash_cache,
-            cached_root: None,
-            control_repository: Rc::new(RefCell::new(control_repository)),
-            last_load_time: Instant::now() - LOAD_RETRY_INTERVAL,
-            is_first_load: true,
+            control_repository: Arc::new(control_repository),
         })
     }
 
-    #[instrument(skip_all, name = "load")]
-    pub fn get_or_load_project(&mut self, context: &VulkanContext) -> Option<Arc<Project>> {
-        let has_file_changes = self.file_hash_cache.borrow_mut().handle_file_changes();
-        if has_file_changes
-            || self.is_first_load
-            || (self.cached_root.is_none()
-                && self.file_hash_cache.borrow_mut().has_missing_files
-                && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL)
-        {
-            let now = Instant::now();
-            self.control_repository
-                .borrow()
-                .reset_component_usage_counts();
-            self.file_hash_cache.borrow_mut().prepare_loading_cycle();
-            let result = self.load_project(context);
-            self.file_hash_cache.borrow_mut().update_watchers();
-            match result {
-                Ok(project) => {
-                    info!("Project length: {} seconds", project.length);
-                    info!("Loading took {:?}", now.elapsed());
-                    self.cached_root = Some(Arc::new(project));
-                }
-                Err(err) => {
-                    if self.is_first_load || has_file_changes {
-                        error!("Error loading project: {:?}", err);
-                    }
-                    self.cached_root = None;
-                }
-            };
-            self.last_load_time = Instant::now();
-            self.is_first_load = false;
-        }
-        self.cached_root.clone()
+    pub fn display_load_errors(&self) {
+        self.texture_cache.display_load_errors();
+        self.mesh_cache.display_load_errors();
+        self.shader_cache.display_load_errors();
+        self.chart_file_cache.display_load_errors();
+        self.project_file_cache.display_load_errors();
+    }
+
+    pub fn start_load_cycle(&self) {
+        self.file_hash_cache.start_load_cycle();
+        self.texture_cache.start_load_cycle();
+        self.mesh_cache.start_load_cycle();
+        self.shader_cache.reset_load_cycle();
+        self.chart_file_cache.start_load_cycle();
+        self.project_file_cache.start_load_cycle();
+        self.control_repository.reset_component_usage_counts();
     }
 
     #[instrument(skip(self, context))]
     pub fn get_texture(
-        &mut self,
-        context: &VulkanContext,
+        self: &Arc<Self>,
+        context: &Arc<VulkanContext>,
         path: &ResourcePath,
-    ) -> Result<&Arc<Image>> {
-        self.texture_cache.get_or_load(context, path)
+    ) -> LoadFuture<Image> {
+        self.texture_cache.get_future(context, path)
     }
 
     #[instrument(skip(self, context))]
     pub fn get_mesh(
-        &mut self,
-        context: &VulkanContext,
+        self: &Arc<Self>,
+        context: &Arc<VulkanContext>,
         path: &ResourcePath,
         selector: &str,
-    ) -> Result<&Arc<Mesh>> {
-        let co = self.mesh_cache.get_or_load(context, path)?;
-        co.meshes_by_name
-            .get(selector)
-            .with_context(|| anyhow!("Could not find mesh '{selector}' in '{}'", path.to_string()))
+    ) -> LoadFuture<Mesh> {
+        let mesh_cache = self.mesh_cache.clone();
+        let context = context.clone();
+        let path = path.clone();
+        let selector = selector.to_string();
+        let loader = async move {
+            let co = mesh_cache.load(&context, &path).await?;
+            co.meshes_by_name.get(&selector).cloned().with_context(|| {
+                anyhow!("Could not find mesh '{selector}' in '{}'", path.to_string())
+            })
+        };
+        LoadFuture::new(loader)
     }
 
     #[instrument(skip(self, context))]
-    pub fn load_chart(&mut self, id: &str, context: &VulkanContext) -> Result<Chart> {
+    pub async fn load_chart(
+        self: &Arc<Self>,
+        id: &str,
+        context: &Arc<VulkanContext>,
+    ) -> Result<Arc<Chart>> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
-        let chart = self.chart_file_cache.get_or_load(context, &path)?.clone();
-        chart.load(id, context, self, &path)
+        let chart = self.chart_file_cache.load(&context, &path).await?;
+        chart.load(id, context, self, &path).await
     }
 
-    pub fn load_project(&mut self, context: &VulkanContext) -> Result<Project> {
+    pub async fn load_project(self: &Arc<Self>, context: &Arc<VulkanContext>) -> Result<Project> {
         let path = ResourcePath::new("", PROJECT_FILE_NAME);
-        let project = self.project_file_cache.get_or_load(context, &path)?.clone();
-        project.load(context, self)
+        let project = self.project_file_cache.load(context, &path).await?;
+        project.load(context, self).await
     }
 }
 
@@ -154,10 +130,10 @@ fn to_vec2(v: &russimp::Vector3D) -> [f32; 2] {
 
 #[instrument(skip_all)]
 fn load_mesh_collection(
-    context: &VulkanContext,
+    context: &Arc<VulkanContext>,
     content: &[u8],
     _resource_name: &str,
-) -> Result<MeshCollection> {
+) -> Result<Arc<MeshCollection>> {
     let scene = Scene::from_buffer(
         content,
         vec![
@@ -216,12 +192,12 @@ fn load_mesh_collection(
     }
 
     info!("Meshes loaded: {}", meshes_by_name.keys().join(", "));
-    Ok(MeshCollection { meshes_by_name })
+    Ok(Arc::new(MeshCollection { meshes_by_name }))
 }
 
 #[instrument(skip_all)]
 fn load_texture(
-    context: &VulkanContext,
+    context: &Arc<VulkanContext>,
     content: &[u8],
     resource_name: &str,
 ) -> Result<Arc<Image>> {
@@ -261,7 +237,7 @@ fn load_texture(
 
 #[instrument(skip_all)]
 pub fn load_chart_file(
-    _context: &VulkanContext,
+    _context: &Arc<VulkanContext>,
     content: &[u8],
     _resource_name: &str,
 ) -> Result<Arc<chart_file::Chart>> {
@@ -273,7 +249,7 @@ pub fn load_chart_file(
 
 #[instrument(skip_all)]
 pub fn load_project_file(
-    _context: &VulkanContext,
+    _context: &Arc<VulkanContext>,
     content: &[u8],
     _resource_name: &str,
 ) -> Result<Arc<project_file::Project>> {

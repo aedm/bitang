@@ -2,8 +2,9 @@ use ahash::AHasher;
 use std::fmt;
 use std::hash::Hasher;
 
-mod cache;
+pub mod async_cache;
 pub mod file_cache;
+pub mod project_loader;
 pub mod resource_cache;
 pub mod resource_repository;
 pub mod shader_loader;
@@ -11,6 +12,16 @@ pub mod shader_loader;
 /// The root folder for all content.
 pub const ROOT_FOLDER: &str = "app";
 
+/// Project file name
+const PROJECT_FILE_NAME: &str = "project.ron";
+
+/// Folder for charts
+pub const CHARTS_FOLDER: &str = "charts";
+
+/// Chart file name
+const CHART_FILE_NAME: &str = "chart.ron";
+
+/// The path of a resource file
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
 pub struct ResourcePath {
     pub directory: String,
@@ -25,6 +36,8 @@ impl ResourcePath {
         }
     }
 
+    /// Returns a new ResourcePath for a file relative to the current one.
+    /// Path starting with '/' are relative to the root folder.
     pub fn relative_path(&self, file_name: &str) -> Self {
         let parts = file_name.split('/').collect::<Vec<_>>();
         let directory = if file_name.starts_with('/') {
