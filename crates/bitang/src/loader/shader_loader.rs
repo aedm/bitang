@@ -308,4 +308,8 @@ impl ShaderCache {
     pub fn display_load_errors(&self) {
         self.shader_cache.display_load_errors();
     }
+
+    pub fn reset_load_cycle(&self) {
+        self.shader_cache.start_load_cycle();
+    }
 }

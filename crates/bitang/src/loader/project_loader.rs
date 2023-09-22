@@ -51,10 +51,7 @@ impl ProjectLoader {
             && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL;
         if has_file_changes || self.is_first_load || needs_retry {
             let now = Instant::now();
-            self.resource_repository
-                .control_repository
-                .reset_component_usage_counts();
-            self.file_loader.file_cache.prepare_loading_cycle();
+            self.resource_repository.start_load_cycle();
             match self.run_project_loader(context) {
                 Ok(project) => {
                     info!("Project length: {} seconds", project.length);

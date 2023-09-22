@@ -60,6 +60,16 @@ impl ResourceRepository {
         self.project_file_cache.display_load_errors();
     }
 
+    pub fn start_load_cycle(&self) {
+        self.file_hash_cache.start_load_cycle();
+        self.texture_cache.start_load_cycle();
+        self.mesh_cache.start_load_cycle();
+        self.shader_cache.reset_load_cycle();
+        self.chart_file_cache.start_load_cycle();
+        self.project_file_cache.start_load_cycle();
+        self.control_repository.reset_component_usage_counts();
+    }
+
     #[instrument(skip(self, context))]
     pub fn get_texture(
         self: &Arc<Self>,

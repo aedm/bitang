@@ -61,4 +61,8 @@ impl<T: Send + Sync> ResourceCache<T> {
     pub fn display_load_errors(&self) {
         self.resource_cache.display_load_errors();
     }
+
+    pub fn start_load_cycle(&self) {
+        self.resource_cache.start_load_cycle();
+    }
 }

@@ -47,7 +47,7 @@ impl FileCache {
         }
     }
 
-    pub fn prepare_loading_cycle(&self) {
+    pub fn start_load_cycle(&self) {
         self.has_missing_files.store(false, Ordering::Relaxed);
     }
 
@@ -129,7 +129,8 @@ impl FileManager {
                 Err(e) => error!("watch error: {:?}", e),
             }
         }
-        has_changes
+        // If no file was loaded yet, we can assume there are file changes
+        has_changes || self.watched_paths.is_empty()
     }
 
     pub async fn update_watchers(&mut self) {

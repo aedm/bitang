@@ -142,7 +142,7 @@ impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value
     }
 
     /// Call this before starting a new loading cycle.
-    pub fn reset_load_cycle(&mut self) {
+    pub fn start_load_cycle(&self) {
         self.accessed_in_current_load_cycle.clear();
     }
 
