@@ -14,7 +14,6 @@ pub struct ProjectLoader {
     pub resource_repository: Arc<ResourceRepository>,
     cached_root: Option<Arc<Project>>,
     last_load_time: Instant,
-    is_first_load: bool,
     file_loader: FileManager,
     async_runtime: tokio::runtime::Runtime,
 }
@@ -29,7 +28,6 @@ impl ProjectLoader {
             )?),
             cached_root: None,
             last_load_time: Instant::now() - LOAD_RETRY_INTERVAL,
-            is_first_load: true,
             file_loader,
             async_runtime,
         })
@@ -49,7 +47,7 @@ impl ProjectLoader {
         let needs_retry = self.cached_root.is_none()
             && self.file_loader.has_missing_files()
             && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL;
-        if has_file_changes || self.is_first_load || needs_retry {
+        if has_file_changes || needs_retry {
             let now = Instant::now();
             self.resource_repository.start_load_cycle();
             match self.run_project_loader(context) {
@@ -67,7 +65,6 @@ impl ProjectLoader {
                 }
             };
             self.last_load_time = Instant::now();
-            self.is_first_load = false;
         }
         self.cached_root.clone()
     }
