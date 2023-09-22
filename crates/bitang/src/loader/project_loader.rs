@@ -57,7 +57,7 @@ impl ProjectLoader {
                     self.cached_root = Some(Arc::new(project));
                 }
                 Err(err) => {
-                    if self.is_first_load || has_file_changes {
+                    if has_file_changes {
                         error!("Error loading project: {:?}", err);
                     }
                     self.resource_repository.display_load_errors();
