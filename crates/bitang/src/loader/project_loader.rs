@@ -10,6 +10,7 @@ use tracing::{error, info, instrument, warn};
 // If loading fails, we want to retry periodically.
 const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
 
+/// Manages the load and reload cycles of the project.
 pub struct ProjectLoader {
     pub resource_repository: Arc<ResourceRepository>,
     cached_root: Option<Arc<Project>>,

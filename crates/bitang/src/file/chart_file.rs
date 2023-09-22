@@ -322,8 +322,8 @@ impl Object {
         let instances_id = control_id.add(ControlIdPartType::Value, "instances");
 
         // Wait for resources to be loaded
-        let mesh = mesh_future.get().await?;
         let material = material_future.await?;
+        let mesh = mesh_future.get().await?;
 
         let object = crate::render::render_object::RenderObject {
             id: self.id.clone(),
