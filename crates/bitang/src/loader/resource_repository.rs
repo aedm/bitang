@@ -1,7 +1,7 @@
 use crate::control::controls::ControlRepository;
 use crate::file::{chart_file, project_file};
 use crate::loader::async_cache::LoadFuture;
-use crate::loader::file_cache::{FileCache, FileManager};
+use crate::loader::file_cache::{FileCache};
 use crate::loader::resource_cache::ResourceCache;
 use crate::loader::shader_loader::ShaderCache;
 use crate::loader::{ResourcePath, CHARTS_FOLDER, CHART_FILE_NAME, PROJECT_FILE_NAME};
@@ -16,8 +16,8 @@ use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tracing::{debug, error, info, instrument, warn};
+use std::time::{Instant};
+use tracing::{debug, info, instrument, warn};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 };

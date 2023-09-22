@@ -8,7 +8,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::{env, mem};
-use tokio::spawn;
 use tokio::sync::Mutex;
 use tokio::task::spawn_blocking;
 use tracing::{debug, error, trace};

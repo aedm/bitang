@@ -1,29 +1,11 @@
-use crate::control::controls::ControlRepository;
-use crate::file::{chart_file, project_file};
-use crate::loader::async_cache::LoadFuture;
-use crate::loader::file_cache::{FileCache, FileManager};
-use crate::loader::resource_cache::ResourceCache;
+use crate::loader::file_cache::FileManager;
 use crate::loader::resource_repository::ResourceRepository;
-use crate::loader::shader_loader::ShaderCache;
-use crate::loader::ResourcePath;
-use crate::render::chart::Chart;
-use crate::render::image::Image;
-use crate::render::mesh::Mesh;
 use crate::render::project::Project;
 use crate::render::vulkan_window::VulkanContext;
-use crate::render::Vertex3;
-use anyhow::{anyhow, ensure, Context, Result};
-use itertools::Itertools;
-use russimp::scene::{PostProcess, Scene};
-use std::collections::HashMap;
+use anyhow::Result;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::{debug, error, info, instrument, warn};
-use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
-};
-use vulkano::format::Format;
-use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
+use tracing::{error, info, instrument, warn};
 
 // If loading fails, we want to retry periodically.
 const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
