@@ -24,7 +24,7 @@ pub struct ChartContext {
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
     pub buffer_generators_by_id: HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
-    pub chart_file_path: ResourcePath,
+    pub path: ResourcePath,
 }
 
 #[derive(Debug, Deserialize)]
@@ -85,7 +85,7 @@ impl Chart {
             values_control_id: chart_control_id.add(ControlIdPartType::ChartValues, "Chart Values"),
             chart_control_id,
             buffer_generators_by_id,
-            chart_file_path: chart_file_path.clone(),
+            path: chart_file_path.clone(),
         };
 
         let chart_step_futures = self
@@ -292,7 +292,7 @@ impl Object {
         let control_id = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
             &chart_context.vulkan_context,
-            &chart_context.chart_file_path.relative_path(&self.mesh_file),
+            &chart_context.path.relative_path(&self.mesh_file),
             &self.mesh_name,
         );
 

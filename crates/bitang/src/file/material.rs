@@ -46,7 +46,7 @@ impl Material {
                     match &sampler.bind {
                         SamplerSource::File(texture_path) => resource_repository.get_texture(
                             &chart_context.vulkan_context,
-                            &chart_context.chart_file_path.relative_path(texture_path),
+                            &chart_context.path.relative_path(texture_path),
                         ),
                         SamplerSource::Image(id) => chart_context
                             .image_futures_by_id
@@ -225,15 +225,9 @@ impl MaterialPass {
             .shader_cache
             .get(
                 &chart_context.vulkan_context,
-                &chart_context
-                    .chart_file_path
-                    .relative_path(&self.vertex_shader),
-                &chart_context
-                    .chart_file_path
-                    .relative_path(&self.fragment_shader),
-                &chart_context
-                    .chart_file_path
-                    .relative_path(COMMON_SHADER_FILE),
+                &chart_context.path.relative_path(&self.vertex_shader),
+                &chart_context.path.relative_path(&self.fragment_shader),
+                &chart_context.path.relative_path(COMMON_SHADER_FILE),
             )
             .await?;
 
