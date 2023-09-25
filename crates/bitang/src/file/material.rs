@@ -17,6 +17,13 @@ use std::sync::Arc;
 
 const COMMON_SHADER_FILE: &str = "common.glsl";
 
+struct MaterialLoadContext {
+    control_map: HashMap<String, String>,
+    object_cid: ControlId,
+    sampler_futures: HashMap<String, (LoadFuture<Image>, Sampler)>,
+    local_buffer_generators_by_id: HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Material {
     passes: HashMap<String, MaterialPass>,
@@ -34,7 +41,7 @@ impl Material {
         chart_context: &ChartContext,
         passes: &[render::pass::Pass],
         control_map: &HashMap<String, String>,
-        parent_id: &ControlId,
+        object_cid: &ControlId,
     ) -> Result<crate::render::material::Material> {
         let sampler_futures = self
             .samplers
@@ -54,7 +61,7 @@ impl Material {
                             .clone(),
                     }
                 };
-                let value = (image, sampler);
+                let value = (image, sampler.clone());
                 Ok((name.clone(), value))
             })
             .collect::<Result<HashMap<_, _>>>()?;
@@ -74,17 +81,21 @@ impl Material {
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
+        let material_load_context = MaterialLoadContext {
+            control_map: control_map.clone(),
+            object_cid: object_cid.clone(),
+            sampler_futures,
+            local_buffer_generators_by_id,
+        };
+
         let material_pass_futures = passes.iter().map(|pass| async {
             if let Some(material_pass) = self.passes.get(&pass.id) {
                 let pass = material_pass
                     .load(
                         &pass.id,
+                        &material_load_context,
                         chart_context,
-                        control_map,
-                        parent_id,
-                        &sampler_futures,
                         pass.vulkan_render_pass.clone(),
-                        &local_buffer_generators_by_id,
                     )
                     .await?;
                 Ok(Some(pass))
@@ -122,27 +133,25 @@ struct MaterialPass {
 impl MaterialPass {
     async fn make_shader(
         &self,
+        material_load_context: &MaterialLoadContext,
         chart_context: &ChartContext,
         kind: ShaderKind,
         shader_compilation_result: &ShaderCompilationResult,
-        control_map: &HashMap<String, String>,
-        parent_id: &ControlId,
-        sampler_futures: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
-        local_buffer_generators_by_id: &HashMap<
-            String,
-            Arc<render::buffer_generator::BufferGenerator>,
-        >,
     ) -> Result<Shader> {
         let local_uniform_bindings = shader_compilation_result
             .local_uniform_bindings
             .iter()
             .map(|binding| {
-                let control_id = if let Some(mapped_name) = control_map.get(&binding.name) {
+                let control_id = if let Some(mapped_name) =
+                    material_load_context.control_map.get(&binding.name)
+                {
                     chart_context
                         .values_control_id
                         .add(ControlIdPartType::Value, mapped_name)
                 } else {
-                    parent_id.add(ControlIdPartType::Value, &binding.name)
+                    material_load_context
+                        .object_cid
+                        .add(ControlIdPartType::Value, &binding.name)
                 };
                 let control = chart_context
                     .control_set_builder
@@ -159,7 +168,8 @@ impl MaterialPass {
 
         // Collect buffer generator bindings
         for buffer in &shader_compilation_result.buffers {
-            let buffer_generator = local_buffer_generators_by_id
+            let buffer_generator = material_load_context
+                .local_buffer_generators_by_id
                 .get(&buffer.name)
                 .with_context(|| {
                     anyhow!(
@@ -177,7 +187,8 @@ impl MaterialPass {
 
         // Collect sampler bindings
         for sampler in &shader_compilation_result.samplers {
-            let source = sampler_futures
+            let source = material_load_context
+                .sampler_futures
                 .get(&sampler.name)
                 .with_context(|| anyhow!("Sampler definition for '{}' not found", sampler.name))?;
             // Wait for the image to load
@@ -209,15 +220,9 @@ impl MaterialPass {
     async fn load(
         &self,
         id: &str,
+        material_load_context: &MaterialLoadContext,
         chart_context: &ChartContext,
-        control_map: &HashMap<String, String>,
-        parent_id: &ControlId,
-        sampler_futures: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
-        local_buffer_generators_by_id: &HashMap<
-            String,
-            Arc<render::buffer_generator::BufferGenerator>,
-        >,
     ) -> Result<render::material::MaterialPass> {
         let shader_cache_value = chart_context
             .resource_repository
@@ -232,25 +237,19 @@ impl MaterialPass {
 
         let vertex_shader = self
             .make_shader(
+                material_load_context,
                 chart_context,
                 ShaderKind::Vertex,
                 &shader_cache_value.vertex_shader,
-                control_map,
-                parent_id,
-                sampler_futures,
-                local_buffer_generators_by_id,
             )
             .await?;
 
         let fragment_shader = self
             .make_shader(
+                material_load_context,
                 chart_context,
                 ShaderKind::Fragment,
                 &shader_cache_value.fragment_shader,
-                control_map,
-                parent_id,
-                sampler_futures,
-                local_buffer_generators_by_id,
             )
             .await?;
 
@@ -267,7 +266,7 @@ impl MaterialPass {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum SamplerSource {
     Image(String),
     File(String),
@@ -278,7 +277,7 @@ pub enum BufferSource {
     BufferGenerator(String),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 struct Sampler {
     bind: SamplerSource,
 
@@ -286,7 +285,7 @@ struct Sampler {
     address_mode: SamplerAddressMode,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub enum SamplerAddressMode {
     #[default]
     Repeat,

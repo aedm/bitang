@@ -289,7 +289,7 @@ impl Object {
         parent_id: &ControlId,
         passes: &[render::pass::Pass],
     ) -> Result<Arc<crate::render::render_object::RenderObject>> {
-        let control_id = parent_id.add(ControlIdPartType::Object, &self.id);
+        let object_cid = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
             &chart_context.vulkan_context,
             &chart_context.path.relative_path(&self.mesh_file),
@@ -298,11 +298,11 @@ impl Object {
 
         let material_future =
             self.material
-                .load(chart_context, passes, &self.control_map, &control_id);
+                .load(chart_context, passes, &self.control_map, &object_cid);
 
-        let position_id = control_id.add(ControlIdPartType::Value, "position");
-        let rotation_id = control_id.add(ControlIdPartType::Value, "rotation");
-        let instances_id = control_id.add(ControlIdPartType::Value, "instances");
+        let position_id = object_cid.add(ControlIdPartType::Value, "position");
+        let rotation_id = object_cid.add(ControlIdPartType::Value, "rotation");
+        let instances_id = object_cid.add(ControlIdPartType::Value, "instances");
 
         // Wait for resources to be loaded
         let material = material_future.await?;
