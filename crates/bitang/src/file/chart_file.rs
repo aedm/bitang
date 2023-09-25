@@ -1,5 +1,6 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
+use crate::file::ChartContext;
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_repository::ResourceRepository;
 use crate::loader::ResourcePath;
@@ -8,6 +9,7 @@ use crate::render::image::ImageSizeRule;
 use crate::render::vulkan_window::VulkanContext;
 use crate::render::SCREEN_RENDER_TARGET_ID;
 use crate::{file, render};
+use ahash::AHashMap;
 use anyhow::{anyhow, Context, Result};
 use futures::future::join_all;
 use serde::Deserialize;
@@ -33,9 +35,9 @@ impl Chart {
         resource_repository: &Arc<ResourceRepository>,
         path: &ResourcePath,
     ) -> Result<Arc<render::chart::Chart>> {
-        let control_id = ControlId::default().add(ControlIdPartType::Chart, id);
+        let chart_control_id = ControlId::default().add(ControlIdPartType::Chart, id);
         let control_set_builder = ControlSetBuilder::new(
-            control_id.clone(),
+            chart_control_id.clone(),
             resource_repository.control_repository.clone(),
         );
 
@@ -46,7 +48,7 @@ impl Chart {
                 let image = LoadFuture::new_from_value(image_desc.load());
                 Ok((image_desc.id.clone(), image))
             })
-            .collect::<Result<HashMap<_, _>>>()?;
+            .collect::<Result<AHashMap<_, _>>>()?;
 
         // Add swapchain image to the image map
         image_futures_by_id.insert(
@@ -58,30 +60,33 @@ impl Chart {
             .buffer_generators
             .iter()
             .map(|buffer_generator| {
-                let generator = buffer_generator.load(context, &control_id, &control_set_builder);
+                let generator =
+                    buffer_generator.load(context, &chart_control_id, &control_set_builder);
                 (buffer_generator.id.clone(), Arc::new(generator))
             })
             .collect::<HashMap<_, _>>();
 
-        let pass_futures = self.steps.iter().map(|pass| async {
-            pass.load(
-                context,
-                resource_repository,
-                &control_set_builder,
-                &image_futures_by_id,
-                &buffer_generators_by_id,
-                &control_id,
-                path,
-            )
-            .await
+        let chart_context = ChartContext {
+            vulkan_context: context.clone(),
+            resource_repository: resource_repository.clone(),
+            image_futures_by_id,
+            control_set_builder,
+            values_control_id: chart_control_id.add(ControlIdPartType::ChartValues, "Chart Values"),
+            chart_control_id,
+        };
+
+        let chart_step_futures = self.steps.iter().map(|pass| async {
+            pass.load(&chart_context, &buffer_generators_by_id, path)
+                .await
         });
         // Load all passes in parallel.
-        let passes = join_all(pass_futures)
+        let chart_steps = join_all(chart_step_futures)
             .await
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
 
-        let image_futures = image_futures_by_id
+        let image_futures = chart_context
+            .image_futures_by_id
             .into_values()
             .map(|image_future| async move { image_future.get().await });
         let images = join_all(image_futures)
@@ -93,11 +98,11 @@ impl Chart {
 
         let chart = render::chart::Chart::new(
             id,
-            &control_id,
-            control_set_builder,
+            &chart_context.chart_control_id,
+            chart_context.control_set_builder,
             images,
             buffer_generators,
-            passes,
+            chart_steps,
         );
         Ok(Arc::new(chart))
     }
@@ -133,20 +138,14 @@ impl Draw {
     #[allow(clippy::too_many_arguments)]
     pub async fn load(
         &self,
-        context: &Arc<VulkanContext>,
-        resource_repository: &Arc<ResourceRepository>,
-        control_set_builder: &ControlSetBuilder,
-        image_futures_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
+        chart_context: &ChartContext,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
-        chart_id: &ControlId,
         path: &ResourcePath,
     ) -> Result<render::draw::Draw> {
-        let control_prefix = chart_id.add(ControlIdPartType::ChartStep, &self.id);
-        let chart_id = chart_id.add(ControlIdPartType::ChartValues, "Chart Values");
-        let pass_futures = self
-            .passes
-            .iter()
-            .map(|pass| pass.load(context, image_futures_by_id));
+        let draw_control_id = chart_context
+            .chart_control_id
+            .add(ControlIdPartType::ChartStep, &self.id);
+        let pass_futures = self.passes.iter().map(|pass| pass.load(chart_context));
 
         // Pass render targets rarely need an image to be loaded, no problem resolving it early
         let passes = join_all(pass_futures)
@@ -156,12 +155,8 @@ impl Draw {
 
         let object_futures = self.objects.iter().map(|object| {
             object.load(
-                &control_prefix,
-                &chart_id,
-                context,
-                resource_repository,
-                control_set_builder,
-                image_futures_by_id,
+                chart_context,
+                &draw_control_id,
                 buffer_generators_by_id,
                 path,
                 &passes,
@@ -172,11 +167,13 @@ impl Draw {
             .into_iter()
             .collect::<Result<_>>()?;
 
-        let light_dir_id = control_prefix.add(ControlIdPartType::Value, "light_dir");
-        let shadow_map_size_id = control_prefix.add(ControlIdPartType::Value, "shadow_map_size");
+        let light_dir_id = draw_control_id.add(ControlIdPartType::Value, "light_dir");
+        let shadow_map_size_id = draw_control_id.add(ControlIdPartType::Value, "shadow_map_size");
 
-        let light_dir = control_set_builder.get_vec3(&light_dir_id);
-        let shadow_map_size = control_set_builder.get_vec3(&shadow_map_size_id);
+        let light_dir = chart_context.control_set_builder.get_vec3(&light_dir_id);
+        let shadow_map_size = chart_context
+            .control_set_builder
+            .get_vec3(&shadow_map_size_id);
 
         let draw = render::draw::Draw::new(&self.id, passes, objects, light_dir, shadow_map_size)?;
         Ok(draw)
@@ -192,7 +189,7 @@ pub enum ImageSelector {
 impl ImageSelector {
     pub async fn load(
         &self,
-        images_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
+        images_by_id: &AHashMap<String, LoadFuture<render::image::Image>>,
     ) -> Result<render::pass::ImageSelector> {
         match self {
             ImageSelector::Image(id) => {
@@ -217,20 +214,16 @@ pub struct Pass {
 }
 
 impl Pass {
-    pub async fn load(
-        &self,
-        context: &Arc<VulkanContext>,
-        render_targets_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
-    ) -> Result<render::pass::Pass> {
+    pub async fn load(&self, chart_context: &ChartContext) -> Result<render::pass::Pass> {
         let depth_buffer = match &self.depth_buffer {
-            Some(selector) => Some(selector.load(render_targets_by_id).await?),
+            Some(selector) => Some(selector.load(&chart_context.image_futures_by_id).await?),
             None => None,
         };
 
         let color_buffer_futures = self
             .color_buffers
             .iter()
-            .map(|color_buffer| color_buffer.load(render_targets_by_id));
+            .map(|color_buffer| color_buffer.load(&chart_context.image_futures_by_id));
         let color_buffers = join_all(color_buffer_futures)
             .await
             .into_iter()
@@ -238,7 +231,7 @@ impl Pass {
 
         render::pass::Pass::new(
             &self.id,
-            context,
+            &chart_context.vulkan_context,
             color_buffers,
             depth_buffer,
             self.clear_color,
@@ -287,33 +280,25 @@ impl Object {
     #[allow(clippy::too_many_arguments)]
     pub async fn load(
         &self,
+        chart_context: &ChartContext,
         parent_id: &ControlId,
-        chart_id: &ControlId,
-        context: &Arc<VulkanContext>,
-        resource_repository: &Arc<ResourceRepository>,
-        control_set_builder: &ControlSetBuilder,
-        image_futures_by_id: &HashMap<String, LoadFuture<render::image::Image>>,
         buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         path: &ResourcePath,
         passes: &[render::pass::Pass],
     ) -> Result<Arc<crate::render::render_object::RenderObject>> {
         let control_id = parent_id.add(ControlIdPartType::Object, &self.id);
-        let mesh_future = resource_repository.get_mesh(
-            context,
+        let mesh_future = chart_context.resource_repository.get_mesh(
+            &chart_context.vulkan_context,
             &path.relative_path(&self.mesh_file),
             &self.mesh_name,
         );
 
         let material_future = self.material.load(
-            context,
-            resource_repository,
-            image_futures_by_id,
+            chart_context,
             path,
             passes,
-            control_set_builder,
             &self.control_map,
             &control_id,
-            chart_id,
             buffer_generators_by_id,
         );
 
@@ -329,9 +314,11 @@ impl Object {
             id: self.id.clone(),
             mesh,
             material,
-            position: control_set_builder.get_vec3(&position_id),
-            rotation: control_set_builder.get_vec3(&rotation_id),
-            instances: control_set_builder.get_float_with_default(&instances_id, 1.),
+            position: chart_context.control_set_builder.get_vec3(&position_id),
+            rotation: chart_context.control_set_builder.get_vec3(&rotation_id),
+            instances: chart_context
+                .control_set_builder
+                .get_float_with_default(&instances_id, 1.),
         };
         Ok(Arc::new(object))
     }
