@@ -5,7 +5,7 @@ use crate::loader::async_cache::LoadFuture;
 use crate::loader::shader_loader::ShaderCompilationResult;
 use crate::render;
 use crate::render::image::Image;
-use crate::render::material::BlendMode;
+use crate::render::material::{BlendMode, MaterialPassProps};
 use crate::render::shader::{
     DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, Shader, ShaderKind,
 };
@@ -253,14 +253,18 @@ impl MaterialPass {
             )
             .await?;
 
-        render::material::MaterialPass::new(
-            &chart_context.vulkan_context,
-            id.to_string(),
+        let material_props = MaterialPassProps {
+            id: id.to_string(),
             vertex_shader,
             fragment_shader,
-            self.depth_test,
-            self.depth_write,
-            self.blend_mode.clone(),
+            depth_test: self.depth_test,
+            depth_write: self.depth_write,
+            blend_mode: self.blend_mode.clone(),
+        };
+
+        render::material::MaterialPass::new(
+            &chart_context.vulkan_context,
+            material_props,
             vulkan_render_pass,
         )
     }
