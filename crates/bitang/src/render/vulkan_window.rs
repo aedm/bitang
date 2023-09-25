@@ -90,6 +90,7 @@ impl VulkanWindow {
             ci.image_format = Some(SCREEN_COLOR_FORMAT.vulkan_format());
             ci.min_image_count = ci.min_image_count.max(3);
         });
+        windows.get_primary_window().unwrap().set_visible(false);
 
         let renderer = windows
             .get_primary_renderer_mut()
@@ -168,6 +169,12 @@ impl VulkanWindow {
             app.play();
         }
         let mut demo_mode = START_IN_DEMO_MODE;
+
+        {
+            let window = self.windows.get_primary_window().unwrap();
+            window.set_inner_size(PhysicalSize::new(1280, 1000));
+            window.set_visible(true);
+        }
 
         let event_loop = self.event_loop.take().unwrap();
         event_loop.run(move |event, _, control_flow| {
