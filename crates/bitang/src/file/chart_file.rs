@@ -24,6 +24,7 @@ pub struct ChartContext {
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
     pub buffer_generators_by_id: HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
+    pub chart_file_path: ResourcePath,
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,7 +44,7 @@ impl Chart {
         id: &str,
         context: &Arc<VulkanContext>,
         resource_repository: &Arc<ResourceRepository>,
-        path: &ResourcePath,
+        chart_file_path: &ResourcePath,
     ) -> Result<Arc<render::chart::Chart>> {
         let chart_control_id = ControlId::default().add(ControlIdPartType::Chart, id);
         let control_set_builder = ControlSetBuilder::new(
@@ -84,12 +85,13 @@ impl Chart {
             values_control_id: chart_control_id.add(ControlIdPartType::ChartValues, "Chart Values"),
             chart_control_id,
             buffer_generators_by_id,
+            chart_file_path: chart_file_path.clone(),
         };
 
         let chart_step_futures = self
             .steps
             .iter()
-            .map(|pass| async { pass.load(&chart_context, path).await });
+            .map(|pass| async { pass.load(&chart_context).await });
         // Load all passes in parallel.
         let chart_steps = join_all(chart_step_futures)
             .await
@@ -149,11 +151,7 @@ pub struct Draw {
 
 impl Draw {
     #[allow(clippy::too_many_arguments)]
-    pub async fn load(
-        &self,
-        chart_context: &ChartContext,
-        path: &ResourcePath,
-    ) -> Result<render::draw::Draw> {
+    pub async fn load(&self, chart_context: &ChartContext) -> Result<render::draw::Draw> {
         let draw_control_id = chart_context
             .chart_control_id
             .add(ControlIdPartType::ChartStep, &self.id);
@@ -168,7 +166,7 @@ impl Draw {
         let object_futures = self
             .objects
             .iter()
-            .map(|object| object.load(chart_context, &draw_control_id, path, &passes));
+            .map(|object| object.load(chart_context, &draw_control_id, &passes));
         let objects = join_all(object_futures)
             .await
             .into_iter()
@@ -289,19 +287,18 @@ impl Object {
         &self,
         chart_context: &ChartContext,
         parent_id: &ControlId,
-        path: &ResourcePath,
         passes: &[render::pass::Pass],
     ) -> Result<Arc<crate::render::render_object::RenderObject>> {
         let control_id = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
             &chart_context.vulkan_context,
-            &path.relative_path(&self.mesh_file),
+            &chart_context.chart_file_path.relative_path(&self.mesh_file),
             &self.mesh_name,
         );
 
         let material_future =
             self.material
-                .load(chart_context, path, passes, &self.control_map, &control_id);
+                .load(chart_context, passes, &self.control_map, &control_id);
 
         let position_id = control_id.add(ControlIdPartType::Value, "position");
         let rotation_id = control_id.add(ControlIdPartType::Value, "rotation");

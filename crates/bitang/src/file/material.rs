@@ -33,7 +33,6 @@ impl Material {
     pub async fn load(
         &self,
         chart_context: &ChartContext,
-        path: &ResourcePath,
         passes: &[render::pass::Pass],
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
@@ -47,7 +46,7 @@ impl Material {
                     match &sampler.bind {
                         SamplerSource::File(texture_path) => resource_repository.get_texture(
                             &chart_context.vulkan_context,
-                            &path.relative_path(texture_path),
+                            &chart_context.chart_file_path.relative_path(texture_path),
                         ),
                         SamplerSource::Image(id) => chart_context
                             .image_futures_by_id
@@ -82,7 +81,6 @@ impl Material {
                     .load(
                         &pass.id,
                         chart_context,
-                        path,
                         control_map,
                         parent_id,
                         &sampler_futures,
@@ -213,7 +211,6 @@ impl MaterialPass {
         &self,
         id: &str,
         chart_context: &ChartContext,
-        path: &ResourcePath,
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
         sampler_futures: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
@@ -228,9 +225,15 @@ impl MaterialPass {
             .shader_cache
             .get(
                 &chart_context.vulkan_context,
-                &path.relative_path(&self.vertex_shader),
-                &path.relative_path(&self.fragment_shader),
-                &path.relative_path(COMMON_SHADER_FILE),
+                &chart_context
+                    .chart_file_path
+                    .relative_path(&self.vertex_shader),
+                &chart_context
+                    .chart_file_path
+                    .relative_path(&self.fragment_shader),
+                &chart_context
+                    .chart_file_path
+                    .relative_path(COMMON_SHADER_FILE),
             )
             .await?;
 
