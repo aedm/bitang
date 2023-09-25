@@ -117,7 +117,6 @@ pub struct Image {
 
 impl Image {
     pub fn load(&self) -> Arc<render::image::Image> {
-        
         render::image::Image::new_attachment(&self.id, self.format, self.size)
     }
 }
