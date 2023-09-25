@@ -3,7 +3,6 @@ use crate::control::ControlId;
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_repository::ResourceRepository;
 use crate::render;
-use crate::render::draw::Draw;
 use crate::render::vulkan_window::VulkanContext;
 use ahash::AHashMap;
 use std::sync::Arc;
