@@ -30,7 +30,7 @@ impl<T: Send + Sync> ResourceCache<T> {
         let file_hash_cache = self.file_hash_cache.clone();
         let cache_entry = file_hash_cache.get(path).await?;
         let hash = cache_entry.hash;
-        let loader_func = self.loader_func.clone();
+        let loader_func = self.loader_func;
         let context = context.clone();
         let path = path.clone();
         let async_loader = async move {

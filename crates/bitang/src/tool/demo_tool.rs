@@ -219,10 +219,8 @@ impl DemoTool {
             // Fix the alpha channel
             content[i * 4 + 3] = 255;
 
-            // Fix the alpha channel
-            let r = content[i * 4 + 0];
-            content[i * 4 + 0] = content[i * 4 + 2];
-            content[i * 4 + 2] = r;
+            // Fix the RGB order
+            content.swap(i * 4, i * 4 + 2);
         }
 
         let path = format!("framedump/dump-{:0>8}.png", frame_number);

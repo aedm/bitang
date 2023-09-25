@@ -41,27 +41,30 @@ pub struct MaterialPass {
     pub depth_test: bool,
     pub depth_write: bool,
     pub blend_mode: BlendMode,
-
     pipeline: Arc<GraphicsPipeline>,
+}
+
+pub struct MaterialPassProps {
+    pub id: String,
+    pub vertex_shader: Shader,
+    pub fragment_shader: Shader,
+    pub depth_test: bool,
+    pub depth_write: bool,
+    pub blend_mode: BlendMode,
 }
 
 impl MaterialPass {
     pub fn new(
         context: &Arc<VulkanContext>,
-        id: String,
-        vertex_shader: Shader,
-        fragment_shader: Shader,
-        depth_test: bool,
-        depth_write: bool,
-        blend_mode: BlendMode,
+        props: MaterialPassProps,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<MaterialPass> {
-        let depth_state = if depth_test || depth_write {
-            let compare_op = if depth_test { CompareOp::Less } else { CompareOp::Always };
+        let depth_state = if props.depth_test || props.depth_write {
+            let compare_op = if props.depth_test { CompareOp::Less } else { CompareOp::Always };
             Some(DepthState {
                 enable_dynamic: false,
                 compare_op: StateMode::Fixed(compare_op),
-                write_enable: StateMode::Fixed(depth_write),
+                write_enable: StateMode::Fixed(props.depth_write),
             })
         } else {
             None
@@ -74,7 +77,7 @@ impl MaterialPass {
         };
 
         let mut color_blend_state = ColorBlendState::new(1);
-        match blend_mode {
+        match props.blend_mode {
             BlendMode::None => {}
             BlendMode::Alpha => {
                 color_blend_state = color_blend_state.blend_alpha();
@@ -95,7 +98,8 @@ impl MaterialPass {
         let pipeline = GraphicsPipeline::start()
             .vertex_input_state(Vertex3::per_vertex())
             .vertex_shader(
-                vertex_shader
+                props
+                    .vertex_shader
                     .shader_module
                     .entry_point("main")
                     .context("Failed to get vertex shader entry point")?,
@@ -104,7 +108,8 @@ impl MaterialPass {
             .input_assembly_state(InputAssemblyState::new())
             .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
             .fragment_shader(
-                fragment_shader
+                props
+                    .fragment_shader
                     .shader_module
                     .entry_point("main")
                     .context("Failed to get fragment shader entry point")?,
@@ -117,12 +122,12 @@ impl MaterialPass {
             .build(context.vulkano_context.device().clone())?;
 
         Ok(MaterialPass {
-            id,
-            vertex_shader,
-            fragment_shader,
-            depth_test,
-            depth_write,
-            blend_mode,
+            id: props.id,
+            vertex_shader: props.vertex_shader,
+            fragment_shader: props.fragment_shader,
+            depth_test: props.depth_test,
+            depth_write: props.depth_write,
+            blend_mode: props.blend_mode,
             pipeline,
         })
     }

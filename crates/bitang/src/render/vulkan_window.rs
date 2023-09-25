@@ -110,7 +110,7 @@ impl VulkanWindow {
             StandardDescriptorSetAllocator::new(vulkano_context.device().clone());
 
         let context = Arc::new(VulkanContext {
-            vulkano_context: vulkano_context,
+            vulkano_context,
             command_buffer_allocator,
             descriptor_set_allocator,
             swapchain_format: renderer.swapchain_format(),
