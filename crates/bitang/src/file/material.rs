@@ -61,7 +61,7 @@ impl Material {
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
-        let buffer_generators_by_id = self
+        let local_buffer_generators_by_id = self
             .buffers
             .iter()
             .map(|(name, buffer)| {
@@ -87,6 +87,7 @@ impl Material {
                         parent_id,
                         &sampler_futures,
                         pass.vulkan_render_pass.clone(),
+                        &local_buffer_generators_by_id,
                     )
                     .await?;
                 Ok(Some(pass))
@@ -130,6 +131,10 @@ impl MaterialPass {
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
         sampler_futures: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
+        local_buffer_generators_by_id: &HashMap<
+            String,
+            Arc<render::buffer_generator::BufferGenerator>,
+        >,
     ) -> Result<Shader> {
         let local_uniform_bindings = shader_compilation_result
             .local_uniform_bindings
@@ -157,8 +162,7 @@ impl MaterialPass {
 
         // Collect buffer generator bindings
         for buffer in &shader_compilation_result.buffers {
-            let buffer_generator = chart_context
-                .buffer_generators_by_id
+            let buffer_generator = local_buffer_generators_by_id
                 .get(&buffer.name)
                 .with_context(|| {
                     anyhow!(
@@ -214,6 +218,10 @@ impl MaterialPass {
         parent_id: &ControlId,
         sampler_futures: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
+        local_buffer_generators_by_id: &HashMap<
+            String,
+            Arc<render::buffer_generator::BufferGenerator>,
+        >,
     ) -> Result<render::material::MaterialPass> {
         let shader_cache_value = chart_context
             .resource_repository
@@ -234,6 +242,7 @@ impl MaterialPass {
                 control_map,
                 parent_id,
                 sampler_futures,
+                local_buffer_generators_by_id,
             )
             .await?;
 
@@ -245,6 +254,7 @@ impl MaterialPass {
                 control_map,
                 parent_id,
                 sampler_futures,
+                local_buffer_generators_by_id,
             )
             .await?;
 
