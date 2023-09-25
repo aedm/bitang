@@ -1,5 +1,6 @@
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::{default_true, ChartContext};
+use crate::file::chart_file::ChartContext;
+use crate::file::default_true;
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::shader_loader::ShaderCompilationResult;
 use crate::loader::ResourcePath;
@@ -36,7 +37,6 @@ impl Material {
         passes: &[render::pass::Pass],
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
-        buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
     ) -> Result<crate::render::material::Material> {
         let sampler_futures = self
             .samplers
@@ -66,7 +66,8 @@ impl Material {
             .iter()
             .map(|(name, buffer)| {
                 let buffer_generator = match buffer {
-                    BufferSource::BufferGenerator(id) => buffer_generators_by_id
+                    BufferSource::BufferGenerator(id) => chart_context
+                        .buffer_generators_by_id
                         .get(id)
                         .with_context(|| anyhow!("Buffer generator '{id}' not found"))?
                         .clone(),
@@ -130,7 +131,6 @@ impl MaterialPass {
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
         sampler_futures: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
-        buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
     ) -> Result<Shader> {
         let local_uniform_bindings = shader_compilation_result
             .local_uniform_bindings
@@ -158,8 +158,10 @@ impl MaterialPass {
 
         // Collect buffer generator bindings
         for buffer in &shader_compilation_result.buffers {
-            let buffer_generator =
-                buffer_generators_by_id.get(&buffer.name).with_context(|| {
+            let buffer_generator = chart_context
+                .buffer_generators_by_id
+                .get(&buffer.name)
+                .with_context(|| {
                     anyhow!(
                         "Buffer generator definition for '{}' not found",
                         buffer.name
@@ -234,7 +236,6 @@ impl MaterialPass {
                 control_map,
                 parent_id,
                 sampler_futures,
-                buffer_generators_by_id,
             )
             .await?;
 
@@ -246,7 +247,6 @@ impl MaterialPass {
                 control_map,
                 parent_id,
                 sampler_futures,
-                buffer_generators_by_id,
             )
             .await?;
 

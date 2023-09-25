@@ -15,12 +15,3 @@ pub mod project_file;
 fn default_true() -> bool {
     true
 }
-
-pub struct ChartContext {
-    vulkan_context: Arc<VulkanContext>,
-    resource_repository: Arc<ResourceRepository>,
-    image_futures_by_id: AHashMap<String, LoadFuture<render::image::Image>>,
-    control_set_builder: ControlSetBuilder,
-    chart_control_id: ControlId,
-    values_control_id: ControlId,
-}

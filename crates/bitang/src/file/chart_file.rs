@@ -1,6 +1,5 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::ChartContext;
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_repository::ResourceRepository;
 use crate::loader::ResourcePath;
@@ -15,6 +14,17 @@ use futures::future::join_all;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+/// A context for loading a chart.
+pub struct ChartContext {
+    pub vulkan_context: Arc<VulkanContext>,
+    pub resource_repository: Arc<ResourceRepository>,
+    pub image_futures_by_id: AHashMap<String, LoadFuture<render::image::Image>>,
+    pub control_set_builder: ControlSetBuilder,
+    pub chart_control_id: ControlId,
+    pub values_control_id: ControlId,
+    pub buffer_generators_by_id: HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct Chart {
@@ -73,12 +83,13 @@ impl Chart {
             control_set_builder,
             values_control_id: chart_control_id.add(ControlIdPartType::ChartValues, "Chart Values"),
             chart_control_id,
+            buffer_generators_by_id,
         };
 
-        let chart_step_futures = self.steps.iter().map(|pass| async {
-            pass.load(&chart_context, &buffer_generators_by_id, path)
-                .await
-        });
+        let chart_step_futures = self
+            .steps
+            .iter()
+            .map(|pass| async { pass.load(&chart_context, path).await });
         // Load all passes in parallel.
         let chart_steps = join_all(chart_step_futures)
             .await
@@ -94,7 +105,10 @@ impl Chart {
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
 
-        let buffer_generators = buffer_generators_by_id.into_values().collect::<Vec<_>>();
+        let buffer_generators = chart_context
+            .buffer_generators_by_id
+            .into_values()
+            .collect::<Vec<_>>();
 
         let chart = render::chart::Chart::new(
             id,
@@ -138,7 +152,6 @@ impl Draw {
     pub async fn load(
         &self,
         chart_context: &ChartContext,
-        buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         path: &ResourcePath,
     ) -> Result<render::draw::Draw> {
         let draw_control_id = chart_context
@@ -156,7 +169,7 @@ impl Draw {
             object.load(
                 chart_context,
                 &draw_control_id,
-                buffer_generators_by_id,
+                &chart_context.buffer_generators_by_id,
                 path,
                 &passes,
             )
@@ -292,14 +305,9 @@ impl Object {
             &self.mesh_name,
         );
 
-        let material_future = self.material.load(
-            chart_context,
-            path,
-            passes,
-            &self.control_map,
-            &control_id,
-            buffer_generators_by_id,
-        );
+        let material_future =
+            self.material
+                .load(chart_context, path, passes, &self.control_map, &control_id);
 
         let position_id = control_id.add(ControlIdPartType::Value, "position");
         let rotation_id = control_id.add(ControlIdPartType::Value, "rotation");
