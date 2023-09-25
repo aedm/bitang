@@ -106,7 +106,7 @@ impl ResourceRepository {
         context: &Arc<VulkanContext>,
     ) -> Result<Arc<Chart>> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
-        let chart = self.chart_file_cache.load(&context, &path).await?;
+        let chart = self.chart_file_cache.load(context, &path).await?;
         chart.load(id, context, self, &path).await
     }
 
