@@ -3,7 +3,6 @@ use crate::file::chart_file::ChartContext;
 use crate::file::default_true;
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::shader_loader::ShaderCompilationResult;
-use crate::loader::ResourcePath;
 use crate::render;
 use crate::render::image::Image;
 use crate::render::material::BlendMode;
