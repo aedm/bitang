@@ -86,7 +86,6 @@ impl Material {
                         control_map,
                         parent_id,
                         &sampler_futures,
-                        &buffer_generators_by_id,
                         pass.vulkan_render_pass.clone(),
                     )
                     .await?;
@@ -214,7 +213,6 @@ impl MaterialPass {
         control_map: &HashMap<String, String>,
         parent_id: &ControlId,
         sampler_futures: &HashMap<String, (LoadFuture<Image>, &Sampler)>,
-        buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<render::material::MaterialPass> {
         let shader_cache_value = chart_context

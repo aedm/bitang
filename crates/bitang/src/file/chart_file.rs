@@ -165,15 +165,10 @@ impl Draw {
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
 
-        let object_futures = self.objects.iter().map(|object| {
-            object.load(
-                chart_context,
-                &draw_control_id,
-                &chart_context.buffer_generators_by_id,
-                path,
-                &passes,
-            )
-        });
+        let object_futures = self
+            .objects
+            .iter()
+            .map(|object| object.load(chart_context, &draw_control_id, path, &passes));
         let objects = join_all(object_futures)
             .await
             .into_iter()
@@ -294,7 +289,6 @@ impl Object {
         &self,
         chart_context: &ChartContext,
         parent_id: &ControlId,
-        buffer_generators_by_id: &HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
         path: &ResourcePath,
         passes: &[render::pass::Pass],
     ) -> Result<Arc<crate::render::render_object::RenderObject>> {
