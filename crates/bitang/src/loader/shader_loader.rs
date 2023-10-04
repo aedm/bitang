@@ -122,7 +122,7 @@ impl ShaderCache {
         self.shader_cache.get(key, shader_load_func).await
     }
 
-    #[instrument(skip(context, source))]
+    #[instrument(skip(context, source, kind))]
     fn compile_shader_module(
         context: &Arc<VulkanContext>,
         source: &str,
@@ -134,11 +134,7 @@ impl ShaderCache {
         let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
         let spirv = compiler.compile_into_spirv(source, kind, &path, "main", None)?;
         let spirv_binary = spirv.as_binary_u8();
-        info!(
-            "compiled in {:?}, SPIRV size: {}.",
-            now.elapsed(),
-            spirv_binary.len()
-        );
+        info!("compiled in {:?}.", now.elapsed());
 
         // Extract metadata from SPIRV
         let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary)
@@ -200,9 +196,10 @@ impl ShaderCache {
             })
             .collect();
         debug!(
-            "Found {} samplers and {} buffers",
+            "Found {} samplers and {} buffers, SPIRV size: {}.",
             samplers.len(),
-            buffers.len()
+            buffers.len(),
+            spirv_binary.len()
         );
 
         // Find the uniform block that contains all local and global uniforms
@@ -273,7 +270,7 @@ impl ShaderCache {
             uniform_buffer_size,
         };
 
-        debug!(
+        trace!(
             "Local uniforms: {:?}",
             result
                 .local_uniform_bindings
@@ -281,7 +278,7 @@ impl ShaderCache {
                 .map(|u| &u.name)
                 .collect::<Vec<_>>()
         );
-        debug!(
+        trace!(
             "Global uniforms: {:?}",
             result
                 .global_uniform_bindings
@@ -289,7 +286,7 @@ impl ShaderCache {
                 .map(|u| u.global_type)
                 .collect::<Vec<_>>()
         );
-        debug!(
+        trace!(
             "Textures: {:?}",
             result.samplers.iter().map(|u| &u.name).collect::<Vec<_>>()
         );

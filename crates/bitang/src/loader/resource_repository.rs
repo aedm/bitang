@@ -17,7 +17,7 @@ use russimp::scene::{PostProcess, Scene};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument, trace, warn};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 };
@@ -195,7 +195,7 @@ fn load_mesh_collection(
     Ok(Arc::new(MeshCollection { meshes_by_name }))
 }
 
-#[instrument(skip_all)]
+#[instrument(skip(context, content))]
 fn load_texture(
     context: &Arc<VulkanContext>,
     content: &[u8],
@@ -203,7 +203,7 @@ fn load_texture(
 ) -> Result<Arc<Image>> {
     let now = Instant::now();
     let rgba = image::load_from_memory(content)?.to_rgba8();
-    info!("Decoded image in {:?}", now.elapsed());
+    info!("decoded in {:?}", now.elapsed());
     let dimensions = ImageDimensions::Dim2d {
         width: rgba.dimensions().0,
         height: rgba.dimensions().1,

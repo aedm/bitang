@@ -17,7 +17,7 @@ use vulkano_util::{
     window::{VulkanoWindows, WindowDescriptor},
 };
 use winit::dpi::PhysicalSize;
-use winit::window::Fullscreen;
+use winit::window::{Fullscreen, Window, WindowBuilder};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -35,10 +35,9 @@ pub struct VulkanContext {
     pub vulkano_context: VulkanoContext,
     pub command_buffer_allocator: StandardCommandBufferAllocator,
     pub descriptor_set_allocator: StandardDescriptorSetAllocator,
-    pub swapchain_format: Format,
-    pub surface: Arc<Surface>,
     pub gfx_queue: Arc<Queue>,
     pub final_render_target: Arc<Image>,
+    pub swapchain_format: Format,
 }
 
 pub struct RenderContext<'a> {
@@ -46,12 +45,13 @@ pub struct RenderContext<'a> {
     pub screen_viewport: Viewport,
     pub command_builder: &'a mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
     pub globals: Globals,
+    // pub surface: Arc<Surface>,
 }
 
 pub struct VulkanWindow {
     pub context: Arc<VulkanContext>,
     pub event_loop: Option<EventLoop<()>>,
-    windows: VulkanoWindows,
+    // windows: VulkanoWindows,
     is_fullscreen: bool,
 }
 
@@ -70,6 +70,13 @@ pub trait VulkanApp {
     fn play(&mut self);
     fn stop(&mut self);
     fn set_fullscreen(&mut self, fullscreen: bool);
+
+    fn init_with_surface(
+        &mut self,
+        context: &Arc<VulkanContext>,
+        event_loop: &EventLoop<()>,
+        surface: &Arc<Surface>,
+    ) -> Result<()>;
 }
 
 impl VulkanWindow {
@@ -78,23 +85,14 @@ impl VulkanWindow {
 
         let vulkano_context = VulkanoContext::new(VulkanoConfig::default());
 
-        let mut windows = VulkanoWindows::default();
-        let window_descriptor = WindowDescriptor {
-            title: "Bitang".to_string(),
-            width: 1280.,
-            height: 1000.,
-            ..WindowDescriptor::default()
-        };
-
-        windows.create_window(&event_loop, &vulkano_context, &window_descriptor, |ci| {
-            ci.image_format = Some(SCREEN_COLOR_FORMAT.vulkan_format());
-            ci.min_image_count = ci.min_image_count.max(3);
-        });
-        windows.get_primary_window().unwrap().set_visible(false);
-
-        let renderer = windows
-            .get_primary_renderer_mut()
-            .context("No primary renderer")?;
+        // let window = Arc::new(
+        //     WindowBuilder::new()
+        //         // .with_visible(false)
+        //         .build(&event_loop)
+        //         .unwrap(),
+        // );
+        // // window.set_visible(false);
+        // let surface = Surface::from_window(instance.clone(), window.clone()).unwrap();
 
         let final_render_target = if FRAMEDUMP_MODE {
             let size = ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
@@ -111,25 +109,24 @@ impl VulkanWindow {
             StandardDescriptorSetAllocator::new(vulkano_context.device().clone());
 
         let context = Arc::new(VulkanContext {
-            vulkano_context,
             command_buffer_allocator,
             descriptor_set_allocator,
-            swapchain_format: renderer.swapchain_format(),
-            surface: renderer.surface(),
-            gfx_queue: renderer.graphics_queue(),
+            gfx_queue: vulkano_context.graphics_queue().clone(),
+            vulkano_context,
             final_render_target,
+            // swapchain_format: renderer.swapchain_format(),
+            swapchain_format: SCREEN_COLOR_FORMAT.vulkan_format(),
         });
 
         Ok(Self {
-            windows,
             event_loop: Some(event_loop),
             context,
             is_fullscreen: false,
         })
     }
 
-    fn toggle_fullscreen(&mut self, app: &mut impl VulkanApp) {
-        let renderer = self.windows.get_primary_renderer_mut().unwrap();
+    fn toggle_fullscreen(&mut self, renderer: &VulkanoWindowRenderer, app: &mut impl VulkanApp) {
+        // let renderer = self.windows.get_primary_renderer_mut().unwrap();
         let window = renderer.window();
         self.is_fullscreen = !self.is_fullscreen;
         if self.is_fullscreen {
@@ -157,35 +154,59 @@ impl VulkanWindow {
         app.set_fullscreen(self.is_fullscreen);
     }
 
-    fn get_renderer(&mut self) -> &mut VulkanoWindowRenderer {
-        self.windows.get_primary_renderer_mut().unwrap()
+    fn get_renderer(windows: &mut VulkanoWindows) -> &mut VulkanoWindowRenderer {
+        windows.get_primary_renderer_mut().unwrap()
+    }
+
+    fn get_window(windows: &VulkanoWindows) -> &Window {
+        windows.get_primary_window().unwrap()
     }
 
     pub fn run(mut self, mut app: impl VulkanApp + 'static) {
+        let event_loop = self.event_loop.take().unwrap();
+
+        let mut windows = VulkanoWindows::default();
+        let window_descriptor = WindowDescriptor {
+            title: "Bitang".to_string(),
+            width: 1280.,
+            height: 1000.,
+            ..WindowDescriptor::default()
+        };
+
+        windows.create_window(
+            &event_loop,
+            &self.context.vulkano_context,
+            &window_descriptor,
+            |ci| {
+                ci.image_format = Some(SCREEN_COLOR_FORMAT.vulkan_format());
+                ci.min_image_count = ci.min_image_count.max(3);
+            },
+        );
+
+        app.init_with_surface(
+            &self.context,
+            &event_loop,
+            &Self::get_renderer(&mut windows).surface(),
+        )
+        .unwrap();
+
         app.set_fullscreen(self.is_fullscreen);
         if START_IN_DEMO_MODE {
             info!("Starting demo.");
-            self.toggle_fullscreen(&mut app);
+            self.toggle_fullscreen(Self::get_renderer(&mut windows), &mut app);
             app.play();
         }
         let mut demo_mode = START_IN_DEMO_MODE;
 
-        {
-            let window = self.windows.get_primary_window().unwrap();
-            window.set_inner_size(PhysicalSize::new(1280, 1000));
-            window.set_visible(true);
-        }
-
-        let event_loop = self.event_loop.take().unwrap();
         event_loop.run(move |event, _, control_flow| {
             match event {
                 Event::WindowEvent { event, window_id }
-                    if window_id == self.get_renderer().window().id() =>
+                    if window_id == Self::get_window(&windows).id() =>
                 {
                     app.handle_window_event(&event);
                     match event {
                         WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                            self.get_renderer().resize();
+                            Self::get_renderer(&mut windows).resize();
                         }
                         WindowEvent::CloseRequested => {
                             *control_flow = ControlFlow::Exit;
@@ -195,7 +216,10 @@ impl VulkanWindow {
                             if input.state == winit::event::ElementState::Pressed {
                                 match input.virtual_keycode {
                                     Some(winit::event::VirtualKeyCode::F11) => {
-                                        self.toggle_fullscreen(&mut app);
+                                        self.toggle_fullscreen(
+                                            Self::get_renderer(&mut windows),
+                                            &mut app,
+                                        );
                                         demo_mode = false;
                                     }
                                     Some(winit::event::VirtualKeyCode::Escape) => {
@@ -203,7 +227,10 @@ impl VulkanWindow {
                                             *control_flow = ControlFlow::Exit;
                                             info!("Exiting on user request.");
                                         } else if self.is_fullscreen {
-                                            self.toggle_fullscreen(&mut app);
+                                            self.toggle_fullscreen(
+                                                Self::get_renderer(&mut windows),
+                                                &mut app,
+                                            );
                                             app.stop();
                                         }
                                     }
@@ -215,10 +242,7 @@ impl VulkanWindow {
                     }
                 }
                 Event::RedrawRequested(_) => {
-                    let result = app.paint(
-                        &self.context,
-                        self.windows.get_primary_renderer_mut().unwrap(),
-                    );
+                    let result = app.paint(&self.context, Self::get_renderer(&mut windows));
                     match result {
                         PaintResult::None => {}
                         PaintResult::EndReached => {
@@ -226,14 +250,14 @@ impl VulkanWindow {
                                 *control_flow = ControlFlow::Exit;
                                 info!("Everything that has a beginning must have an end.");
                             } else if self.is_fullscreen {
-                                self.toggle_fullscreen(&mut app);
+                                self.toggle_fullscreen(Self::get_renderer(&mut windows), &mut app);
                             }
                             app.stop();
                         }
                     }
                 }
                 Event::MainEventsCleared => {
-                    self.get_renderer().window().request_redraw();
+                    Self::get_window(&windows).request_redraw();
                 }
                 _ => (),
             };

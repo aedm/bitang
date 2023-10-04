@@ -5,7 +5,7 @@ use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
-use tracing::info;
+use tracing::{info, trace};
 
 type LoaderFunc<T> =
     fn(context: &Arc<VulkanContext>, blob: &[u8], resource_name: &str) -> Result<Arc<T>>;
@@ -38,7 +38,7 @@ impl<T: Send + Sync> ResourceCache<T> {
                 let FileCacheEntry { hash: _, content } = cache_entry.as_ref();
                 let now = std::time::Instant::now();
                 let resource = loader_func(&context, content, &path.file_name)?;
-                info!("Loading {} took {:?}", &path.to_string(), now.elapsed());
+                trace!("Loading {} took {:?}", &path.to_string(), now.elapsed());
                 Ok(resource)
             };
             // Run the loader function in a blocking thread pool.

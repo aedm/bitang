@@ -11,6 +11,7 @@ use crate::render::vulkan_window::{
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{bail, Result};
+use std::cell::RefCell;
 use std::cmp::max;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -25,6 +26,7 @@ use vulkano::command_buffer::{
 use vulkano::image::ImageViewAbstract;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryUsage};
 use vulkano::pipeline::graphics::viewport::Viewport;
+use vulkano::swapchain::Surface;
 use vulkano::sync::GpuFuture;
 use vulkano_util::renderer::VulkanoWindowRenderer;
 use winit::event::WindowEvent;
@@ -33,7 +35,7 @@ use winit::event_loop::EventLoop;
 const SCREEN_RATIO: (u32, u32) = (16, 9);
 
 pub struct DemoTool {
-    ui: Ui,
+    ui: Option<Ui>,
     start_time: Instant,
     resource_loader: ProjectLoader,
     has_render_failure: bool,
@@ -92,12 +94,11 @@ impl UiState {
 }
 
 impl DemoTool {
-    pub fn new(context: &Arc<VulkanContext>, event_loop: &EventLoop<()>) -> Result<DemoTool> {
+    pub fn new(context: &Arc<VulkanContext>) -> Result<DemoTool> {
         let music_player = MusicPlayer::new();
 
         let mut resource_loader = ProjectLoader::try_new()?;
         let project = resource_loader.get_or_load_project(context);
-        let ui = Ui::new(context, event_loop)?;
         let has_render_failure = project.is_none();
 
         let ui_state = UiState {
@@ -130,7 +131,7 @@ impl DemoTool {
         };
 
         let demo_tool = DemoTool {
-            ui,
+            ui: None,
             start_time: Instant::now(),
             resource_loader,
             ui_state,
@@ -330,6 +331,8 @@ impl DemoTool {
         // Render UI
         if !self.is_fullscreen && ui_height > 0.0 {
             self.ui
+                .as_mut()
+                .unwrap() // Unwrap is okay: we want to fail if the UI doesn't exist
                 .draw(&mut context, ui_height, scale_factor, &mut self.ui_state);
         }
 
@@ -486,7 +489,7 @@ impl VulkanApp for DemoTool {
     }
 
     fn handle_window_event(&mut self, event: &WindowEvent) {
-        self.ui.handle_window_event(event);
+        self.ui.as_mut().unwrap().handle_window_event(event);
         if let WindowEvent::KeyboardInput { input, .. } = event {
             if input.state == winit::event::ElementState::Pressed {
                 #[allow(clippy::single_match)]
@@ -519,5 +522,16 @@ impl VulkanApp for DemoTool {
 
     fn set_fullscreen(&mut self, fullscreen: bool) {
         self.is_fullscreen = fullscreen;
+    }
+
+    fn init_with_surface(
+        &mut self,
+        context: &Arc<VulkanContext>,
+        event_loop: &EventLoop<()>,
+        surface: &Arc<Surface>,
+    ) -> Result<()> {
+        let ui = Ui::new(context, event_loop, surface)?;
+        self.ui = Some(ui);
+        Ok(())
     }
 }
