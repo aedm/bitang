@@ -22,7 +22,7 @@ pub const CHARTS_FOLDER: &str = "charts";
 const CHART_FILE_NAME: &str = "chart.ron";
 
 /// The path of a resource file
-#[derive(Hash, Eq, PartialEq, Clone, Debug)]
+#[derive(Hash, Eq, PartialEq, Clone)]
 pub struct ResourcePath {
     pub directory: String,
     pub file_name: String,
@@ -57,6 +57,12 @@ impl ResourcePath {
 impl fmt::Display for ResourcePath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{ROOT_FOLDER}/{}/{}", self.directory, self.file_name)
+    }
+}
+
+impl fmt::Debug for ResourcePath {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "'{}/{}'", self.directory, self.file_name)
     }
 }
 

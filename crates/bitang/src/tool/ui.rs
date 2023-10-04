@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tracing::error;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
+use vulkano::swapchain::Surface;
 use winit::{event::WindowEvent, event_loop::EventLoop};
 
 pub struct Ui {
@@ -18,7 +19,11 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(context: &Arc<VulkanContext>, event_loop: &EventLoop<()>) -> Result<Ui> {
+    pub fn new(
+        context: &Arc<VulkanContext>,
+        event_loop: &EventLoop<()>,
+        surface: &Arc<Surface>,
+    ) -> Result<Ui> {
         let render_pass = vulkano::single_pass_renderpass!(
             context.vulkano_context.device().clone(),
             attachments: {
@@ -36,7 +41,7 @@ impl Ui {
 
         let gui = Gui::new_with_subpass(
             event_loop,
-            context.surface.clone(),
+            surface.clone(),
             context.gfx_queue.clone(),
             subpass.clone(),
             GuiConfig {
