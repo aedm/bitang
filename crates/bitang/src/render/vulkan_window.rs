@@ -1,7 +1,7 @@
 use crate::control::controls::Globals;
 use crate::render::image::{Image, ImageSizeRule};
 use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::sync::Arc;
 use tracing::{error, info};
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
@@ -17,7 +17,7 @@ use vulkano_util::{
     window::{VulkanoWindows, WindowDescriptor},
 };
 use winit::dpi::PhysicalSize;
-use winit::window::{Fullscreen, Window, WindowBuilder};
+use winit::window::{Fullscreen, Window};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},

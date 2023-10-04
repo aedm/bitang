@@ -5,7 +5,7 @@ use crate::render::vulkan_window::VulkanContext;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
-use tracing::{info, trace};
+use tracing::{trace};
 
 type LoaderFunc<T> =
     fn(context: &Arc<VulkanContext>, blob: &[u8], resource_name: &str) -> Result<Arc<T>>;

@@ -11,7 +11,7 @@ use crate::render::vulkan_window::{
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{bail, Result};
-use std::cell::RefCell;
+
 use std::cmp::max;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
