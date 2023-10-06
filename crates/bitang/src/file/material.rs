@@ -224,23 +224,46 @@ impl MaterialPass {
         chart_context: &ChartContext,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<render::material::MaterialPass> {
-        let shader_cache_value = chart_context
-            .resource_repository
-            .shader_cache
-            .get(
-                &chart_context.vulkan_context,
-                &chart_context.path.relative_path(&self.vertex_shader),
-                &chart_context.path.relative_path(&self.fragment_shader),
-                &chart_context.path.relative_path(COMMON_SHADER_FILE),
-            )
-            .await?;
+        // let shader_cache_value = chart_context
+        //     .resource_repository
+        //     .shader_cache
+        //     .get(
+        //         &chart_context.vulkan_context,
+        //         &chart_context.path.relative_path(&self.vertex_shader),
+        //         &chart_context.path.relative_path(&self.fragment_shader),
+        //         &chart_context.path.relative_path(COMMON_SHADER_FILE),
+        //     )
+        //     .await?;
+        //
+
+        let vertex_shader_compile_future = chart_context.resource_repository.shader_cache.get(
+            chart_context.vulkan_context.clone(),
+            chart_context.path.relative_path(&self.vertex_shader),
+            ShaderKind::Vertex,
+            chart_context.path.relative_path(COMMON_SHADER_FILE),
+        );
+
+        let fragment_shader_compile_future = chart_context.resource_repository.shader_cache.get(
+            chart_context.vulkan_context.clone(),
+            chart_context.path.relative_path(&self.fragment_shader),
+            ShaderKind::Fragment,
+            chart_context.path.relative_path(COMMON_SHADER_FILE),
+        );
+
+        let compile_results = join_all(vec![
+            vertex_shader_compile_future,
+            fragment_shader_compile_future,
+        ])
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>>>()?;
 
         let vertex_shader = self
             .make_shader(
                 material_load_context,
                 chart_context,
                 ShaderKind::Vertex,
-                &shader_cache_value.vertex_shader,
+                &compile_results[0],
             )
             .await?;
 
@@ -249,7 +272,7 @@ impl MaterialPass {
                 material_load_context,
                 chart_context,
                 ShaderKind::Fragment,
-                &shader_cache_value.fragment_shader,
+                &compile_results[1],
             )
             .await?;
 
