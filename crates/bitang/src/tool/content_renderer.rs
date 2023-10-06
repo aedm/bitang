@@ -1,6 +1,3 @@
-use crate::control::controls::GlobalType::AppTime;
-use crate::control::controls::{ControlRepository, ControlSet};
-use crate::control::{ControlId, ControlIdPartType};
 use crate::loader::project_loader::ProjectLoader;
 use crate::render::chart::Chart;
 use crate::tool::app_state::AppState;
@@ -39,7 +36,7 @@ impl ContentRenderer {
         Ok(Self {
             start_time: Instant::now(),
             project_loader,
-            app_state: app_state,
+            app_state,
             has_render_failure,
             play_start_time: Instant::now(),
             music_player,
@@ -107,7 +104,7 @@ impl ContentRenderer {
     }
 
     fn reload_project(&mut self, vulkan_context: &Arc<VulkanContext>) {
-        let project = self.project_loader.get_or_load_project(&vulkan_context);
+        let project = self.project_loader.get_or_load_project(vulkan_context);
 
         // Compare references to see if it's the same cached value that we tried rendering last time
         if project.as_ref().map(Arc::as_ptr) != self.app_state.project.as_ref().map(Arc::as_ptr) {
