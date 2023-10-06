@@ -9,8 +9,8 @@ use crate::render::chart::Chart;
 use crate::render::image::Image;
 use crate::render::mesh::Mesh;
 use crate::render::project::Project;
-use crate::render::vulkan_window::VulkanContext;
 use crate::render::Vertex3;
+use crate::tool::VulkanContext;
 use anyhow::{anyhow, ensure, Context, Result};
 use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
@@ -212,24 +212,19 @@ fn load_texture(
 
     let mut cbb = AutoCommandBufferBuilder::primary(
         &context.command_buffer_allocator,
-        context
-            .vulkano_context
-            .graphics_queue()
-            .queue_family_index(),
+        context.gfx_queue.queue_family_index(),
         CommandBufferUsage::OneTimeSubmit,
     )?;
 
     let image = ImmutableImage::from_iter(
-        context.vulkano_context.memory_allocator(),
+        &context.memory_allocator,
         rgba.into_raw(),
         dimensions,
         MipmapsCount::Log2,
         Format::R8G8B8A8_UNORM,
         &mut cbb,
     )?;
-    let _fut = cbb
-        .build()?
-        .execute(context.vulkano_context.graphics_queue().clone())?;
+    let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
 
     let image = Image::new_immutable(resource_name, image);
     Ok(image)

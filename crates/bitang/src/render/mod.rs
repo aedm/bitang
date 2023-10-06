@@ -9,7 +9,6 @@ pub mod pass;
 pub mod project;
 pub mod render_object;
 pub mod shader;
-pub mod vulkan_window;
 
 use crate::render::image::ImageFormat;
 use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex};

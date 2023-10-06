@@ -3,7 +3,7 @@ use crate::loader::async_cache::AsyncCache;
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::loader::{compute_hash, ResourcePath};
 use crate::render::shader::GlobalUniformMapping;
-use crate::render::vulkan_window::VulkanContext;
+use crate::tool::VulkanContext;
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
 use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
 use std::mem::size_of;
@@ -146,9 +146,7 @@ impl ShaderCache {
             .find(|ep| ep.name == "main")
             .with_context(|| format!("Failed to find entry point 'main' in '{path}'"))?;
 
-        let module = unsafe {
-            ShaderModule::from_bytes(context.vulkano_context.device().clone(), spirv_binary)
-        }?;
+        let module = unsafe { ShaderModule::from_bytes(context.device.clone(), spirv_binary) }?;
 
         let descriptor_set_index = match kind {
             shaderc::ShaderKind::Vertex => 0,

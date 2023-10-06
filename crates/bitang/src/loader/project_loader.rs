@@ -1,7 +1,7 @@
 use crate::loader::file_cache::FileManager;
 use crate::loader::resource_repository::ResourceRepository;
 use crate::render::project::Project;
-use crate::render::vulkan_window::VulkanContext;
+use crate::tool::VulkanContext;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

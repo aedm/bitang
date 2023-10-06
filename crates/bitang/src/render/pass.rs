@@ -1,5 +1,5 @@
 use crate::render::image::Image;
-use crate::render::vulkan_window::{RenderContext, VulkanContext};
+use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
 use vulkano::command_buffer::RenderPassBeginInfo;
@@ -100,10 +100,8 @@ impl Pass {
             subpasses,
             ..Default::default()
         };
-        let render_pass = vulkano::render_pass::RenderPass::new(
-            context.vulkano_context.device().clone(),
-            create_info,
-        )?;
+        let render_pass =
+            vulkano::render_pass::RenderPass::new(context.device.clone(), create_info)?;
         Ok(render_pass)
     }
 

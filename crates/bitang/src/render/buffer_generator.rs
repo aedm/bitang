@@ -1,6 +1,6 @@
 use crate::control::controls::{Control, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::render::vulkan_window::VulkanContext;
+use crate::tool::VulkanContext;
 use anyhow::Result;
 use glam::Vec3;
 use serde::Deserialize;
@@ -40,7 +40,7 @@ impl BufferGenerator {
         generator_type: &BufferGeneratorType,
     ) -> Self {
         let buffer_pool = SubbufferAllocator::new(
-            context.vulkano_context.memory_allocator().clone(),
+            context.memory_allocator.clone(),
             SubbufferAllocatorCreateInfo {
                 buffer_usage: BufferUsage::STORAGE_BUFFER,
                 ..Default::default()
