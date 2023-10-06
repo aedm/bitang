@@ -124,7 +124,6 @@ impl WindowRunner {
                     }
                 }
                 Event::RedrawRequested(_) => {
-                    // let result = self.app.paint(&self.context, Self::get_renderer(&mut windows));
                     let result = self.render_frame_to_screen();
                     match result {
                         PaintResult::None => {}
