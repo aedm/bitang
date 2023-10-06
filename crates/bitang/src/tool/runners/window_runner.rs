@@ -1,15 +1,15 @@
 use crate::render::image::Image;
 use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
-use crate::tool::demo_tool::DemoTool;
+use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{
     InitContext, RenderContext, VulkanContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
     START_IN_DEMO_MODE,
 };
-use anyhow::{bail, Result};
+use anyhow::Result;
 use std::cmp::max;
 use std::sync::Arc;
-use tracing::{error, event, info};
+use tracing::{error, info};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::image::ImageViewAbstract;
 use vulkano::pipeline::graphics::viewport::Viewport;
@@ -26,7 +26,7 @@ pub struct WindowRunner {
     is_fullscreen: bool,
     ui: Ui,
     windows: VulkanoWindows,
-    app: DemoTool,
+    app: ContentRenderer,
 }
 
 pub enum PaintResult {
@@ -42,7 +42,7 @@ impl WindowRunner {
         let vulkano_context = init_context.vulkano_context.clone();
         let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
-        let app = DemoTool::new(&vulkan_context)?;
+        let app = ContentRenderer::new(&vulkan_context)?;
 
         let event_loop = EventLoop::new();
 
@@ -65,7 +65,7 @@ impl WindowRunner {
             &windows.get_primary_renderer().unwrap().surface(),
         )?;
 
-        let mut window_runner = Self {
+        let window_runner = Self {
             vulkan_context,
             is_fullscreen: false,
             ui,

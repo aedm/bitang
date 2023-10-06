@@ -15,7 +15,7 @@ use vulkano::memory::allocator::{AllocationCreateInfo, MemoryUsage};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::sync::GpuFuture;
 
-use crate::tool::demo_tool::DemoTool;
+use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::{
     InitContext, RenderContext, VulkanContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH,
 };
@@ -23,7 +23,7 @@ use crate::tool::{
 pub struct FrameDumpRunner {
     vulkan_context: Arc<VulkanContext>,
     dumped_frame_buffer: Subbuffer<[u8]>,
-    app: DemoTool,
+    app: ContentRenderer,
 }
 
 impl FrameDumpRunner {
@@ -34,7 +34,7 @@ impl FrameDumpRunner {
 
         let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
-        let app = DemoTool::new(&vulkan_context)?;
+        let app = ContentRenderer::new(&vulkan_context)?;
 
         let dumped_frame_buffer = Buffer::from_iter(
             &vulkan_context.memory_allocator,

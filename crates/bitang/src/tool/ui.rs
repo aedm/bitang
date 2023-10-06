@@ -1,6 +1,6 @@
 use crate::control::controls::{Control, ControlSet, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::tool::demo_tool::AppState;
+use crate::tool::app_state::AppState;
 use crate::tool::spline_editor::SplineEditor;
 use crate::tool::{RenderContext, VulkanContext};
 use anyhow::Result;

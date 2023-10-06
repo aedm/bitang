@@ -4,8 +4,6 @@ mod loader;
 mod render;
 mod tool;
 
-use crate::tool::demo_tool::DemoTool;
-// use crate::tool::vulkan_window::VulkanWindow;
 use crate::tool::run_app;
 use anyhow::Result;
 use build_time::build_time_local;
@@ -23,9 +21,6 @@ fn main() -> Result<()> {
         info!("Bitang {VERSION}");
     }
 
-    // let window = VulkanWindow::new()?;
-    // let app = DemoTool::new(&window.context)?;
-    // window.run(app);
     run_app()?;
     Ok(())
 }

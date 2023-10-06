@@ -1,13 +1,13 @@
-pub mod demo_tool;
+mod app_state;
+pub mod content_renderer;
 mod music_player;
 mod runners;
 mod spline_editor;
 mod ui;
-pub mod vulkan_window;
 
 use crate::control::controls::Globals;
-use crate::render::image::{Image, ImageSizeRule};
-use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
+use crate::render::image::Image;
+use crate::render::SCREEN_COLOR_FORMAT;
 use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
 use crate::tool::runners::window_runner::WindowRunner;
 use anyhow::Result;
@@ -20,7 +20,6 @@ use vulkano::format::Format;
 use vulkano::memory::allocator::StandardMemoryAllocator;
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano_util::context::{VulkanoConfig, VulkanoContext};
-use winit::event_loop::EventLoop;
 
 const START_IN_DEMO_MODE: bool = false;
 const BORDERLESS_FULL_SCREEN: bool = true;
