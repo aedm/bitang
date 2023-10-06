@@ -1,7 +1,7 @@
 use crate::control::controls::{Control, GlobalType};
 use crate::render::buffer_generator::BufferGenerator;
 use crate::render::image::Image;
-use crate::render::vulkan_window::{RenderContext, VulkanContext};
+use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use std::mem::size_of;
@@ -70,7 +70,7 @@ impl Shader {
         descriptor_resources: Vec<DescriptorResource>,
     ) -> Shader {
         let uniform_buffer_pool = SubbufferAllocator::new(
-            context.vulkano_context.memory_allocator().clone(),
+            context.memory_allocator.clone(),
             SubbufferAllocatorCreateInfo {
                 buffer_usage: BufferUsage::UNIFORM_BUFFER,
                 ..Default::default()
@@ -134,7 +134,7 @@ impl Shader {
                 DescriptorSource::Image(image_descriptor) => {
                     let image_view = image_descriptor.image.get_view()?;
                     let sampler = Sampler::new(
-                        context.vulkan_context.vulkano_context.device().clone(),
+                        context.vulkan_context.device.clone(),
                         SamplerCreateInfo {
                             address_mode: [image_descriptor.address_mode; 3],
                             ..SamplerCreateInfo::simple_repeat_linear()

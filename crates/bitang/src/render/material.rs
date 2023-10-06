@@ -1,7 +1,7 @@
 use crate::render::mesh::Mesh;
 use crate::render::shader::Shader;
-use crate::render::vulkan_window::{RenderContext, VulkanContext};
 use crate::render::Vertex3;
+use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::sync::Arc;
@@ -117,9 +117,9 @@ impl MaterialPass {
             )
             .color_blend_state(color_blend_state)
             .depth_stencil_state(depth_stencil_state)
-            // Unwrap is safe: every pass has one subpass
+            // Unwrap is safe: every pass has exactly one subpass
             .render_pass(Subpass::from(vulkan_render_pass, 0).unwrap())
-            .build(context.vulkano_context.device().clone())?;
+            .build(context.device.clone())?;
 
         Ok(MaterialPass {
             id: props.id,

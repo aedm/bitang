@@ -4,8 +4,9 @@ mod loader;
 mod render;
 mod tool;
 
-use crate::render::vulkan_window::VulkanWindow;
 use crate::tool::demo_tool::DemoTool;
+// use crate::tool::vulkan_window::VulkanWindow;
+use crate::tool::run_app;
 use anyhow::Result;
 use build_time::build_time_local;
 use tracing::info;
@@ -13,6 +14,21 @@ use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+fn main() -> Result<()> {
+    set_up_tracing()?;
+    if VERSION == "0.0.0" {
+        info!("Bitang dev version, build time {}", build_time_local!());
+    } else {
+        info!("Bitang {VERSION}");
+    }
+
+    // let window = VulkanWindow::new()?;
+    // let app = DemoTool::new(&window.context)?;
+    // window.run(app);
+    run_app()?;
+    Ok(())
+}
 
 fn set_up_tracing() -> Result<()> {
     #[cfg(windows)]
@@ -27,19 +43,5 @@ fn set_up_tracing() -> Result<()> {
         .with(filter_layer)
         .with(fmt_layer)
         .init();
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    set_up_tracing()?;
-    if VERSION == "0.0.0" {
-        info!("Bitang dev version, build time {}", build_time_local!());
-    } else {
-        info!("Bitang {VERSION}");
-    }
-
-    let window = VulkanWindow::new()?;
-    let app = DemoTool::new(&window.context)?;
-    window.run(app);
     Ok(())
 }

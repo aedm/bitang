@@ -1,4 +1,4 @@
-use crate::render::vulkan_window::VulkanContext;
+use crate::tool::VulkanContext;
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
@@ -179,7 +179,7 @@ impl Image {
 
         // Create a new image with the correct size.
         let image = AttachmentImage::with_usage(
-            context.vulkano_context.memory_allocator(),
+            &context.memory_allocator,
             size,
             self.vulkan_format,
             ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC,

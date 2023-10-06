@@ -1,8 +1,8 @@
 use crate::control::controls::{Control, ControlSet, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::render::vulkan_window::{RenderContext, VulkanContext};
-use crate::tool::demo_tool::UiState;
+use crate::tool::demo_tool::AppState;
 use crate::tool::spline_editor::SplineEditor;
+use crate::tool::{RenderContext, VulkanContext};
 use anyhow::Result;
 use egui_winit_vulkano::{Gui, GuiConfig};
 use std::sync::Arc;
@@ -25,7 +25,7 @@ impl Ui {
         surface: &Arc<Surface>,
     ) -> Result<Ui> {
         let render_pass = vulkano::single_pass_renderpass!(
-            context.vulkano_context.device().clone(),
+            context.device.clone(),
             attachments: {
                 color: {
                     load: DontCare,
@@ -63,7 +63,7 @@ impl Ui {
         context: &mut RenderContext,
         bottom_panel_height: f32,
         scale_factor: f32,
-        ui_state: &mut UiState,
+        ui_state: &mut AppState,
     ) {
         let pixels_per_point =
             if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
@@ -94,7 +94,7 @@ impl Ui {
         self.render_to_swapchain(context);
     }
 
-    fn handle_hotkeys(ctx: egui::Context, ui_state: &mut UiState) {
+    fn handle_hotkeys(ctx: egui::Context, ui_state: &mut AppState) {
         // Save
         let save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
         if ctx.input_mut(|i| i.consume_shortcut(&save_shortcut)) {
@@ -106,7 +106,7 @@ impl Ui {
         }
     }
 
-    fn draw_control_tree(ui: &mut egui::Ui, ui_state: &mut UiState) {
+    fn draw_control_tree(ui: &mut egui::Ui, ui_state: &mut AppState) {
         let Some(project) = &ui_state.project else {
             return
         };
@@ -130,7 +130,7 @@ impl Ui {
         });
     }
 
-    fn draw_control_tree_project_node(ui: &mut egui::Ui, ui_state: &mut UiState) {
+    fn draw_control_tree_project_node(ui: &mut egui::Ui, ui_state: &mut AppState) {
         let id = ui.make_persistent_id("node:project");
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
             .show_header(ui, |ui| {
@@ -144,7 +144,7 @@ impl Ui {
             .body(|_ui| ());
     }
 
-    fn draw_control_tree_node(ui: &mut egui::Ui, node: &UsedControlsNode, ui_state: &mut UiState) {
+    fn draw_control_tree_node(ui: &mut egui::Ui, node: &UsedControlsNode, ui_state: &mut AppState) {
         let id_str = format!("node:{}", node.id_prefix);
         let id = ui.make_persistent_id(id_str);
         // Unwrap is safe because we know that the prefix has at least one part
@@ -188,7 +188,7 @@ impl Ui {
     // Returns the spline that was activated
     fn draw_control_sliders<'a>(
         ui: &mut egui::Ui,
-        ui_state: &mut UiState,
+        ui_state: &mut AppState,
         controls: &'a ControlSet,
     ) -> Option<(&'a Arc<Control>, usize)> {
         // An iterator that mutably borrows all used control values

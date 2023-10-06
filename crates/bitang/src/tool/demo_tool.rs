@@ -1,17 +1,14 @@
-use crate::control::controls::{ControlRepository, ControlSet};
+use crate::control::controls::{ControlRepository, ControlSet, Globals};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::loader::project_loader::ProjectLoader;
 use crate::render::chart::Chart;
 use crate::render::image::ImageSizeRule;
 use crate::render::project::Project;
-use crate::render::vulkan_window::{
-    PaintResult, RenderContext, VulkanApp, VulkanContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT,
-    FRAMEDUMP_MODE, FRAMEDUMP_WIDTH,
-};
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use anyhow::{bail, Result};
 
+use crate::tool::{RenderContext, VulkanContext};
 use std::cmp::max;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -32,24 +29,17 @@ use vulkano_util::renderer::VulkanoWindowRenderer;
 use winit::event::WindowEvent;
 use winit::event_loop::EventLoop;
 
-const SCREEN_RATIO: (u32, u32) = (16, 9);
-
 pub struct DemoTool {
-    ui: Option<Ui>,
+    pub app_state: AppState,
     start_time: Instant,
     resource_loader: ProjectLoader,
     has_render_failure: bool,
-    ui_state: UiState,
     play_start_time: Instant,
     last_eval_time: f32,
     music_player: MusicPlayer,
-    is_fullscreen: bool,
-
-    dumped_frame_buffer: Option<Subbuffer<[u8]>>,
-    frame_counter: usize,
 }
 
-pub struct UiState {
+pub struct AppState {
     pub project: Option<Arc<Project>>,
     pub selected_control_id: ControlId,
     pub time: f32,
@@ -57,7 +47,7 @@ pub struct UiState {
     pub control_repository: Arc<ControlRepository>,
 }
 
-impl UiState {
+impl AppState {
     pub fn get_chart(&self) -> Option<Arc<Chart>> {
         let id_first = self.selected_control_id.parts.first();
         if let Some(project) = &self.project {
@@ -101,7 +91,7 @@ impl DemoTool {
         let project = resource_loader.get_or_load_project(context);
         let has_render_failure = project.is_none();
 
-        let ui_state = UiState {
+        let app_state = AppState {
             time: 0.0,
             is_playing: false,
             project,
@@ -112,42 +102,20 @@ impl DemoTool {
             selected_control_id: ControlId::default(),
         };
 
-        let dumped_frame_buffer = if FRAMEDUMP_MODE {
-            let buffer = Buffer::from_iter(
-                context.vulkano_context.memory_allocator(),
-                BufferCreateInfo {
-                    usage: BufferUsage::TRANSFER_DST,
-                    ..Default::default()
-                },
-                AllocationCreateInfo {
-                    usage: MemoryUsage::Download,
-                    ..Default::default()
-                },
-                (0..FRAMEDUMP_WIDTH * FRAMEDUMP_HEIGHT * 4).map(|_| 0u8),
-            )?;
-            Some(buffer)
-        } else {
-            None
-        };
-
         let demo_tool = DemoTool {
-            ui: None,
             start_time: Instant::now(),
             resource_loader,
-            ui_state,
+            app_state: app_state,
             has_render_failure,
             play_start_time: Instant::now(),
             last_eval_time: -1.0,
             music_player,
-            dumped_frame_buffer,
-            frame_counter: 0,
-            is_fullscreen: false,
         };
         Ok(demo_tool)
     }
 
     pub fn draw(&mut self, context: &mut RenderContext) -> Result<()> {
-        match self.ui_state.get_chart() {
+        match self.app_state.get_chart() {
             Some(chart) => self.draw_chart(&chart, context),
             None => self.draw_project(context),
         }
@@ -157,24 +125,24 @@ impl DemoTool {
         // Evaluate control splines
         let should_evaluate = true;
         if should_evaluate {
-            if let Some(control_set) = self.ui_state.get_current_chart_control_set() {
-                self.last_eval_time = self.ui_state.time;
+            if let Some(control_set) = self.app_state.get_current_chart_control_set() {
+                self.last_eval_time = self.app_state.time;
                 for control in &control_set.used_controls {
-                    control.evaluate_splines(self.ui_state.time);
+                    control.evaluate_splines(self.app_state.time);
                 }
             }
         }
-        context.globals.chart_time = self.ui_state.time;
+        context.globals.chart_time = self.app_state.time;
         chart.render(context)
     }
 
     fn draw_project(&mut self, context: &mut RenderContext) -> Result<()> {
-        let Some(project) = &self.ui_state.project else {
+        let Some(project) = &self.app_state.project else {
             bail!("No project loaded");
         };
 
         // Evaluate control splines and draw charts
-        let time = self.ui_state.time;
+        let time = self.app_state.time;
         for cut in &project.cuts {
             if cut.start_time <= time && time <= cut.end_time {
                 let chart_time = time - cut.start_time + cut.offset;
@@ -188,238 +156,29 @@ impl DemoTool {
         Ok(())
     }
 
-    fn toggle_play(&mut self) {
-        if self.ui_state.is_playing {
-            self.stop();
-        } else {
-            self.play();
-        }
-    }
+    fn reload_project(&mut self, vulkan_context: &Arc<VulkanContext>) {
+        let project = self.resource_loader.get_or_load_project(&vulkan_context);
 
-    fn copy_frame_to_buffer(&mut self, render_context: &mut RenderContext) {
-        let buf = self.dumped_frame_buffer.as_ref().unwrap();
-        let image = render_context
-            .vulkan_context
-            .final_render_target
-            .get_image_access();
-        render_context
-            .command_builder
-            .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(image, buf.clone()))
-            .unwrap();
-    }
-
-    fn get_frame_content(&mut self) -> Vec<u8> {
-        let buf = self.dumped_frame_buffer.as_ref().unwrap();
-        let buffer_lock = buf.read().unwrap();
-        let content: Vec<u8> = buffer_lock.to_vec();
-        content
-    }
-
-    fn save_frame_buffer_to_file(mut content: Vec<u8>, frame_number: usize) {
-        for i in 0..content.len() / 4 {
-            // Fix the alpha channel
-            content[i * 4 + 3] = 255;
-
-            // Fix the RGB order
-            content.swap(i * 4, i * 4 + 2);
-        }
-
-        let path = format!("framedump/dump-{:0>8}.png", frame_number);
-        let save_timer = Instant::now();
-        image::save_buffer_with_format(
-            &path,
-            &content,
-            FRAMEDUMP_WIDTH,
-            FRAMEDUMP_HEIGHT,
-            image::ColorType::Rgba8,
-            image::ImageFormat::Png,
-        )
-        .unwrap();
-        info!(
-            "Saved frame {frame_number} to {path} ({}ms)",
-            save_timer.elapsed().as_millis()
-        );
-    }
-
-    fn render_frame_to_screen(
-        &mut self,
-        vulkan_context: &Arc<VulkanContext>,
-        renderer: &mut VulkanoWindowRenderer,
-    ) -> PaintResult {
-        // Don't render anything if the window is minimized
-        let window_size = renderer.window().inner_size();
-        if window_size.width == 0 || window_size.height == 0 {
-            return PaintResult::None;
-        }
-
-        let before_future = renderer.acquire().unwrap();
-
-        // Update swapchain target
-        let target_image = renderer.swapchain_image_view();
-        vulkan_context
-            .final_render_target
-            .set_swapchain_image(target_image.clone());
-
-        // Calculate viewport
-        let window_size = target_image.dimensions();
-        let scale_factor = renderer.window().scale_factor() as f32;
-        let (width, height, top, left) = if self.is_fullscreen {
-            if window_size.width() * SCREEN_RATIO.1 > window_size.height() * SCREEN_RATIO.0 {
-                // Screen is too wide
-                let height = window_size.height();
-                let width = height * SCREEN_RATIO.0 / SCREEN_RATIO.1;
-                let left = (window_size.width() - width) / 2;
-                let top = 0;
-                (width, height, top, left)
-            } else {
-                // Screen is too tall
-                let width = window_size.width();
-                let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
-                let left = 0;
-                let top = (window_size.height() - height) / 2;
-                (width, height, top, left)
-            }
-        } else {
-            let width = window_size.width();
-            let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
-            let left = 0;
-            let top = 0;
-            (width, height, top, left)
-        };
-        let ui_height = max(window_size.height() as i32 - height as i32, 0) as f32;
-        let screen_viewport = Viewport {
-            origin: [left as f32, top as f32],
-            dimensions: [width as f32, height as f32],
-            depth_range: 0.0..1.0,
-        };
-
-        // Make command buffer
-        let mut command_builder = AutoCommandBufferBuilder::primary(
-            &vulkan_context.command_buffer_allocator,
-            vulkan_context
-                .vulkano_context
-                .graphics_queue()
-                .queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )
-        .unwrap();
-
-        // Make render context
-        let mut context = RenderContext {
-            vulkan_context: vulkan_context.clone(),
-            screen_viewport,
-            command_builder: &mut command_builder,
-            globals: Default::default(),
-        };
-
-        // Render content
-        let before_time = self.ui_state.time;
-        if self.ui_state.is_playing {
-            self.ui_state.time = self.play_start_time.elapsed().as_secs_f32();
-        }
-        context.globals.app_time = self.start_time.elapsed().as_secs_f32();
-
-        let mut paint_result = PaintResult::None;
-        let project = self.issue_render_commands(&mut context);
-
-        if let Some(project) = project {
-            if before_time < project.length && self.ui_state.time >= project.length {
-                paint_result = PaintResult::EndReached;
-            }
-        }
-
-        // Render UI
-        if !self.is_fullscreen && ui_height > 0.0 {
-            self.ui
-                .as_mut()
-                .unwrap() // Unwrap is okay: we want to fail if the UI doesn't exist
-                .draw(&mut context, ui_height, scale_factor, &mut self.ui_state);
-        }
-
-        // Execute commands and display the result
-        let command_buffer = command_builder.build().unwrap();
-        let after_future = before_future
-            .then_execute(
-                vulkan_context.vulkano_context.graphics_queue().clone(),
-                command_buffer,
-            )
-            .unwrap()
-            .boxed();
-        renderer.present(after_future, true);
-
-        paint_result
-    }
-
-    fn render_frame_to_buffer(&mut self, vulkan_context: &Arc<VulkanContext>) -> Arc<Project> {
-        let size = match vulkan_context.final_render_target.size_rule {
-            ImageSizeRule::Fixed(w, h) => [w, h],
-            _ => panic!("Screen render target must have a fixed size"),
-        };
-        let screen_viewport = Viewport {
-            origin: [0.0, 0.0],
-            dimensions: [size[0] as f32, size[1] as f32],
-            depth_range: 0.0..1.0,
-        };
-        vulkan_context
-            .final_render_target
-            .enforce_size_rule(vulkan_context, screen_viewport.dimensions)
-            .unwrap();
-
-        // Make command buffer
-        let mut command_builder = AutoCommandBufferBuilder::primary(
-            &vulkan_context.command_buffer_allocator,
-            vulkan_context
-                .vulkano_context
-                .graphics_queue()
-                .queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )
-        .unwrap();
-
-        // Render content
-        let mut context = RenderContext {
-            vulkan_context: vulkan_context.clone(),
-            screen_viewport,
-            command_builder: &mut command_builder,
-            globals: Default::default(),
-        };
-        context.globals.app_time = self.ui_state.time;
-
-        let project = self.issue_render_commands(&mut context).unwrap();
-
-        // Add a copy command to the end of the command buffer
-        self.copy_frame_to_buffer(&mut context);
-
-        // Execute commands on the graphics queue and dump it to a file
-        let command_buffer = command_builder.build().unwrap();
-        let queue = vulkan_context.vulkano_context.graphics_queue().clone();
-        let finished = command_buffer.execute(queue).unwrap();
-        finished
-            .then_signal_fence_and_flush()
-            .unwrap()
-            .wait(None)
-            .unwrap();
-
-        project
-    }
-
-    fn issue_render_commands(&mut self, context: &mut RenderContext) -> Option<Arc<Project>> {
-        let Some(project) = self
-            .resource_loader
-            .get_or_load_project(&context.vulkan_context) else {
-            return None;
-        };
-
-        if let Some(last_project) = &self.ui_state.project {
-            // If the last loaded document is not the same as the current one
-            if !Arc::ptr_eq(last_project, &project) {
-                self.has_render_failure = false;
-                self.ui_state.project = Some(project.clone());
-            }
-        } else {
-            // If there was no last loaded document
+        // Compare references to see if it's the same cached value that we tried rendering last time
+        if project.as_ref().map(Arc::as_ptr) != self.app_state.project.as_ref().map(Arc::as_ptr) {
+            self.app_state.project = project;
             self.has_render_failure = false;
-            self.ui_state.project = Some(project.clone());
+        }
+    }
+
+    fn advance_time(&mut self) {
+        if self.app_state.is_playing {
+            self.app_state.time = self.play_start_time.elapsed().as_secs_f32();
+        }
+    }
+
+    pub fn issue_render_commands(&mut self, context: &mut RenderContext, frame_dump_mode: bool) {
+        if frame_dump_mode {
+            context.globals.app_time = self.app_state.time;
+        } else {
+            self.reload_project(&context.vulkan_context);
+            self.advance_time();
+            context.globals.app_time = self.start_time.elapsed().as_secs_f32();
         }
 
         if let Err(err) = self.draw(context) {
@@ -430,108 +189,30 @@ impl DemoTool {
         } else {
             self.has_render_failure = false;
         }
-
-        Some(project)
     }
 
-    fn render_demo_to_file(&mut self, vulkan_context: &Arc<VulkanContext>) {
-        let timer = Instant::now();
-        // PNG compression is slow, so let's use all the CPU cores
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let job_count: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
-        let cpu_count = num_cpus::get();
-        loop {
-            self.ui_state.time = self.frame_counter as f32 / (FRAMEDUMP_FPS as f32);
-
-            // Render frame and save it into host memory
-            let project = self.render_frame_to_buffer(vulkan_context);
-            let content = self.get_frame_content();
-
-            // If we're rendering too fast, wait a bit
-            while job_count.load(Ordering::Relaxed) >= cpu_count + 10 {
-                sleep(Duration::from_millis(1));
-            }
-
-            // Save the frame to a file in a separate thread
-            job_count.fetch_add(1, Ordering::Relaxed);
-            let frame_number = self.frame_counter;
-            let job_count_clone = job_count.clone();
-            runtime.spawn_blocking(move || {
-                Self::save_frame_buffer_to_file(content, frame_number);
-                job_count_clone.fetch_sub(1, Ordering::Relaxed);
-            });
-
-            if self.ui_state.time >= project.length {
-                break;
-            }
-            self.frame_counter += 1;
-        }
-        info!(
-            "Rendered {} frames in {:.1} secs",
-            self.frame_counter,
-            timer.elapsed().as_secs_f32()
-        );
-    }
-}
-
-impl VulkanApp for DemoTool {
-    fn paint(
-        &mut self,
-        vulkan_context: &Arc<VulkanContext>,
-        renderer: &mut VulkanoWindowRenderer,
-    ) -> PaintResult {
-        if FRAMEDUMP_MODE {
-            self.render_demo_to_file(vulkan_context);
-            return PaintResult::EndReached;
-        };
-
-        self.render_frame_to_screen(vulkan_context, renderer)
-    }
-
-    fn handle_window_event(&mut self, event: &WindowEvent) {
-        self.ui.as_mut().unwrap().handle_window_event(event);
-        if let WindowEvent::KeyboardInput { input, .. } = event {
-            if input.state == winit::event::ElementState::Pressed {
-                #[allow(clippy::single_match)]
-                match input.virtual_keycode {
-                    Some(winit::event::VirtualKeyCode::Space) => {
-                        self.toggle_play();
-                    }
-                    _ => (),
-                }
-            }
+    pub fn toggle_play(&mut self) {
+        if self.app_state.is_playing {
+            self.stop();
+        } else {
+            self.play();
         }
     }
 
-    fn play(&mut self) {
-        self.music_player.play_from(self.ui_state.get_time());
+    pub fn play(&mut self) {
+        self.music_player.play_from(self.app_state.get_time());
         let now = Instant::now();
         // Duration is always positive
-        if self.ui_state.time >= 0. {
-            self.play_start_time = now - Duration::from_secs_f32(self.ui_state.time);
+        if self.app_state.time >= 0. {
+            self.play_start_time = now - Duration::from_secs_f32(self.app_state.time);
         } else {
-            self.play_start_time = now + Duration::from_secs_f32(-self.ui_state.time);
+            self.play_start_time = now + Duration::from_secs_f32(-self.app_state.time);
         }
-        self.ui_state.is_playing = true;
+        self.app_state.is_playing = true;
     }
 
-    fn stop(&mut self) {
+    pub fn stop(&mut self) {
         self.music_player.stop();
-        self.ui_state.is_playing = false;
-    }
-
-    fn set_fullscreen(&mut self, fullscreen: bool) {
-        self.is_fullscreen = fullscreen;
-    }
-
-    fn init_with_surface(
-        &mut self,
-        context: &Arc<VulkanContext>,
-        event_loop: &EventLoop<()>,
-        surface: &Arc<Surface>,
-    ) -> Result<()> {
-        let ui = Ui::new(context, event_loop, surface)?;
-        self.ui = Some(ui);
-        Ok(())
+        self.app_state.is_playing = false;
     }
 }
