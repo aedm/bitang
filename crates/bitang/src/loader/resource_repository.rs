@@ -134,6 +134,7 @@ fn load_mesh_collection(
     content: &[u8],
     _resource_name: &str,
 ) -> Result<Arc<MeshCollection>> {
+    let now = Instant::now();
     let scene = Scene::from_buffer(
         content,
         vec![
@@ -191,7 +192,11 @@ fn load_mesh_collection(
         meshes_by_name.insert(name, mesh);
     }
 
-    info!("Meshes loaded: {}", meshes_by_name.keys().join(", "));
+    info!(
+        "Meshes loaded: '{}' in {:?}",
+        meshes_by_name.keys().join(", "),
+        now.elapsed()
+    );
     Ok(Arc::new(MeshCollection { meshes_by_name }))
 }
 

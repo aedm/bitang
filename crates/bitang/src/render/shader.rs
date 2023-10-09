@@ -15,7 +15,7 @@ use vulkano::shader::ShaderModule;
 
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
 pub enum ShaderKind {
     Vertex = 0,
     Fragment = 1,
