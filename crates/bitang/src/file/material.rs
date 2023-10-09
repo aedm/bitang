@@ -224,18 +224,6 @@ impl MaterialPass {
         chart_context: &ChartContext,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<render::material::MaterialPass> {
-        // let shader_cache_value = chart_context
-        //     .resource_repository
-        //     .shader_cache
-        //     .get(
-        //         &chart_context.vulkan_context,
-        //         &chart_context.path.relative_path(&self.vertex_shader),
-        //         &chart_context.path.relative_path(&self.fragment_shader),
-        //         &chart_context.path.relative_path(COMMON_SHADER_FILE),
-        //     )
-        //     .await?;
-        //
-
         let vertex_shader_compile_future = chart_context.resource_repository.shader_cache.get(
             chart_context.vulkan_context.clone(),
             chart_context.path.relative_path(&self.vertex_shader),

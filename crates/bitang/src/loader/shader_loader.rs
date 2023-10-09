@@ -13,27 +13,11 @@ use tokio::task::spawn_blocking;
 use tracing::{debug, info, instrument, trace};
 use vulkano::shader::ShaderModule;
 
-// #[derive(Hash, PartialEq, Eq, Clone)]
-// struct ShaderCacheKey {
-//     vertex_shader_hash: ContentHash,
-//     fragment_shader_hash: ContentHash,
-// }
-//
-// pub struct ShaderCacheValue {
-//     pub vertex_shader: ShaderCompilationResult,
-//     pub fragment_shader: ShaderCompilationResult,
-// }
-
 #[derive(Hash, PartialEq, Eq, Clone)]
 struct ShaderCacheKey {
     source_hash: ContentHash,
     kind: ShaderKind,
 }
-
-// pub struct ShaderCacheValue {
-//     pub vertex_shader: ShaderCompilationResult,
-//     pub fragment_shader: ShaderCompilationResult,
-// }
 
 #[derive(Debug)]
 pub struct ShaderCompilationResult {
