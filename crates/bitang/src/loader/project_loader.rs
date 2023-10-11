@@ -44,13 +44,14 @@ impl ProjectLoader {
 
     #[instrument(skip_all, name = "load")]
     pub fn get_or_load_project(&mut self, context: &Arc<VulkanContext>) -> Option<Arc<Project>> {
-        let has_file_changes = self.file_loader.handle_file_changes();
+        let changed_files = self.file_loader.handle_file_changes();
         let needs_retry = self.cached_root.is_none()
             && self.file_loader.has_missing_files()
             && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL;
-        if has_file_changes || needs_retry {
+        if changed_files.is_some() || needs_retry {
             let now = Instant::now();
-            self.resource_repository.start_load_cycle();
+            self.resource_repository
+                .start_load_cycle(changed_files.as_ref());
             match self.run_project_loader(context) {
                 Ok(project) => {
                     info!("Project length: {} seconds", project.length);
@@ -58,7 +59,7 @@ impl ProjectLoader {
                     self.cached_root = Some(Arc::new(project));
                 }
                 Err(err) => {
-                    if has_file_changes {
+                    if changed_files.is_some() {
                         error!("Error loading project: {:?}", err);
                     }
                     self.resource_repository.display_load_errors();

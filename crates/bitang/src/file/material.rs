@@ -2,7 +2,7 @@ use crate::control::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
 use crate::file::default_true;
 use crate::loader::async_cache::LoadFuture;
-use crate::loader::shader_loader::ShaderCompilationResult;
+use crate::loader::shader_compiler::ShaderArtifact;
 use crate::render;
 use crate::render::image::Image;
 use crate::render::material::{BlendMode, MaterialPassProps};
@@ -136,7 +136,7 @@ impl MaterialPass {
         material_load_context: &MaterialLoadContext,
         chart_context: &ChartContext,
         kind: ShaderKind,
-        shader_compilation_result: &ShaderCompilationResult,
+        shader_compilation_result: &ShaderArtifact,
     ) -> Result<Shader> {
         let local_uniform_bindings = shader_compilation_result
             .local_uniform_bindings
