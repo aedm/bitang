@@ -1,7 +1,7 @@
 use crate::loader::async_cache::AsyncCache;
 use crate::loader::{compute_hash, ResourcePath};
 use ahash::AHashSet;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -132,13 +132,14 @@ impl FileManager {
                     for path in event.paths {
                         debug!("File change detected: {:?}", path);
                         self.file_cache.cache.remove(&path);
-                        // TODO: unwrap
-                        changed_paths.push(
-                            ResourcePath::from_str(
-                                path.to_str().unwrap().replace('\\', "/").as_str(),
-                            )
-                            .unwrap(),
-                        );
+                        // File path relative to the app's working directory
+                        let relative_path =
+                            path.strip_prefix(&self.file_cache.current_dir).unwrap();
+
+                        // Hack, canonicalize path delimiters
+                        let path_canon = relative_path.to_str().unwrap().replace('\\', "/");
+                        let resource_path = ResourcePath::from_str(&path_canon).unwrap();
+                        changed_paths.push(resource_path);
                     }
                 }
                 Err(e) => error!("watch error: {:?}", e),

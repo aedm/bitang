@@ -17,9 +17,10 @@ use vulkano::shader::ShaderModule;
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
 
+#[derive(Debug)]
 pub struct IncludeChainLink {
-    resource_path: ResourcePath,
-    hash: ContentHash,
+    pub resource_path: ResourcePath,
+    pub hash: ContentHash,
 }
 
 pub struct ShaderCompilation {
@@ -46,13 +47,13 @@ impl ShaderCompilation {
         // }?;
 
         let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
-        let mut deps = RefCell::new(vec![IncludeChainLink {
-            resource_path: path.clone(),
-            hash: compute_hash(source.as_bytes()),
-        }]);
+        // let mut deps = RefCell::new(vec![IncludeChainLink {
+        //     resource_path: path.clone(),
+        //     hash: compute_hash(source.as_bytes()),
+        // }]);
+        let mut deps = RefCell::new(vec![]);
         let spirv = {
             let include_callback = |include_name: &str, include_type, source_name: &str, depth| {
-                // let mut include_chain = include_chain.borrow_mut();
                 Self::include_callback(
                     include_name,
                     include_type,
@@ -97,13 +98,13 @@ impl ShaderCompilation {
         );
         let source_path = ResourcePath::from_str(source_name).map_err(|err| err.to_string())?;
         let include_path = source_path.relative_path(include_name);
-        let included_source_u8 = {
-            let file_hash_cache = file_hash_cache.clone();
-            let include_path = include_path.clone();
-            tokio::runtime::Handle::current()
-                .block_on(async move { file_hash_cache.get(&include_path).await })
-                .map_err(|err| err.to_string())?
-        };
+        let included_source_u8 = tokio::runtime::Handle::current()
+            .block_on(async {
+                // x
+                let x = file_hash_cache.get(&include_path);
+                x.await
+            })
+            .map_err(|err| err.to_string())?;
         deps.push(IncludeChainLink {
             resource_path: include_path.clone(),
             hash: included_source_u8.hash,

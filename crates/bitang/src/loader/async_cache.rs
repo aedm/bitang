@@ -7,7 +7,7 @@ use std::hash::Hash;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio::task::JoinHandle;
-use tracing::error;
+use tracing::{error, warn};
 
 struct LoadFutureInner<T> {
     value: Option<Arc<Result<Arc<T>>>>,
