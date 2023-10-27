@@ -115,22 +115,37 @@ impl FileManager {
     }
 
     /// Returns true if there were any file changes
-    pub fn handle_file_changes(&self) -> bool {
-        let mut has_changes = false;
+    pub fn handle_file_changes(&self) -> Option<Vec<ResourcePath>> {
+        let mut changed_paths = if self.watched_paths.is_empty() {
+            // If no file was loaded yet, we can assume there are file changes
+            Some(Vec::new())
+        } else {
+            None
+        };
         for res in self.file_change_events.try_iter() {
             match res {
                 Ok(event) => {
+                    if changed_paths.is_none() {
+                        changed_paths = Some(Vec::new());
+                    }
+                    let changed_paths = changed_paths.as_mut().unwrap();
                     for path in event.paths {
                         debug!("File change detected: {:?}", path);
                         self.file_cache.cache.remove(&path);
+                        // File path relative to the app's working directory
+                        let relative_path =
+                            path.strip_prefix(&self.file_cache.current_dir).unwrap();
+
+                        // Hack, canonicalize path delimiters
+                        let path_canon = relative_path.to_str().unwrap().replace('\\', "/");
+                        let resource_path = ResourcePath::from_str(&path_canon).unwrap();
+                        changed_paths.push(resource_path);
                     }
-                    has_changes = true;
                 }
                 Err(e) => error!("watch error: {:?}", e),
             }
         }
-        // If no file was loaded yet, we can assume there are file changes
-        has_changes || self.watched_paths.is_empty()
+        changed_paths
     }
 
     pub async fn update_watchers(&mut self) {

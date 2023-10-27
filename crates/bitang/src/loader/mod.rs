@@ -1,4 +1,5 @@
 use ahash::AHasher;
+use anyhow::{ensure, Result};
 use std::fmt;
 use std::hash::Hasher;
 
@@ -7,6 +8,7 @@ pub mod file_cache;
 pub mod project_loader;
 pub mod resource_cache;
 pub mod resource_repository;
+pub mod shader_compiler;
 pub mod shader_loader;
 
 /// The root folder for all content.
@@ -51,6 +53,27 @@ impl ResourcePath {
             directory,
             file_name: parts.last().unwrap().to_string(),
         }
+    }
+
+    /// From a string like "app/folder/file.txt". Must start with the root folder,
+    /// it's the reverse of `to_string`.
+    pub fn from_str(path: &str) -> Result<Self> {
+        let parts = path.split('/').collect::<Vec<_>>();
+        ensure!(
+            parts[0] == ROOT_FOLDER,
+            "Path must start with '{}', got '{}'",
+            ROOT_FOLDER,
+            parts[0]
+        );
+        ensure!(
+            parts.len() > 1,
+            "Path must point to a file inside the app folder."
+        );
+        let directory = parts[1..parts.len() - 1].join("/");
+        Ok(Self {
+            directory,
+            file_name: parts.last().unwrap().to_string(),
+        })
     }
 }
 
