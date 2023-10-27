@@ -1,14 +1,14 @@
 use crate::control::controls::GlobalType;
 use crate::loader::file_cache::{ContentHash, FileCache};
-use crate::loader::{compute_hash, ResourcePath};
+use crate::loader::{ResourcePath};
 use crate::render::shader::GlobalUniformMapping;
 use crate::tool::VulkanContext;
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use dashmap::DashSet;
+
 use shaderc::{IncludeCallbackResult, IncludeType};
 use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
 use std::cell::RefCell;
-use std::fmt::Error;
+
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;

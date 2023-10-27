@@ -1,7 +1,7 @@
 use crate::loader::async_cache::AsyncCache;
 use crate::loader::{compute_hash, ResourcePath};
 use ahash::AHashSet;
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
