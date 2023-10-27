@@ -47,11 +47,7 @@ impl ShaderCompilation {
         // }?;
 
         let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
-        // let mut deps = RefCell::new(vec![IncludeChainLink {
-        //     resource_path: path.clone(),
-        //     hash: compute_hash(source.as_bytes()),
-        // }]);
-        let mut deps = RefCell::new(vec![]);
+        let deps = RefCell::new(vec![]);
         let spirv = {
             let include_callback = |include_name: &str, include_type, source_name: &str, depth| {
                 Self::include_callback(
