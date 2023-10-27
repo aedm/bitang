@@ -1,6 +1,6 @@
 use crate::control::controls::GlobalType;
 use crate::loader::file_cache::{ContentHash, FileCache};
-use crate::loader::{ResourcePath};
+use crate::loader::ResourcePath;
 use crate::render::shader::GlobalUniformMapping;
 use crate::tool::VulkanContext;
 use anyhow::{anyhow, bail, ensure, Context, Result};
@@ -153,7 +153,7 @@ impl ShaderArtifact {
             .map_err(|err| anyhow!("Failed to enumerate entry points: {err}"))?
             .into_iter()
             .find(|ep| ep.name == "main")
-            .with_context(|| format!("Failed to find entry point 'main'"))?;
+            .context("Failed to find entry point 'main'")?;
 
         let module = unsafe { ShaderModule::from_bytes(context.device.clone(), spirv_binary) }?;
 
