@@ -9,6 +9,9 @@ use shaderc::{IncludeCallbackResult, IncludeType};
 use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
 use std::cell::RefCell;
 
+use spirq::ty::ScalarType::Float;
+use spirq::ty::{ScalarType, Type};
+use spirq::{DescriptorType, ReflectConfig, Variable};
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -148,10 +151,202 @@ impl ShaderArtifact {
         spirv_binary: &[u8],
     ) -> Result<Self> {
         // Extract metadata from SPIRV
+        let entry_points = ReflectConfig::new()
+            .spv(spirv_binary)
+            // Set this true if you want to reflect all resources no matter it's
+            // used by an entry point or not.
+            .ref_all_rscs(false)
+            // Combine sampled image and separated sampler states if they are bound
+            // to the same binding point.
+            .combine_img_samplers(true)
+            // Generate unique names for types and struct fields to help further
+            // processing of the reflection data. Otherwise, the debug names are
+            // assigned.
+            .gen_unique_names(false)
+            // Specialize the constant at `SpecID=3` with unsigned integer 7. The
+            // constants specialized here won't be listed in the result entry point's
+            // variable list.
+            // .specialize(3, ConstantValue::U32(7))
+            // Do the work.
+            .reflect()?;
+        let entry_point = entry_points
+            .iter()
+            .find(|ep| ep.name == "main")
+            .context("Failed to find entry point 'main'")?;
+
+        let module = unsafe { ShaderModule::from_bytes(context.device.clone(), spirv_binary) }?;
+
+        let descriptor_set_index = match kind {
+            shaderc::ShaderKind::Vertex => 0,
+            shaderc::ShaderKind::Fragment => 1,
+            shaderc::ShaderKind::Compute => 0,
+            _ => panic!("Unsupported shader kind"),
+        };
+
+        // Find the descriptor set that belongs to the current shader stage
+        // let Some(descriptor_set) = entry_point
+        //     .get_descriptor_sets()
+        //     .map_err(|err| anyhow!("Failed to get descriptor sets: {err}"))?
+        //     .get(&descriptor_set_index)
+        // else {
+        //     // The entire descriptor set is empty, so we can just use the module
+        //     return Ok(ShaderArtifact {
+        //         module,
+        //         samplers: vec![],
+        //         buffers: vec![],
+        //         local_uniform_bindings: vec![],
+        //         global_uniform_bindings: vec![],
+        //         uniform_buffer_size: 0,
+        //     });
+        // };
+
+        let mut samplers = Vec::new();
+        let mut buffers = Vec::new();
+        let mut global_uniform_bindings = Vec::new();
+        let mut local_uniform_bindings = Vec::new();
+        let mut uniform_buffer_size = 0;
+
+        for var in &entry_point.vars {
+            match var {
+                Variable::Descriptor {
+                    desc_ty,
+                    ty,
+                    name,
+                    desc_bind,
+                    ..
+                } => {
+                    ensure!(
+                        desc_bind.set() == descriptor_set_index,
+                        format!(
+                            "Descriptor set index mismatch, expected {}, got {}",
+                            descriptor_set_index,
+                            desc_bind.set()
+                        )
+                    );
+                    match desc_ty {
+                        DescriptorType::CombinedImageSampler() => {
+                            samplers.push(NamedResourceBinding {
+                                name: name.clone().with_context(|| format!("Failed to get name for combined image sampler at binding={}", desc_bind.bind()))?,
+                                binding: desc_bind.bind(),
+                            });
+                        }
+                        DescriptorType::StorageBuffer(_) => {
+                            buffers.push(NamedResourceBinding {
+                                name: name.clone().with_context(|| {
+                                    format!(
+                                        "Failed to get name for storage buffer at binding={}",
+                                        desc_bind.bind()
+                                    )
+                                })?,
+                                binding: desc_bind.bind(),
+                            });
+                        }
+                        DescriptorType::UniformBuffer() => match ty {
+                            Type::Struct(struct_type) => {
+                                for member in &struct_type.members {
+                                    let name = member
+                                        .name
+                                        .clone()
+                                        .context("Failed to get name for uniform variable")?;
+                                    if name.starts_with(GLOBAL_UNIFORM_PREFIX) {
+                                        let global_type = GlobalType::from_str(
+                                            &name[(GLOBAL_UNIFORM_PREFIX.len())..],
+                                        )
+                                        .with_context(|| {
+                                            format!("Unknown global type: {:?}", name)
+                                        })?;
+                                        global_uniform_bindings.push(GlobalUniformMapping {
+                                            global_type,
+                                            f32_offset: member.offset as usize / size_of::<f32>(),
+                                        });
+                                    } else {
+                                        let f32_count = match &member.ty {
+                                            Type::Scalar(Float(_)) => Some(1),
+                                            Type::Vector(vtype) => match vtype.scalar_ty {
+                                                Float(_) => Some(vtype.nscalar),
+                                                _ => None,
+                                            },
+                                            _ => None,
+                                        };
+                                        let Some(f32_count) = f32_count else {
+                                            bail!("Uniform variable {name} is not a float scalar or float vector");
+                                        };
+                                        uniform_buffer_size = std::cmp::max(
+                                            uniform_buffer_size,
+                                            member.offset + f32_count as usize * size_of::<f32>(),
+                                        );
+                                        local_uniform_bindings.push(
+                                            ShaderCompilationLocalUniform {
+                                                name,
+                                                f32_offset: member.offset / size_of::<f32>(),
+                                                f32_count: f32_count as usize,
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                            _ => {
+                                bail!("Unsupported uniform buffer type {:?}", desc_ty);
+                            }
+                        },
+                        _ => {
+                            bail!("Unsupported descriptor type {:?}", desc_ty);
+                        }
+                    }
+                }
+                Variable::Input { .. } => {}
+                Variable::Output { .. } => {}
+                Variable::PushConstant { .. } => {}
+                Variable::SpecConstant { .. } => {}
+            }
+        }
+
+        debug!(
+            "Found {} samplers and {} buffers, SPIRV size: {}.",
+            samplers.len(),
+            buffers.len(),
+            spirv_binary.len()
+        );
+
+        let result = ShaderArtifact {
+            module,
+            samplers,
+            buffers,
+            local_uniform_bindings,
+            global_uniform_bindings,
+            uniform_buffer_size,
+        };
+
+        trace!(
+            "Local uniforms: {:?}",
+            result
+                .local_uniform_bindings
+                .iter()
+                .map(|u| &u.name)
+                .collect::<Vec<_>>()
+        );
+        trace!(
+            "Global uniforms: {:?}",
+            result
+                .global_uniform_bindings
+                .iter()
+                .map(|u| u.global_type)
+                .collect::<Vec<_>>()
+        );
+        trace!(
+            "Textures: {:?}",
+            result.samplers.iter().map(|u| &u.name).collect::<Vec<_>>()
+        );
+        Ok(result)
+    }
+
+    fn from_spirv_binary_2(
+        context: &Arc<VulkanContext>,
+        kind: shaderc::ShaderKind,
+        spirv_binary: &[u8],
+    ) -> Result<Self> {
+        // Extract metadata from SPIRV
         println!("ASFDFF");
-        let info =
-            rspirv_reflect::Reflection::new_from_spirv(spirv_binary).expect("Invalid SPIR-V");
-        println!("ASFDFF 1 {:?}", info.get_descriptor_sets().unwrap().len());
         thread::sleep(std::time::Duration::from_millis(1000));
 
         let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary)

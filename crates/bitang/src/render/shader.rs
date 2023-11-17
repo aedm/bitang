@@ -181,8 +181,14 @@ impl Shader {
             descriptors,
         )?;
 
+        let pipeline_bind_point = match self.kind {
+            ShaderKind::Vertex => PipelineBindPoint::Graphics,
+            ShaderKind::Fragment => PipelineBindPoint::Graphics,
+            ShaderKind::Compute => PipelineBindPoint::Compute,
+        };
+
         context.command_builder.bind_descriptor_sets(
-            PipelineBindPoint::Graphics,
+            pipeline_bind_point,
             pipeline_layout.clone(),
             self.kind.get_descriptor_set_index(),
             persistent_descriptor_set,

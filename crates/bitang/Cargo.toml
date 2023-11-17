@@ -24,7 +24,7 @@ vulkano-win = "0.33.0"
 shaderc = "*"
 spirv-reflect = "0.2.3"
 glam = "0.22"
-rspirv-reflect = "0.8.0"
+spirq = "0.6.4"
 
 ahash = "0.8.3"
 dashmap = "5.5.3"
