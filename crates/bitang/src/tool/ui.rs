@@ -86,7 +86,7 @@ impl Ui {
                                 spline_editor.set_control(control, component_index);
                             }
                         }
-                        spline_editor.draw(ui, &mut ui_state.time);
+                        spline_editor.draw(ui, ui_state);
                     });
                 });
             Self::handle_hotkeys(ctx, ui_state);
@@ -108,7 +108,7 @@ impl Ui {
 
     fn draw_control_tree(ui: &mut egui::Ui, ui_state: &mut AppState) {
         let Some(project) = &ui_state.project else {
-            return
+            return;
         };
         let project = project.clone();
 
@@ -166,6 +166,7 @@ impl Ui {
                 ControlIdPartType::Object => '📝',
                 ControlIdPartType::Value => '📊',
                 ControlIdPartType::BufferGenerator => '🔮',
+                ControlIdPartType::Compute => '🧮',
             };
             ui.toggle_value(
                 &mut new_selected,

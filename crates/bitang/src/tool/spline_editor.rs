@@ -1,5 +1,6 @@
 use crate::control::controls::Control;
 use crate::control::spline::SplinePoint;
+use crate::tool::app_state::AppState;
 use egui::plot::{Line, Plot, PlotBounds, PlotPoint};
 use egui::Color32;
 use glam::Vec2;
@@ -51,7 +52,7 @@ impl SplineEditor {
         f32::exp(zoom) / 100.0
     }
 
-    pub fn draw(&mut self, ui: &mut egui::Ui, time: &mut f32) {
+    pub fn draw(&mut self, ui: &mut egui::Ui, app_state: &mut AppState) {
         let pixel_width = ui.available_size().x.ceil() as isize;
 
         let screen_size = ui.available_size();
@@ -65,6 +66,7 @@ impl SplineEditor {
         let min_y = self.center_y - (screen_size.y * pixel_size.y) / 2.0;
 
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+            let time = app_state.cursor_time;
             self.draw_info(ui, time);
             let plot = Plot::new("spline_editor")
                 .show_x(false)
@@ -84,7 +86,7 @@ impl SplineEditor {
                     [self.min_x as f64, min_y as f64],
                     [max_x as f64, max_y as f64],
                 ));
-                self.paint_time_cursor(plot_ui, *time, screen_size);
+                self.paint_time_cursor(plot_ui, time, screen_size);
                 (hover_index, pointer_coordinate) = self.draw_spline(plot_ui, pixel_width);
             });
 
@@ -94,13 +96,13 @@ impl SplineEditor {
                 &pixel_size,
                 hover_index,
                 pointer_coordinate,
-                time,
+                app_state,
             );
         });
     }
 
     // Info about on the top
-    fn draw_info(&mut self, ui: &mut egui::Ui, time: &mut f32) {
+    fn draw_info(&mut self, ui: &mut egui::Ui, time: f32) {
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
             if let Some(control) = self.control.as_mut() {
                 let components = &mut control.components.borrow_mut();
@@ -112,12 +114,12 @@ impl SplineEditor {
                     .on_hover_text("Adds a new point at the current time")
                     .clicked()
                 {
-                    let value = spline.get_value(*time);
+                    let value = spline.get_value(time);
 
                     // Unwrap is safe: time is always a valid float
                     let res = spline
                         .points
-                        .binary_search_by(|p| p.time.partial_cmp(time).unwrap());
+                        .binary_search_by(|p| p.time.partial_cmp(&time).unwrap());
 
                     let index_after = match res {
                         Ok(index) => index,
@@ -127,7 +129,7 @@ impl SplineEditor {
                     spline.points.insert(
                         index_after,
                         SplinePoint {
-                            time: *time,
+                            time,
                             value,
                             is_linear_after: false,
                             hold_after: false,
@@ -275,7 +277,8 @@ impl SplineEditor {
         pixel_size: &Vec2,
         hover_index: Option<usize>,
         pointer_coordinate: Option<PlotPoint>,
-        time: &mut f32,
+        // time: &mut f32,
+        app_state: &mut AppState,
     ) {
         let scroll_delta = ui.input(|i| i.scroll_delta);
         let zoom_delta = ui.input(|i| i.zoom_delta());
@@ -327,7 +330,8 @@ impl SplineEditor {
                 if response.hovered() && primary_down && (!primary_clicked || hover_index.is_none())
                 {
                     if let Some(pointer_coordinate) = pointer_coordinate {
-                        *time = pointer_coordinate.x as f32;
+                        // *time = pointer_coordinate.x as f32;
+                        app_state.set_time(pointer_coordinate.x as f32);
                         self.selected_index = None;
                     }
                 }

@@ -3,6 +3,7 @@ pub mod content_renderer;
 mod music_player;
 mod runners;
 mod spline_editor;
+mod timer;
 mod ui;
 
 use crate::control::controls::Globals;
@@ -66,6 +67,7 @@ pub struct RenderContext<'a> {
     pub screen_viewport: Viewport,
     pub command_builder: &'a mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
     pub globals: Globals,
+    pub simulation_elapsed_time_since_last_render: f32,
 }
 
 pub fn run_app() -> Result<()> {

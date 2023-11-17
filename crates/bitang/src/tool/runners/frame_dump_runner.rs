@@ -69,7 +69,11 @@ impl FrameDumpRunner {
         let mut frame_count = 0;
 
         loop {
-            self.app.app_state.time = frame_count as f32 / (FRAMEDUMP_FPS as f32);
+            let time = frame_count as f32 / (FRAMEDUMP_FPS as f32);
+            if time >= project_length {
+                break;
+            }
+            self.app.app_state.set_time(time);
 
             // Render frame and save it into host memory
             self.render_frame_to_buffer();
@@ -82,16 +86,11 @@ impl FrameDumpRunner {
 
             // Save the frame to a file in a separate thread
             job_count.fetch_add(1, Ordering::Relaxed);
-            // let frame_number = frame_count;
             let job_count_clone = job_count.clone();
             runtime.spawn_blocking(move || {
                 Self::save_frame_buffer_to_file(content, frame_count);
                 job_count_clone.fetch_sub(1, Ordering::Relaxed);
             });
-
-            if self.app.app_state.time >= project_length {
-                break;
-            }
             frame_count += 1;
         }
         info!(
@@ -155,8 +154,11 @@ impl FrameDumpRunner {
             screen_viewport,
             command_builder: &mut command_builder,
             globals: Default::default(),
+            simulation_elapsed_time_since_last_render: 1.0 / (FRAMEDUMP_FPS as f32),
         };
-        self.app.issue_render_commands(&mut render_context, true);
+        render_context.globals.app_time = self.app.app_state.cursor_time;
+
+        self.app.issue_render_commands(&mut render_context);
 
         // Add a copy command to the end of the command buffer
         self.add_frame_to_buffer_copy_command(&mut render_context);

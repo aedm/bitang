@@ -12,6 +12,7 @@ use std::cell::RefCell;
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::thread;
 use tracing::{debug, error, info, instrument, trace, warn};
 use vulkano::shader::ShaderModule;
 
@@ -63,11 +64,12 @@ impl ShaderCompilation {
                 .context("Failed to create shader compiler options")?;
             options.set_target_env(
                 shaderc::TargetEnv::Vulkan,
-                shaderc::EnvVersion::Vulkan1_1 as u32,
+                shaderc::EnvVersion::Vulkan1_2 as u32,
             );
             // TODO: Enable optimization
             // options.set_optimization_level(shaderc::OptimizationLevel::Performance);
             options.set_include_callback(include_callback);
+            options.set_generate_debug_info();
             compiler.compile_into_spirv(source, kind, &path.to_string(), "main", Some(&options))?
         };
         info!("compiled in {:?}.", now.elapsed());
@@ -89,7 +91,7 @@ impl ShaderCompilation {
         deps: &mut Vec<IncludeChainLink>,
         file_hash_cache: &FileCache,
     ) -> IncludeCallbackResult {
-        error!(
+        trace!(
             "#include '{include_name}' ({include_type:?}) from '{source_name}' (depth: {depth})",
         );
         let source_path = ResourcePath::from_str(source_name).map_err(|err| err.to_string())?;
@@ -146,20 +148,29 @@ impl ShaderArtifact {
         spirv_binary: &[u8],
     ) -> Result<Self> {
         // Extract metadata from SPIRV
+        println!("ASFDFF");
+        let info =
+            rspirv_reflect::Reflection::new_from_spirv(spirv_binary).expect("Invalid SPIR-V");
+        println!("ASFDFF 1 {:?}", info.get_descriptor_sets().unwrap().len());
+        thread::sleep(std::time::Duration::from_millis(1000));
+
         let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary)
             .map_err(|err| anyhow!("Failed to reflect SPIRV binary: {err}"))?;
+        println!("ASFDFF 2");
         let entry_point = reflect
             .enumerate_entry_points()
             .map_err(|err| anyhow!("Failed to enumerate entry points: {err}"))?
             .into_iter()
             .find(|ep| ep.name == "main")
             .context("Failed to find entry point 'main'")?;
+        println!("ASFDFF 3");
 
         let module = unsafe { ShaderModule::from_bytes(context.device.clone(), spirv_binary) }?;
 
         let descriptor_set_index = match kind {
             shaderc::ShaderKind::Vertex => 0,
             shaderc::ShaderKind::Fragment => 1,
+            shaderc::ShaderKind::Compute => 0,
             _ => panic!("Unsupported shader kind"),
         };
 
@@ -167,7 +178,8 @@ impl ShaderArtifact {
         let Some(descriptor_set) = entry_point
             .descriptor_sets
             .iter()
-            .find(|ds| ds.set == descriptor_set_index) else {
+            .find(|ds| ds.set == descriptor_set_index)
+        else {
             // The entire descriptor set is empty, so we can just use the module
             return Ok(ShaderArtifact {
                 module,

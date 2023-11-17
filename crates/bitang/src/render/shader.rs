@@ -1,4 +1,5 @@
 use crate::control::controls::{Control, GlobalType};
+use crate::render::buffer::Buffer;
 use crate::render::buffer_generator::BufferGenerator;
 use crate::render::image::Image;
 use crate::tool::{RenderContext, VulkanContext};
@@ -19,6 +20,7 @@ const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 pub enum ShaderKind {
     Vertex = 0,
     Fragment = 1,
+    Compute = 2,
 }
 
 impl ShaderKind {
@@ -28,10 +30,15 @@ impl ShaderKind {
     /// Bitang uses a unique descriptor set for each shader stage:
     /// - Vertex shader: `set = 0`
     /// - Fragment shader: `set = 1`
+    /// - Compute shader: `set = 0`
     ///
     /// E.g. every resource in a vertex shader must use `layout(set = 0, binding = ...)`,
     pub fn get_descriptor_set_index(&self) -> u32 {
-        *self as u32
+        match self {
+            ShaderKind::Vertex => 0,
+            ShaderKind::Fragment => 1,
+            ShaderKind::Compute => 0,
+        }
     }
 }
 
@@ -156,6 +163,14 @@ impl Shader {
                     })?;
                     WriteDescriptorSet::buffer(descriptor_resource.binding, buffer.clone())
                 }
+                DescriptorSource::BufferCurrent(buffer) => WriteDescriptorSet::buffer(
+                    descriptor_resource.binding,
+                    buffer.get_current_buffer(),
+                ),
+                DescriptorSource::BufferNext(buffer) => WriteDescriptorSet::buffer(
+                    descriptor_resource.binding,
+                    buffer.get_next_buffer(),
+                ),
             };
             descriptors.push(write_descriptor_set);
         }
@@ -177,14 +192,18 @@ impl Shader {
     }
 }
 
+#[derive(Clone)]
 pub struct ImageDescriptor {
     pub image: Arc<Image>,
     pub address_mode: SamplerAddressMode,
 }
 
+#[derive(Clone)]
 pub enum DescriptorSource {
     Image(ImageDescriptor),
     BufferGenerator(Arc<BufferGenerator>),
+    BufferCurrent(Arc<Buffer>),
+    BufferNext(Arc<Buffer>),
 }
 
 pub struct DescriptorResource {
