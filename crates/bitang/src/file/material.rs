@@ -41,7 +41,6 @@ impl Material {
             &object_cid,
             &self.samplers,
             &self.buffers,
-            None,
         )?;
 
         let material_pass_futures = passes.iter().map(|pass| async {

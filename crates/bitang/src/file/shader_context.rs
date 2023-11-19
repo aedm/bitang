@@ -15,8 +15,8 @@ use std::sync::Arc;
 #[derive(Debug, Deserialize)]
 pub enum BufferSource {
     BufferGenerator(String),
-    Current,
-    Next,
+    Current(String),
+    Next(String),
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -68,7 +68,6 @@ impl ShaderContext {
         control_id: &ControlId,
         samplers: &HashMap<String, Sampler>,
         buffers: &HashMap<String, BufferSource>,
-        current_buffer: Option<Arc<render::buffer::Buffer>>,
     ) -> Result<Self> {
         let sampler_futures = samplers
             .iter()
@@ -104,16 +103,20 @@ impl ShaderContext {
                             .clone();
                         DescriptorSource::BufferGenerator(generator)
                     }
-                    BufferSource::Current => {
-                        let buffer = current_buffer.clone().with_context(|| {
-                            anyhow!("'Current' buffer can only be used in a simulation or init Compute block.")
-                        })?;
+                    BufferSource::Current(id) => {
+                        let buffer = chart_context
+                            .buffers_by_id
+                            .get(id)
+                            .with_context(|| anyhow!("Buffer '{id}' not found"))?
+                            .clone();
                         DescriptorSource::BufferCurrent(buffer)
                     }
-                    BufferSource::Next => {
-                        let buffer = current_buffer.clone().with_context(|| {
-                            anyhow!("'Next' buffer can only be used in a simulation Compute block.")
-                        })?;
+                    BufferSource::Next(id) => {
+                        let buffer = chart_context
+                            .buffers_by_id
+                            .get(id)
+                            .with_context(|| anyhow!("Buffer '{id}' not found"))?
+                            .clone();
                         DescriptorSource::BufferNext(buffer)
                     }
                 };

@@ -1,5 +1,6 @@
 use crate::loader::project_loader::ProjectLoader;
 use crate::render::chart::Chart;
+use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::timer::Timer;
@@ -20,6 +21,7 @@ pub struct ContentRenderer {
     // cursor_timer: Timer,
     // simulation_timer: Timer,
     last_render_time: Option<f32>,
+    must_reset_simulation: bool,
 }
 
 impl ContentRenderer {
@@ -48,6 +50,7 @@ impl ContentRenderer {
             // play_start_time: Instant::now(),
             music_player,
             last_render_time: None,
+            must_reset_simulation: true,
             //
             // app_timer,
             // cursor_timer: Timer::new(),
@@ -68,9 +71,11 @@ impl ContentRenderer {
         //     self.reload_project(&context.vulkan_context);
         // }
         self.app_state.tick();
+        // TODO nem ide
+        context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
 
         context.simulation_elapsed_time_since_last_render = match self.last_render_time {
-            Some(last_render_time) => self.app_state.cursor_time - last_render_time,
+            Some(last_render_time) => context.globals.app_time - last_render_time,
             None => 0.0,
         };
 
@@ -85,6 +90,8 @@ impl ContentRenderer {
             Some(chart) => self.draw_chart(&chart, context),
             None => self.draw_project(context),
         };
+
+        self.last_render_time = Some(context.globals.app_time);
 
         if let Err(err) = draw_result {
             if !self.has_render_failure {
@@ -104,6 +111,11 @@ impl ContentRenderer {
     // }
 
     fn draw_chart(&mut self, chart: &Chart, context: &mut RenderContext) -> Result<()> {
+        if self.must_reset_simulation {
+            chart.reset_simulation();
+            self.must_reset_simulation = false;
+        }
+
         // Evaluate control splines
         let cursor_time = self.app_state.cursor_time;
         let should_evaluate = true;
@@ -127,6 +139,10 @@ impl ContentRenderer {
         // Evaluate control splines and draw charts
         for cut in &project.cuts {
             if cut.start_time <= cursor_time && cursor_time <= cut.end_time {
+                if self.must_reset_simulation {
+                    cut.chart.reset_simulation();
+                }
+
                 let chart_time = cursor_time - cut.start_time + cut.offset;
                 for control in &cut.chart.controls.used_controls {
                     control.evaluate_splines(chart_time);
@@ -135,6 +151,7 @@ impl ContentRenderer {
                 cut.chart.render(context)?
             }
         }
+        self.must_reset_simulation = false;
         Ok(())
     }
 
@@ -185,5 +202,9 @@ impl ContentRenderer {
         // self.app_state.is_playing = false;
         // self.cursor_timer.pause();
         // self.simulation_timer.pause();
+    }
+
+    pub fn reset_simulation(&mut self) {
+        self.must_reset_simulation = true;
     }
 }

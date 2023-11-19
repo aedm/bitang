@@ -121,6 +121,9 @@ impl WindowRunner {
                                     Some(winit::event::VirtualKeyCode::Space) => {
                                         self.app.toggle_play();
                                     }
+                                    Some(winit::event::VirtualKeyCode::F1) => {
+                                        self.app.reset_simulation();
+                                    }
                                     _ => (),
                                 }
                             }

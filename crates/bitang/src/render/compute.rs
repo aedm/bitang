@@ -50,10 +50,9 @@ impl Compute {
             Run::Init(buffer) => buffer.item_size_in_vec4 * buffer.item_count / 64,
             Run::Simulate(buffer) => {
                 buffer.step();
-                buffer.item_size_in_vec4 * buffer.item_count / 64
+                (buffer.item_size_in_vec4 * buffer.item_count + 63) / 64
             }
         };
-
         context
             .command_builder
             .bind_pipeline_compute(self.pipeline.clone());

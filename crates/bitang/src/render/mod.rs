@@ -38,4 +38,4 @@ type BufferItem = [f32; 4];
 /// How many times the simulation is updated per second.
 /// Weird number on purpose.
 const SIMULATION_FREQUENCY_HZ: f32 = 23.7;
-const SIMULATION_STEP_SECONDS: f32 = 1.0 / SIMULATION_FREQUENCY_HZ;
+pub const SIMULATION_STEP_SECONDS: f32 = 1.0 / SIMULATION_FREQUENCY_HZ;

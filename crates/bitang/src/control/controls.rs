@@ -349,7 +349,7 @@ pub enum GlobalType {
     /// The ratio between two consecutive frames in the simulation. 0..=1.
     /// During rendering, simulation buffers must be blended using this ratio
     /// between Current and Next states.
-    SimulationInFrameRatio,
+    SimulationFrameRatio,
 
     SimulationStepSeconds,
 }
@@ -372,7 +372,7 @@ pub struct Globals {
     pub field_of_view: f32,
     pub light_dir: Vec3,
     pub shadow_map_size: f32,
-    pub simulation_in_frame_ratio: f32,
+    pub simulation_frame_ratio: f32,
     pub simulation_step_seconds: f32,
 }
 
@@ -395,7 +395,7 @@ impl Globals {
             GlobalType::FieldOfView => slice::from_ref(&self.field_of_view),
             GlobalType::LightDir => self.light_dir.as_ref(),
             GlobalType::ShadowMapSize => slice::from_ref(&self.shadow_map_size),
-            GlobalType::SimulationInFrameRatio => slice::from_ref(&self.simulation_in_frame_ratio),
+            GlobalType::SimulationFrameRatio => slice::from_ref(&self.simulation_frame_ratio),
             GlobalType::SimulationStepSeconds => slice::from_ref(&self.simulation_step_seconds),
         }
     }

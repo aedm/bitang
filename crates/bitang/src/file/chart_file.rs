@@ -261,26 +261,20 @@ impl Compute {
         context: &Arc<VulkanContext>,
         chart_context: &ChartContext,
     ) -> Result<render::compute::Compute> {
-        let (run, current_buffer) = match &self.run {
+        let run = match &self.run {
             ComputeRun::Init(buffer_id) => {
                 let buffer = chart_context
                     .buffers_by_id
                     .get(buffer_id)
                     .with_context(|| anyhow!("Buffer not found: {buffer_id}"))?;
-                (
-                    render::compute::Run::Init(buffer.clone()),
-                    Some(buffer.clone()),
-                )
+                render::compute::Run::Init(buffer.clone())
             }
             ComputeRun::Simulation(buffer_id) => {
                 let buffer = chart_context
                     .buffers_by_id
                     .get(buffer_id)
                     .with_context(|| anyhow!("Buffer not found: {buffer_id}"))?;
-                (
-                    render::compute::Run::Simulate(buffer.clone()),
-                    Some(buffer.clone()),
-                )
+                render::compute::Run::Simulate(buffer.clone())
             }
         };
 
@@ -294,7 +288,6 @@ impl Compute {
             &control_id,
             &self.samplers,
             &self.buffers,
-            current_buffer,
         )?;
 
         let shader = shader_context

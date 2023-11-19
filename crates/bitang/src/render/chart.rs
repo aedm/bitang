@@ -60,9 +60,10 @@ impl Chart {
         }
     }
 
-    pub fn reset(&self) {
+    pub fn reset_simulation(&self) {
         self.is_initialized.set(false);
         self.simulation_next_buffer_time.set(0.0);
+        self.simulation_elapsed_time.set(0.0);
     }
 
     pub fn initialize(&self, context: &mut RenderContext) -> Result<()> {
@@ -87,7 +88,7 @@ impl Chart {
             self.simulation_elapsed_time.get() + context.simulation_elapsed_time_since_last_render;
         let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
         // Failsafe: limit the number steps per frame to avoid overloading the GPU.
-        for _ in 0..2 {
+        for _ in 0..3 {
             if simulation_next_buffer_time > time {
                 break;
             }
@@ -115,7 +116,8 @@ impl Chart {
             buffer_generator.generate()?;
         }
         self.initialize(context)?;
-        self.run_simulation(context)?;
+        let ratio = self.run_simulation(context)?;
+        context.globals.simulation_frame_ratio = ratio;
 
         for step in &self.steps {
             if let ChartStep::Draw(draw) = step {

@@ -248,6 +248,7 @@ impl ShaderArtifact {
                                         .name
                                         .clone()
                                         .context("Failed to get name for uniform variable")?;
+
                                     if name.starts_with(GLOBAL_UNIFORM_PREFIX) {
                                         let global_type = GlobalType::from_str(
                                             &name[(GLOBAL_UNIFORM_PREFIX.len())..],
@@ -271,10 +272,7 @@ impl ShaderArtifact {
                                         let Some(f32_count) = f32_count else {
                                             bail!("Uniform variable {name} is not a float scalar or float vector");
                                         };
-                                        uniform_buffer_size = std::cmp::max(
-                                            uniform_buffer_size,
-                                            member.offset + f32_count as usize * size_of::<f32>(),
-                                        );
+
                                         local_uniform_bindings.push(
                                             ShaderCompilationLocalUniform {
                                                 name,
@@ -283,6 +281,11 @@ impl ShaderArtifact {
                                             },
                                         );
                                     }
+                                    uniform_buffer_size = std::cmp::max(
+                                        uniform_buffer_size,
+                                        // TODO
+                                        member.offset + 16 * size_of::<f32>(),
+                                    );
                                 }
                             }
                             _ => {
