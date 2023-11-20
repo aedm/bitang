@@ -107,7 +107,10 @@ impl ResourceRepository {
     ) -> Result<Arc<Chart>> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
         let chart = self.chart_file_cache.load(context, &path).await?;
-        chart.load(id, context, self, &path).await
+        chart
+            .load(id, context, self, &path)
+            .await
+            .with_context(|| anyhow!("Failed to load chart '{id}'"))
     }
 
     pub async fn load_project(self: &Arc<Self>, context: &Arc<VulkanContext>) -> Result<Project> {
@@ -128,7 +131,7 @@ fn to_vec2(v: &russimp::Vector3D) -> [f32; 2] {
     [v.x, v.y]
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(path=_resource_name))]
 fn load_mesh_collection(
     context: &Arc<VulkanContext>,
     content: &[u8],
@@ -147,7 +150,7 @@ fn load_mesh_collection(
         ],
         "",
     )?;
-    debug!("Meshes in file: {}", scene.meshes.len());
+    debug!("Mesh count: {}", scene.meshes.len());
     let mut meshes_by_name = HashMap::new();
     for mesh in scene.meshes {
         let name = mesh.name.clone();

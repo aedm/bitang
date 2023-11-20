@@ -4,7 +4,7 @@ use crate::loader::shader_compiler::{IncludeChainLink, ShaderArtifact, ShaderCom
 use crate::loader::ResourcePath;
 use crate::render::shader::ShaderKind;
 use crate::tool::VulkanContext;
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use dashmap::DashMap;
 
@@ -73,6 +73,7 @@ impl ShaderCache {
         let shaderc_kind = match kind {
             ShaderKind::Vertex => shaderc::ShaderKind::Vertex,
             ShaderKind::Fragment => shaderc::ShaderKind::Fragment,
+            ShaderKind::Compute => shaderc::ShaderKind::Compute,
         };
 
         let key = ShaderCacheKey {
@@ -143,7 +144,9 @@ impl ShaderCache {
                 let ShaderCompilation {
                     mut include_chain,
                     shader_artifact,
-                } = compile_task.await??;
+                } = compile_task
+                    .await
+                    .with_context(|| format!("Shader compiler crashed for '{source_path}'"))??;
 
                 let shader_artifact = Arc::new(shader_artifact);
                 include_chain.insert(

@@ -9,6 +9,7 @@ use crate::tool::{
 use anyhow::Result;
 use std::cmp::max;
 use std::sync::Arc;
+use std::time::Instant;
 use tracing::{error, info};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::image::ImageViewAbstract;
@@ -27,6 +28,7 @@ pub struct WindowRunner {
     ui: Ui,
     windows: VulkanoWindows,
     app: ContentRenderer,
+    app_start_time: Instant,
 }
 
 pub enum PaintResult {
@@ -71,6 +73,7 @@ impl WindowRunner {
             ui,
             windows,
             app,
+            app_start_time: Instant::now(),
         };
 
         window_runner.run_inner(event_loop);
@@ -110,11 +113,14 @@ impl WindowRunner {
                                             info!("Exiting on user request.");
                                         } else if self.is_fullscreen {
                                             self.toggle_fullscreen();
-                                            self.app.stop();
+                                            self.app.app_state.pause();
                                         }
                                     }
                                     Some(winit::event::VirtualKeyCode::Space) => {
                                         self.app.toggle_play();
+                                    }
+                                    Some(winit::event::VirtualKeyCode::F1) => {
+                                        self.app.reset_simulation();
                                     }
                                     _ => (),
                                 }
@@ -208,19 +214,13 @@ impl WindowRunner {
             screen_viewport,
             command_builder: &mut command_builder,
             globals: Default::default(),
+            simulation_elapsed_time_since_last_render: 0.0,
         };
+        render_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
 
         // Render content
-        let time_before_render = self.app.app_state.time;
-
-        let mut paint_result = PaintResult::None;
-        self.app.issue_render_commands(&mut render_context, false);
-
-        if let Some(project) = &self.app.app_state.project {
-            if time_before_render < project.length && self.app.app_state.time >= project.length {
-                paint_result = PaintResult::EndReached;
-            }
-        }
+        self.app.reload_project(&self.vulkan_context);
+        self.app.draw(&mut render_context);
 
         // Render UI
         if !self.is_fullscreen && ui_height > 0.0 {
@@ -240,7 +240,12 @@ impl WindowRunner {
             .boxed();
         self.get_renderer().present(after_future, true);
 
-        paint_result
+        if let Some(project) = &self.app.app_state.project {
+            if self.app.app_state.cursor_time >= project.length {
+                return PaintResult::EndReached;
+            }
+        }
+        PaintResult::None
     }
 
     fn toggle_fullscreen(&mut self) {

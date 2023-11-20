@@ -81,7 +81,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         Self::resolve(&mut inner).await;
         match inner.value.as_ref().unwrap().as_ref() {
             Ok(value) => Ok(value.clone()),
-            Err(err) => Err(anyhow!("Error loading value: {err:?}")),
+            Err(err) => Err(anyhow!("{err:?}")),
         }
     }
 
@@ -92,7 +92,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         match inner.value.as_ref().unwrap().as_ref() {
             Ok(_) => {}
             Err(err) => {
-                error!("Error loading value: {err:?}");
+                error!("{err:?}");
             }
         }
     }

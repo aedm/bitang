@@ -36,6 +36,7 @@ pub enum ControlIdPartType {
     ChartStep,
     Camera,
     Object,
+    Compute,
     Value,
     BufferGenerator,
 }

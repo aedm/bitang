@@ -22,8 +22,8 @@ vulkano = "0.33.0"
 vulkano-util = "0.33.0"
 vulkano-win = "0.33.0"
 shaderc = "*"
-spirv-reflect = "0.2.3"
 glam = "0.22"
+spirq = "0.6.4"
 
 ahash = "0.8.3"
 dashmap = "5.5.3"
@@ -35,7 +35,7 @@ serde = { version = "*", features = ["derive", "rc"] }
 notify = "5.1.0"
 image = { version = "0.24.4", default-features = false, features = ["jpeg", "png"] }
 russimp = { version = "=2.0.5", features = ["prebuilt"] }
-ron = "0.8.0"
+ron = "0.8"
 
 rodio = { version = "0.17.1", default-features = false, features = ["mp3"] }
 build-time = "0.1.3"

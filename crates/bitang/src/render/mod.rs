@@ -1,6 +1,8 @@
+pub mod buffer;
 pub mod buffer_generator;
 pub mod camera;
 pub mod chart;
+pub mod compute;
 pub mod draw;
 pub mod image;
 pub mod material;
@@ -30,3 +32,10 @@ pub struct Vertex3 {
 
 pub const SCREEN_COLOR_FORMAT: ImageFormat = ImageFormat::Rgba8Srgb;
 pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
+
+type BufferItem = [f32; 4];
+
+/// How many times the simulation is updated per second.
+/// Weird number on purpose.
+const SIMULATION_FREQUENCY_HZ: f32 = 60.0;
+pub const SIMULATION_STEP_SECONDS: f32 = 1.0 / SIMULATION_FREQUENCY_HZ;
