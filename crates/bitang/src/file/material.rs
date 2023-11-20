@@ -32,8 +32,8 @@ impl Material {
     ) -> Result<crate::render::material::Material> {
         let shader_context = ShaderContext::new(
             chart_context,
-            &control_map,
-            &object_cid,
+            control_map,
+            object_cid,
             &self.samplers,
             &self.buffers,
         )?;

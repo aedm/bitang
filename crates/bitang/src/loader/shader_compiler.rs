@@ -227,16 +227,17 @@ impl ShaderArtifact {
                                         .clone()
                                         .context("Failed to get name for uniform variable")?;
 
-                                    if name.starts_with(GLOBAL_UNIFORM_PREFIX) {
-                                        let global_type = GlobalType::from_str(
-                                            &name[(GLOBAL_UNIFORM_PREFIX.len())..],
-                                        )
-                                        .with_context(|| {
-                                            format!("Unknown global type: {:?}", name)
-                                        })?;
+                                    // if name.starts_with(GLOBAL_UNIFORM_PREFIX) {
+                                    if let Some(global_name) =
+                                        name.strip_prefix(GLOBAL_UNIFORM_PREFIX)
+                                    {
+                                        let global_type = GlobalType::from_str(global_name)
+                                            .with_context(|| {
+                                                format!("Unknown global: {:?}", name)
+                                            })?;
                                         global_uniform_bindings.push(GlobalUniformMapping {
                                             global_type,
-                                            f32_offset: member.offset as usize / size_of::<f32>(),
+                                            f32_offset: member.offset / size_of::<f32>(),
                                         });
                                     } else {
                                         let f32_count = match &member.ty {
