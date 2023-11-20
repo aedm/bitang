@@ -3,20 +3,16 @@ use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::ResourcePath;
 use crate::render::shader::GlobalUniformMapping;
 use crate::tool::VulkanContext;
-use anyhow::{anyhow, bail, ensure, Context, Result};
-
+use anyhow::{bail, ensure, Context, Result};
 use shaderc::{IncludeCallbackResult, IncludeType};
-use spirv_reflect::types::{ReflectDescriptorType, ReflectTypeFlags};
-use std::cell::RefCell;
-
 use spirq::ty::ScalarType::Float;
-use spirq::ty::{ScalarType, Type};
+use spirq::ty::Type;
 use spirq::{DescriptorType, ReflectConfig, Variable};
+use std::cell::RefCell;
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::thread;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 use vulkano::shader::ShaderModule;
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";

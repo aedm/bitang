@@ -1,16 +1,11 @@
-use crate::control::{ControlId, ControlIdPartType};
+use crate::control::ControlId;
 use crate::file::chart_file::ChartContext;
+use crate::file::default_true;
 use crate::file::shader_context::{BufferSource, Sampler, ShaderContext};
-use crate::file::{default_true, COMMON_SHADER_FILE};
-use crate::loader::async_cache::LoadFuture;
-use crate::loader::shader_compiler::ShaderArtifact;
 use crate::render;
-use crate::render::image::Image;
 use crate::render::material::{BlendMode, MaterialPassProps};
-use crate::render::shader::{
-    DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, Shader, ShaderKind,
-};
-use anyhow::{anyhow, Context, Result};
+use crate::render::shader::ShaderKind;
+use anyhow::{anyhow, Result};
 use futures::future::join_all;
 use serde::Deserialize;
 use std::collections::HashMap;

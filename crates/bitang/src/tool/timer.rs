@@ -33,21 +33,6 @@ impl Timer {
         }
     }
 
-    pub fn toggle(&mut self) {
-        if self.instant.is_some() {
-            self.pause();
-        } else {
-            self.start();
-        }
-    }
-
-    pub fn reset(&mut self) {
-        self.start = 0.0;
-        if self.instant.is_some() {
-            self.instant = Some(Instant::now());
-        }
-    }
-
     pub fn set(&mut self, time: f32) {
         self.start = time;
         if self.instant.is_some() {

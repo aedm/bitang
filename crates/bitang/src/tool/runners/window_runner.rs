@@ -1,7 +1,6 @@
 use crate::render::image::Image;
 use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
-use crate::tool::timer::Timer;
 use crate::tool::ui::Ui;
 use crate::tool::{
     InitContext, RenderContext, VulkanContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,

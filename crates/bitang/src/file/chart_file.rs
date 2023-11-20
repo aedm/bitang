@@ -1,7 +1,6 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::shader_context::{BufferSource, Sampler, ShaderContext};
-use crate::file::COMMON_SHADER_FILE;
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_repository::ResourceRepository;
 use crate::loader::ResourcePath;

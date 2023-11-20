@@ -3,11 +3,9 @@ use crate::render::chart::Chart;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
-use crate::tool::timer::Timer;
 use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{bail, Result};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 use tracing::error;
 
 pub struct ContentRenderer {
