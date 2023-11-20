@@ -114,7 +114,6 @@ impl WindowRunner {
                                             info!("Exiting on user request.");
                                         } else if self.is_fullscreen {
                                             self.toggle_fullscreen();
-                                            // self.app.stop();
                                             self.app.app_state.pause();
                                         }
                                     }
@@ -222,7 +221,7 @@ impl WindowRunner {
 
         // Render content
         self.app.reload_project(&self.vulkan_context);
-        self.app.issue_render_commands(&mut render_context);
+        self.app.draw(&mut render_context);
 
         // Render UI
         if !self.is_fullscreen && ui_height > 0.0 {

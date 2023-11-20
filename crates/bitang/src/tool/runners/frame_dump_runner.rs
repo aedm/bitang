@@ -158,7 +158,7 @@ impl FrameDumpRunner {
         };
         render_context.globals.app_time = self.app.app_state.cursor_time;
 
-        self.app.issue_render_commands(&mut render_context);
+        self.app.draw(&mut render_context);
 
         // Add a copy command to the end of the command buffer
         self.add_frame_to_buffer_copy_command(&mut render_context);

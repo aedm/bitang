@@ -277,7 +277,6 @@ impl SplineEditor {
         pixel_size: &Vec2,
         hover_index: Option<usize>,
         pointer_coordinate: Option<PlotPoint>,
-        // time: &mut f32,
         app_state: &mut AppState,
     ) {
         let scroll_delta = ui.input(|i| i.scroll_delta);
@@ -330,7 +329,6 @@ impl SplineEditor {
                 if response.hovered() && primary_down && (!primary_clicked || hover_index.is_none())
                 {
                     if let Some(pointer_coordinate) = pointer_coordinate {
-                        // *time = pointer_coordinate.x as f32;
                         app_state.set_time(pointer_coordinate.x as f32);
                         self.selected_index = None;
                     }

@@ -12,14 +12,9 @@ use tracing::error;
 
 pub struct ContentRenderer {
     pub app_state: AppState,
-    // start_time: Instant,
     project_loader: ProjectLoader,
     has_render_failure: bool,
-    // play_start_time: Instant,
     music_player: MusicPlayer,
-    // app_timer: Timer,
-    // cursor_timer: Timer,
-    // simulation_timer: Timer,
     last_render_time: Option<f32>,
     must_reset_simulation: bool,
 }
@@ -40,51 +35,26 @@ impl ContentRenderer {
                 .clone(),
         );
 
-        // let mut app_timer = Timer::new();
-        // app_timer.start();
         Ok(Self {
-            // start_time: Instant::now(),
             project_loader,
             app_state,
             has_render_failure,
-            // play_start_time: Instant::now(),
             music_player,
             last_render_time: None,
             must_reset_simulation: true,
-            //
-            // app_timer,
-            // cursor_timer: Timer::new(),
-            // simulation_timer: Timer::new(),
         })
     }
 
-    pub fn issue_render_commands(&mut self, context: &mut RenderContext) {
-        // if frame_dump_mode {
-        //     context.globals.app_time = self.app_state.time;
-        // } else {
-        //     self.reload_project(&context.vulkan_context);
-        //     // self.advance_time();
-        //     // context.globals.app_time = self.start_time.elapsed().as_secs_f32();
-        //     context.globals.app_time = self.app_timer.elapsed();
-        // }
-        // if !frame_dump_mode {
-        //     self.reload_project(&context.vulkan_context);
-        // }
+    pub fn draw(&mut self, context: &mut RenderContext) {
         self.app_state.tick();
-        // TODO nem ide
+
+        // TODO: This value should be set to Globals at its initialization
         context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
 
         context.simulation_elapsed_time_since_last_render = match self.last_render_time {
             Some(last_render_time) => context.globals.app_time - last_render_time,
             None => 0.0,
         };
-
-        // if context.simulation_elapsed_time_since_last_render < 0.0 {
-        //     context.simulation_elapsed_time_since_last_render = 0.0;
-        // } else {
-        //     context.simulation_elapsed_time_since_last_render =
-        //         context.globals.app_time - context.simulation_elapsed_time_since_last_render;
-        // }
 
         let draw_result = match self.app_state.get_chart() {
             Some(chart) => self.draw_chart(&chart, context),
@@ -102,13 +72,6 @@ impl ContentRenderer {
             self.has_render_failure = false;
         }
     }
-
-    // fn draw(&mut self, context: &mut RenderContext) -> Result<()> {
-    //     match self.app_state.get_chart() {
-    //         Some(chart) => self.draw_chart(&chart, context),
-    //         None => self.draw_project(context),
-    //     }
-    // }
 
     fn draw_chart(&mut self, chart: &Chart, context: &mut RenderContext) -> Result<()> {
         if self.must_reset_simulation {
@@ -165,13 +128,6 @@ impl ContentRenderer {
         }
     }
 
-    // fn advance_time(&mut self) {
-    //     // if self.app_state.is_playing {
-    //     //     self.app_state.time = self.play_start_time.elapsed().as_secs_f32();
-    //     // }
-    //     self.app_state.time = self.cursor_timer.elapsed();
-    // }
-
     pub fn toggle_play(&mut self) {
         if self.app_state.is_playing() {
             self.stop();
@@ -183,25 +139,12 @@ impl ContentRenderer {
     pub fn play(&mut self) {
         self.music_player
             .play_from(self.app_state.get_project_relative_time());
-        // let now = Instant::now();
-        // // Duration is always positive
-        // if self.app_state.time >= 0. {
-        //     self.play_start_time = now - Duration::from_secs_f32(self.app_state.time);
-        // } else {
-        //     self.play_start_time = now + Duration::from_secs_f32(-self.app_state.time);
-        // }
-        // self.app_state.is_playing = true;
-        // self.cursor_timer.start();
-        // self.simulation_timer.start();
         self.app_state.start();
     }
 
     pub fn stop(&mut self) {
         self.music_player.stop();
         self.app_state.pause();
-        // self.app_state.is_playing = false;
-        // self.cursor_timer.pause();
-        // self.simulation_timer.pause();
     }
 
     pub fn reset_simulation(&mut self) {

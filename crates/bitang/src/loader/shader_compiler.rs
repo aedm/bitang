@@ -41,7 +41,6 @@ impl ShaderCompilation {
         kind: shaderc::ShaderKind,
         file_hash_cache: Arc<FileCache>,
     ) -> Result<Self> {
-        // let path_str = path.to_string();
         let now = std::time::Instant::now();
 
         // TODO: use this when implicit common.glsl include is deprecated
@@ -183,23 +182,6 @@ impl ShaderArtifact {
             _ => panic!("Unsupported shader kind"),
         };
 
-        // Find the descriptor set that belongs to the current shader stage
-        // let Some(descriptor_set) = entry_point
-        //     .get_descriptor_sets()
-        //     .map_err(|err| anyhow!("Failed to get descriptor sets: {err}"))?
-        //     .get(&descriptor_set_index)
-        // else {
-        //     // The entire descriptor set is empty, so we can just use the module
-        //     return Ok(ShaderArtifact {
-        //         module,
-        //         samplers: vec![],
-        //         buffers: vec![],
-        //         local_uniform_bindings: vec![],
-        //         global_uniform_bindings: vec![],
-        //         uniform_buffer_size: 0,
-        //     });
-        // };
-
         let mut samplers = Vec::new();
         let mut buffers = Vec::new();
         let mut global_uniform_bindings = Vec::new();
@@ -310,173 +292,6 @@ impl ShaderArtifact {
             buffers.len(),
             spirv_binary.len()
         );
-
-        let result = ShaderArtifact {
-            module,
-            samplers,
-            buffers,
-            local_uniform_bindings,
-            global_uniform_bindings,
-            uniform_buffer_size,
-        };
-
-        trace!(
-            "Local uniforms: {:?}",
-            result
-                .local_uniform_bindings
-                .iter()
-                .map(|u| &u.name)
-                .collect::<Vec<_>>()
-        );
-        trace!(
-            "Global uniforms: {:?}",
-            result
-                .global_uniform_bindings
-                .iter()
-                .map(|u| u.global_type)
-                .collect::<Vec<_>>()
-        );
-        trace!(
-            "Textures: {:?}",
-            result.samplers.iter().map(|u| &u.name).collect::<Vec<_>>()
-        );
-        Ok(result)
-    }
-
-    fn from_spirv_binary_2(
-        context: &Arc<VulkanContext>,
-        kind: shaderc::ShaderKind,
-        spirv_binary: &[u8],
-    ) -> Result<Self> {
-        // Extract metadata from SPIRV
-        println!("ASFDFF");
-        thread::sleep(std::time::Duration::from_millis(1000));
-
-        let reflect = spirv_reflect::ShaderModule::load_u8_data(spirv_binary)
-            .map_err(|err| anyhow!("Failed to reflect SPIRV binary: {err}"))?;
-        println!("ASFDFF 2");
-        let entry_point = reflect
-            .enumerate_entry_points()
-            .map_err(|err| anyhow!("Failed to enumerate entry points: {err}"))?
-            .into_iter()
-            .find(|ep| ep.name == "main")
-            .context("Failed to find entry point 'main'")?;
-        println!("ASFDFF 3");
-
-        let module = unsafe { ShaderModule::from_bytes(context.device.clone(), spirv_binary) }?;
-
-        let descriptor_set_index = match kind {
-            shaderc::ShaderKind::Vertex => 0,
-            shaderc::ShaderKind::Fragment => 1,
-            shaderc::ShaderKind::Compute => 0,
-            _ => panic!("Unsupported shader kind"),
-        };
-
-        // Find the descriptor set that belongs to the current shader stage
-        let Some(descriptor_set) = entry_point
-            .descriptor_sets
-            .iter()
-            .find(|ds| ds.set == descriptor_set_index)
-        else {
-            // The entire descriptor set is empty, so we can just use the module
-            return Ok(ShaderArtifact {
-                module,
-                samplers: vec![],
-                buffers: vec![],
-                local_uniform_bindings: vec![],
-                global_uniform_bindings: vec![],
-                uniform_buffer_size: 0,
-            });
-        };
-
-        // Find all samplers
-        let samplers: Vec<_> = descriptor_set
-            .bindings
-            .iter()
-            .filter(|binding| {
-                binding.descriptor_type == ReflectDescriptorType::CombinedImageSampler
-            })
-            .map(|binding| NamedResourceBinding {
-                name: binding.name.clone(),
-                binding: binding.binding,
-            })
-            .collect();
-
-        // Find all buffers
-        let buffers: Vec<_> = descriptor_set
-            .bindings
-            .iter()
-            .filter(|binding| binding.descriptor_type == ReflectDescriptorType::StorageBuffer)
-            .map(|binding| NamedResourceBinding {
-                name: binding.name.clone(),
-                binding: binding.binding,
-            })
-            .collect();
-        debug!(
-            "Found {} samplers and {} buffers, SPIRV size: {}.",
-            samplers.len(),
-            buffers.len(),
-            spirv_binary.len()
-        );
-
-        // Find the uniform block that contains all local and global uniforms
-        let uniform_block = &descriptor_set
-            .bindings
-            .iter()
-            .find(|binding| binding.descriptor_type == ReflectDescriptorType::UniformBuffer);
-
-        // Find local and global uniforms
-        let (local_uniform_bindings, global_uniform_bindings, uniform_buffer_size) =
-            match uniform_block {
-                Some(binding) => {
-                    let members = &binding.block.members;
-                    let local_uniform_bindings = members
-                        .iter()
-                        .filter(|var| !var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
-                        .map(|var| {
-                            let Some(type_desc) = &var.type_description else {
-                                bail!(
-                                    "Failed to get type description for uniform variable {}",
-                                    var.name
-                                );
-                            };
-                            ensure!(
-                                (type_desc.type_flags & !ReflectTypeFlags::VECTOR)
-                                    == ReflectTypeFlags::FLOAT,
-                                "Uniform variable {} is not a float or vector",
-                                var.name
-                            );
-                            Ok(ShaderCompilationLocalUniform {
-                                name: var.name.clone(),
-                                f32_offset: var.offset as usize / size_of::<f32>(),
-                                f32_count: var.size as usize / size_of::<f32>(),
-                            })
-                        })
-                        .collect::<Result<Vec<_>>>()?;
-                    let global_uniform_bindings = members
-                        .iter()
-                        .filter(|var| var.name.starts_with(GLOBAL_UNIFORM_PREFIX))
-                        .map(|var| {
-                            GlobalType::from_str(&var.name[(GLOBAL_UNIFORM_PREFIX.len())..]).map(
-                                |global_type| GlobalUniformMapping {
-                                    global_type,
-                                    f32_offset: var.offset as usize / size_of::<f32>(),
-                                },
-                            )
-                        })
-                        .collect::<::core::result::Result<Vec<_>, _>>()?;
-                    let uniform_buffer_size = binding.block.size as usize;
-                    (
-                        local_uniform_bindings,
-                        global_uniform_bindings,
-                        uniform_buffer_size,
-                    )
-                }
-                None => {
-                    warn!("Shader has no uniform block.");
-                    (vec![], vec![], 0)
-                }
-            };
 
         let result = ShaderArtifact {
             module,

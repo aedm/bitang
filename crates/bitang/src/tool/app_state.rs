@@ -9,10 +9,7 @@ pub struct AppState {
     pub project: Option<Arc<Project>>,
     pub selected_control_id: ControlId,
     pub cursor_time: f32,
-    // pub time: f32,
     cursor: Timer,
-    // pub is_simulation_playing: bool,
-    // pub is_playing: bool,
     pub control_repository: Arc<ControlRepository>,
 }
 
@@ -24,8 +21,6 @@ impl AppState {
         AppState {
             project,
             selected_control_id: ControlId::default(),
-            // time: 0.0,
-            // is_playing: false,
             cursor: Timer::new(),
             cursor_time: 0.0,
             control_repository,
