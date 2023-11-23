@@ -44,7 +44,9 @@ impl WindowRunner {
         let vulkano_context = init_context.vulkano_context.clone();
         let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
-        let app = ContentRenderer::new(&vulkan_context)?;
+        let mut app = ContentRenderer::new(&vulkan_context)?;
+        info!("Init DOOM refresh daemon...");
+        app.reset_simulation(&vulkan_context)?;
 
         let event_loop = EventLoop::new();
 
@@ -120,7 +122,19 @@ impl WindowRunner {
                                         self.app.toggle_play();
                                     }
                                     Some(winit::event::VirtualKeyCode::F1) => {
-                                        self.app.reset_simulation();
+                                        if let Err(err) =
+                                            self.app.reset_simulation(&self.vulkan_context)
+                                        {
+                                            error!("Failed to reset simulation: {:?}", err);
+                                        }
+                                        // Skip the time spent resetting the simulation
+                                        self.app.set_last_render_time(
+                                            self.app_start_time.elapsed().as_secs_f32(),
+                                        );
+                                    }
+                                    Some(winit::event::VirtualKeyCode::F2) => {
+                                        self.app.app_state.is_simulation_enabled =
+                                            !self.app.app_state.is_simulation_enabled;
                                     }
                                     _ => (),
                                 }
@@ -218,8 +232,14 @@ impl WindowRunner {
         };
         render_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
 
+        if self.app.reload_project(&self.vulkan_context) {
+            self.app.reset_simulation(&self.vulkan_context).unwrap();
+            render_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
+            self.app
+                .set_last_render_time(render_context.globals.app_time);
+        }
+
         // Render content
-        self.app.reload_project(&self.vulkan_context);
         self.app.draw(&mut render_context);
 
         // Render UI

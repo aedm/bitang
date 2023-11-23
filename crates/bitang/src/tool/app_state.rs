@@ -11,6 +11,7 @@ pub struct AppState {
     pub cursor_time: f32,
     cursor: Timer,
     pub control_repository: Arc<ControlRepository>,
+    pub is_simulation_enabled: bool,
 }
 
 impl AppState {
@@ -24,6 +25,7 @@ impl AppState {
             cursor: Timer::new(),
             cursor_time: 0.0,
             control_repository,
+            is_simulation_enabled: true,
         }
     }
 
@@ -86,5 +88,10 @@ impl AppState {
 
     pub fn is_playing(&self) -> bool {
         self.cursor.is_playing()
+    }
+
+    pub fn reset(&mut self) {
+        self.cursor.set(0.0);
+        self.cursor_time = 0.0;
     }
 }

@@ -329,8 +329,13 @@ impl Control {
 #[derive(Copy, Clone, EnumString, Debug)]
 #[strum(serialize_all = "snake_case")]
 pub enum GlobalType {
+    // TODO: Rename to something that makes more sense in simulation context
+    /// Total elapsed time since the app started. During simulation, it's the simulation time.
     AppTime,
+
+    /// Elapsed time relative to the current chart.
     ChartTime,
+    
     ProjectionFromModel,
     LightProjectionFromModel,
     LightProjectionFromWorld,

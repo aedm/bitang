@@ -41,6 +41,10 @@ pub struct Chart {
     #[serde(default)]
     pub buffers: Vec<Buffer>,
 
+    /// Simulation should run this long before starting the demo
+    #[serde(default)]
+    pub simulation_precalculation_time: f32,
+
     pub steps: Vec<ChartStep>,
 }
 
@@ -135,6 +139,7 @@ impl Chart {
             images,
             buffer_generators,
             chart_steps,
+            self.simulation_precalculation_time,
         );
         Ok(Arc::new(chart))
     }

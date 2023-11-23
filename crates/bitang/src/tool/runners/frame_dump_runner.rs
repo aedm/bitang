@@ -163,7 +163,7 @@ impl FrameDumpRunner {
         // Add a copy command to the end of the command buffer
         self.add_frame_to_buffer_copy_command(&mut render_context);
 
-        // Execute commands on the graphics queue and dump it to a file
+        // Execute commands on the graphics queue
         let command_buffer = command_builder.build().unwrap();
         let queue = self.vulkan_context.gfx_queue.clone();
         let finished = command_buffer.execute(queue).unwrap();
