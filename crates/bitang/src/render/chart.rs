@@ -126,9 +126,11 @@ impl Chart {
             steps += 1;
 
             // Calculate chart time
-            context.globals.app_time = simulation_next_buffer_time;
-            context.globals.chart_time = simulation_next_buffer_time;
-            self.evaluate_splines(simulation_next_buffer_time);
+            if is_precalculation {
+                context.globals.app_time = simulation_next_buffer_time;
+                context.globals.chart_time = simulation_next_buffer_time;
+                self.evaluate_splines(simulation_next_buffer_time);
+            }
 
             for step in &self.steps {
                 if let ChartStep::Compute(compute) = step {
