@@ -34,7 +34,8 @@ impl FrameDumpRunner {
 
         let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
-        let app = ContentRenderer::new(&vulkan_context)?;
+        let mut app = ContentRenderer::new(&vulkan_context)?;
+        app.reset_simulation(&vulkan_context)?;
 
         let dumped_frame_buffer = Buffer::from_iter(
             &vulkan_context.memory_allocator,
