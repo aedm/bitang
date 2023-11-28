@@ -29,21 +29,22 @@ pub struct ShaderCompilation {
 }
 
 impl ShaderCompilation {
-    #[instrument(skip(context, kind, source, file_hash_cache))]
+    #[instrument(skip(context, kind, file_hash_cache))]
     pub fn compile_shader(
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
-        source: &str,
         kind: shaderc::ShaderKind,
         file_hash_cache: Arc<FileCache>,
     ) -> Result<Self> {
         let now = std::time::Instant::now();
 
-        // TODO: use this when implicit common.glsl include is deprecated
-        // let source = {
-        //     tokio::runtime::Handle::current()
-        //         .block_on(async move { file_hash_cache.get(&path).await })
-        // }?;
+        let source_file = {
+            let file_hash_cache = Arc::clone(&file_hash_cache);
+            tokio::runtime::Handle::current()
+                .block_on(async move { file_hash_cache.get(&path).await })
+        }?;
+        let source = std::str::from_utf8(&source_file.content)
+            .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
 
         let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
         let deps = RefCell::new(vec![]);
@@ -105,8 +106,12 @@ impl ShaderCompilation {
             resource_path: include_path.clone(),
             hash: included_source_u8.hash,
         });
-        let content =
-            String::from_utf8(included_source_u8.content.clone()).map_err(|err| err.to_string())?;
+        let content = String::from_utf8(included_source_u8.content.clone()).map_err(|err| {
+            format!(
+                "Shader source file is not UTF-8: '{include_name:?}': {}",
+                err.to_string()
+            )
+        })?;
         Ok(shaderc::ResolvedInclude {
             resolved_name: include_path.to_string(),
             content,

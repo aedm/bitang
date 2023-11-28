@@ -68,7 +68,6 @@ impl ShaderCache {
         context: Arc<VulkanContext>,
         source_path: ResourcePath,
         kind: ShaderKind,
-        common_path: ResourcePath,
     ) -> Result<Arc<ShaderArtifact>> {
         let shaderc_kind = match kind {
             ShaderKind::Vertex => shaderc::ShaderKind::Vertex,
@@ -121,11 +120,6 @@ impl ShaderCache {
                 }
 
                 let source_file = file_hash_cache.get(&source_path).await?;
-                let header_file = file_hash_cache.get(&common_path).await?;
-
-                let source_str = std::str::from_utf8(&source_file.content)?;
-                let header_str = std::str::from_utf8(&header_file.content)?;
-                let source = format!("{header_str}\n{source_str}",);
 
                 // No cache hit found, so we need to compile the shader
                 let compile_task = {
@@ -134,7 +128,6 @@ impl ShaderCache {
                         ShaderCompilation::compile_shader(
                             &context,
                             &source_path,
-                            &source,
                             shaderc_kind,
                             file_hash_cache,
                         )
@@ -142,21 +135,13 @@ impl ShaderCache {
                 };
 
                 let ShaderCompilation {
-                    mut include_chain,
+                    include_chain,
                     shader_artifact,
                 } = compile_task
                     .await
                     .with_context(|| format!("Shader compiler crashed for '{source_path}'"))??;
 
                 let shader_artifact = Arc::new(shader_artifact);
-                include_chain.insert(
-                    0,
-                    IncludeChainLink {
-                        resource_path: common_path.clone(),
-                        hash: header_file.hash,
-                    },
-                );
-
                 let mut node = shader_tree_root.clone();
                 let mut hash = source_file.hash;
 

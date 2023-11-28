@@ -144,7 +144,6 @@ impl ShaderContext {
                 chart_context.vulkan_context.clone(),
                 chart_context.path.relative_path(source_path),
                 kind,
-                chart_context.path.relative_path(COMMON_SHADER_FILE),
             )
             .await?;
 
