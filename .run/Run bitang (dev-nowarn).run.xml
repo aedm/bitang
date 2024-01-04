@@ -2,7 +2,7 @@
   <configuration default="false" name="Run bitang (dev-nowarn)" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
     <option name="command" value="run --package bitang --bin bitang --profile dev-nowarn" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-    <option name="emulateTerminal" value="false" />
+    <option name="emulateTerminal" value="true" />
     <option name="channel" value="DEFAULT" />
     <option name="requiredFeatures" value="true" />
     <option name="allFeatures" value="false" />
@@ -10,7 +10,7 @@
     <option name="buildTarget" value="REMOTE" />
     <option name="backtrace" value="SHORT" />
     <envs>
-      <env name="RUST_BACKTRACE" value="1" />
+      <env name="RUST_BACKTRACE" value="0" />
       <env name="RUSTFLAGS" value="-A dead_code -A unused_variables -A unused_mut -A unused_imports" />
     </envs>
     <option name="isRedirectInput" value="false" />

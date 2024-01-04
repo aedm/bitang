@@ -69,7 +69,9 @@ impl ShaderCompilation {
             // options.set_optimization_level(shaderc::OptimizationLevel::Performance);
             options.set_include_callback(include_callback);
             options.set_generate_debug_info();
-            compiler.compile_into_spirv(source, kind, &path.to_string(), "main", Some(&options))?
+            compiler
+                .compile_into_spirv(source, kind, &path.to_string(), "main", Some(&options))
+                .with_context(|| format!("Failed to compile shader {:?}", path))?
         };
         info!("compiled in {:?}.", now.elapsed());
 

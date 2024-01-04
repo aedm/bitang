@@ -68,7 +68,7 @@ impl ContentRenderer {
 
         if let Err(err) = draw_result {
             if !self.has_render_failure {
-                error!("Render failed: {:?}", err);
+                error!("{err:?}");
                 self.has_render_failure = true;
             }
         } else {
@@ -83,7 +83,7 @@ impl ContentRenderer {
 
     fn draw_project(&mut self, context: &mut RenderContext) -> Result<()> {
         let Some(project) = &self.app_state.project else {
-            bail!("No project loaded");
+            bail!("Can't load project.");
         };
 
         let cursor_time = self.app_state.cursor_time;

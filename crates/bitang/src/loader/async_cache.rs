@@ -154,6 +154,7 @@ impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value
     /// Removes a key from the cache.
     pub fn clear(&self) {
         self.items.clear();
+        self.accessed_in_current_load_cycle.clear();
     }
 
     /// Displays the root cause of all load errors that occurred during the current loading cycle.
