@@ -59,9 +59,6 @@ impl ProjectLoader {
                     self.cached_root = Some(Arc::new(project));
                 }
                 Err(err) => {
-                    if changed_files.is_some() {
-                        error!("Error loading project: {:?}", err);
-                    }
                     self.resource_repository.display_load_errors();
                     self.cached_root = None;
                 }

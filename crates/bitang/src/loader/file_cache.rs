@@ -130,7 +130,7 @@ impl FileManager {
                     }
                     let changed_paths = changed_paths.as_mut().unwrap();
                     for path in event.paths {
-                        debug!("File change detected: {:?}", path);
+                        trace!("File change detected: {:?}", path);
                         self.file_cache.cache.remove(&path);
                         // File path relative to the app's working directory
                         let relative_path =
