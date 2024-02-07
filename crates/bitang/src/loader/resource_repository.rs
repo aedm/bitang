@@ -74,7 +74,7 @@ impl ResourceRepository {
 
     #[instrument(skip(self, context))]
     pub fn get_texture(
-        self: &Arc<Self>,
+        self: &Rc<Self>,
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
     ) -> LoadFuture<Image> {
@@ -83,7 +83,7 @@ impl ResourceRepository {
 
     #[instrument(skip(self, context))]
     pub fn get_mesh(
-        self: &Arc<Self>,
+        self: &Rc<Self>,
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
         selector: &str,
@@ -103,7 +103,7 @@ impl ResourceRepository {
 
     #[instrument(skip(self, context))]
     pub async fn load_chart(
-        self: &Arc<Self>,
+        self: &Rc<Self>,
         id: &str,
         context: &Arc<VulkanContext>,
     ) -> Result<Rc<Chart>> {
@@ -115,7 +115,7 @@ impl ResourceRepository {
             .with_context(|| anyhow!("Failed to load chart '{id}'"))
     }
 
-    pub async fn load_project(self: &Arc<Self>, context: &Arc<VulkanContext>) -> Result<Project> {
+    pub async fn load_project(self: &Rc<Self>, context: &Arc<VulkanContext>) -> Result<Project> {
         let path = ResourcePath::new("", PROJECT_FILE_NAME);
         let project = self.project_file_cache.load(context, &path).await?;
         project.load(context, self).await

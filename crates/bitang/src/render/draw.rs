@@ -6,7 +6,7 @@ use crate::tool::RenderContext;
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
-use std::sync::Arc;
+
 use vulkano::command_buffer::SubpassContents;
 
 /// Represents a draw step in the chart sequence.

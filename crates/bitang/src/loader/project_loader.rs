@@ -3,6 +3,7 @@ use crate::loader::resource_repository::ResourceRepository;
 use crate::render::project::Project;
 use crate::tool::VulkanContext;
 use anyhow::Result;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{info, instrument};
@@ -12,7 +13,7 @@ const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Manages the load and reload cycles of the project.
 pub struct ProjectLoader {
-    pub resource_repository: Arc<ResourceRepository>,
+    pub resource_repository: Rc<ResourceRepository>,
     cached_root: Option<Arc<Project>>,
     last_load_time: Instant,
     file_loader: FileManager,
@@ -24,7 +25,7 @@ impl ProjectLoader {
         let file_loader = FileManager::new();
         let async_runtime = tokio::runtime::Runtime::new()?;
         Ok(Self {
-            resource_repository: Arc::new(ResourceRepository::try_new(
+            resource_repository: Rc::new(ResourceRepository::try_new(
                 file_loader.file_cache.clone(),
             )?),
             cached_root: None,

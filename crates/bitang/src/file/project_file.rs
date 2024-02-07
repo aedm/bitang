@@ -5,6 +5,7 @@ use anyhow::Result;
 use futures::future::join_all;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
@@ -24,7 +25,7 @@ impl Project {
     pub async fn load(
         &self,
         context: &Arc<VulkanContext>,
-        resource_repository: &Arc<ResourceRepository>,
+        resource_repository: &Rc<ResourceRepository>,
     ) -> Result<render::project::Project> {
         let chart_ids: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();
         let chart_futures_by_id = chart_ids.iter().map(|&chart_name| async {

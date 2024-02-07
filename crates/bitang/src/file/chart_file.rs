@@ -21,7 +21,7 @@ use std::sync::Arc;
 /// A context for loading a chart.
 pub struct ChartContext {
     pub vulkan_context: Arc<VulkanContext>,
-    pub resource_repository: Arc<ResourceRepository>,
+    pub resource_repository: Rc<ResourceRepository>,
     pub image_futures_by_id: AHashMap<String, LoadFuture<render::image::Image>>,
     pub control_set_builder: ControlSetBuilder,
     pub chart_control_id: ControlId,
@@ -54,7 +54,7 @@ impl Chart {
         &self,
         id: &str,
         context: &Arc<VulkanContext>,
-        resource_repository: &Arc<ResourceRepository>,
+        resource_repository: &Rc<ResourceRepository>,
         chart_file_path: &ResourcePath,
     ) -> Result<Rc<render::chart::Chart>> {
         let chart_control_id = ControlId::default().add(ControlIdPartType::Chart, id);
