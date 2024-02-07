@@ -1,6 +1,6 @@
 use crate::loader::async_cache::AsyncCache;
 use crate::loader::file_cache::{ContentHash, FileCache};
-use crate::loader::shader_compiler::{IncludeChainLink, ShaderArtifact, ShaderCompilation};
+use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
 use crate::loader::ResourcePath;
 use crate::render::shader::ShaderKind;
 use crate::tool::VulkanContext;
@@ -69,12 +69,6 @@ impl ShaderCache {
         source_path: ResourcePath,
         kind: ShaderKind,
     ) -> Result<Arc<ShaderArtifact>> {
-        let shaderc_kind = match kind {
-            ShaderKind::Vertex => shaderc::ShaderKind::Vertex,
-            ShaderKind::Fragment => shaderc::ShaderKind::Fragment,
-            ShaderKind::Compute => shaderc::ShaderKind::Compute,
-        };
-
         let key = ShaderCacheKey {
             source_path: source_path.clone(),
             kind,
@@ -97,77 +91,13 @@ impl ShaderCache {
             let context = Arc::clone(&context);
             let file_hash_cache = Arc::clone(&self.file_hash_cache);
 
-            async move {
-                // Traverse the cache tree
-                let mut node = shader_tree_root.clone();
-
-                loop {
-                    let file = file_hash_cache.get(&node.source_path).await?;
-                    let new_node = match node.subtrees_by_file_content.get(&file.hash) {
-                        Some(dep) => match dep.value() {
-                            ShaderDependency::None(artifact) => {
-                                trace!("Cache hit for shader '{:?}'", source_path);
-                                return Ok(Arc::clone(artifact));
-                            }
-                            ShaderDependency::NextInclude(tree_node) => tree_node.clone(),
-                        },
-                        None => {
-                            trace!("Cache miss for shader {source_path:?}");
-                            break;
-                        }
-                    };
-                    node = new_node;
-                }
-
-                let source_file = file_hash_cache.get(&source_path).await?;
-
-                // No cache hit found, so we need to compile the shader
-                let compile_task = {
-                    let source_path = source_path.clone();
-                    spawn_blocking(move || {
-                        ShaderCompilation::compile_shader(
-                            &context,
-                            &source_path,
-                            shaderc_kind,
-                            file_hash_cache,
-                        )
-                    })
-                };
-
-                let ShaderCompilation {
-                    include_chain,
-                    shader_artifact,
-                } = compile_task
-                    .await
-                    .with_context(|| format!("Shader compiler crashed for '{source_path}'"))??;
-
-                let shader_artifact = Arc::new(shader_artifact);
-                let mut node = shader_tree_root.clone();
-                let mut hash = source_file.hash;
-
-                for dep in include_chain {
-                    let next_node = match node
-                        .subtrees_by_file_content
-                        .entry(hash)
-                        .or_insert_with(|| {
-                            ShaderDependency::NextInclude(Arc::new(ShaderTreeNode {
-                                source_path: dep.resource_path.clone(),
-                                subtrees_by_file_content: DashMap::new(),
-                            }))
-                        })
-                        .value()
-                    {
-                        ShaderDependency::None(_) => panic!("Unexpected cache hit"),
-                        ShaderDependency::NextInclude(next) => Arc::clone(next),
-                    };
-                    node = next_node;
-                    hash = dep.hash;
-                }
-                node.subtrees_by_file_content
-                    .insert(hash, ShaderDependency::None(Arc::clone(&shader_artifact)));
-
-                Ok(shader_artifact)
-            }
+            Self::load_shader(
+                context,
+                file_hash_cache,
+                source_path,
+                kind,
+                shader_tree_root,
+            )
         };
         self.load_cycle_shader_cache
             .get(key, shader_load_func)
@@ -180,5 +110,85 @@ impl ShaderCache {
 
     pub fn reset_load_cycle(&self, _changed_files: Option<&Vec<ResourcePath>>) {
         self.load_cycle_shader_cache.clear();
+    }
+
+    async fn load_shader(
+        context: Arc<VulkanContext>,
+        file_hash_cache: Arc<FileCache>,
+        source_path: ResourcePath,
+        kind: ShaderKind,
+        shader_tree_root: Arc<ShaderTreeNode>,
+    ) -> Result<Arc<ShaderArtifact>> {
+        // Find the shader in the cache tree
+        let mut node = shader_tree_root.clone();
+        loop {
+            let file = file_hash_cache.get(&node.source_path).await?;
+            let new_node = match node.subtrees_by_file_content.get(&file.hash) {
+                Some(dep) => match dep.value() {
+                    ShaderDependency::None(artifact) => {
+                        trace!("Cache hit for shader '{:?}'", source_path);
+                        return Ok(Arc::clone(artifact));
+                    }
+                    ShaderDependency::NextInclude(tree_node) => tree_node.clone(),
+                },
+                None => {
+                    trace!("Cache miss for shader {source_path:?}");
+                    break;
+                }
+            };
+            node = new_node;
+        }
+
+        // Build shader
+        let ShaderCompilation {
+            include_chain,
+            shader_artifact,
+        } = {
+            let source_path_clone = source_path.clone();
+            let file_hash_cache = Arc::clone(&file_hash_cache);
+            let shaderc_kind = match kind {
+                ShaderKind::Vertex => shaderc::ShaderKind::Vertex,
+                ShaderKind::Fragment => shaderc::ShaderKind::Fragment,
+                ShaderKind::Compute => shaderc::ShaderKind::Compute,
+            };
+            spawn_blocking(move || {
+                ShaderCompilation::compile_shader(
+                    &context,
+                    &source_path_clone,
+                    shaderc_kind,
+                    file_hash_cache,
+                )
+            })
+            .await
+            .with_context(|| format!("Shader compiler crashed for '{source_path}'"))??
+        };
+
+        // Update cache
+        let shader_artifact = Arc::new(shader_artifact);
+        let mut node = shader_tree_root.clone();
+        let mut hash = file_hash_cache.get(&source_path).await?.hash;
+
+        for dep in include_chain {
+            let next_node = match node
+                .subtrees_by_file_content
+                .entry(hash)
+                .or_insert_with(|| {
+                    ShaderDependency::NextInclude(Arc::new(ShaderTreeNode {
+                        source_path: dep.resource_path.clone(),
+                        subtrees_by_file_content: DashMap::new(),
+                    }))
+                })
+                .value()
+            {
+                ShaderDependency::None(_) => panic!("Unexpected cache hit"),
+                ShaderDependency::NextInclude(next) => Arc::clone(next),
+            };
+            node = next_node;
+            hash = dep.hash;
+        }
+        node.subtrees_by_file_content
+            .insert(hash, ShaderDependency::None(Arc::clone(&shader_artifact)));
+
+        Ok(shader_artifact)
     }
 }

@@ -81,7 +81,7 @@ impl Chart {
                 .set(-self.simulation_precalculation_time);
         }
         if run_precalc {
-            return Ok(self.simulate(context, true)?);
+            return self.simulate(context, true);
         }
         Ok(true)
     }
@@ -118,12 +118,10 @@ impl Chart {
 
         // Failsafe: limit the number steps per frame to avoid overloading the GPU.
         let maximum_steps = if is_precalculation { 10 } else { 3 };
-        let mut steps = 0;
         for _ in 0..maximum_steps {
             if simulation_next_buffer_time > time {
                 break;
             }
-            steps += 1;
 
             // Calculate chart time
             if is_precalculation {
