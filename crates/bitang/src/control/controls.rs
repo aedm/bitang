@@ -3,6 +3,7 @@ use crate::control::ControlIdPartType::Chart;
 use crate::control::{ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
 use crate::loader::{CHARTS_FOLDER, ROOT_FOLDER};
 use crate::render::project::Project;
+use ahash::AHashSet;
 use anyhow::Context;
 use anyhow::Result;
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
@@ -12,7 +13,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::rc::Rc;
-use std::sync::{Mutex};
+use std::sync::Mutex;
 use std::{array, mem, slice};
 use strum::EnumString;
 use tracing::{debug, info, instrument, warn};
@@ -62,8 +63,8 @@ pub struct ControlSet {
 
 pub struct ControlSetBuilder {
     control_repository: Rc<ControlRepository>,
-    used_controls: DashSet<RcHashRef<Control>>,
-    used_control_list: Mutex<Vec<Rc<Control>>>,
+    used_controls: RefCell<AHashSet<RcHashRef<Control>>>,
+    used_control_list: RefCell<Vec<Rc<Control>>>,
     root_id: ControlId,
 }
 
@@ -72,8 +73,8 @@ impl ControlSetBuilder {
         Self {
             root_id,
             control_repository,
-            used_controls: DashSet::new(),
-            used_control_list: Mutex::new(vec![]),
+            used_controls: RefCell::new(AHashSet::new()),
+            used_control_list: RefCell::new(vec![]),
         }
     }
 
@@ -83,7 +84,7 @@ impl ControlSetBuilder {
             ..UsedControlsNode::default()
         };
         let mut controls = vec![];
-        let mut used_control_list = self.used_control_list.lock().unwrap();
+        let mut used_control_list = self.used_control_list.borrow_mut();
         for control in mem::take(&mut *used_control_list) {
             root_node.insert(control.clone());
             controls.push(control);
@@ -132,9 +133,12 @@ impl ControlSetBuilder {
         control
             .used_component_count
             .set(max(control.used_component_count.get(), component_count));
-        if self.used_controls.insert(RcHashRef(control.clone())) {
-            let mut used_control_list = self.used_control_list.lock().unwrap();
-            used_control_list.push(control.clone());
+        if self
+            .used_controls
+            .borrow_mut()
+            .insert(RcHashRef(control.clone()))
+        {
+            self.used_control_list.borrow_mut().push(control.clone());
         }
         control
     }
