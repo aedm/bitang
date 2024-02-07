@@ -11,14 +11,14 @@ pub struct AppState {
     pub selected_control_id: ControlId,
     pub cursor_time: f32,
     cursor: Timer,
-    pub control_repository: Arc<ControlRepository>,
+    pub control_repository: Rc<ControlRepository>,
     pub is_simulation_enabled: bool,
 }
 
 impl AppState {
     pub fn new(
         project: Option<Rc<Project>>,
-        control_repository: Arc<ControlRepository>,
+        control_repository: Rc<ControlRepository>,
     ) -> AppState {
         AppState {
             project,

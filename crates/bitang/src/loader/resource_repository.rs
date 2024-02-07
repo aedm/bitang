@@ -37,7 +37,7 @@ pub struct ResourceRepository {
     chart_file_cache: Arc<ResourceCache<chart_file::Chart>>,
     project_file_cache: Arc<ResourceCache<project_file::Project>>,
     pub shader_cache: ShaderCache,
-    pub control_repository: Arc<ControlRepository>,
+    pub control_repository: Rc<ControlRepository>,
 }
 
 impl ResourceRepository {
@@ -50,7 +50,7 @@ impl ResourceRepository {
             chart_file_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_chart_file)),
             project_file_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_project_file)),
             file_hash_cache,
-            control_repository: Arc::new(control_repository),
+            control_repository: Rc::new(control_repository),
         })
     }
 

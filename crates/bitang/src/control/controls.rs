@@ -61,14 +61,14 @@ pub struct ControlSet {
 }
 
 pub struct ControlSetBuilder {
-    control_repository: Arc<ControlRepository>,
+    control_repository: Rc<ControlRepository>,
     used_controls: DashSet<RcHashRef<Control>>,
     used_control_list: Mutex<Vec<Rc<Control>>>,
     root_id: ControlId,
 }
 
 impl ControlSetBuilder {
-    pub fn new(root_id: ControlId, control_repository: Arc<ControlRepository>) -> Self {
+    pub fn new(root_id: ControlId, control_repository: Rc<ControlRepository>) -> Self {
         Self {
             root_id,
             control_repository,
