@@ -119,12 +119,6 @@ impl ShaderCache {
         kind: ShaderKind,
         shader_tree_root: Arc<ShaderTreeNode>,
     ) -> Result<Arc<ShaderArtifact>> {
-        let shaderc_kind = match kind {
-            ShaderKind::Vertex => shaderc::ShaderKind::Vertex,
-            ShaderKind::Fragment => shaderc::ShaderKind::Fragment,
-            ShaderKind::Compute => shaderc::ShaderKind::Compute,
-        };
-
         // Find the shader in the cache tree
         let mut node = shader_tree_root.clone();
         loop {
@@ -152,6 +146,11 @@ impl ShaderCache {
         } = {
             let source_path_clone = source_path.clone();
             let file_hash_cache = Arc::clone(&file_hash_cache);
+            let shaderc_kind = match kind {
+                ShaderKind::Vertex => shaderc::ShaderKind::Vertex,
+                ShaderKind::Fragment => shaderc::ShaderKind::Fragment,
+                ShaderKind::Compute => shaderc::ShaderKind::Compute,
+            };
             spawn_blocking(move || {
                 ShaderCompilation::compile_shader(
                     &context,
