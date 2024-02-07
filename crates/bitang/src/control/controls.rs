@@ -7,13 +7,13 @@ use ahash::AHashSet;
 use anyhow::Context;
 use anyhow::Result;
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
-use dashmap::{DashMap, DashSet};
+use dashmap::{DashMap};
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::rc::Rc;
-use std::sync::Mutex;
+
 use std::{array, mem, slice};
 use strum::EnumString;
 use tracing::{debug, info, instrument, warn};
