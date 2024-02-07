@@ -56,7 +56,7 @@ impl Chart {
         context: &Arc<VulkanContext>,
         resource_repository: &Arc<ResourceRepository>,
         chart_file_path: &ResourcePath,
-    ) -> Result<Arc<render::chart::Chart>> {
+    ) -> Result<Rc<render::chart::Chart>> {
         let chart_control_id = ControlId::default().add(ControlIdPartType::Chart, id);
         let control_set_builder = ControlSetBuilder::new(
             chart_control_id.clone(),
@@ -142,7 +142,7 @@ impl Chart {
             chart_steps,
             self.simulation_precalculation_time,
         );
-        Ok(Arc::new(chart))
+        Ok(Rc::new(chart))
     }
 }
 

@@ -34,7 +34,7 @@ impl AppState {
         self.cursor_time = self.cursor.now();
     }
 
-    pub fn get_chart(&self) -> Option<Arc<Chart>> {
+    pub fn get_chart(&self) -> Option<Rc<Chart>> {
         let id_first = self.selected_control_id.parts.first();
         if let Some(project) = &self.project {
             if let Some(id_first) = id_first {

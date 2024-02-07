@@ -15,6 +15,7 @@ use anyhow::{anyhow, ensure, Context, Result};
 use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -105,7 +106,7 @@ impl ResourceRepository {
         self: &Arc<Self>,
         id: &str,
         context: &Arc<VulkanContext>,
-    ) -> Result<Arc<Chart>> {
+    ) -> Result<Rc<Chart>> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
         let chart = self.chart_file_cache.load(context, &path).await?;
         chart
