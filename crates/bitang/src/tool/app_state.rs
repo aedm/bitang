@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct AppState {
-    pub project: Option<Arc<Project>>,
+    pub project: Option<Rc<Project>>,
     pub selected_control_id: ControlId,
     pub cursor_time: f32,
     cursor: Timer,
@@ -17,7 +17,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(
-        project: Option<Arc<Project>>,
+        project: Option<Rc<Project>>,
         control_repository: Arc<ControlRepository>,
     ) -> AppState {
         AppState {
