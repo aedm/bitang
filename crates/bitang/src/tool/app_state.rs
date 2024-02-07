@@ -5,7 +5,6 @@ use crate::render::project::Project;
 use crate::tool::timer::Timer;
 use std::rc::Rc;
 
-
 pub struct AppState {
     pub project: Option<Rc<Project>>,
     pub selected_control_id: ControlId,

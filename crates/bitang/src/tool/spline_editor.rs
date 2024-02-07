@@ -6,7 +6,6 @@ use egui::Color32;
 use glam::Vec2;
 use std::rc::Rc;
 
-
 enum SplineEditorState {
     Idle,
     Pan,
