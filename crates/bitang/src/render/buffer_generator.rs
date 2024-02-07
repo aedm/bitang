@@ -4,6 +4,7 @@ use crate::tool::VulkanContext;
 use anyhow::Result;
 use glam::Vec3;
 use serde::Deserialize;
+use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::{BufferUsage, Subbuffer};
@@ -28,7 +29,7 @@ pub struct BufferGenerator {
     size: u32,
     buffer_pool: SubbufferAllocator,
     pub current_buffer: RwLock<Option<Subbuffer<[BufferItem]>>>,
-    generator: Arc<dyn BufferGeneratorImpl>,
+    generator: Rc<dyn BufferGeneratorImpl>,
 }
 
 impl BufferGenerator {
@@ -47,25 +48,26 @@ impl BufferGenerator {
             },
         );
 
-        let generator: Arc<dyn BufferGeneratorImpl> = match generator_type {
+        let generator: Rc<dyn BufferGeneratorImpl> = match generator_type {
             BufferGeneratorType::Lorenz => {
-                Arc::new(LorenzGenerator::new(control_id, control_set_builder))
+                Rc::new(LorenzGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Roessler => {
-                Arc::new(RoesslerGenerator::new(control_id, control_set_builder))
+                Rc::new(RoesslerGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Thomas => {
-                Arc::new(ThomasGenerator::new(control_id, control_set_builder))
+                Rc::new(ThomasGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Aizawa => {
-                Arc::new(AizawaGenerator::new(control_id, control_set_builder))
+                Rc::new(AizawaGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Dadras => {
-                Arc::new(DadrasGenerator::new(control_id, control_set_builder))
+                Rc::new(DadrasGenerator::new(control_id, control_set_builder))
             }
-            BufferGeneratorType::RabinovichFabrikant => Arc::new(
-                RabinovichFabrikantGenerator::new(control_id, control_set_builder),
-            ),
+            BufferGeneratorType::RabinovichFabrikant => Rc::new(RabinovichFabrikantGenerator::new(
+                control_id,
+                control_set_builder,
+            )),
         };
 
         BufferGenerator {
@@ -90,9 +92,9 @@ impl BufferGenerator {
 }
 
 struct LorenzGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params: Rc<Control>,
 }
 
 impl LorenzGenerator {
@@ -134,9 +136,9 @@ impl BufferGeneratorImpl for LorenzGenerator {
 }
 
 struct RoesslerGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params: Rc<Control>,
 }
 
 impl RoesslerGenerator {
@@ -177,9 +179,9 @@ impl BufferGeneratorImpl for RoesslerGenerator {
 }
 
 struct ThomasGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params: Rc<Control>,
 }
 
 impl ThomasGenerator {
@@ -224,10 +226,10 @@ impl BufferGeneratorImpl for ThomasGenerator {
 }
 
 struct AizawaGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params_1: Arc<Control>,
-    params_2: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params_1: Rc<Control>,
+    params_2: Rc<Control>,
 }
 
 impl AizawaGenerator {
@@ -276,10 +278,10 @@ impl BufferGeneratorImpl for AizawaGenerator {
 }
 
 struct DadrasGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params_1: Arc<Control>,
-    params_2: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params_1: Rc<Control>,
+    params_2: Rc<Control>,
 }
 
 impl DadrasGenerator {
@@ -327,9 +329,9 @@ impl BufferGeneratorImpl for DadrasGenerator {
 }
 
 struct RabinovichFabrikantGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params: Rc<Control>,
 }
 
 impl RabinovichFabrikantGenerator {

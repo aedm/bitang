@@ -15,18 +15,19 @@ use anyhow::{anyhow, Context, Result};
 use futures::future::join_all;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// A context for loading a chart.
 pub struct ChartContext {
     pub vulkan_context: Arc<VulkanContext>,
-    pub resource_repository: Arc<ResourceRepository>,
+    pub resource_repository: Rc<ResourceRepository>,
     pub image_futures_by_id: AHashMap<String, LoadFuture<render::image::Image>>,
     pub control_set_builder: ControlSetBuilder,
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
-    pub buffers_by_id: HashMap<String, Arc<render::buffer::Buffer>>,
-    pub buffer_generators_by_id: HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
+    pub buffers_by_id: HashMap<String, Rc<render::buffer::Buffer>>,
+    pub buffer_generators_by_id: HashMap<String, Rc<render::buffer_generator::BufferGenerator>>,
     pub path: ResourcePath,
 }
 
@@ -53,9 +54,9 @@ impl Chart {
         &self,
         id: &str,
         context: &Arc<VulkanContext>,
-        resource_repository: &Arc<ResourceRepository>,
+        resource_repository: &Rc<ResourceRepository>,
         chart_file_path: &ResourcePath,
-    ) -> Result<Arc<render::chart::Chart>> {
+    ) -> Result<Rc<render::chart::Chart>> {
         let chart_control_id = ControlId::default().add(ControlIdPartType::Chart, id);
         let control_set_builder = ControlSetBuilder::new(
             chart_control_id.clone(),
@@ -83,7 +84,7 @@ impl Chart {
             .map(|buffer_generator| {
                 let generator =
                     buffer_generator.load(context, &chart_control_id, &control_set_builder);
-                (buffer_generator.id.clone(), Arc::new(generator))
+                (buffer_generator.id.clone(), Rc::new(generator))
             })
             .collect::<HashMap<_, _>>();
 
@@ -92,7 +93,7 @@ impl Chart {
             .iter()
             .map(|buffer_desc| {
                 let buffer = buffer_desc.load(context);
-                (buffer_desc.id.clone(), Arc::new(buffer))
+                (buffer_desc.id.clone(), Rc::new(buffer))
             })
             .collect::<HashMap<_, _>>();
 
@@ -141,7 +142,7 @@ impl Chart {
             chart_steps,
             self.simulation_precalculation_time,
         );
-        Ok(Arc::new(chart))
+        Ok(Rc::new(chart))
     }
 }
 
@@ -418,7 +419,7 @@ impl Object {
         chart_context: &ChartContext,
         parent_id: &ControlId,
         passes: &[render::pass::Pass],
-    ) -> Result<Arc<crate::render::render_object::RenderObject>> {
+    ) -> Result<Rc<crate::render::render_object::RenderObject>> {
         let object_cid = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
             &chart_context.vulkan_context,
@@ -448,6 +449,6 @@ impl Object {
                 .control_set_builder
                 .get_float_with_default(&instances_id, 1.),
         };
-        Ok(Arc::new(object))
+        Ok(Rc::new(object))
     }
 }

@@ -5,25 +5,26 @@ use crate::render::render_object::RenderObject;
 use crate::tool::RenderContext;
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
-use std::sync::Arc;
+use std::rc::Rc;
+
 use vulkano::command_buffer::SubpassContents;
 
 /// Represents a draw step in the chart sequence.
 pub struct Draw {
     pub id: String,
     pub passes: Vec<Pass>,
-    pub objects: Vec<Arc<RenderObject>>,
-    pub light_dir: Arc<Control>,
-    pub shadow_map_size: Arc<Control>,
+    pub objects: Vec<Rc<RenderObject>>,
+    pub light_dir: Rc<Control>,
+    pub shadow_map_size: Rc<Control>,
 }
 
 impl Draw {
     pub fn new(
         id: &str,
         passes: Vec<Pass>,
-        objects: Vec<Arc<RenderObject>>,
-        light_dir: Arc<Control>,
-        shadow_map_size: Arc<Control>,
+        objects: Vec<Rc<RenderObject>>,
+        light_dir: Rc<Control>,
+        shadow_map_size: Rc<Control>,
     ) -> Result<Draw> {
         Ok(Draw {
             id: id.to_string(),

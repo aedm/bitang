@@ -15,6 +15,8 @@ use anyhow::{anyhow, ensure, Context, Result};
 use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
 use std::collections::HashMap;
+use std::rc::Rc;
+
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info, instrument, warn};
@@ -35,7 +37,7 @@ pub struct ResourceRepository {
     chart_file_cache: Arc<ResourceCache<chart_file::Chart>>,
     project_file_cache: Arc<ResourceCache<project_file::Project>>,
     pub shader_cache: ShaderCache,
-    pub control_repository: Arc<ControlRepository>,
+    pub control_repository: Rc<ControlRepository>,
 }
 
 impl ResourceRepository {
@@ -48,7 +50,7 @@ impl ResourceRepository {
             chart_file_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_chart_file)),
             project_file_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_project_file)),
             file_hash_cache,
-            control_repository: Arc::new(control_repository),
+            control_repository: Rc::new(control_repository),
         })
     }
 
@@ -72,7 +74,7 @@ impl ResourceRepository {
 
     #[instrument(skip(self, context))]
     pub fn get_texture(
-        self: &Arc<Self>,
+        self: &Rc<Self>,
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
     ) -> LoadFuture<Image> {
@@ -81,7 +83,7 @@ impl ResourceRepository {
 
     #[instrument(skip(self, context))]
     pub fn get_mesh(
-        self: &Arc<Self>,
+        self: &Rc<Self>,
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
         selector: &str,
@@ -101,10 +103,10 @@ impl ResourceRepository {
 
     #[instrument(skip(self, context))]
     pub async fn load_chart(
-        self: &Arc<Self>,
+        self: &Rc<Self>,
         id: &str,
         context: &Arc<VulkanContext>,
-    ) -> Result<Arc<Chart>> {
+    ) -> Result<Rc<Chart>> {
         let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
         let chart = self.chart_file_cache.load(context, &path).await?;
         chart
@@ -113,7 +115,7 @@ impl ResourceRepository {
             .with_context(|| anyhow!("Failed to load chart '{id}'"))
     }
 
-    pub async fn load_project(self: &Arc<Self>, context: &Arc<VulkanContext>) -> Result<Project> {
+    pub async fn load_project(self: &Rc<Self>, context: &Arc<VulkanContext>) -> Result<Project> {
         let path = ResourcePath::new("", PROJECT_FILE_NAME);
         let project = self.project_file_cache.load(context, &path).await?;
         project.load(context, self).await

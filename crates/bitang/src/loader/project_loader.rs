@@ -3,6 +3,7 @@ use crate::loader::resource_repository::ResourceRepository;
 use crate::render::project::Project;
 use crate::tool::VulkanContext;
 use anyhow::Result;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{info, instrument};
@@ -12,8 +13,8 @@ const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Manages the load and reload cycles of the project.
 pub struct ProjectLoader {
-    pub resource_repository: Arc<ResourceRepository>,
-    cached_root: Option<Arc<Project>>,
+    pub resource_repository: Rc<ResourceRepository>,
+    cached_root: Option<Rc<Project>>,
     last_load_time: Instant,
     file_loader: FileManager,
     async_runtime: tokio::runtime::Runtime,
@@ -24,7 +25,7 @@ impl ProjectLoader {
         let file_loader = FileManager::new();
         let async_runtime = tokio::runtime::Runtime::new()?;
         Ok(Self {
-            resource_repository: Arc::new(ResourceRepository::try_new(
+            resource_repository: Rc::new(ResourceRepository::try_new(
                 file_loader.file_cache.clone(),
             )?),
             cached_root: None,
@@ -43,7 +44,7 @@ impl ProjectLoader {
     }
 
     #[instrument(skip_all, name = "load")]
-    pub fn get_or_load_project(&mut self, context: &Arc<VulkanContext>) -> Option<Arc<Project>> {
+    pub fn get_or_load_project(&mut self, context: &Arc<VulkanContext>) -> Option<Rc<Project>> {
         let changed_files = self.file_loader.handle_file_changes();
         let needs_retry = self.cached_root.is_none()
             && self.file_loader.has_missing_files()
@@ -56,7 +57,7 @@ impl ProjectLoader {
                 Ok(project) => {
                     info!("Project length: {} seconds", project.length);
                     info!("Loading took {:?}", now.elapsed());
-                    self.cached_root = Some(Arc::new(project));
+                    self.cached_root = Some(Rc::new(project));
                 }
                 Err(_err) => {
                     self.resource_repository.display_load_errors();

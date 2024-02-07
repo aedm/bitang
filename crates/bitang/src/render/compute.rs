@@ -2,12 +2,13 @@ use crate::render::buffer::Buffer;
 use crate::render::shader::Shader;
 use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
+use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::pipeline::{ComputePipeline, Pipeline};
 
 pub enum Run {
-    Init(Arc<Buffer>),
-    Simulate(Arc<Buffer>),
+    Init(Rc<Buffer>),
+    Simulate(Rc<Buffer>),
 }
 
 /// Represents a compute step in the chart sequence.
