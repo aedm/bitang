@@ -5,7 +5,7 @@ use egui::plot::{Line, Plot, PlotBounds, PlotPoint};
 use egui::Color32;
 use glam::Vec2;
 use std::rc::Rc;
-use std::sync::Arc;
+
 
 enum SplineEditorState {
     Idle,

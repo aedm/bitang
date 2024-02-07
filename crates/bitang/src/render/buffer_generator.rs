@@ -29,7 +29,7 @@ pub struct BufferGenerator {
     size: u32,
     buffer_pool: SubbufferAllocator,
     pub current_buffer: RwLock<Option<Subbuffer<[BufferItem]>>>,
-    generator: Arc<dyn BufferGeneratorImpl>,
+    generator: Rc<dyn BufferGeneratorImpl>,
 }
 
 impl BufferGenerator {
@@ -48,25 +48,26 @@ impl BufferGenerator {
             },
         );
 
-        let generator: Arc<dyn BufferGeneratorImpl> = match generator_type {
+        let generator: Rc<dyn BufferGeneratorImpl> = match generator_type {
             BufferGeneratorType::Lorenz => {
-                Arc::new(LorenzGenerator::new(control_id, control_set_builder))
+                Rc::new(LorenzGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Roessler => {
-                Arc::new(RoesslerGenerator::new(control_id, control_set_builder))
+                Rc::new(RoesslerGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Thomas => {
-                Arc::new(ThomasGenerator::new(control_id, control_set_builder))
+                Rc::new(ThomasGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Aizawa => {
-                Arc::new(AizawaGenerator::new(control_id, control_set_builder))
+                Rc::new(AizawaGenerator::new(control_id, control_set_builder))
             }
             BufferGeneratorType::Dadras => {
-                Arc::new(DadrasGenerator::new(control_id, control_set_builder))
+                Rc::new(DadrasGenerator::new(control_id, control_set_builder))
             }
-            BufferGeneratorType::RabinovichFabrikant => Arc::new(
-                RabinovichFabrikantGenerator::new(control_id, control_set_builder),
-            ),
+            BufferGeneratorType::RabinovichFabrikant => Rc::new(RabinovichFabrikantGenerator::new(
+                control_id,
+                control_set_builder,
+            )),
         };
 
         BufferGenerator {

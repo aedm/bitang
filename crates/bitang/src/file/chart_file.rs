@@ -15,6 +15,7 @@ use anyhow::{anyhow, Context, Result};
 use futures::future::join_all;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// A context for loading a chart.
@@ -26,7 +27,7 @@ pub struct ChartContext {
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
     pub buffers_by_id: HashMap<String, Arc<render::buffer::Buffer>>,
-    pub buffer_generators_by_id: HashMap<String, Arc<render::buffer_generator::BufferGenerator>>,
+    pub buffer_generators_by_id: HashMap<String, Rc<render::buffer_generator::BufferGenerator>>,
     pub path: ResourcePath,
 }
 
@@ -83,7 +84,7 @@ impl Chart {
             .map(|buffer_generator| {
                 let generator =
                     buffer_generator.load(context, &chart_control_id, &control_set_builder);
-                (buffer_generator.id.clone(), Arc::new(generator))
+                (buffer_generator.id.clone(), Rc::new(generator))
             })
             .collect::<HashMap<_, _>>();
 

@@ -22,7 +22,7 @@ pub struct Chart {
     pub controls: Rc<ControlSet>,
     camera: Camera,
     images: Vec<Arc<Image>>,
-    buffer_generators: Vec<Arc<BufferGenerator>>,
+    buffer_generators: Vec<Rc<BufferGenerator>>,
     pub steps: Vec<ChartStep>,
 
     /// The time representing the `Next` step
@@ -41,7 +41,7 @@ impl Chart {
         control_id: &ControlId,
         control_set_builder: ControlSetBuilder,
         images: Vec<Arc<Image>>,
-        buffer_generators: Vec<Arc<BufferGenerator>>,
+        buffer_generators: Vec<Rc<BufferGenerator>>,
         steps: Vec<ChartStep>,
         simulation_precalculation_time: f32,
     ) -> Self {

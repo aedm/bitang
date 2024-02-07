@@ -208,7 +208,7 @@ pub struct ImageDescriptor {
 #[derive(Clone)]
 pub enum DescriptorSource {
     Image(ImageDescriptor),
-    BufferGenerator(Arc<BufferGenerator>),
+    BufferGenerator(Rc<BufferGenerator>),
     BufferCurrent(Arc<Buffer>),
     BufferNext(Arc<Buffer>),
 }
