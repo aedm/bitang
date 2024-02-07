@@ -26,7 +26,7 @@ pub struct ChartContext {
     pub control_set_builder: ControlSetBuilder,
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
-    pub buffers_by_id: HashMap<String, Arc<render::buffer::Buffer>>,
+    pub buffers_by_id: HashMap<String, Rc<render::buffer::Buffer>>,
     pub buffer_generators_by_id: HashMap<String, Rc<render::buffer_generator::BufferGenerator>>,
     pub path: ResourcePath,
 }
@@ -93,7 +93,7 @@ impl Chart {
             .iter()
             .map(|buffer_desc| {
                 let buffer = buffer_desc.load(context);
-                (buffer_desc.id.clone(), Arc::new(buffer))
+                (buffer_desc.id.clone(), Rc::new(buffer))
             })
             .collect::<HashMap<_, _>>();
 
