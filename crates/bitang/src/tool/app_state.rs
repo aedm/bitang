@@ -4,7 +4,7 @@ use crate::render::chart::Chart;
 use crate::render::project::Project;
 use crate::tool::timer::Timer;
 use std::rc::Rc;
-use std::sync::Arc;
+
 
 pub struct AppState {
     pub project: Option<Rc<Project>>,

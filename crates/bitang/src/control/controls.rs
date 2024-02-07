@@ -12,7 +12,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Mutex};
 use std::{array, mem, slice};
 use strum::EnumString;
 use tracing::{debug, info, instrument, warn};
