@@ -1,7 +1,7 @@
 use crate::render::chart::Chart;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::sync::Arc;
+
 
 pub struct Project {
     pub charts_by_id: HashMap<String, Rc<Chart>>,

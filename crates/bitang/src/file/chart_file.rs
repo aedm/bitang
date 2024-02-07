@@ -419,7 +419,7 @@ impl Object {
         chart_context: &ChartContext,
         parent_id: &ControlId,
         passes: &[render::pass::Pass],
-    ) -> Result<Arc<crate::render::render_object::RenderObject>> {
+    ) -> Result<Rc<crate::render::render_object::RenderObject>> {
         let object_cid = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
             &chart_context.vulkan_context,
@@ -449,6 +449,6 @@ impl Object {
                 .control_set_builder
                 .get_float_with_default(&instances_id, 1.),
         };
-        Ok(Arc::new(object))
+        Ok(Rc::new(object))
     }
 }

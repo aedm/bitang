@@ -13,7 +13,7 @@ use vulkano::command_buffer::SubpassContents;
 pub struct Draw {
     pub id: String,
     pub passes: Vec<Pass>,
-    pub objects: Vec<Arc<RenderObject>>,
+    pub objects: Vec<Rc<RenderObject>>,
     pub light_dir: Rc<Control>,
     pub shadow_map_size: Rc<Control>,
 }
@@ -22,7 +22,7 @@ impl Draw {
     pub fn new(
         id: &str,
         passes: Vec<Pass>,
-        objects: Vec<Arc<RenderObject>>,
+        objects: Vec<Rc<RenderObject>>,
         light_dir: Rc<Control>,
         shadow_map_size: Rc<Control>,
     ) -> Result<Draw> {
