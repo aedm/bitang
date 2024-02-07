@@ -7,7 +7,7 @@ use ahash::AHashSet;
 use anyhow::Context;
 use anyhow::Result;
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
-use dashmap::{DashMap};
+use dashmap::DashMap;
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
