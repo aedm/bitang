@@ -81,7 +81,7 @@ impl Chart {
                 .set(-self.simulation_precalculation_time);
         }
         if run_precalc {
-            return Ok(self.simulate(context, true)?);
+            return self.simulate(context, true);
         }
         Ok(true)
     }

@@ -12,7 +12,7 @@ use std::cell::RefCell;
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, trace};
 use vulkano::shader::ShaderModule;
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
@@ -41,7 +41,7 @@ impl ShaderCompilation {
         let source_file = {
             let file_hash_cache = Arc::clone(&file_hash_cache);
             tokio::runtime::Handle::current()
-                .block_on(async move { file_hash_cache.get(&path).await })
+                .block_on(async move { file_hash_cache.get(path).await })
         }?;
         let source = std::str::from_utf8(&source_file.content)
             .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
@@ -108,12 +108,8 @@ impl ShaderCompilation {
             resource_path: include_path.clone(),
             hash: included_source_u8.hash,
         });
-        let content = String::from_utf8(included_source_u8.content.clone()).map_err(|err| {
-            format!(
-                "Shader source file is not UTF-8: '{include_name:?}': {}",
-                err.to_string()
-            )
-        })?;
+        let content = String::from_utf8(included_source_u8.content.clone())
+            .map_err(|err| format!("Shader source file is not UTF-8: '{include_name:?}': {err}"))?;
         Ok(shaderc::ResolvedInclude {
             resolved_name: include_path.to_string(),
             content,
