@@ -1,6 +1,6 @@
 use crate::loader::async_cache::AsyncCache;
 use crate::loader::file_cache::{ContentHash, FileCache};
-use crate::loader::shader_compiler::{IncludeChainLink, ShaderArtifact, ShaderCompilation};
+use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
 use crate::loader::ResourcePath;
 use crate::render::shader::ShaderKind;
 use crate::tool::VulkanContext;

@@ -1,6 +1,5 @@
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
-use crate::file::COMMON_SHADER_FILE;
 use crate::loader::async_cache::LoadFuture;
 use crate::render::image::Image;
 use crate::render::shader::{

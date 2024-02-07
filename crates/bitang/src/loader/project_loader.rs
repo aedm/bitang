@@ -5,7 +5,7 @@ use crate::tool::VulkanContext;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument};
 
 // If loading fails, we want to retry periodically.
 const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
@@ -58,7 +58,7 @@ impl ProjectLoader {
                     info!("Loading took {:?}", now.elapsed());
                     self.cached_root = Some(Arc::new(project));
                 }
-                Err(err) => {
+                Err(_err) => {
                     self.resource_repository.display_load_errors();
                     self.cached_root = None;
                 }
