@@ -3,6 +3,7 @@ use crate::control::{ControlId, ControlIdPartType};
 use crate::render::chart::Chart;
 use crate::render::project::Project;
 use crate::tool::timer::Timer;
+use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct AppState {
@@ -45,7 +46,7 @@ impl AppState {
         None
     }
 
-    pub fn get_current_chart_control_set(&self) -> Option<Arc<ControlSet>> {
+    pub fn get_current_chart_control_set(&self) -> Option<Rc<ControlSet>> {
         self.get_chart().map(|chart| chart.controls.clone())
     }
 

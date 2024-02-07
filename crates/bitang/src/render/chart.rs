@@ -9,6 +9,7 @@ use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::RenderContext;
 use anyhow::Result;
 use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::Arc;
 
 pub enum ChartStep {
@@ -18,7 +19,7 @@ pub enum ChartStep {
 
 pub struct Chart {
     pub id: String,
-    pub controls: Arc<ControlSet>,
+    pub controls: Rc<ControlSet>,
     camera: Camera,
     images: Vec<Arc<Image>>,
     buffer_generators: Vec<Arc<BufferGenerator>>,
@@ -48,7 +49,7 @@ impl Chart {
             &control_set_builder,
             &control_id.add(ControlIdPartType::Camera, "camera"),
         );
-        let controls = Arc::new(control_set_builder.into_control_set());
+        let controls = Rc::new(control_set_builder.into_control_set());
         Chart {
             id: id.to_string(),
             camera: _camera,

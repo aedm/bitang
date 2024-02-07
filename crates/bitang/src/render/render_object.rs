@@ -4,15 +4,16 @@ use crate::render::mesh::Mesh;
 use crate::tool::RenderContext;
 use anyhow::Result;
 use glam::{EulerRot, Mat4};
+use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct RenderObject {
     pub id: String,
     pub mesh: Arc<Mesh>,
     pub material: Material,
-    pub position: Arc<Control>,
-    pub rotation: Arc<Control>,
-    pub instances: Arc<Control>,
+    pub position: Rc<Control>,
+    pub rotation: Rc<Control>,
+    pub instances: Rc<Control>,
 }
 
 impl RenderObject {

@@ -1,6 +1,6 @@
 use crate::control::spline::Spline;
 use crate::control::ControlIdPartType::Chart;
-use crate::control::{ArcHashRef, ControlId, ControlIdPart, ControlIdPartType};
+use crate::control::{ArcHashRef, ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
 use crate::loader::{CHARTS_FOLDER, ROOT_FOLDER};
 use crate::render::project::Project;
 use anyhow::Context;
@@ -11,6 +11,7 @@ use glam::{Mat4, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::{array, mem, slice};
 use strum::EnumString;
@@ -21,12 +22,12 @@ const CONTROLS_FILE_NAME: &str = "controls.ron";
 #[derive(Default)]
 pub struct UsedControlsNode {
     pub id_prefix: ControlId,
-    pub children: Vec<Arc<RefCell<UsedControlsNode>>>,
-    pub control: Option<Arc<Control>>,
+    pub children: Vec<Rc<RefCell<UsedControlsNode>>>,
+    pub control: Option<Rc<Control>>,
 }
 
 impl UsedControlsNode {
-    fn insert(&mut self, control: Arc<Control>) {
+    fn insert(&mut self, control: Rc<Control>) {
         for i in 0..self.id_prefix.parts.len() {
             assert_eq!(self.id_prefix.parts[i], control.id.parts[i]);
         }
@@ -44,7 +45,7 @@ impl UsedControlsNode {
         {
             child.borrow_mut().insert(control);
         } else {
-            let child = Arc::new(RefCell::new(UsedControlsNode {
+            let child = Rc::new(RefCell::new(UsedControlsNode {
                 id_prefix: child_prefix,
                 ..UsedControlsNode::default()
             }));
@@ -55,14 +56,14 @@ impl UsedControlsNode {
 }
 
 pub struct ControlSet {
-    pub used_controls: Vec<Arc<Control>>,
+    pub used_controls: Vec<Rc<Control>>,
     pub root_node: RefCell<UsedControlsNode>,
 }
 
 pub struct ControlSetBuilder {
     control_repository: Arc<ControlRepository>,
-    used_controls: DashSet<ArcHashRef<Control>>,
-    used_control_list: Mutex<Vec<Arc<Control>>>,
+    used_controls: DashSet<RcHashRef<Control>>,
+    used_control_list: Mutex<Vec<Rc<Control>>>,
     root_id: ControlId,
 }
 
@@ -93,31 +94,31 @@ impl ControlSetBuilder {
         }
     }
 
-    pub fn get_float_with_default(&self, id: &ControlId, default: f32) -> Arc<Control> {
+    pub fn get_float_with_default(&self, id: &ControlId, default: f32) -> Rc<Control> {
         self.get_control(id, 1, &[default, 0.0, 0.0, 0.0])
     }
 
-    pub fn get_vec(&self, id: &ControlId, component_count: usize) -> Arc<Control> {
+    pub fn get_vec(&self, id: &ControlId, component_count: usize) -> Rc<Control> {
         self.get_control(id, component_count, &[0.0; 4])
     }
 
-    pub fn get_vec2_with_default(&self, id: &ControlId, default: &[f32; 2]) -> Arc<Control> {
+    pub fn get_vec2_with_default(&self, id: &ControlId, default: &[f32; 2]) -> Rc<Control> {
         self.get_control(id, 2, &[default[0], default[1], 0.0, 0.0])
     }
 
-    pub fn get_vec3(&self, id: &ControlId) -> Arc<Control> {
+    pub fn get_vec3(&self, id: &ControlId) -> Rc<Control> {
         self.get_control(id, 3, &[0.0; 4])
     }
 
-    pub fn get_vec3_with_default(&self, id: &ControlId, default: &[f32; 3]) -> Arc<Control> {
+    pub fn get_vec3_with_default(&self, id: &ControlId, default: &[f32; 3]) -> Rc<Control> {
         self.get_control(id, 3, &[default[0], default[1], default[2], 0.0])
     }
 
-    pub fn get_vec4(&self, id: &ControlId) -> Arc<Control> {
+    pub fn get_vec4(&self, id: &ControlId) -> Rc<Control> {
         self.get_control(id, 4, &[0.0; 4])
     }
 
-    pub fn _get_vec4_with_default(&self, id: &ControlId, default: &[f32; 4]) -> Arc<Control> {
+    pub fn _get_vec4_with_default(&self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
         self.get_control(id, 4, default)
     }
 
@@ -126,12 +127,12 @@ impl ControlSetBuilder {
         id: &ControlId,
         component_count: usize,
         default: &[f32; 4],
-    ) -> Arc<Control> {
+    ) -> Rc<Control> {
         let control = self.control_repository.get_control(id, default);
         control
             .used_component_count
             .set(max(control.used_component_count.get(), component_count));
-        if self.used_controls.insert(ArcHashRef(control.clone())) {
+        if self.used_controls.insert(RcHashRef(control.clone())) {
             let mut used_control_list = self.used_control_list.lock().unwrap();
             used_control_list.push(control.clone());
         }
@@ -140,13 +141,13 @@ impl ControlSetBuilder {
 }
 
 pub struct ControlRepository {
-    by_id: DashMap<ControlId, Arc<Control>>,
+    by_id: DashMap<ControlId, Rc<Control>>,
 }
 
 // We want to serialize the controls by reference, but deserialize them by value to avoid cloning them.
 #[derive(Serialize)]
 struct SerializedControls {
-    controls: Vec<Arc<Control>>,
+    controls: Vec<Rc<Control>>,
 }
 
 #[derive(Deserialize)]
@@ -155,11 +156,11 @@ struct DeserializedControls {
 }
 
 impl ControlRepository {
-    fn get_control(&self, id: &ControlId, default: &[f32; 4]) -> Arc<Control> {
+    fn get_control(&self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
         match self.by_id.entry(id.clone()) {
             Occupied(x) => x.get().clone(),
             Vacant(entry) => {
-                let control = Arc::new(Control::new(id.clone(), default));
+                let control = Rc::new(Control::new(id.clone(), default));
                 entry.insert(control.clone());
                 control
             }
@@ -211,7 +212,7 @@ impl ControlRepository {
                                 name: chart_id.to_string(),
                             },
                         );
-                        by_id.insert(control.id.clone(), Arc::new(control));
+                        by_id.insert(control.id.clone(), Rc::new(control));
                     }
                 } else {
                     warn!("No controls file found at '{controls_path}'.");
@@ -335,7 +336,7 @@ pub enum GlobalType {
 
     /// Elapsed time relative to the current chart.
     ChartTime,
-    
+
     ProjectionFromModel,
     LightProjectionFromModel,
     LightProjectionFromWorld,

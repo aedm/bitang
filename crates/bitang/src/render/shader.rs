@@ -6,6 +6,7 @@ use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use std::mem::size_of;
+use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;
@@ -223,7 +224,7 @@ pub struct DescriptorResource {
 
 #[derive(Clone)]
 pub struct LocalUniformMapping {
-    pub control: Arc<Control>,
+    pub control: Rc<Control>,
     pub f32_count: usize,
     pub f32_offset: usize,
 }

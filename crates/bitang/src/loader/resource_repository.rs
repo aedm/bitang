@@ -15,6 +15,7 @@ use anyhow::{anyhow, ensure, Context, Result};
 use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info, instrument, warn};

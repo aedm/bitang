@@ -5,6 +5,7 @@ use crate::tool::spline_editor::SplineEditor;
 use crate::tool::{RenderContext, VulkanContext};
 use anyhow::Result;
 use egui_winit_vulkano::{Gui, GuiConfig};
+use std::rc::Rc;
 use std::sync::Arc;
 use tracing::error;
 use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
@@ -191,7 +192,7 @@ impl Ui {
         ui: &mut egui::Ui,
         ui_state: &mut AppState,
         controls: &'a ControlSet,
-    ) -> Option<(&'a Arc<Control>, usize)> {
+    ) -> Option<(&'a Rc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
         let trim_parts = ui_state.selected_control_id.parts.len();
         let controls_borrow = controls

@@ -4,6 +4,7 @@ use crate::tool::VulkanContext;
 use anyhow::Result;
 use glam::Vec3;
 use serde::Deserialize;
+use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::{BufferUsage, Subbuffer};
@@ -90,9 +91,9 @@ impl BufferGenerator {
 }
 
 struct LorenzGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params: Rc<Control>,
 }
 
 impl LorenzGenerator {
@@ -134,9 +135,9 @@ impl BufferGeneratorImpl for LorenzGenerator {
 }
 
 struct RoesslerGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params: Rc<Control>,
 }
 
 impl RoesslerGenerator {
@@ -177,9 +178,9 @@ impl BufferGeneratorImpl for RoesslerGenerator {
 }
 
 struct ThomasGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params: Rc<Control>,
 }
 
 impl ThomasGenerator {
@@ -224,10 +225,10 @@ impl BufferGeneratorImpl for ThomasGenerator {
 }
 
 struct AizawaGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params_1: Arc<Control>,
-    params_2: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params_1: Rc<Control>,
+    params_2: Rc<Control>,
 }
 
 impl AizawaGenerator {
@@ -276,10 +277,10 @@ impl BufferGeneratorImpl for AizawaGenerator {
 }
 
 struct DadrasGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params_1: Arc<Control>,
-    params_2: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params_1: Rc<Control>,
+    params_2: Rc<Control>,
 }
 
 impl DadrasGenerator {
@@ -327,9 +328,9 @@ impl BufferGeneratorImpl for DadrasGenerator {
 }
 
 struct RabinovichFabrikantGenerator {
-    init: Arc<Control>,
-    delta: Arc<Control>,
-    params: Arc<Control>,
+    init: Rc<Control>,
+    delta: Rc<Control>,
+    params: Rc<Control>,
 }
 
 impl RabinovichFabrikantGenerator {
