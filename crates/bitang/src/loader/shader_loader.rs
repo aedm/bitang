@@ -144,7 +144,6 @@ impl ShaderCache {
             };
             node = new_node;
         }
-        let mut hash = file_hash_cache.get(&source_path).await?.hash;
 
         // Build shader
         let ShaderCompilation {
@@ -152,6 +151,7 @@ impl ShaderCache {
             shader_artifact,
         } = {
             let source_path_clone = source_path.clone();
+            let file_hash_cache = Arc::clone(&file_hash_cache);
             spawn_blocking(move || {
                 ShaderCompilation::compile_shader(
                     &context,
@@ -167,6 +167,7 @@ impl ShaderCache {
         // Update cache
         let shader_artifact = Arc::new(shader_artifact);
         let mut node = shader_tree_root.clone();
+        let mut hash = file_hash_cache.get(&source_path).await?.hash;
 
         for dep in include_chain {
             let next_node = match node
