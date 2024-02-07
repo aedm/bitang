@@ -4,13 +4,13 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-anyhow = { version = "1.0.75", features = ["backtrace"] }
-itertools = "0.11.0"
-strum = { version = "0.25.0", features = ["derive"] }
+anyhow = { version = "1.0.79", features = ["backtrace"] }
+itertools = "0.12.1"
+strum = { version = "0.26.1", features = ["derive"] }
 smallvec = "1.11.0"
 
-tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.16", features = ["fmt", "env-filter"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 nu-ansi-term = "*"
 
 egui_winit_vulkano = "0.24.0"
@@ -21,21 +21,21 @@ winit = "0.28.6"
 vulkano = "0.33.0"
 vulkano-util = "0.33.0"
 vulkano-win = "0.33.0"
-shaderc = "*"
-glam = "0.22"
+shaderc = "0.8.3"
+glam = "0.25"
 spirq = "0.6.4"
 
-ahash = "0.8.3"
+ahash = "0.8.7"
 dashmap = "5.5.3"
-tokio = { version = "1.32.0", features = ["fs", "rt-multi-thread", "sync"] }
-futures = "0.3.28"
+tokio = { version = "1.36.0", features = ["fs", "rt-multi-thread", "sync"] }
+futures = "0.3.30"
 num_cpus = "*"
 
 serde = { version = "*", features = ["derive", "rc"] }
 notify = "5.1.0"
-image = { version = "0.24.4", default-features = false, features = ["jpeg", "png"] }
-russimp = { version = "=2.0.5", features = ["prebuilt"] }
+image = { version = "0.24.8", default-features = false, features = ["jpeg", "png"] }
+russimp = { version = "3.2.0", features = ["prebuilt"] }
 ron = "0.8"
 
-rodio = { version = "0.17.1", default-features = false, features = ["mp3"] }
+rodio = { version = "0.17.3", default-features = false, features = ["mp3"] }
 build-time = "0.1.3"
