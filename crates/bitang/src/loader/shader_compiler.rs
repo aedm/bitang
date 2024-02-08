@@ -6,8 +6,9 @@ use crate::tool::VulkanContext;
 use anyhow::{bail, ensure, Context, Result};
 use shaderc::{IncludeCallbackResult, IncludeType};
 use spirq::ty::ScalarType::Float;
-use spirq::ty::Type;
-use spirq::{DescriptorType, ReflectConfig, Variable};
+use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
+use spirq::var::Variable;
+use spirq::ReflectConfig;
 use std::cell::RefCell;
 use std::mem::size_of;
 use std::str::FromStr;
@@ -139,6 +140,8 @@ pub struct ShaderArtifact {
     pub buffers: Vec<NamedResourceBinding>,
     pub global_uniform_bindings: Vec<GlobalUniformMapping>,
     pub local_uniform_bindings: Vec<ShaderCompilationLocalUniform>,
+
+    /// The size of the uniform buffer in 32-bit floats
     pub uniform_buffer_size: usize,
 }
 
@@ -151,21 +154,9 @@ impl ShaderArtifact {
         // Extract metadata from SPIRV
         let entry_points = ReflectConfig::new()
             .spv(spirv_binary)
-            // Set this true if you want to reflect all resources no matter it's
-            // used by an entry point or not.
             .ref_all_rscs(false)
-            // Combine sampled image and separated sampler states if they are bound
-            // to the same binding point.
             .combine_img_samplers(true)
-            // Generate unique names for types and struct fields to help further
-            // processing of the reflection data. Otherwise, the debug names are
-            // assigned.
             .gen_unique_names(false)
-            // Specialize the constant at `SpecID=3` with unsigned integer 7. The
-            // constants specialized here won't be listed in the result entry point's
-            // variable list.
-            // .specialize(3, ConstantValue::U32(7))
-            // Do the work.
             .reflect()?;
         let entry_point = entry_points
             .iter()
@@ -204,22 +195,18 @@ impl ShaderArtifact {
                             desc_bind.set()
                         )
                     );
+                    let binding = desc_bind.bind();
                     match desc_ty {
                         DescriptorType::CombinedImageSampler() => {
                             samplers.push(NamedResourceBinding {
-                                name: name.clone().with_context(|| format!("Failed to get name for combined image sampler at binding={}", desc_bind.bind()))?,
-                                binding: desc_bind.bind(),
+                                name: name.clone().with_context(|| format!("Failed to get name for combined image sampler at binding={binding}"))?,
+                                binding,
                             });
                         }
                         DescriptorType::StorageBuffer(_) => {
                             buffers.push(NamedResourceBinding {
-                                name: name.clone().with_context(|| {
-                                    format!(
-                                        "Failed to get name for storage buffer at binding={}",
-                                        desc_bind.bind()
-                                    )
-                                })?,
-                                binding: desc_bind.bind(),
+                                name: name.clone().with_context(|| format!("Failed to get name for storage buffer at binding={binding}"))?,
+                                binding,
                             });
                         }
                         DescriptorType::UniformBuffer() => match ty {
@@ -228,9 +215,11 @@ impl ShaderArtifact {
                                     let name = member
                                         .name
                                         .clone()
-                                        .context("Failed to get name for uniform variable")?;
+                                        .context("Failed to get name of uniform variable")?;
+                                    let f32_offset = member.offset.with_context(|| {
+                                        format!("Failed to get offset for uniform variable {name}")
+                                    })? / size_of::<f32>();
 
-                                    // if name.starts_with(GLOBAL_UNIFORM_PREFIX) {
                                     if let Some(global_name) =
                                         name.strip_prefix(GLOBAL_UNIFORM_PREFIX)
                                     {
@@ -240,35 +229,27 @@ impl ShaderArtifact {
                                             })?;
                                         global_uniform_bindings.push(GlobalUniformMapping {
                                             global_type,
-                                            f32_offset: member.offset / size_of::<f32>(),
+                                            f32_offset,
                                         });
                                     } else {
                                         let f32_count = match &member.ty {
-                                            Type::Scalar(Float(_)) => Some(1),
-                                            Type::Vector(vtype) => match vtype.scalar_ty {
-                                                Float(_) => Some(vtype.nscalar),
-                                                _ => None,
-                                            },
-                                            _ => None,
+                                            Type::Scalar(Float { bits: 32 }) => 1,
+                                            Type::Vector(VectorType { scalar_ty: Float { bits: 32 }, nscalar, }) => *nscalar,
+                                            _ => bail!("Uniform variable {name} is not a float scalar or float vector"),
                                         };
-                                        let Some(f32_count) = f32_count else {
-                                            bail!("Uniform variable {name} is not a float scalar or float vector");
-                                        };
-
                                         local_uniform_bindings.push(
                                             ShaderCompilationLocalUniform {
                                                 name,
-                                                f32_offset: member.offset / size_of::<f32>(),
+                                                f32_offset,
                                                 f32_count: f32_count as usize,
                                             },
                                         );
                                     }
-                                    uniform_buffer_size = std::cmp::max(
-                                        uniform_buffer_size,
-                                        // TODO
-                                        member.offset + 16 * size_of::<f32>(),
-                                    );
                                 }
+                                let byte_size = struct_type.nbyte().with_context(|| {
+                                    format!("Failed to get byte size of uniform struct {name:?}")
+                                })?;
+                                uniform_buffer_size = byte_size / size_of::<f32>();
                             }
                             _ => {
                                 bail!("Unsupported uniform buffer type {:?}", desc_ty);
