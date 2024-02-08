@@ -257,7 +257,7 @@ impl ShaderArtifact {
                                             member.ty.nbyte().unwrap() / size_of::<f32>();
                                         local_uniform_bindings.push(
                                             ShaderCompilationLocalUniform {
-                                                name: name.clone(),
+                                                name,
                                                 f32_offset,
                                                 f32_count,
                                             },
