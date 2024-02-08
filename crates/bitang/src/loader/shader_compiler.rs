@@ -154,21 +154,9 @@ impl ShaderArtifact {
         // Extract metadata from SPIRV
         let entry_points = ReflectConfig::new()
             .spv(spirv_binary)
-            // Set this true if you want to reflect all resources no matter it's
-            // used by an entry point or not.
             .ref_all_rscs(false)
-            // Combine sampled image and separated sampler states if they are bound
-            // to the same binding point.
             .combine_img_samplers(true)
-            // Generate unique names for types and struct fields to help further
-            // processing of the reflection data. Otherwise, the debug names are
-            // assigned.
             .gen_unique_names(false)
-            // Specialize the constant at `SpecID=3` with unsigned integer 7. The
-            // constants specialized here won't be listed in the result entry point's
-            // variable list.
-            // .specialize(3, ConstantValue::U32(7))
-            // Do the work.
             .reflect()?;
         let entry_point = entry_points
             .iter()
@@ -207,22 +195,18 @@ impl ShaderArtifact {
                             desc_bind.set()
                         )
                     );
+                    let binding = desc_bind.bind();
                     match desc_ty {
                         DescriptorType::CombinedImageSampler() => {
                             samplers.push(NamedResourceBinding {
-                                name: name.clone().with_context(|| format!("Failed to get name for combined image sampler at binding={}", desc_bind.bind()))?,
-                                binding: desc_bind.bind(),
+                                name: name.clone().with_context(|| format!("Failed to get name for combined image sampler at binding={binding}"))?,
+                                binding,
                             });
                         }
                         DescriptorType::StorageBuffer(_) => {
                             buffers.push(NamedResourceBinding {
-                                name: name.clone().with_context(|| {
-                                    format!(
-                                        "Failed to get name for storage buffer at binding={}",
-                                        desc_bind.bind()
-                                    )
-                                })?,
-                                binding: desc_bind.bind(),
+                                name: name.clone().with_context(|| format!("Failed to get name for storage buffer at binding={binding}"))?,
+                                binding,
                             });
                         }
                         DescriptorType::UniformBuffer() => match ty {
