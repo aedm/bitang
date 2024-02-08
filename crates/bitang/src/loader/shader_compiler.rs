@@ -248,18 +248,16 @@ impl ShaderArtifact {
                                             f32_offset,
                                         });
                                     } else {
-                                        match &member.ty {
-                                            Type::Scalar(Float { bits: 32 }) => (),
-                                            Type::Vector(VectorType { scalar_ty: Float { bits: 32 }, nscalar: _, }) => (),
+                                        let f32_count = match &member.ty {
+                                            Type::Scalar(Float { bits: 32 }) => 1,
+                                            Type::Vector(VectorType { scalar_ty: Float { bits: 32 }, nscalar, }) => *nscalar,
                                             _ => bail!("Uniform variable {name} is not a float scalar or float vector"),
                                         };
-                                        let f32_count =
-                                            member.ty.nbyte().unwrap() / size_of::<f32>();
                                         local_uniform_bindings.push(
                                             ShaderCompilationLocalUniform {
                                                 name,
                                                 f32_offset,
-                                                f32_count,
+                                                f32_count: f32_count as usize,
                                             },
                                         );
                                     }
