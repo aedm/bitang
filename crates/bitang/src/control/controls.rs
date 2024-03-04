@@ -14,6 +14,7 @@ use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::rc::Rc;
 
+use itertools::Itertools;
 use std::{array, mem, slice};
 use strum::EnumString;
 use tracing::{debug, info, instrument, warn};
@@ -51,7 +52,18 @@ impl UsedControlsNode {
                 ..UsedControlsNode::default()
             }));
             child.borrow_mut().insert(control);
-            self.children.push(child);
+            let mut i = 0;
+            {
+                let n = self.id_prefix.parts.len();
+                let part_type = child.borrow().id_prefix.parts[n].part_type;
+                while i < self.children.len()
+                    && part_type >= self.children[i].borrow().id_prefix.parts[n].part_type
+                {
+                    i += 1;
+                }
+            }
+
+            self.children.insert(i, child);
         }
     }
 }
