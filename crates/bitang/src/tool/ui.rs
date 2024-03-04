@@ -179,9 +179,8 @@ impl Ui {
         })
         .body(|ui| {
             for child in &node.children {
-                let child = child.borrow();
                 if !child.children.is_empty() {
-                    Self::draw_control_tree_node(ui, &child, ui_state);
+                    Self::draw_control_tree_node(ui, child, ui_state);
                 }
             }
         });

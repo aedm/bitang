@@ -57,12 +57,12 @@ impl<T> Deref for crate::control::RcHashRef<T> {
 pub enum ControlIdPartType {
     Chart,
     ChartValues,
-    ChartStep,
     Camera,
     Object,
     Compute,
     Value,
     BufferGenerator,
+    ChartStep,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, PartialOrd, Ord)]

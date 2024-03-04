@@ -49,7 +49,14 @@ impl Chart {
             &control_set_builder,
             &control_id.add(ControlIdPartType::Camera, "camera"),
         );
-        let controls = Rc::new(control_set_builder.into_control_set());
+        let chart_step_ids = steps
+            .iter()
+            .map(|step| match step {
+                ChartStep::Draw(draw) => draw.id.clone(),
+                ChartStep::Compute(compute) => compute.id.clone(),
+            })
+            .collect::<Vec<String>>();
+        let controls = Rc::new(control_set_builder.into_control_set(&chart_step_ids));
         Chart {
             id: id.to_string(),
             camera: _camera,

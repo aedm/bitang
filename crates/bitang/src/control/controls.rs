@@ -13,7 +13,6 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::rc::Rc;
-
 use std::{array, mem, slice};
 use strum::EnumString;
 use tracing::{debug, info, instrument, warn};
@@ -23,12 +22,12 @@ const CONTROLS_FILE_NAME: &str = "controls.ron";
 #[derive(Default)]
 pub struct UsedControlsNode {
     pub id_prefix: ControlId,
-    pub children: Vec<Rc<RefCell<UsedControlsNode>>>,
+    pub children: Vec<UsedControlsNode>,
     pub control: Option<Rc<Control>>,
 }
 
 impl UsedControlsNode {
-    fn insert(&mut self, control: Rc<Control>) {
+    fn insert(&mut self, control: Rc<Control>, chart_step_ids: &[String]) {
         for i in 0..self.id_prefix.parts.len() {
             assert_eq!(self.id_prefix.parts[i], control.id.parts[i]);
         }
@@ -42,16 +41,35 @@ impl UsedControlsNode {
         if let Some(child) = self
             .children
             .iter_mut()
-            .find(|x| x.borrow().id_prefix == child_prefix)
+            .find(|x| x.id_prefix == child_prefix)
         {
-            child.borrow_mut().insert(control);
+            child.insert(control, chart_step_ids);
         } else {
-            let child = Rc::new(RefCell::new(UsedControlsNode {
+            let mut new_node = UsedControlsNode {
                 id_prefix: child_prefix,
                 ..UsedControlsNode::default()
-            }));
-            child.borrow_mut().insert(control);
-            self.children.push(child);
+            };
+            new_node.insert(control, chart_step_ids);
+            let n = self.id_prefix.parts.len();
+            let new_part = &new_node.id_prefix.parts[n];
+            let mut i = 0;
+            while i < self.children.len() {
+                let child_part = &self.children[i].id_prefix.parts[n];
+                if new_part.part_type < child_part.part_type {
+                    break;
+                }
+                if child_part.part_type == new_part.part_type {
+                    // TODO: only sorts chart steps correctly.
+                    // If two controls are on the same level, it checks their names in the chart_step_ids list.
+                    let child_index = chart_step_ids.iter().position(|x| x == &child_part.name);
+                    let new_index = chart_step_ids.iter().position(|x| x == &new_part.name);
+                    if new_index < child_index {
+                        break;
+                    }
+                }
+                i += 1;
+            }
+            self.children.insert(i, new_node);
         }
     }
 }
@@ -78,7 +96,7 @@ impl ControlSetBuilder {
         }
     }
 
-    pub fn into_control_set(self) -> ControlSet {
+    pub fn into_control_set(self, chart_step_ids: &[String]) -> ControlSet {
         let mut root_node = UsedControlsNode {
             id_prefix: self.root_id,
             ..UsedControlsNode::default()
@@ -86,7 +104,7 @@ impl ControlSetBuilder {
         let mut controls = vec![];
         let mut used_control_list = self.used_control_list.borrow_mut();
         for control in mem::take(&mut *used_control_list) {
-            root_node.insert(control.clone());
+            root_node.insert(control.clone(), chart_step_ids);
             controls.push(control);
         }
         ControlSet {
