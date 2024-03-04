@@ -24,7 +24,7 @@ const CONTROLS_FILE_NAME: &str = "controls.ron";
 #[derive(Default)]
 pub struct UsedControlsNode {
     pub id_prefix: ControlId,
-    pub children: Vec<Rc<RefCell<UsedControlsNode>>>,
+    pub children: Vec<UsedControlsNode>,
     pub control: Option<Rc<Control>>,
 }
 
@@ -43,26 +43,23 @@ impl UsedControlsNode {
         if let Some(child) = self
             .children
             .iter_mut()
-            .find(|x| x.borrow().id_prefix == child_prefix)
+            .find(|x| x.id_prefix == child_prefix)
         {
-            child.borrow_mut().insert(control);
+            child.insert(control);
         } else {
-            let child = Rc::new(RefCell::new(UsedControlsNode {
+            let mut child = UsedControlsNode {
                 id_prefix: child_prefix,
                 ..UsedControlsNode::default()
-            }));
-            child.borrow_mut().insert(control);
+            };
+            child.insert(control);
             let mut i = 0;
+            let n = self.id_prefix.parts.len();
+            let part_type = child.id_prefix.parts[n].part_type;
+            while i < self.children.len()
+                && part_type >= self.children[i].id_prefix.parts[n].part_type
             {
-                let n = self.id_prefix.parts.len();
-                let part_type = child.borrow().id_prefix.parts[n].part_type;
-                while i < self.children.len()
-                    && part_type >= self.children[i].borrow().id_prefix.parts[n].part_type
-                {
-                    i += 1;
-                }
+                i += 1;
             }
-
             self.children.insert(i, child);
         }
     }
