@@ -4,7 +4,7 @@ use crate::render::buffer_generator::BufferGenerator;
 use crate::render::camera::Camera;
 use crate::render::compute::{Compute, Run};
 use crate::render::draw::Draw;
-use crate::render::image::Image;
+use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::RenderContext;
 use anyhow::Result;
@@ -21,7 +21,7 @@ pub struct Chart {
     pub id: String,
     pub controls: Rc<ControlSet>,
     camera: Camera,
-    images: Vec<Arc<Image>>,
+    images: Vec<Arc<BitangImage>>,
     buffer_generators: Vec<Rc<BufferGenerator>>,
     pub steps: Vec<ChartStep>,
 
@@ -40,7 +40,7 @@ impl Chart {
         id: &str,
         control_id: &ControlId,
         control_set_builder: ControlSetBuilder,
-        images: Vec<Arc<Image>>,
+        images: Vec<Arc<BitangImage>>,
         buffer_generators: Vec<Rc<BufferGenerator>>,
         steps: Vec<ChartStep>,
         simulation_precalculation_time: f32,
@@ -170,7 +170,7 @@ impl Chart {
         // Render step
         self.evaluate_splines(context.globals.chart_time);
         for image in &self.images {
-            image.enforce_size_rule(&context.vulkan_context, context.screen_viewport.dimensions)?;
+            image.enforce_size_rule(&context.vulkan_context, context.screen_viewport.extent)?;
         }
         for buffer_generator in &self.buffer_generators {
             buffer_generator.generate()?;

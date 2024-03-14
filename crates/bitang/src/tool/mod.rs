@@ -7,7 +7,7 @@ mod timer;
 mod ui;
 
 use crate::control::controls::Globals;
-use crate::render::image::Image;
+use crate::render::image::BitangImage;
 use crate::render::SCREEN_COLOR_FORMAT;
 use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
 use crate::tool::runners::window_runner::WindowRunner;
@@ -39,7 +39,7 @@ pub struct InitContext {
 }
 
 impl InitContext {
-    fn into_vulkan_context(self, final_render_target: Arc<Image>) -> Arc<VulkanContext> {
+    fn into_vulkan_context(self, final_render_target: Arc<BitangImage>) -> Arc<VulkanContext> {
         Arc::new(VulkanContext {
             command_buffer_allocator: self.command_buffer_allocator,
             descriptor_set_allocator: self.descriptor_set_allocator,
@@ -59,7 +59,7 @@ pub struct VulkanContext {
     pub memory_allocator: Arc<StandardMemoryAllocator>,
     pub gfx_queue: Arc<Queue>,
     pub swapchain_format: Format,
-    pub final_render_target: Arc<Image>,
+    pub final_render_target: Arc<BitangImage>,
 }
 
 pub struct RenderContext<'a> {
@@ -77,7 +77,7 @@ pub fn run_app() -> Result<()> {
         StandardCommandBufferAllocator::new(vulkano_context.device().clone(), Default::default());
 
     let descriptor_set_allocator =
-        StandardDescriptorSetAllocator::new(vulkano_context.device().clone());
+        StandardDescriptorSetAllocator::new(vulkano_context.device().clone(), Default::default());
 
     let init_context = InitContext {
         vulkano_context,

@@ -6,7 +6,7 @@ use crate::loader::resource_cache::ResourceCache;
 use crate::loader::shader_loader::ShaderCache;
 use crate::loader::{ResourcePath, CHARTS_FOLDER, CHART_FILE_NAME, PROJECT_FILE_NAME};
 use crate::render::chart::Chart;
-use crate::render::image::Image;
+use crate::render::image::BitangImage;
 use crate::render::mesh::Mesh;
 use crate::render::project::Project;
 use crate::render::Vertex3;
@@ -20,11 +20,15 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info, instrument, warn};
+use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
+    AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
+    PrimaryCommandBufferAbstract,
 };
 use vulkano::format::Format;
-use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
+use vulkano::image::{Image, ImageType, ImageUsage};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
+use vulkano::DeviceSize;
 
 struct MeshCollection {
     meshes_by_name: HashMap<String, Arc<Mesh>>,
@@ -32,7 +36,7 @@ struct MeshCollection {
 
 pub struct ResourceRepository {
     file_hash_cache: Arc<FileCache>,
-    texture_cache: Arc<ResourceCache<Image>>,
+    texture_cache: Arc<ResourceCache<BitangImage>>,
     mesh_cache: Arc<ResourceCache<MeshCollection>>,
     chart_file_cache: Arc<ResourceCache<chart_file::Chart>>,
     project_file_cache: Arc<ResourceCache<project_file::Project>>,
@@ -77,7 +81,7 @@ impl ResourceRepository {
         self: &Rc<Self>,
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
-    ) -> LoadFuture<Image> {
+    ) -> LoadFuture<BitangImage> {
         self.texture_cache.get_future(context, path)
     }
 
@@ -210,15 +214,11 @@ fn load_texture(
     context: &Arc<VulkanContext>,
     content: &[u8],
     resource_name: &str,
-) -> Result<Arc<Image>> {
+) -> Result<Arc<BitangImage>> {
     let now = Instant::now();
     let rgba = image::load_from_memory(content)?.to_rgba8();
     info!("decoded in {:?}", now.elapsed());
-    let dimensions = ImageDimensions::Dim2d {
-        width: rgba.dimensions().0,
-        height: rgba.dimensions().1,
-        array_layers: 1,
-    };
+    let dimensions = [rgba.dimensions().0, rgba.dimensions().1, 1];
 
     let mut cbb = AutoCommandBufferBuilder::primary(
         &context.command_buffer_allocator,
@@ -226,17 +226,52 @@ fn load_texture(
         CommandBufferUsage::OneTimeSubmit,
     )?;
 
-    let image = ImmutableImage::from_iter(
-        &context.memory_allocator,
-        rgba.into_raw(),
-        dimensions,
-        MipmapsCount::Log2,
-        Format::R8G8B8A8_UNORM,
-        &mut cbb,
+    let image = Image::new(
+        context.memory_allocator.clone(),
+        vulkano::image::ImageCreateInfo {
+            image_type: ImageType::Dim2d,
+            format: Format::R8G8B8A8_UNORM,
+            extent: dimensions,
+            usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
+            // TODO: generate mipmaps
+            mip_levels: 1,
+            ..Default::default()
+        },
+        AllocationCreateInfo::default(),
     )?;
+
+    let upload_buffer = Buffer::from_iter(
+        context.memory_allocator.clone(),
+        BufferCreateInfo {
+            usage: BufferUsage::TRANSFER_SRC,
+            ..Default::default()
+        },
+        AllocationCreateInfo {
+            memory_type_filter: MemoryTypeFilter::PREFER_HOST
+                | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+            ..Default::default()
+        },
+        rgba.into_raw(),
+    )
+    .unwrap();
+
+    cbb.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
+        upload_buffer,
+        image.clone(),
+    ))
+    .unwrap();
+
+    // let image = Image::from_iter(
+    //     &context.memory_allocator,
+    //     rgba.into_raw(),
+    //     dimensions,
+    //     MipmapsCount::Log2,
+    //     Format::R8G8B8A8_UNORM,
+    //     &mut cbb,
+    // )?;
     let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
 
-    let image = Image::new_immutable(resource_name, image);
+    let image = BitangImage::new_immutable(resource_name, image);
     Ok(image)
 }
 

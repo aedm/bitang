@@ -4,7 +4,9 @@ use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
 use std::rc::Rc;
 use std::sync::Arc;
-use vulkano::pipeline::{ComputePipeline, Pipeline};
+use vulkano::pipeline::compute::ComputePipelineCreateInfo;
+use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
+use vulkano::pipeline::{ComputePipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo};
 
 pub enum Run {
     Init(Rc<Buffer>),
@@ -26,17 +28,19 @@ impl Compute {
         shader: Shader,
         run: Run,
     ) -> Result<Compute> {
+        let cs = shader
+            .shader_module
+            .entry_point("main")
+            .context("Failed to get compute shader entry point")?;
+        let stage = PipelineShaderStageCreateInfo::new(cs);
+        let layout_create_info = PipelineDescriptorSetLayoutCreateInfo::from_stages([&stage])
+            .into_pipeline_layout_create_info(context.device.clone())?;
+        let layout = PipelineLayout::new(context.device.clone(), layout_create_info)?;
         let pipeline = ComputePipeline::new(
             context.device.clone(),
-            shader
-                .shader_module
-                .entry_point("main")
-                .context("Failed to get compute shader entry point")?,
-            &(),
             None,
-            |_| {},
-        )
-        .unwrap();
+            ComputePipelineCreateInfo::stage_layout(stage, layout),
+        )?;
 
         Ok(Compute {
             id: id.to_string(),
@@ -56,7 +60,7 @@ impl Compute {
         };
         context
             .command_builder
-            .bind_pipeline_compute(self.pipeline.clone());
+            .bind_pipeline_compute(self.pipeline.clone())?;
         self.shader.bind(context, self.pipeline.layout())?;
         context
             .command_builder

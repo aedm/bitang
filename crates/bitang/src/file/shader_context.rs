@@ -1,7 +1,7 @@
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
 use crate::loader::async_cache::LoadFuture;
-use crate::render::image::Image;
+use crate::render::image::BitangImage;
 use crate::render::shader::{
     DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, Shader, ShaderKind,
 };
@@ -39,13 +39,15 @@ pub enum SamplerAddressMode {
 }
 
 impl SamplerAddressMode {
-    pub fn load(&self) -> vulkano::sampler::SamplerAddressMode {
+    pub fn load(&self) -> vulkano::image::sampler::SamplerAddressMode {
         match self {
-            SamplerAddressMode::Repeat => vulkano::sampler::SamplerAddressMode::Repeat,
+            SamplerAddressMode::Repeat => vulkano::image::sampler::SamplerAddressMode::Repeat,
             SamplerAddressMode::MirroredRepeat => {
-                vulkano::sampler::SamplerAddressMode::MirroredRepeat
+                vulkano::image::sampler::SamplerAddressMode::MirroredRepeat
             }
-            SamplerAddressMode::ClampToEdge => vulkano::sampler::SamplerAddressMode::ClampToEdge,
+            SamplerAddressMode::ClampToEdge => {
+                vulkano::image::sampler::SamplerAddressMode::ClampToEdge
+            }
         }
     }
 }
@@ -54,7 +56,7 @@ impl SamplerAddressMode {
 pub struct ShaderContext {
     control_map: HashMap<String, String>,
     control_id: ControlId,
-    sampler_futures: HashMap<String, (LoadFuture<Image>, Sampler)>,
+    sampler_futures: HashMap<String, (LoadFuture<BitangImage>, Sampler)>,
     buffers_by_binding: HashMap<String, DescriptorSource>,
 }
 
@@ -70,7 +72,7 @@ impl ShaderContext {
             .iter()
             .map(|(name, sampler)| {
                 let resource_repository = chart_context.resource_repository.clone();
-                let image: LoadFuture<Image> = {
+                let image: LoadFuture<BitangImage> = {
                     match &sampler.bind {
                         SamplerSource::File(texture_path) => resource_repository.get_texture(
                             &chart_context.vulkan_context,

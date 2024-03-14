@@ -7,7 +7,7 @@ use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
 
-use vulkano::command_buffer::SubpassContents;
+use vulkano::command_buffer::{SubpassBeginInfo, SubpassContents};
 
 /// Represents a draw step in the chart sequence.
 pub struct Draw {
@@ -80,18 +80,24 @@ impl Draw {
             if pass.id == "shadow" {
                 self.set_light(&mut context.globals);
             } else {
-                camera.set(&mut context.globals, viewport.dimensions);
+                camera.set(&mut context.globals, viewport.extent);
             }
 
             let render_pass_begin_info = pass.make_render_pass_begin_info(context)?;
+            let subpass_begin_info = SubpassBeginInfo {
+                contents: SubpassContents::Inline,
+                ..Default::default()
+            };
             context
                 .command_builder
-                .begin_render_pass(render_pass_begin_info, SubpassContents::Inline)?
-                .set_viewport(0, [viewport]);
+                .begin_render_pass(render_pass_begin_info, subpass_begin_info)?
+                .set_viewport(0, [viewport].into_iter().collect())?;
 
             // Don't fail early, we must end the render pass
             let result = self.render_objects(context, pass_index);
-            context.command_builder.end_render_pass()?;
+            context
+                .command_builder
+                .end_render_pass(Default::default())?;
             result?;
         }
 

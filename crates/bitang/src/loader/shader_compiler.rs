@@ -14,7 +14,8 @@ use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{debug, info, instrument, trace};
-use vulkano::shader::ShaderModule;
+use vulkano::shader;
+use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
 
@@ -163,7 +164,13 @@ impl ShaderArtifact {
             .find(|ep| ep.name == "main")
             .context("Failed to find entry point 'main'")?;
 
-        let module = unsafe { ShaderModule::from_bytes(context.device.clone(), spirv_binary) }?;
+        let module = unsafe {
+            let shader_words = shader::spirv::bytes_to_words(spirv_binary)?;
+            ShaderModule::new(
+                context.device.clone(),
+                ShaderModuleCreateInfo::new(&shader_words),
+            )
+        }?;
 
         let descriptor_set_index = match kind {
             shaderc::ShaderKind::Vertex => 0,

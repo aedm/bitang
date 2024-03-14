@@ -10,10 +10,12 @@ use vulkano::pipeline::graphics::color_blend::{
 };
 use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
-use vulkano::pipeline::graphics::vertex_input::Vertex;
+use vulkano::pipeline::graphics::vertex_input::{Vertex, VertexDefinition, VertexInputState};
 use vulkano::pipeline::graphics::viewport::ViewportState;
-use vulkano::pipeline::GraphicsPipeline;
-use vulkano::pipeline::{Pipeline, StateMode};
+use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
+use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
+use vulkano::pipeline::{DynamicState, Pipeline, PipelineLayout};
+use vulkano::pipeline::{GraphicsPipeline, PipelineShaderStageCreateInfo};
 use vulkano::render_pass::Subpass;
 
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -62,9 +64,8 @@ impl MaterialPass {
         let depth_state = if props.depth_test || props.depth_write {
             let compare_op = if props.depth_test { CompareOp::Less } else { CompareOp::Always };
             Some(DepthState {
-                enable_dynamic: false,
-                compare_op: StateMode::Fixed(compare_op),
-                write_enable: StateMode::Fixed(props.depth_write),
+                compare_op,
+                write_enable: props.depth_write,
             })
         } else {
             None
@@ -72,8 +73,7 @@ impl MaterialPass {
 
         let depth_stencil_state = DepthStencilState {
             depth: depth_state,
-            depth_bounds: Default::default(),
-            stencil: Default::default(),
+            ..Default::default()
         };
 
         let mut color_blend_state = ColorBlendState::new(1);
@@ -84,42 +84,82 @@ impl MaterialPass {
             }
             BlendMode::Additive => {
                 color_blend_state = color_blend_state.blend(AttachmentBlend {
-                    color_op: BlendOp::Add,
-                    color_source: BlendFactor::SrcAlpha,
-                    color_destination: BlendFactor::One,
-                    alpha_op: BlendOp::Max,
-                    alpha_source: BlendFactor::One,
-                    alpha_destination: BlendFactor::One,
+                    color_blend_op: BlendOp::Add,
+                    src_color_blend_factor: BlendFactor::SrcAlpha,
+                    dst_color_blend_factor: BlendFactor::One,
+                    alpha_blend_op: BlendOp::Max,
+                    src_alpha_blend_factor: BlendFactor::One,
+                    dst_alpha_blend_factor: BlendFactor::One,
                 });
             }
         };
 
         // Create the Vulkan pipeline
-        let pipeline = GraphicsPipeline::start()
-            .vertex_input_state(Vertex3::per_vertex())
-            .vertex_shader(
-                props
-                    .vertex_shader
-                    .shader_module
-                    .entry_point("main")
-                    .context("Failed to get vertex shader entry point")?,
-                (),
-            )
-            .input_assembly_state(InputAssemblyState::new())
-            .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
-            .fragment_shader(
-                props
-                    .fragment_shader
-                    .shader_module
-                    .entry_point("main")
-                    .context("Failed to get fragment shader entry point")?,
-                (),
-            )
-            .color_blend_state(color_blend_state)
-            .depth_stencil_state(depth_stencil_state)
+        let pipeline = {
+            // TODO: store the entry point instead of the module
+            let vs = props
+                .vertex_shader
+                .shader_module
+                .entry_point("main")
+                .unwrap();
+            let fs = props
+                .fragment_shader
+                .shader_module
+                .entry_point("main")
+                .unwrap();
+
+            let vertex_input_state =
+                Some(Vertex3::per_vertex().definition(&vs.info().input_interface)?);
+            let stages = [
+                PipelineShaderStageCreateInfo::new(vs),
+                PipelineShaderStageCreateInfo::new(fs),
+            ];
+            let layout = PipelineLayout::new(
+                context.device.clone(),
+                PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
+                    .into_pipeline_layout_create_info(context.device.clone())?,
+            )?;
             // Unwrap is safe: every pass has exactly one subpass
-            .render_pass(Subpass::from(vulkan_render_pass, 0).unwrap())
-            .build(context.device.clone())?;
+            let subpass = Some(Subpass::from(vulkan_render_pass, 0).unwrap().into());
+            GraphicsPipeline::new(
+                context.device.clone(),
+                None,
+                GraphicsPipelineCreateInfo {
+                    vertex_input_state,
+                    stages: stages.into_iter().collect(),
+                    dynamic_state: [DynamicState::Viewport].into_iter().collect(),
+                    color_blend_state: Some(color_blend_state),
+                    depth_stencil_state: Some(depth_stencil_state),
+                    subpass,
+                    ..GraphicsPipelineCreateInfo::layout(layout)
+                },
+            )?
+        };
+        // let pipeline = GraphicsPipeline::start()
+        //     .vertex_input_state(Vertex3::per_vertex())
+        //     .vertex_shader(
+        //         props
+        //             .vertex_shader
+        //             .shader_module
+        //             .entry_point("main")
+        //             .context("Failed to get vertex shader entry point")?,
+        //         (),
+        //     )
+        //     .input_assembly_state(InputAssemblyState::new())
+        //     .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
+        //     .fragment_shader(
+        //         props
+        //             .fragment_shader
+        //             .shader_module
+        //             .entry_point("main")
+        //             .context("Failed to get fragment shader entry point")?,
+        //         (),
+        //     )
+        //     .color_blend_state(color_blend_state)
+        //     .depth_stencil_state(depth_stencil_state)
+        //     // Unwrap is safe: every pass has exactly one subpass
+        //     .render_pass(Subpass::from(vulkan_render_pass, 0).unwrap())
+        //     .build(context.device.clone())?;
 
         Ok(MaterialPass {
             id: props.id,
@@ -136,8 +176,8 @@ impl MaterialPass {
         let pipeline_layout = self.pipeline.layout();
         context
             .command_builder
-            .bind_pipeline_graphics(self.pipeline.clone())
-            .bind_vertex_buffers(0, mesh.vertex_buffer.clone());
+            .bind_pipeline_graphics(self.pipeline.clone())?
+            .bind_vertex_buffers(0, mesh.vertex_buffer.clone())?;
         self.vertex_shader.bind(context, pipeline_layout)?;
         self.fragment_shader.bind(context, pipeline_layout)?;
 

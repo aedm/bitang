@@ -1,7 +1,7 @@
 use crate::control::controls::{Control, GlobalType};
 use crate::render::buffer::Buffer;
 use crate::render::buffer_generator::BufferGenerator;
-use crate::render::image::Image;
+use crate::render::image::BitangImage;
 use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
@@ -11,8 +11,8 @@ use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
+use vulkano::image::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
 use vulkano::pipeline::{PipelineBindPoint, PipelineLayout};
-use vulkano::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
 use vulkano::shader::ShaderModule;
 
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
@@ -180,6 +180,7 @@ impl Shader {
             &context.vulkan_context.descriptor_set_allocator,
             descriptor_set_layout.clone(),
             descriptors,
+            [],
         )?;
 
         let pipeline_bind_point = match self.kind {
@@ -193,7 +194,7 @@ impl Shader {
             pipeline_layout.clone(),
             self.kind.get_descriptor_set_index(),
             persistent_descriptor_set,
-        );
+        )?;
 
         Ok(())
     }
@@ -201,7 +202,7 @@ impl Shader {
 
 #[derive(Clone)]
 pub struct ImageDescriptor {
-    pub image: Arc<Image>,
+    pub image: Arc<BitangImage>,
     pub address_mode: SamplerAddressMode,
 }
 
