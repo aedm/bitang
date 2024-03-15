@@ -243,6 +243,7 @@ fn load_texture(
         AllocationCreateInfo::default(),
     )?;
 
+    // TODO: move buffer operations to BitangImage.
     let upload_buffer = Buffer::from_iter(
         context.memory_allocator.clone(),
         BufferCreateInfo {
@@ -264,14 +265,6 @@ fn load_texture(
     ))
     .unwrap();
 
-    // let image = Image::from_iter(
-    //     &context.memory_allocator,
-    //     rgba.into_raw(),
-    //     dimensions,
-    //     MipmapsCount::Log2,
-    //     Format::R8G8B8A8_UNORM,
-    //     &mut cbb,
-    // )?;
     let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
 
     let image = BitangImage::new_immutable(resource_name, image);

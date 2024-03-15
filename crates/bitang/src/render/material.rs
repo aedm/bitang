@@ -62,36 +62,8 @@ impl MaterialPass {
         props: MaterialPassProps,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<MaterialPass> {
-        // let depth_state = if props.depth_test || props.depth_write {
-        //     let compare_op = if props.depth_test { CompareOp::Less } else { CompareOp::Always };
-        //     Some(DepthState {
-        //         compare_op,
-        //         write_enable: props.depth_write,
-        //     })
-        // } else {
-        //     None
-        // };
-        //
-        // let depth_stencil_state = DepthStencilState {
-        //     depth: depth_state,
-        //     ..Default::default()
-        // };
-
         // Unwrap is safe: every pass has exactly one subpass
         let subpass = Subpass::from(vulkan_render_pass, 0).unwrap();
-
-        // let depth_stencil_state = if props.depth_test || props.depth_write {
-        //     let compare_op = if props.depth_test { CompareOp::Less } else { CompareOp::Always };
-        //     Some(DepthStencilState {
-        //         depth: Some(DepthState {
-        //             compare_op,
-        //             write_enable: props.depth_write,
-        //         }),
-        //         ..Default::default()
-        //     })
-        // } else {
-        //     None
-        // };
 
         let depth_stencil_state = if subpass.subpass_desc().depth_stencil_attachment.is_none() {
             None
@@ -151,11 +123,6 @@ impl MaterialPass {
                 .entry_point("main")
                 .unwrap();
 
-            let vsmod = vs.info().execution_model;
-            let fsmod = fs.info().execution_model;
-            println!("Vertex shader execution model: {:?}", vsmod);
-            println!("Fragment shader execution model: {:?}", fsmod);
-
             let vertex_input_state =
                 Some(Vertex3::per_vertex().definition(&vs.info().input_interface)?);
             let stages = [
@@ -176,57 +143,12 @@ impl MaterialPass {
                 depth_stencil_state,
                 viewport_state: Some(ViewportState::default()),
                 multisample_state: Some(Default::default()),
-                rasterization_state: Some(RasterizationState {
-                    // rasterizer_discard_enable: true,
-                    // depth_clamp_enable: false,
-                    // polygon_mode: Default::default(),
-                    // cull_mode: Default::default(),
-                    // front_face: Default::default(),
-                    // depth_bias: None,
-                    // line_width: 0.0,
-                    // line_rasterization_mode: Default::default(),
-                    // line_stipple: None,
-                    ..Default::default()
-                }),
+                rasterization_state: Some(RasterizationState::default()),
                 subpass: Some(subpass.into()),
                 ..GraphicsPipelineCreateInfo::layout(layout)
             };
-            let x = 1;
-            let res = GraphicsPipeline::new(context.device.clone(), None, pipeline_creation_info);
-            if let Err(err) = &res {
-                let x = format!("error: {:?}", err);
-                println!("Error creating gfx pipeline: {:?}", err);
-            }
-            res?
+            GraphicsPipeline::new(context.device.clone(), None, pipeline_creation_info)?
         };
-        // let pipeline = GraphicsPipeline::start()
-        //     .vertex_input_state(Vertex3::per_vertex())
-        //     .vertex_shader(
-        //         props
-        //             .vertex_shader
-        //             .shader_module
-        //             .entry_point("main")
-        //             .context("Failed to get vertex shader entry point")?,
-        //         (),
-        //     )
-        //     .input_assembly_state(InputAssemblyState::new())
-        //     .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
-        //     .fragment_shader(
-        //         props
-        //             .fragment_shader
-        //             .shader_module
-        //             .entry_point("main")
-        //             .context("Failed to get fragment shader entry point")?,
-        //         (),
-        //     )
-        //     .color_blend_state(color_blend_state)
-        //     .depth_stencil_state(depth_stencil_state)
-        //     // Unwrap is safe: every pass has exactly one subpass
-        //     .render_pass(Subpass::from(vulkan_render_pass, 0).unwrap())
-        //     .build(context.device.clone())?;
-
-        let y = 1;
-        let z = 2;
 
         Ok(MaterialPass {
             id: props.id,

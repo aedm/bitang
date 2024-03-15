@@ -49,10 +49,6 @@ impl FrameDumpRunner {
                     | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                 ..Default::default()
             },
-            // AllocationCreateInfo {
-            //     usage: MemoryUsage::Download,
-            //     ..Default::default()
-            // },
             (0..FRAMEDUMP_WIDTH * FRAMEDUMP_HEIGHT * 4).map(|_| 0u8),
         )?;
 

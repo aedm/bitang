@@ -35,12 +35,6 @@ pub enum ImageSizeRule {
     At4k(u32, u32),
 }
 
-// #[derive(Debug, Deserialize)]
-// pub enum MipLevels {
-//     Fixed(u32),
-//     MinSize(u32),
-// }
-
 enum ImageInner {
     Immutable(Arc<Image>),
     SingleLevelAttachment(RwLock<Option<Arc<Image>>>),
