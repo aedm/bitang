@@ -67,7 +67,7 @@ impl Chart {
             .images
             .iter()
             .map(|image_desc| {
-                let image = LoadFuture::new_from_value(image_desc.load());
+                let image = LoadFuture::new_from_value(format!("chart:{}", id), image_desc.load());
                 Ok((image_desc.id.clone(), image))
             })
             .collect::<Result<AHashMap<_, _>>>()?;
@@ -75,7 +75,7 @@ impl Chart {
         // Add swapchain image to the image map
         image_futures_by_id.insert(
             SCREEN_RENDER_TARGET_ID.to_string(),
-            LoadFuture::new_from_value(context.final_render_target.clone()),
+            LoadFuture::new_from_value("screen_render_target", context.final_render_target.clone()),
         );
 
         let buffer_generators_by_id = self

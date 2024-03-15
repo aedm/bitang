@@ -94,15 +94,18 @@ impl ResourceRepository {
     ) -> LoadFuture<Mesh> {
         let mesh_cache = self.mesh_cache.clone();
         let context = context.clone();
-        let path = path.clone();
+        let path_clone = path.clone();
         let selector = selector.to_string();
         let loader = async move {
-            let co = mesh_cache.load(&context, &path).await?;
+            let co = mesh_cache.load(&context, &path_clone).await?;
             co.meshes_by_name.get(&selector).cloned().with_context(|| {
-                anyhow!("Could not find mesh '{selector}' in '{}'", path.to_string())
+                anyhow!(
+                    "Could not find mesh '{selector}' in '{}'",
+                    path_clone.to_string()
+                )
             })
         };
-        LoadFuture::new(loader)
+        LoadFuture::new(format!("mesh:{path}"), loader)
     }
 
     #[instrument(skip(self, context))]

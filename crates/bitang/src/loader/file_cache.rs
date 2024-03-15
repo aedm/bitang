@@ -62,18 +62,22 @@ impl FileCache {
 
         let value = self
             .cache
-            .get(absolute_path.clone(), async move {
-                debug!("Reading file: '{path_string}'");
-                let Ok(content) = tokio::fs::read(absolute_path).await else {
-                    bail!("Failed to read file: '{path_string}'");
-                };
-                let file_cache_entry = spawn_blocking(move || FileCacheEntry {
-                    hash: compute_hash(&content),
-                    content,
-                })
-                .await?;
-                Ok(Arc::new(file_cache_entry))
-            })
+            .get(
+                format!("file:{:?}", absolute_path),
+                absolute_path.clone(),
+                async move {
+                    debug!("Reading file: '{path_string}'");
+                    let Ok(content) = tokio::fs::read(absolute_path).await else {
+                        bail!("Failed to read file: '{path_string}'");
+                    };
+                    let file_cache_entry = spawn_blocking(move || FileCacheEntry {
+                        hash: compute_hash(&content),
+                        content,
+                    })
+                    .await?;
+                    Ok(Arc::new(file_cache_entry))
+                },
+            )
             .await;
         if value.is_err() {
             self.has_missing_files.store(true, Ordering::Relaxed);

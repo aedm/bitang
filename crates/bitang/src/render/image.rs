@@ -177,12 +177,21 @@ impl BitangImage {
             }
         }
 
+        let usage = if self.vulkan_format == vulkano::format::Format::D32_SFLOAT {
+            ImageUsage::SAMPLED | ImageUsage::DEPTH_STENCIL_ATTACHMENT
+        } else {
+            ImageUsage::SAMPLED
+                | ImageUsage::COLOR_ATTACHMENT
+                | ImageUsage::TRANSFER_DST
+                | ImageUsage::TRANSFER_SRC
+        };
+
         // Create a new image with the correct size.
         let image = Image::new(
             context.memory_allocator.clone(),
             ImageCreateInfo {
                 image_type: ImageType::Dim2d,
-                usage: ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC,
+                usage,
                 format: self.vulkan_format,
                 extent,
                 ..Default::default()

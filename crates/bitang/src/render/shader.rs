@@ -12,12 +12,13 @@ use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInf
 use vulkano::buffer::BufferUsage;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::image::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
+use vulkano::memory::allocator::MemoryTypeFilter;
 use vulkano::pipeline::{PipelineBindPoint, PipelineLayout};
 use vulkano::shader::ShaderModule;
 
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 
-#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 pub enum ShaderKind {
     Vertex = 0,
     Fragment = 1,
@@ -81,6 +82,8 @@ impl Shader {
             context.memory_allocator.clone(),
             SubbufferAllocatorCreateInfo {
                 buffer_usage: BufferUsage::UNIFORM_BUFFER,
+                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                 ..Default::default()
             },
         );
