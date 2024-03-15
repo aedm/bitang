@@ -110,7 +110,8 @@ impl MaterialPass {
             None
         } else {
             let blend_state = match props.blend_mode {
-                BlendMode::None => AttachmentBlend::default(),
+                // FIXME: none should be None.
+                BlendMode::None => AttachmentBlend::alpha(),
                 BlendMode::Alpha => AttachmentBlend::alpha(),
                 BlendMode::Additive => AttachmentBlend {
                     color_blend_op: BlendOp::Add,
