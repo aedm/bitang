@@ -16,7 +16,6 @@ use itertools::Itertools;
 use russimp::scene::{PostProcess, Scene};
 use std::collections::HashMap;
 use std::rc::Rc;
-
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info, instrument, warn};
@@ -28,7 +27,6 @@ use vulkano::command_buffer::{
 use vulkano::format::Format;
 use vulkano::image::{Image, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
-use vulkano::DeviceSize;
 
 struct MeshCollection {
     meshes_by_name: HashMap<String, Arc<Mesh>>,

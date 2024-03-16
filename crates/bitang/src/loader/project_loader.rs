@@ -6,7 +6,7 @@ use anyhow::Result;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::{debug, error, info, instrument};
+use tracing::{error, info, instrument};
 
 // If loading fails, we want to retry periodically.
 const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);

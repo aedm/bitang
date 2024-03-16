@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
 use dashmap::{DashMap, DashSet};
 use futures::executor::block_on;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::future::Future;
 use std::hash::Hash;
 use std::sync::Arc;
@@ -134,7 +134,7 @@ impl<Key: Hash + Eq + Clone + Debug, Value: Send + Sync + 'static> AsyncCache<Ke
         let future = match self.items.entry(key) {
             Occupied(entry) => entry.get().clone(),
             Vacant(entry) => {
-                let key = entry.key();
+                let _key = entry.key();
                 let loading = LoadFuture::new(id.into(), loader);
                 entry.insert(loading.clone());
                 loading

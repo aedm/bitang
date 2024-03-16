@@ -5,12 +5,9 @@ use crate::loader::ResourcePath;
 use crate::render::shader::ShaderKind;
 use crate::tool::VulkanContext;
 use anyhow::{Context, Result};
-use std::fmt::{Debug, Display};
-
 use dashmap::DashMap;
-
+use std::fmt::Debug;
 use std::sync::Arc;
-use strum::Display;
 use tokio::task::spawn_blocking;
 use tracing::trace;
 
