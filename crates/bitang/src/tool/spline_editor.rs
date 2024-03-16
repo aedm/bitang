@@ -213,7 +213,7 @@ impl SplineEditor {
         // Find hovered point
         let hover_index = if let SplineEditorState::PointMove { index } = self.state {
             Some(index)
-        } else if plot_ui.plot_hovered() {
+        } else if plot_ui.response().hovered() {
             pointer_coordinate.and_then(|c| {
                 spline.points.iter().position(|p| {
                     c.x >= p.time as f64 - hover_xs

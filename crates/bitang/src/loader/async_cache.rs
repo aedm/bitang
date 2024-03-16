@@ -103,7 +103,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         match inner.value.as_ref().unwrap().as_ref() {
             Ok(_) => {}
             Err(err) => {
-                error!("{err:?}");
+                error!("id: '{}' {err:?}", inner.id);
             }
         }
     }
