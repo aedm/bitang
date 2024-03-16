@@ -3,11 +3,9 @@ use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
 use vulkano::image::view::ImageView;
-use vulkano::image::{
-    AttachmentImage, ImageAccess, ImageLayout, ImageUsage, ImageViewAbstract, ImmutableImage,
-    SampleCount,
-};
-use vulkano::render_pass::{AttachmentDescription, LoadOp, StoreOp};
+use vulkano::image::{Image, ImageCreateInfo, ImageLayout, ImageType, ImageUsage, SampleCount};
+use vulkano::memory::allocator::AllocationCreateInfo;
+use vulkano::render_pass::{AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp};
 
 #[derive(Debug, Deserialize, Clone, Copy)]
 pub enum ImageFormat {
@@ -37,19 +35,13 @@ pub enum ImageSizeRule {
     At4k(u32, u32),
 }
 
-// #[derive(Debug, Deserialize)]
-// pub enum MipLevels {
-//     Fixed(u32),
-//     MinSize(u32),
-// }
-
 enum ImageInner {
-    Immutable(Arc<ImmutableImage>),
-    SingleLevelAttachment(RwLock<Option<Arc<AttachmentImage>>>),
-    Swapchain(RwLock<Option<Arc<dyn ImageViewAbstract>>>),
+    Immutable(Arc<Image>),
+    SingleLevelAttachment(RwLock<Option<Arc<Image>>>),
+    Swapchain(RwLock<Option<Arc<ImageView>>>),
 }
 
-pub struct Image {
+pub struct BitangImage {
     pub id: String,
     pub size_rule: ImageSizeRule,
     pub vulkan_format: vulkano::format::Format,
@@ -58,9 +50,9 @@ pub struct Image {
     size: RwLock<Option<(u32, u32)>>,
 }
 
-impl Image {
-    pub fn new_immutable(id: &str, source: Arc<ImmutableImage>) -> Arc<Self> {
-        let dim = source.dimensions().width_height();
+impl BitangImage {
+    pub fn new_immutable(id: &str, source: Arc<Image>) -> Arc<Self> {
+        let dim = source.extent();
         Arc::new(Self {
             id: id.to_owned(),
             vulkan_format: source.format(),
@@ -90,8 +82,8 @@ impl Image {
         })
     }
 
-    pub fn get_view(&self) -> Result<Arc<dyn ImageViewAbstract>> {
-        let view: Arc<dyn ImageViewAbstract> = match &self.inner {
+    pub fn get_view(&self) -> Result<Arc<ImageView>> {
+        let view: Arc<ImageView> = match &self.inner {
             ImageInner::Immutable(image) => ImageView::new_default(image.clone())?,
             ImageInner::SingleLevelAttachment(image) => {
                 let image = image.read().unwrap();
@@ -113,13 +105,13 @@ impl Image {
         Ok(view)
     }
 
-    pub fn get_image_access(&self) -> Arc<dyn ImageAccess> {
+    pub fn get_image(&self) -> Arc<Image> {
         match &self.inner {
-            ImageInner::Immutable(image) => image.clone(),
+            ImageInner::Immutable(image) => Arc::clone(image),
             ImageInner::SingleLevelAttachment(image) => {
                 let image = image.read().unwrap();
                 if let Some(image) = image.as_ref() {
-                    image.clone()
+                    Arc::clone(image)
                 } else {
                     panic!("Attachment image not initialized");
                 }
@@ -133,13 +125,13 @@ impl Image {
     pub fn make_attachment_description(
         &self,
         layout: ImageLayout,
-        load_op: LoadOp,
+        load_op: AttachmentLoadOp,
     ) -> AttachmentDescription {
         AttachmentDescription {
-            format: Some(self.vulkan_format),
+            format: self.vulkan_format,
             samples: SampleCount::Sample1,
             load_op,
-            store_op: StoreOp::Store,
+            store_op: AttachmentStoreOp::Store,
             initial_layout: layout,
             final_layout: layout,
             ..Default::default()
@@ -158,34 +150,50 @@ impl Image {
         };
 
         // Calculate the size of the image.
-        let size = match self.size_rule {
-            ImageSizeRule::Fixed(w, h) => [w, h],
-            ImageSizeRule::CanvasRelative(r) => {
-                [(viewport_size[0] * r) as u32, (viewport_size[1] * r) as u32]
-            }
+        let extent = match self.size_rule {
+            ImageSizeRule::Fixed(w, h) => [w, h, 1],
+            ImageSizeRule::CanvasRelative(r) => [
+                (viewport_size[0] * r) as u32,
+                (viewport_size[1] * r) as u32,
+                1,
+            ],
             ImageSizeRule::At4k(w, h) => {
                 let scale = 4096.0 / viewport_size[0];
-                [(w as f32 * scale) as u32, (h as f32 * scale) as u32]
+                [(w as f32 * scale) as u32, (h as f32 * scale) as u32, 1]
             }
         };
 
         // Check if the image is already the correct size.
         let mut attachment = attachment.write().unwrap();
         if let Some(attachment) = attachment.as_ref() {
-            if attachment.dimensions().width_height() == size {
+            if attachment.extent() == extent {
                 return Ok(());
             }
         }
 
+        let usage = if self.vulkan_format == vulkano::format::Format::D32_SFLOAT {
+            ImageUsage::SAMPLED | ImageUsage::DEPTH_STENCIL_ATTACHMENT
+        } else {
+            ImageUsage::SAMPLED
+                | ImageUsage::COLOR_ATTACHMENT
+                | ImageUsage::TRANSFER_DST
+                | ImageUsage::TRANSFER_SRC
+        };
+
         // Create a new image with the correct size.
-        let image = AttachmentImage::with_usage(
-            &context.memory_allocator,
-            size,
-            self.vulkan_format,
-            ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC,
+        let image = Image::new(
+            context.memory_allocator.clone(),
+            ImageCreateInfo {
+                image_type: ImageType::Dim2d,
+                usage,
+                format: self.vulkan_format,
+                extent,
+                ..Default::default()
+            },
+            AllocationCreateInfo::default(),
         )?;
         *attachment = Some(image);
-        *self.size.write().unwrap() = Some((size[0], size[1]));
+        *self.size.write().unwrap() = Some((extent[0], extent[1]));
         Ok(())
     }
 
@@ -198,10 +206,10 @@ impl Image {
         matches!(&self.inner, ImageInner::Swapchain(_))
     }
 
-    pub fn set_swapchain_image(&self, image: Arc<dyn ImageViewAbstract>) {
+    pub fn set_swapchain_image(&self, image: Arc<ImageView>) {
         match &self.inner {
             ImageInner::Swapchain(swapchain_image) => {
-                let size = image.dimensions().width_height();
+                let size = image.image().extent();
                 *self.size.write().unwrap() = Some((size[0], size[1]));
                 *swapchain_image.write().unwrap() = Some(image);
             }

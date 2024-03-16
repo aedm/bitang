@@ -3,7 +3,7 @@ use crate::tool::VulkanContext;
 use anyhow::Result;
 use std::sync::Arc;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryUsage};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 
 pub type VertexBuffer = Subbuffer<[Vertex3]>;
 
@@ -15,13 +15,14 @@ pub struct Mesh {
 impl Mesh {
     pub fn try_new(context: &Arc<VulkanContext>, vertices: Vec<Vertex3>) -> Result<Mesh> {
         let vertex_buffer = Buffer::from_iter(
-            &context.memory_allocator,
+            context.memory_allocator.clone(),
             BufferCreateInfo {
                 usage: BufferUsage::VERTEX_BUFFER,
                 ..Default::default()
             },
             AllocationCreateInfo {
-                usage: MemoryUsage::Upload,
+                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                 ..Default::default()
             },
             vertices,

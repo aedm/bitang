@@ -2,14 +2,16 @@ use anyhow::{anyhow, Result};
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
 use dashmap::{DashMap, DashSet};
 use futures::executor::block_on;
+use std::fmt::Debug;
 use std::future::Future;
 use std::hash::Hash;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio::task::JoinHandle;
-use tracing::error;
+use tracing::{error, warn};
 
 struct LoadFutureInner<T> {
+    id: String,
     value: Option<Arc<Result<Arc<T>>>>,
     handle: Option<JoinHandle<Result<Arc<T>>>>,
 }
@@ -22,7 +24,7 @@ pub struct LoadFuture<T> {
 impl<T> Clone for LoadFuture<T> {
     fn clone(&self) -> Self {
         Self {
-            inner: self.inner.clone(),
+            inner: Arc::clone(&self.inner),
         }
     }
 }
@@ -43,9 +45,15 @@ impl<T> Hash for LoadFuture<T> {
 
 impl<T: Send + Sync + 'static> LoadFuture<T> {
     /// Executes the future and returns a LoadFuture that resolves to the result.
-    pub fn new<F: Future<Output = Result<Arc<T>>> + Send + 'static>(func: F) -> Self {
+    pub fn new<F: Future<Output = Result<Arc<T>>> + Send + 'static>(
+        id: impl Into<String>,
+        func: F,
+    ) -> Self {
+        let id = id.into();
+        warn!("Creating LoadFuture for {}", id);
         let join_handle = tokio::spawn(func);
         let inner = Arc::new(Mutex::new(LoadFutureInner {
+            id,
             value: None,
             handle: Some(join_handle),
         }));
@@ -53,8 +61,11 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
     }
 
     /// Creates a LoadFuture that is already resolved to the given value.
-    pub fn new_from_value(value: Arc<T>) -> Self {
+    pub fn new_from_value(id: impl Into<String>, value: Arc<T>) -> Self {
+        let id = id.into();
+        warn!("Creating LoadFuture for existing {}", id);
         let inner = Arc::new(Mutex::new(LoadFutureInner {
+            id,
             value: Some(Arc::new(Ok(value))),
             handle: None,
         }));
@@ -92,7 +103,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         match inner.value.as_ref().unwrap().as_ref() {
             Ok(_) => {}
             Err(err) => {
-                error!("{err:?}");
+                error!("id: '{}' {err:?}", inner.id);
             }
         }
     }
@@ -100,12 +111,12 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
 
 /// A cache that loads resources asynchronously.
 /// For every key, only the first load operation is executed and its result is shared between all requests with the same key.
-pub struct AsyncCache<Key: Hash + Eq + Clone, Value: Send + Sync> {
+pub struct AsyncCache<Key: Hash + Eq + Clone + Debug, Value: Send + Sync> {
     items: DashMap<Key, LoadFuture<Value>>,
     accessed_in_current_load_cycle: DashSet<LoadFuture<Value>>,
 }
 
-impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value> {
+impl<Key: Hash + Eq + Clone + Debug, Value: Send + Sync + 'static> AsyncCache<Key, Value> {
     pub fn new() -> Self {
         Self {
             items: DashMap::new(),
@@ -116,13 +127,15 @@ impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value
     /// Returns a shareable future for a particular cache key. Executes the loader if not cached.
     pub fn load<F: Future<Output = Result<Arc<Value>>> + Send + 'static>(
         &self,
+        id: impl Into<String>,
         key: Key,
         loader: F,
     ) -> LoadFuture<Value> {
         let future = match self.items.entry(key) {
             Occupied(entry) => entry.get().clone(),
             Vacant(entry) => {
-                let loading = LoadFuture::new(loader);
+                let _key = entry.key();
+                let loading = LoadFuture::new(id.into(), loader);
                 entry.insert(loading.clone());
                 loading
             }
@@ -134,10 +147,11 @@ impl<Key: Hash + Eq + Clone, Value: Send + Sync + 'static> AsyncCache<Key, Value
     /// Returns the value for a particular cache key. Loads it if not cached.
     pub async fn get<F: Future<Output = Result<Arc<Value>>> + Send + 'static>(
         &self,
+        id: impl Into<String>,
         key: Key,
         loader: F,
     ) -> Result<Arc<Value>> {
-        let future = self.load(key, loader);
+        let future = self.load(id, key, loader);
         future.get().await
     }
 

@@ -1,28 +1,28 @@
-use crate::render::image::Image;
+use crate::render::image::BitangImage;
 use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
 use vulkano::command_buffer::RenderPassBeginInfo;
+use vulkano::image::view::ImageView;
 use vulkano::image::ImageLayout;
-use vulkano::image::ImageViewAbstract;
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
-    AttachmentDescription, AttachmentReference, Framebuffer, FramebufferCreateInfo, LoadOp,
-    RenderPassCreateInfo, SubpassDescription,
+    AttachmentDescription, AttachmentLoadOp, AttachmentReference, Framebuffer,
+    FramebufferCreateInfo, RenderPassCreateInfo, SubpassDescription,
 };
 
 pub enum ImageSelector {
-    Image(Arc<Image>),
+    Image(Arc<BitangImage>),
 }
 
 impl ImageSelector {
-    pub fn get_image(&self) -> &Arc<Image> {
+    pub fn get_image(&self) -> &Arc<BitangImage> {
         match self {
             ImageSelector::Image(image) => image,
         }
     }
 
-    pub fn get_image_view(&self) -> Result<Arc<dyn ImageViewAbstract>> {
+    pub fn get_image_view(&self) -> Result<Arc<ImageView>> {
         match self {
             ImageSelector::Image(image) => image.get_view(),
         }
@@ -67,7 +67,7 @@ impl Pass {
         clear_buffers: bool,
     ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
         let mut attachments = vec![];
-        let load_op = if clear_buffers { LoadOp::Clear } else { LoadOp::Load };
+        let load_op = if clear_buffers { AttachmentLoadOp::Clear } else { AttachmentLoadOp::Load };
 
         let color_attachments = color_buffers
             .iter()
@@ -109,7 +109,7 @@ impl Pass {
         selector: &ImageSelector,
         attachments: &mut Vec<AttachmentDescription>,
         layout: ImageLayout,
-        load_op: LoadOp,
+        load_op: AttachmentLoadOp,
     ) -> AttachmentReference {
         let reference = AttachmentReference {
             attachment: attachments.len() as u32,
@@ -150,9 +150,9 @@ impl Pass {
             context.screen_viewport.clone()
         } else {
             Viewport {
-                origin: [0.0, 0.0],
-                dimensions: [size.0 as f32, size.1 as f32],
-                depth_range: 0.0..1.0,
+                offset: [0.0, 0.0],
+                extent: [size.0 as f32, size.1 as f32],
+                depth_range: 0.0..=1.0,
             }
         };
         Ok(viewport)

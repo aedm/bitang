@@ -1,8 +1,8 @@
 use crate::control::controls::Control;
 use crate::control::spline::SplinePoint;
 use crate::tool::app_state::AppState;
-use egui::plot::{Line, Plot, PlotBounds, PlotPoint};
 use egui::Color32;
+use egui_plot::{Line, Plot, PlotBounds, PlotPoint, PlotUi};
 use glam::Vec2;
 use std::rc::Rc;
 
@@ -172,12 +172,7 @@ impl SplineEditor {
         });
     }
 
-    fn paint_time_cursor(
-        &self,
-        plot_ui: &mut egui::plot::PlotUi,
-        time: f32,
-        screen_size: egui::Vec2,
-    ) {
+    fn paint_time_cursor(&self, plot_ui: &mut PlotUi, time: f32, screen_size: egui::Vec2) {
         // Draw time
         let time_dy = (screen_size.y * Self::calculate_pixel_size(self.zoom.y)) as f64;
         let points = vec![
@@ -194,7 +189,7 @@ impl SplineEditor {
     // Returns the index of the hovered point
     fn draw_spline(
         &mut self,
-        plot_ui: &mut egui::plot::PlotUi,
+        plot_ui: &mut PlotUi,
         pixel_width: isize,
     ) -> (Option<usize>, Option<PlotPoint>) {
         let pointer_coordinate = plot_ui.pointer_coordinate();
@@ -218,7 +213,7 @@ impl SplineEditor {
         // Find hovered point
         let hover_index = if let SplineEditorState::PointMove { index } = self.state {
             Some(index)
-        } else if plot_ui.plot_hovered() {
+        } else if plot_ui.response().hovered() {
             pointer_coordinate.and_then(|c| {
                 spline.points.iter().position(|p| {
                     c.x >= p.time as f64 - hover_xs

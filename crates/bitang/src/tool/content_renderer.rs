@@ -144,9 +144,9 @@ impl ContentRenderer {
             let mut context = RenderContext {
                 vulkan_context: vulkan_context.clone(),
                 screen_viewport: Viewport {
-                    origin: [0.0, 0.0],
-                    dimensions: [1.0, 1.0],
-                    depth_range: 0.0..1.0,
+                    offset: [0.0, 0.0],
+                    extent: [1.0, 1.0],
+                    depth_range: 0.0..=1.0,
                 },
                 command_builder: &mut command_builder,
                 globals: Default::default(),

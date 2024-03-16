@@ -8,7 +8,9 @@ use egui_winit_vulkano::{Gui, GuiConfig};
 use std::rc::Rc;
 use std::sync::Arc;
 use tracing::error;
-use vulkano::command_buffer::{RenderPassBeginInfo, SubpassContents};
+use vulkano::command_buffer::{
+    RenderPassBeginInfo, SubpassBeginInfo, SubpassContents, SubpassEndInfo,
+};
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
 use vulkano::swapchain::Surface;
 use winit::{event::WindowEvent, event_loop::EventLoop};
@@ -29,10 +31,10 @@ impl Ui {
             context.device.clone(),
             attachments: {
                 color: {
-                    load: DontCare,
-                    store: Store,
                     format: context.swapchain_format,
                     samples: 1,
+                    load_op: DontCare,
+                    store_op: Store,
                 }
             },
             pass:
@@ -45,8 +47,10 @@ impl Ui {
             surface.clone(),
             context.gfx_queue.clone(),
             subpass.clone(),
+            vulkano::format::Format::B8G8R8A8_SRGB,
+            // TODO: use UNORM instead of SRGB
             GuiConfig {
-                preferred_format: Some(vulkano::format::Format::B8G8R8A8_SRGB),
+                allow_srgb_render_target: true,
                 ..Default::default()
             },
         );
@@ -249,7 +253,7 @@ impl Ui {
             .final_render_target
             .get_view()
             .unwrap();
-        let dimensions = target_image.dimensions().width_height();
+        let [width, height, _] = target_image.image().extent();
         let framebuffer = Framebuffer::new(
             self.subpass.render_pass().clone(),
             FramebufferCreateInfo {
@@ -266,17 +270,23 @@ impl Ui {
                     clear_values: vec![None],
                     ..RenderPassBeginInfo::framebuffer(framebuffer)
                 },
-                SubpassContents::SecondaryCommandBuffers,
+                SubpassBeginInfo {
+                    contents: SubpassContents::SecondaryCommandBuffers,
+                    ..Default::default()
+                },
             )
             .unwrap();
 
-        let gui_commands = self.gui.draw_on_subpass_image(dimensions);
+        let gui_commands = self.gui.draw_on_subpass_image([width, height]);
         context
             .command_builder
             .execute_commands(gui_commands)
             .unwrap();
 
-        context.command_builder.end_render_pass().unwrap();
+        context
+            .command_builder
+            .end_render_pass(SubpassEndInfo::default())
+            .unwrap();
     }
 
     pub fn handle_window_event(&mut self, event: &WindowEvent) {

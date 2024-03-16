@@ -22,7 +22,7 @@ use std::sync::Arc;
 pub struct ChartContext {
     pub vulkan_context: Arc<VulkanContext>,
     pub resource_repository: Rc<ResourceRepository>,
-    pub image_futures_by_id: AHashMap<String, LoadFuture<render::image::Image>>,
+    pub image_futures_by_id: AHashMap<String, LoadFuture<render::image::BitangImage>>,
     pub control_set_builder: ControlSetBuilder,
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
@@ -67,7 +67,7 @@ impl Chart {
             .images
             .iter()
             .map(|image_desc| {
-                let image = LoadFuture::new_from_value(image_desc.load());
+                let image = LoadFuture::new_from_value(format!("chart:{}", id), image_desc.load());
                 Ok((image_desc.id.clone(), image))
             })
             .collect::<Result<AHashMap<_, _>>>()?;
@@ -75,7 +75,7 @@ impl Chart {
         // Add swapchain image to the image map
         image_futures_by_id.insert(
             SCREEN_RENDER_TARGET_ID.to_string(),
-            LoadFuture::new_from_value(context.final_render_target.clone()),
+            LoadFuture::new_from_value("screen_render_target", context.final_render_target.clone()),
         );
 
         let buffer_generators_by_id = self
@@ -154,8 +154,8 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn load(&self) -> Arc<render::image::Image> {
-        render::image::Image::new_attachment(&self.id, self.format, self.size)
+    pub fn load(&self) -> Arc<render::image::BitangImage> {
+        render::image::BitangImage::new_attachment(&self.id, self.format, self.size)
     }
 }
 
@@ -312,7 +312,7 @@ pub enum ImageSelector {
 impl ImageSelector {
     pub async fn load(
         &self,
-        images_by_id: &AHashMap<String, LoadFuture<render::image::Image>>,
+        images_by_id: &AHashMap<String, LoadFuture<render::image::BitangImage>>,
     ) -> Result<render::pass::ImageSelector> {
         match self {
             ImageSelector::Image(id) => {

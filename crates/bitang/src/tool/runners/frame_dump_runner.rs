@@ -1,4 +1,4 @@
-use crate::render::image::{Image, ImageSizeRule};
+use crate::render::image::{BitangImage, ImageSizeRule};
 use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use anyhow::Result;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -11,7 +11,7 @@ use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, CopyImageToBufferInfo,
     PrimaryCommandBufferAbstract,
 };
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryUsage};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::sync::GpuFuture;
 
@@ -30,21 +30,23 @@ impl FrameDumpRunner {
     pub fn run(init_context: InitContext) -> Result<()> {
         let frame_size = ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
         let final_render_target =
-            Image::new_attachment(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT, frame_size);
+            BitangImage::new_attachment(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT, frame_size);
 
         let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
         let mut app = ContentRenderer::new(&vulkan_context)?;
         app.reset_simulation(&vulkan_context)?;
 
+        // TODO: Buffer::new?
         let dumped_frame_buffer = Buffer::from_iter(
-            &vulkan_context.memory_allocator,
+            vulkan_context.memory_allocator.clone(),
             BufferCreateInfo {
                 usage: BufferUsage::TRANSFER_DST,
                 ..Default::default()
             },
             AllocationCreateInfo {
-                usage: MemoryUsage::Download,
+                memory_type_filter: MemoryTypeFilter::PREFER_HOST
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                 ..Default::default()
             },
             (0..FRAMEDUMP_WIDTH * FRAMEDUMP_HEIGHT * 4).map(|_| 0u8),
@@ -132,13 +134,13 @@ impl FrameDumpRunner {
             _ => panic!("Screen render target must have a fixed size"),
         };
         let screen_viewport = Viewport {
-            origin: [0.0, 0.0],
-            dimensions: [size[0] as f32, size[1] as f32],
-            depth_range: 0.0..1.0,
+            offset: [0.0, 0.0],
+            extent: [size[0] as f32, size[1] as f32],
+            depth_range: 0.0..=1.0,
         };
         self.vulkan_context
             .final_render_target
-            .enforce_size_rule(&self.vulkan_context, screen_viewport.dimensions)
+            .enforce_size_rule(&self.vulkan_context, screen_viewport.extent)
             .unwrap();
 
         // Make command buffer
@@ -184,7 +186,7 @@ impl FrameDumpRunner {
         let image = render_context
             .vulkan_context
             .final_render_target
-            .get_image_access();
+            .get_image();
         render_context
             .command_builder
             .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(

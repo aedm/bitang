@@ -5,9 +5,8 @@ use crate::loader::ResourcePath;
 use crate::render::shader::ShaderKind;
 use crate::tool::VulkanContext;
 use anyhow::{Context, Result};
-
 use dashmap::DashMap;
-
+use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
 use tracing::trace;
@@ -42,6 +41,12 @@ struct ShaderCacheKey {
     source_path: ResourcePath,
     kind: ShaderKind,
     macros: Vec<(String, String)>,
+}
+
+impl Debug for ShaderCacheKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} {:?}", self.source_path, self.kind)
+    }
 }
 
 pub struct ShaderCache {
@@ -100,7 +105,7 @@ impl ShaderCache {
             )
         };
         self.load_cycle_shader_cache
-            .get(key, shader_load_func)
+            .get(format!("shader:{key:?}"), key, shader_load_func)
             .await
     }
 

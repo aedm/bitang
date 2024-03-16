@@ -1,4 +1,4 @@
-use crate::render::image::Image;
+use crate::render::image::BitangImage;
 use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
@@ -12,7 +12,6 @@ use std::sync::Arc;
 use std::time::Instant;
 use tracing::{error, info};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
-use vulkano::image::ImageViewAbstract;
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::sync::GpuFuture;
 use vulkano_util::renderer::VulkanoWindowRenderer;
@@ -39,7 +38,7 @@ pub enum PaintResult {
 impl WindowRunner {
     pub fn run(init_context: InitContext) -> Result<()> {
         let final_render_target =
-            Image::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
+            BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
 
         let vulkano_context = init_context.vulkano_context.clone();
         let vulkan_context = init_context.into_vulkan_context(final_render_target);
@@ -59,7 +58,7 @@ impl WindowRunner {
         };
 
         windows.create_window(&event_loop, &vulkano_context, &window_descriptor, |ci| {
-            ci.image_format = Some(SCREEN_COLOR_FORMAT.vulkan_format());
+            ci.image_format = SCREEN_COLOR_FORMAT.vulkan_format();
             ci.min_image_count = ci.min_image_count.max(3);
         });
 
@@ -182,36 +181,36 @@ impl WindowRunner {
             .set_swapchain_image(target_image.clone());
 
         // Calculate viewport
-        let window_size = target_image.dimensions();
+        let window_size = target_image.image().extent();
         let scale_factor = self.get_window().scale_factor() as f32;
         let (width, height, top, left) = if self.is_fullscreen {
-            if window_size.width() * SCREEN_RATIO.1 > window_size.height() * SCREEN_RATIO.0 {
+            if window_size[0] * SCREEN_RATIO.1 > window_size[1] * SCREEN_RATIO.0 {
                 // Screen is too wide
-                let height = window_size.height();
+                let height = window_size[1];
                 let width = height * SCREEN_RATIO.0 / SCREEN_RATIO.1;
-                let left = (window_size.width() - width) / 2;
+                let left = (window_size[0] - width) / 2;
                 let top = 0;
                 (width, height, top, left)
             } else {
                 // Screen is too tall
-                let width = window_size.width();
+                let width = window_size[0];
                 let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
                 let left = 0;
-                let top = (window_size.height() - height) / 2;
+                let top = (window_size[1] - height) / 2;
                 (width, height, top, left)
             }
         } else {
-            let width = window_size.width();
+            let width = window_size[0];
             let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
             let left = 0;
             let top = 0;
             (width, height, top, left)
         };
-        let ui_height = max(window_size.height() as i32 - height as i32, 0) as f32;
+        let ui_height = max(window_size[1] as i32 - height as i32, 0) as f32;
         let screen_viewport = Viewport {
-            origin: [left as f32, top as f32],
-            dimensions: [width as f32, height as f32],
-            depth_range: 0.0..1.0,
+            offset: [left as f32, top as f32],
+            extent: [width as f32, height as f32],
+            depth_range: 0.0..=1.0,
         };
 
         // Make command buffer
