@@ -269,18 +269,21 @@ fn load_texture(
     Ok(image)
 }
 
+fn ron_loader() -> ron::Options {
+    ron::Options::default().with_default_extension(
+        ron::extensions::Extensions::IMPLICIT_SOME
+            | ron::extensions::Extensions::UNWRAP_NEWTYPES
+            | ron::extensions::Extensions::UNWRAP_VARIANT_NEWTYPES,
+    )
+}
+
 #[instrument(skip_all)]
 pub fn load_chart_file(
     _context: &Arc<VulkanContext>,
     content: &[u8],
     _resource_name: &str,
 ) -> Result<Arc<chart_file::Chart>> {
-    let ron = ron::Options::default().with_default_extension(
-        ron::extensions::Extensions::IMPLICIT_SOME
-            | ron::extensions::Extensions::UNWRAP_NEWTYPES
-            | ron::extensions::Extensions::UNWRAP_VARIANT_NEWTYPES,
-    );
-    let chart = ron.from_str::<chart_file::Chart>(std::str::from_utf8(content)?)?;
+    let chart = ron_loader().from_str::<chart_file::Chart>(std::str::from_utf8(content)?)?;
     Ok(Arc::new(chart))
 }
 
@@ -292,6 +295,6 @@ pub fn load_project_file(
 ) -> Result<Arc<project_file::Project>> {
     let ron =
         ron::Options::default().with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME);
-    let project = ron.from_str::<project_file::Project>(std::str::from_utf8(content)?)?;
+    let project = ron_loader().from_str::<project_file::Project>(std::str::from_utf8(content)?)?;
     Ok(Arc::new(project))
 }
