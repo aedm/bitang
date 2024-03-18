@@ -293,8 +293,6 @@ pub fn load_project_file(
     content: &[u8],
     _resource_name: &str,
 ) -> Result<Arc<project_file::Project>> {
-    let ron =
-        ron::Options::default().with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME);
     let project = ron_loader().from_str::<project_file::Project>(std::str::from_utf8(content)?)?;
     Ok(Arc::new(project))
 }
