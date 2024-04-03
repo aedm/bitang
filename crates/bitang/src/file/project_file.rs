@@ -7,6 +7,8 @@ use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Instant;
+use tracing::debug;
 
 #[derive(Debug, Deserialize)]
 pub struct Project {
@@ -28,8 +30,10 @@ impl Project {
         resource_repository: &Rc<ResourceRepository>,
     ) -> Result<render::project::Project> {
         let chart_ids: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();
-        let chart_futures_by_id = chart_ids.iter().map(|&chart_name| async {
+        let chart_futures_by_id = chart_ids.iter().map(|&chart_name| async move {
+            let now = Instant::now();
             let chart = resource_repository.load_chart(chart_name, context).await?;
+            debug!("Loaded chart {} in {:?}", chart_name, now.elapsed());
             Ok((chart_name.clone(), chart))
         });
 

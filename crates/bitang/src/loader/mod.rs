@@ -4,6 +4,7 @@ use std::fmt;
 use std::hash::Hasher;
 
 pub mod async_cache;
+mod blend_loader;
 pub mod file_cache;
 pub mod project_loader;
 pub mod resource_cache;

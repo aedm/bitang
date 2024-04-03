@@ -5,6 +5,7 @@ use crate::render::camera::Camera;
 use crate::render::compute::{Compute, Run};
 use crate::render::draw::Draw;
 use crate::render::image::BitangImage;
+use crate::render::scene::Scene;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::RenderContext;
 use anyhow::Result;

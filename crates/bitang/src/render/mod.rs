@@ -10,6 +10,7 @@ pub mod mesh;
 pub mod pass;
 pub mod project;
 pub mod render_object;
+pub mod scene;
 pub mod shader;
 
 use crate::render::image::ImageFormat;

@@ -28,14 +28,14 @@ use vulkano::format::Format;
 use vulkano::image::{Image, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 
-struct MeshCollection {
-    meshes_by_name: HashMap<String, Arc<Mesh>>,
+pub struct MeshCollection {
+    pub meshes_by_name: HashMap<String, Arc<Mesh>>,
 }
 
 pub struct ResourceRepository {
     file_hash_cache: Arc<FileCache>,
     texture_cache: Arc<ResourceCache<BitangImage>>,
-    mesh_cache: Arc<ResourceCache<MeshCollection>>,
+    pub mesh_cache: Arc<ResourceCache<MeshCollection>>,
     chart_file_cache: Arc<ResourceCache<chart_file::Chart>>,
     project_file_cache: Arc<ResourceCache<project_file::Project>>,
     pub shader_cache: ShaderCache,
@@ -83,6 +83,8 @@ impl ResourceRepository {
         self.texture_cache.get_future(context, path)
     }
 
+    // TODO: try make this pure async
+    // TODO: use get_mesh_collection instead
     #[instrument(skip(self, context))]
     pub fn get_mesh(
         self: &Rc<Self>,

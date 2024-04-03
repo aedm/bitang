@@ -29,7 +29,7 @@ impl Material {
         passes: &[render::pass::Pass],
         control_map: &HashMap<String, String>,
         object_cid: &ControlId,
-    ) -> Result<crate::render::material::Material> {
+    ) -> Result<Arc<render::material::Material>> {
         let shader_context = ShaderContext::new(
             chart_context,
             control_map,
@@ -59,9 +59,9 @@ impl Material {
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
 
-        Ok(render::material::Material {
+        Ok(Arc::new(render::material::Material {
             passes: material_passes,
-        })
+        }))
     }
 }
 
