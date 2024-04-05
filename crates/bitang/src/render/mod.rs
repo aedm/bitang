@@ -16,7 +16,7 @@ pub mod shader;
 use crate::render::image::ImageFormat;
 use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex};
 
-#[derive(BufferContents, Vertex)]
+#[derive(BufferContents, Vertex, Default, Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Vertex3 {
     #[format(R32G32B32_SFLOAT)]

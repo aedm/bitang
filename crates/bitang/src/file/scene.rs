@@ -47,20 +47,28 @@ impl Scene {
         let mesh_collection = mesh_collection_future.await??;
 
         let objects = mesh_collection
-            .meshes_by_name
+            .nodes_by_name
             .iter()
-            .map(|(mesh_id, mesh)| {
+            .map(|(mesh_id, scene_node)| {
                 let object_cid = scene_cid.add(ControlIdPartType::Object, mesh_id);
                 let position_id = object_cid.add(ControlIdPartType::Value, "position");
                 let rotation_id = object_cid.add(ControlIdPartType::Value, "rotation");
                 let instances_id = object_cid.add(ControlIdPartType::Value, "instances");
 
+                let node_pos = scene_node.position;
+                let position = chart_context.control_set_builder.get_vec3(&position_id);
+                position.set(&[node_pos[0], node_pos[1], node_pos[2], 0.0]);
+
+                let node_rot = scene_node.rotation;
+                let rotation = chart_context.control_set_builder.get_vec3(&rotation_id);
+                rotation.set(&[node_rot[0], node_rot[1], node_rot[2], 0.0]);
+
                 let object = render::render_object::RenderObject {
                     id: mesh_id.clone(),
-                    mesh: mesh.clone(),
+                    mesh: scene_node.mesh.clone(),
                     material: material.clone(),
-                    position: chart_context.control_set_builder.get_vec3(&position_id),
-                    rotation: chart_context.control_set_builder.get_vec3(&rotation_id),
+                    position,
+                    rotation,
                     instances: chart_context
                         .control_set_builder
                         .get_float_with_default(&instances_id, 1.),

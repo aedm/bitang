@@ -50,7 +50,6 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         func: F,
     ) -> Self {
         let id = id.into();
-        warn!("Creating LoadFuture for {}", id);
         let join_handle = tokio::spawn(func);
         let inner = Arc::new(Mutex::new(LoadFutureInner {
             id,
@@ -63,7 +62,6 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
     /// Creates a LoadFuture that is already resolved to the given value.
     pub fn new_from_value(id: impl Into<String>, value: Arc<T>) -> Self {
         let id = id.into();
-        warn!("Creating LoadFuture for existing {}", id);
         let inner = Arc::new(Mutex::new(LoadFutureInner {
             id,
             value: Some(Arc::new(Ok(value))),

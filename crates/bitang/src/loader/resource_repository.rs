@@ -1,7 +1,8 @@
-use crate::control::controls::ControlRepository;
+use crate::control::controls::{Control, ControlRepository};
 use crate::file::{chart_file, project_file};
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::file_cache::FileCache;
+use crate::loader::gltf_loader::load_mesh_collection;
 use crate::loader::resource_cache::ResourceCache;
 use crate::loader::shader_loader::ShaderCache;
 use crate::loader::{ResourcePath, CHARTS_FOLDER, CHART_FILE_NAME, PROJECT_FILE_NAME};
@@ -13,7 +14,6 @@ use crate::render::Vertex3;
 use crate::tool::VulkanContext;
 use anyhow::{anyhow, ensure, Context, Result};
 use itertools::Itertools;
-use russimp::scene::{PostProcess, Scene};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -28,14 +28,20 @@ use vulkano::format::Format;
 use vulkano::image::{Image, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 
-pub struct MeshCollection {
-    pub meshes_by_name: HashMap<String, Arc<Mesh>>,
+pub struct SceneNode {
+    pub position: [f32; 3],
+    pub rotation: [f32; 3],
+    pub mesh: Arc<Mesh>,
+}
+
+pub struct SceneFile {
+    pub nodes_by_name: HashMap<String, Arc<SceneNode>>,
 }
 
 pub struct ResourceRepository {
     file_hash_cache: Arc<FileCache>,
     texture_cache: Arc<ResourceCache<BitangImage>>,
-    pub mesh_cache: Arc<ResourceCache<MeshCollection>>,
+    pub mesh_cache: Arc<ResourceCache<SceneFile>>,
     chart_file_cache: Arc<ResourceCache<chart_file::Chart>>,
     project_file_cache: Arc<ResourceCache<project_file::Project>>,
     pub shader_cache: ShaderCache,
@@ -98,12 +104,13 @@ impl ResourceRepository {
         let selector = selector.to_string();
         let loader = async move {
             let co = mesh_cache.load(&context, &path_clone).await?;
-            co.meshes_by_name.get(&selector).cloned().with_context(|| {
+            let node = co.nodes_by_name.get(&selector).cloned().with_context(|| {
                 anyhow!(
                     "Could not find mesh '{selector}' in '{}'",
                     path_clone.to_string()
                 )
-            })
+            })?;
+            Ok(Arc::clone(&node.mesh))
         };
         LoadFuture::new(format!("mesh:{path}"), loader)
     }
@@ -127,89 +134,6 @@ impl ResourceRepository {
         let project = self.project_file_cache.load(context, &path).await?;
         project.load(context, self).await
     }
-}
-
-fn to_vec3_neg(v: &russimp::Vector3D) -> [f32; 3] {
-    [v.x, v.y, -v.z]
-}
-
-fn to_vec3_b(v: &russimp::Vector3D) -> [f32; 3] {
-    [v.x, v.y, -v.z]
-}
-fn to_vec2(v: &russimp::Vector3D) -> [f32; 2] {
-    [v.x, v.y]
-}
-
-#[instrument(skip_all, fields(path=_resource_name))]
-fn load_mesh_collection(
-    context: &Arc<VulkanContext>,
-    content: &[u8],
-    _resource_name: &str,
-) -> Result<Arc<MeshCollection>> {
-    let now = Instant::now();
-    let scene = Scene::from_buffer(
-        content,
-        vec![
-            PostProcess::CalculateTangentSpace,
-            PostProcess::Triangulate,
-            PostProcess::JoinIdenticalVertices,
-            PostProcess::SortByPrimitiveType,
-            PostProcess::FlipUVs,
-            PostProcess::OptimizeMeshes,
-        ],
-        "",
-    )?;
-    debug!("Mesh count: {}", scene.meshes.len());
-    let mut meshes_by_name = HashMap::new();
-    for mesh in scene.meshes {
-        let name = mesh.name.clone();
-        if mesh.vertices.is_empty() {
-            warn!("No vertices found in mesh '{name}'");
-            continue;
-        }
-        if mesh.normals.is_empty() {
-            warn!("No normals found in mesh '{name}'");
-            continue;
-        }
-        if mesh.texture_coords.is_empty() {
-            warn!("No texture coordinates found in mesh '{name}'");
-            continue;
-        }
-        if mesh.tangents.is_empty() {
-            warn!("No tangents found in mesh '{name}'");
-            continue;
-        }
-        let uvs = mesh.texture_coords[0]
-            .as_ref()
-            .context("No texture coordinates found")?;
-        let mut vertices = vec![];
-        for (index, face) in mesh.faces.iter().enumerate() {
-            ensure!(
-                face.0.len() == 3,
-                "Face {index} in mesh '{name}' has {} vertices, expected 3",
-                face.0.len()
-            );
-            for i in 0..3 {
-                let vertex = Vertex3 {
-                    a_position: to_vec3_b(&mesh.vertices[face.0[i] as usize]),
-                    a_normal: to_vec3_b(&mesh.normals[face.0[i] as usize]),
-                    a_tangent: to_vec3_neg(&mesh.tangents[face.0[i] as usize]),
-                    a_uv: to_vec2(&uvs[face.0[i] as usize]),
-                    a_padding: 0.0,
-                };
-                vertices.push(vertex);
-            }
-        }
-        let mesh = Arc::new(Mesh::try_new(context, vertices)?);
-        meshes_by_name.insert(name, mesh);
-    }
-
-    info!(
-        "Meshes loaded: '{}' in {:?}",
-        meshes_by_name.keys().join(", "),
-        now.elapsed()
-    );
-    Ok(Arc::new(MeshCollection { meshes_by_name }))
 }
 
 #[instrument(skip(context, content))]
