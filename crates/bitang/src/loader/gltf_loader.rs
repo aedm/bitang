@@ -4,6 +4,7 @@ use crate::render::Vertex3;
 use crate::tool::VulkanContext;
 use anyhow::{Context, Result};
 use gltf::Gltf;
+use itertools::Itertools;
 use log::warn;
 use std::array;
 use std::collections::HashMap;
@@ -60,89 +61,93 @@ pub fn load_mesh_collection(
         let Some(name) = node.name() else { continue };
         let Some(mesh) = node.mesh() else { continue };
 
-        let Some(primitive) = mesh
-            .primitives()
-            .find(|p| p.mode() == gltf::mesh::Mode::Triangles)
-        else {
-            warn!("Mesh '{name}' has no triangle primitives.");
-            continue;
-        };
-
         debug!("Loading mesh '{name}'");
-        let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
 
-        // Read positions
-        let mut vertices = if let Some(iter) = reader.read_positions() {
-            iter.map(|p| Vertex3 {
-                a_position: gltf_to_left_handed_y_up(&p),
-                ..Default::default()
-            })
-            .collect::<Vec<_>>()
-        } else {
-            info!("Mesh '{name}' has no vertex positions, ignoring.");
-            continue;
-        };
-        let vertex_count = vertices.len();
+        let primitives = mesh
+            .primitives()
+            .filter(|p| p.mode() == gltf::mesh::Mode::Triangles)
+            .collect_vec();
 
-        // Read normals
-        if let Some(iter) = reader.read_normals() {
-            for (i, normal) in iter.take(vertex_count).enumerate() {
-                vertices[i].a_normal = gltf_to_left_handed_y_up(&normal);
+        let apply_primitive_index = primitives.len() > 1;
+
+        for (pi, primitive) in primitives.into_iter().enumerate() {
+            let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+
+            // Read positions
+            let mut vertices = if let Some(iter) = reader.read_positions() {
+                iter.map(|p| Vertex3 {
+                    a_position: gltf_to_left_handed_y_up(&p),
+                    ..Default::default()
+                })
+                .collect::<Vec<_>>()
+            } else {
+                info!("Mesh '{name}' has no vertex positions, ignoring.");
+                continue;
+            };
+            let vertex_count = vertices.len();
+
+            // Read normals
+            if let Some(iter) = reader.read_normals() {
+                for (i, normal) in iter.take(vertex_count).enumerate() {
+                    vertices[i].a_normal = gltf_to_left_handed_y_up(&normal);
+                }
+            } else {
+                warn!("Mesh '{name}' has no vertex normals.");
+            };
+
+            // Read tangents
+            if let Some(iter) = reader.read_tangents() {
+                for (i, tangent) in iter.take(vertex_count).enumerate() {
+                    // The fourth component of the tangent is the handedness, but I'm feeling lucky and ignore it.
+                    vertices[i].a_tangent =
+                        gltf_to_left_handed_y_up(&[tangent[0], tangent[1], tangent[2]]);
+                }
+            } else {
+                warn!("Mesh '{name}' has no vertex tangents.");
+            };
+
+            // Read texture coordinates
+            if let Some(iter) = reader.read_tex_coords(0) {
+                for (i, uv) in iter.into_f32().take(vertex_count).enumerate() {
+                    vertices[i].a_uv = uv;
+                }
+            } else {
+                warn!("Mesh '{name}' has no texture coordinates.");
+            };
+
+            // Read indices
+            if let Some(indices) = reader.read_indices() {
+                vertices = indices
+                    .into_u32()
+                    .map(|i| vertices[i as usize])
+                    .collect::<Vec<_>>();
             }
-        } else {
-            warn!("Mesh '{name}' has no vertex normals.");
-        };
 
-        // Read tangents
-        if let Some(iter) = reader.read_tangents() {
-            for (i, tangent) in iter.take(vertex_count).enumerate() {
-                // The fourth component of the tangent is the handedness, but I'm feeling lucky and ignore it.
-                vertices[i].a_tangent =
-                    gltf_to_left_handed_y_up(&[tangent[0], tangent[1], tangent[2]]);
-            }
-        } else {
-            warn!("Mesh '{name}' has no vertex tangents.");
-        };
+            debug!("Loaded {} vertices", vertices.len());
+            // println!("Vertices: {:#?}", vertices);
 
-        // Read texture coordinates
-        if let Some(iter) = reader.read_tex_coords(0) {
-            for (i, uv) in iter.into_f32().take(vertex_count).enumerate() {
-                vertices[i].a_uv = uv;
-            }
-        } else {
-            warn!("Mesh '{name}' has no texture coordinates.");
-        };
+            let mesh = Arc::new(Mesh::try_new(context, vertices)?);
 
-        // Read indices
-        if let Some(indices) = reader.read_indices() {
-            vertices = indices
-                .into_u32()
-                .map(|i| vertices[i as usize])
-                .collect::<Vec<_>>();
+            let (translation, r, _scale) = node.transform().decomposed();
+            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::XZY);
+            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::XYZ);
+
+            let rotation =
+                glam::Quat::from_xyzw(r[0], r[1], r[2], r[3]).to_euler(glam::EulerRot::ZXY);
+            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::ZYX);
+            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::YXZ);
+            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::YZX);
+
+            // error!("{name} Rotation: {:?}, quat: {r:?}", rotation);
+            let node = SceneNode {
+                position: gltf_to_left_handed_y_up(&translation),
+                rotation: [-rotation.1, -rotation.2, rotation.0],
+                mesh,
+            };
+            let mesh_name = if pi > 0 { format!("{name}.{pi}") } else { name.to_string() };
+
+            nodes_by_name.insert(mesh_name, Arc::new(node));
         }
-
-        debug!("Loaded {} vertices", vertices.len());
-        // println!("Vertices: {:#?}", vertices);
-
-        let mesh = Arc::new(Mesh::try_new(context, vertices)?);
-
-        let (translation, r, _scale) = node.transform().decomposed();
-        // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::XZY);
-        // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::XYZ);
-
-        let rotation =
-            glam::Quat::from_array([r[0], r[1], -r[2], r[3]]).to_euler(glam::EulerRot::XYZ);
-        // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::ZYX);
-        // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::YXZ);
-        // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::YZX);
-
-        error!("{name} Rotation: {:?}, quat: {r:?}", rotation);
-        let node = SceneNode {
-            position: gltf_to_left_handed_y_up(&translation),
-            rotation: rotation.into(),
-            mesh,
-        };
-        nodes_by_name.insert(name.to_string(), Arc::new(node));
     }
 
     Ok(Arc::new(SceneFile { nodes_by_name }))
