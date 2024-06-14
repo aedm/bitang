@@ -1,14 +1,10 @@
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
 use crate::file::material::Material;
-use crate::loader::resource_repository::ResourceRepository;
-use crate::loader::ResourcePath;
 use crate::render;
-use crate::tool::VulkanContext;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Arc;
 use tracing::instrument;
 
 #[derive(Debug, Deserialize)]

@@ -8,7 +8,7 @@ use std::hash::Hash;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio::task::JoinHandle;
-use tracing::{error, warn};
+use tracing::{error};
 
 struct LoadFutureInner<T> {
     id: String,

@@ -1,9 +1,6 @@
-use crate::control::controls::Control;
-use crate::render::material::Material;
 use crate::render::render_object::RenderObject;
 use crate::tool::RenderContext;
 use anyhow::Result;
-use std::rc::Rc;
 
 pub struct Scene {
     pub id: String,

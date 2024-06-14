@@ -1,4 +1,4 @@
-use crate::control::controls::{Control, ControlRepository};
+use crate::control::controls::ControlRepository;
 use crate::file::{chart_file, project_file};
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::file_cache::FileCache;
@@ -10,15 +10,13 @@ use crate::render::chart::Chart;
 use crate::render::image::BitangImage;
 use crate::render::mesh::Mesh;
 use crate::render::project::Project;
-use crate::render::Vertex3;
 use crate::tool::VulkanContext;
-use anyhow::{anyhow, ensure, Context, Result};
-use itertools::Itertools;
+use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,

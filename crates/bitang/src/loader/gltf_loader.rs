@@ -3,24 +3,14 @@ use crate::render::mesh::Mesh;
 use crate::render::Vertex3;
 use crate::tool::VulkanContext;
 use anyhow::{Context, Result};
-use gltf::Gltf;
 use itertools::Itertools;
 use log::warn;
-use std::array;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{debug, error, info, instrument};
 
-struct GltfLoader {}
-
-impl GltfLoader {
-    pub fn from_file(path_buf: PathBuf) -> Self {
-        Self {}
-    }
-}
-
-// glTf is right-handed, y up
+// gltf is right-handed, y up
 fn gltf_to_left_handed_y_up(v: &[f32; 3]) -> [f32; 3] {
     [v[0], v[1], -v[2]]
 }
