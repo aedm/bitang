@@ -6,7 +6,6 @@ use anyhow::{Context, Result};
 use itertools::Itertools;
 use log::warn;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{debug, error, info, instrument};
 

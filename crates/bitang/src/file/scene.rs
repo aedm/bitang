@@ -59,7 +59,7 @@ impl Scene {
                 let rotation = chart_context.control_set_builder.get_vec3(&rotation_id);
                 rotation.set(&[node_rot[0], node_rot[1], node_rot[2], 0.0]);
 
-                let object = render::render_object::RenderObject {
+                render::render_object::RenderObject {
                     id: mesh_id.clone(),
                     mesh: scene_node.mesh.clone(),
                     material: material.clone(),
@@ -68,8 +68,7 @@ impl Scene {
                     instances: chart_context
                         .control_set_builder
                         .get_float_with_default(&instances_id, 1.),
-                };
-                object
+                }
             })
             .collect();
 
