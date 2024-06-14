@@ -32,43 +32,20 @@ pub fn load_mesh_collection(
     resource_name: &str,
 ) -> Result<Arc<SceneFile>> {
     info!("Loading GLTF resource {resource_name}");
-    if resource_name.ends_with("plane_xz_301.glb") {
-        let x = 1;
-        println!("x = {}", x);
-    }
-    // let gltf = Gltf::from_slice(content)?;
-    // debug!(
-    //     "GLTF resource {resource_name} has {} scenes",
-    //     gltf.scenes().count()
-    // );
-
     let (gltf, buffers, _) = gltf::import_slice(content)?;
     let scene = gltf.default_scene().context("No default scene found")?;
-    // for scene in gltf.scenes() {
-    //     for node in scene.nodes() {
-    //         println!(
-    //             "[{resource_name}] Node {:?} (#{}) has {} children",
-    //             node.name(),
-    //             node.index(),
-    //             node.children().count(),
-    //         );
-    //     }
-    // }
-
     let mut nodes_by_name = HashMap::new();
 
     for node in scene.nodes() {
         let Some(name) = node.name() else { continue };
-        let Some(mesh) = node.mesh() else { continue };
-
         debug!("Loading mesh '{name}'");
+
+        let Some(mesh) = node.mesh() else { continue };
 
         let primitives = mesh
             .primitives()
             .filter(|p| p.mode() == gltf::mesh::Mode::Triangles)
             .collect_vec();
-
-        let apply_primitive_index = primitives.len() > 1;
 
         for (pi, primitive) in primitives.into_iter().enumerate() {
             let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
@@ -124,26 +101,29 @@ pub fn load_mesh_collection(
             }
 
             debug!("Loaded {} vertices", vertices.len());
-            // println!("Vertices: {:#?}", vertices);
-
-            let mesh = Arc::new(Mesh::try_new(context, vertices)?);
 
             let (translation, r, _scale) = node.transform().decomposed();
-            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::XZY);
-            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::XYZ);
 
             let rotation =
                 glam::Quat::from_xyzw(r[0], r[1], r[2], r[3]).to_euler(glam::EulerRot::ZXY);
-            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::ZYX);
-            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::YXZ);
-            // let rotation = glam::Quat::from_array(rotation).to_euler(glam::EulerRot::YZX);
 
-            // error!("{name} Rotation: {:?}, quat: {r:?}", rotation);
+            // Bake scaling into vertices
+            for vertex in &mut vertices {
+                vertex.a_position[0] *= _scale[0];
+                vertex.a_position[1] *= _scale[1];
+                vertex.a_position[2] *= _scale[2];
+            }
+
+            let mesh = Arc::new(Mesh::try_new(context, vertices)?);
+
             let node = SceneNode {
                 position: gltf_to_left_handed_y_up(&translation),
                 rotation: [-rotation.1, -rotation.2, rotation.0],
                 mesh,
             };
+
+            error!("{name} Rotation: {:?}, quat: {r:?}", node.rotation);
+
             let mesh_name = if pi > 0 { format!("{name}.{pi}") } else { name.to_string() };
 
             nodes_by_name.insert(mesh_name, Arc::new(node));
@@ -152,74 +132,3 @@ pub fn load_mesh_collection(
 
     Ok(Arc::new(SceneFile { nodes_by_name }))
 }
-
-// fn load_mesh_collection(
-//     context: &Arc<VulkanContext>,
-//     content: &[u8],
-//     _resource_name: &str,
-// ) -> anyhow::Result<Arc<MeshCollection>> {
-//     let now = Instant::now();
-//     let scene = Scene::from_buffer(
-//         content,
-//         vec![
-//             PostProcess::CalculateTangentSpace,
-//             PostProcess::Triangulate,
-//             PostProcess::JoinIdenticalVertices,
-//             PostProcess::SortByPrimitiveType,
-//             PostProcess::FlipUVs,
-//             PostProcess::OptimizeMeshes,
-//         ],
-//         "",
-//     )?;
-//     debug!("Mesh count: {}", scene.meshes.len());
-//     let mut meshes_by_name = HashMap::new();
-//     for mesh in scene.meshes {
-//         let name = mesh.name.clone();
-//         if mesh.vertices.is_empty() {
-//             warn!("No vertices found in mesh '{name}'");
-//             continue;
-//         }
-//         if mesh.normals.is_empty() {
-//             warn!("No normals found in mesh '{name}'");
-//             continue;
-//         }
-//         if mesh.texture_coords.is_empty() {
-//             warn!("No texture coordinates found in mesh '{name}'");
-//             continue;
-//         }
-//         if mesh.tangents.is_empty() {
-//             warn!("No tangents found in mesh '{name}'");
-//             continue;
-//         }
-//         let uvs = mesh.texture_coords[0]
-//             .as_ref()
-//             .context("No texture coordinates found")?;
-//         let mut vertices = vec![];
-//         for (index, face) in mesh.faces.iter().enumerate() {
-//             ensure!(
-//                 face.0.len() == 3,
-//                 "Face {index} in mesh '{name}' has {} vertices, expected 3",
-//                 face.0.len()
-//             );
-//             for i in 0..3 {
-//                 let vertex = Vertex3 {
-//                     a_position: to_vec3_b(&mesh.vertices[face.0[i] as usize]),
-//                     a_normal: to_vec3_b(&mesh.normals[face.0[i] as usize]),
-//                     a_tangent: to_vec3_neg(&mesh.tangents[face.0[i] as usize]),
-//                     a_uv: to_vec2(&uvs[face.0[i] as usize]),
-//                     a_padding: 0.0,
-//                 };
-//                 vertices.push(vertex);
-//             }
-//         }
-//         let mesh = Arc::new(Mesh::try_new(context, vertices)?);
-//         meshes_by_name.insert(name, mesh);
-//     }
-//
-//     info!(
-//         "Meshes loaded: '{}' in {:?}",
-//         meshes_by_name.keys().join(", "),
-//         now.elapsed()
-//     );
-//     Ok(Arc::new(MeshCollection { meshes_by_name }))
-// }
