@@ -17,6 +17,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
+use tracing::{instrument, trace};
 
 /// A context for loading a chart.
 pub struct ChartContext {
@@ -50,6 +51,7 @@ pub struct Chart {
 }
 
 impl Chart {
+    #[instrument(skip(self, context, resource_repository, chart_file_path))]
     pub async fn load(
         &self,
         id: &str,
@@ -57,6 +59,7 @@ impl Chart {
         resource_repository: &Rc<ResourceRepository>,
         chart_file_path: &ResourcePath,
     ) -> Result<Rc<render::chart::Chart>> {
+        trace!("Loading chart {}", id);
         let chart_control_id = ControlId::default().add(ControlIdPartType::Chart, id);
         let control_set_builder = ControlSetBuilder::new(
             chart_control_id.clone(),
@@ -188,12 +191,38 @@ impl ChartStep {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub enum DrawItem {
+    Object(file::object::Object),
+    Scene(file::scene::Scene),
+}
+
+impl DrawItem {
+    pub async fn load(
+        &self,
+        chart_context: &ChartContext,
+        draw_control_id: &ControlId,
+        passes: &[render::pass::Pass],
+    ) -> Result<render::draw::DrawItem> {
+        match self {
+            DrawItem::Object(object) => {
+                let object = object.load(chart_context, draw_control_id, passes).await?;
+                Ok(render::draw::DrawItem::Object(object))
+            }
+            DrawItem::Scene(scene) => {
+                let scene = scene.load(draw_control_id, chart_context, passes).await?;
+                Ok(render::draw::DrawItem::Scene(scene))
+            }
+        }
+    }
+}
+
 /// Represents a draw step in the chart sequence.
 #[derive(Debug, Deserialize)]
 pub struct Draw {
     pub id: String,
     pub passes: Vec<Pass>,
-    pub objects: Vec<Object>,
+    pub items: Vec<DrawItem>,
 }
 
 impl Draw {
@@ -210,11 +239,11 @@ impl Draw {
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
 
-        let object_futures = self
-            .objects
+        let draw_item_futures = self
+            .items
             .iter()
             .map(|object| object.load(chart_context, &draw_control_id, &passes));
-        let objects = join_all(object_futures)
+        let objects = join_all(draw_item_futures)
             .await
             .into_iter()
             .collect::<Result<_>>()?;
@@ -398,57 +427,5 @@ pub struct Buffer {
 impl Buffer {
     pub fn load(&self, context: &Arc<VulkanContext>) -> render::buffer::Buffer {
         render::buffer::Buffer::new(context, self.item_size_in_vec4, self.item_count)
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Object {
-    pub id: String,
-    pub mesh_file: String,
-    pub mesh_name: String,
-    pub material: file::material::Material,
-
-    #[serde(default)]
-    pub control_map: HashMap<String, String>,
-}
-
-impl Object {
-    #[allow(clippy::too_many_arguments)]
-    pub async fn load(
-        &self,
-        chart_context: &ChartContext,
-        parent_id: &ControlId,
-        passes: &[render::pass::Pass],
-    ) -> Result<Rc<crate::render::render_object::RenderObject>> {
-        let object_cid = parent_id.add(ControlIdPartType::Object, &self.id);
-        let mesh_future = chart_context.resource_repository.get_mesh(
-            &chart_context.vulkan_context,
-            &chart_context.path.relative_path(&self.mesh_file),
-            &self.mesh_name,
-        );
-
-        let material_future =
-            self.material
-                .load(chart_context, passes, &self.control_map, &object_cid);
-
-        let position_id = object_cid.add(ControlIdPartType::Value, "position");
-        let rotation_id = object_cid.add(ControlIdPartType::Value, "rotation");
-        let instances_id = object_cid.add(ControlIdPartType::Value, "instances");
-
-        // Wait for resources to be loaded
-        let material = material_future.await?;
-        let mesh = mesh_future.get().await?;
-
-        let object = crate::render::render_object::RenderObject {
-            id: self.id.clone(),
-            mesh,
-            material,
-            position: chart_context.control_set_builder.get_vec3(&position_id),
-            rotation: chart_context.control_set_builder.get_vec3(&rotation_id),
-            instances: chart_context
-                .control_set_builder
-                .get_float_with_default(&instances_id, 1.),
-        };
-        Ok(Rc::new(object))
     }
 }

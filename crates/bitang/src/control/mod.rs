@@ -59,6 +59,7 @@ pub enum ControlIdPartType {
     ChartValues,
     Camera,
     Object,
+    Scene,
     Compute,
     Value,
     BufferGenerator,

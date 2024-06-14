@@ -2,17 +2,18 @@
   <configuration default="false" name="Run bitang (release)" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
     <option name="command" value="run --release --package bitang --bin bitang" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-    <option name="channel" value="DEFAULT" />
-    <option name="requiredFeatures" value="true" />
-    <option name="allFeatures" value="false" />
-    <option name="emulateTerminal" value="false" />
-    <option name="withSudo" value="false" />
-    <option name="buildTarget" value="REMOTE" />
-    <option name="backtrace" value="SHORT" />
     <envs>
       <env name="RUST_BACKTRACE" value="full" />
       <env name="RUSTFLAGS" value="-A dead_code -A unused_variables -A unused_mut -A unused_imports" />
+      <env name="RUST_LOG" value="debug" />
     </envs>
+    <option name="emulateTerminal" value="false" />
+    <option name="channel" value="DEFAULT" />
+    <option name="requiredFeatures" value="true" />
+    <option name="allFeatures" value="false" />
+    <option name="withSudo" value="false" />
+    <option name="buildTarget" value="REMOTE" />
+    <option name="backtrace" value="SHORT" />
     <option name="isRedirectInput" value="false" />
     <option name="redirectInputPath" value="" />
     <method v="2">

@@ -311,6 +311,13 @@ impl Control {
         }
     }
 
+    pub fn set(&self, value: &[f32; 4]) {
+        let mut components = self.components.borrow_mut();
+        for i in 0..4 {
+            components[i].value = value[i];
+        }
+    }
+
     pub fn evaluate_splines(&self, time: f32) {
         let mut components = self.components.borrow_mut();
         for component in components.iter_mut() {

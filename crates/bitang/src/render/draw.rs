@@ -7,13 +7,19 @@ use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
 
+use crate::render::scene::Scene;
 use vulkano::command_buffer::{SubpassBeginInfo, SubpassContents};
+
+pub(crate) enum DrawItem {
+    Object(Rc<RenderObject>),
+    Scene(Rc<Scene>),
+}
 
 /// Represents a draw step in the chart sequence.
 pub struct Draw {
     pub id: String,
     pub passes: Vec<Pass>,
-    pub objects: Vec<Rc<RenderObject>>,
+    pub items: Vec<DrawItem>,
     pub light_dir: Rc<Control>,
     pub shadow_map_size: Rc<Control>,
 }
@@ -22,22 +28,25 @@ impl Draw {
     pub fn new(
         id: &str,
         passes: Vec<Pass>,
-        objects: Vec<Rc<RenderObject>>,
+        items: Vec<DrawItem>,
         light_dir: Rc<Control>,
         shadow_map_size: Rc<Control>,
     ) -> Result<Draw> {
         Ok(Draw {
             id: id.to_string(),
             passes,
-            objects,
+            items,
             light_dir,
             shadow_map_size,
         })
     }
 
-    fn render_objects(&self, context: &mut RenderContext, pass_index: usize) -> Result<()> {
-        for object in &self.objects {
-            object.render(context, pass_index)?;
+    fn render_items(&self, context: &mut RenderContext, pass_index: usize) -> Result<()> {
+        for object in &self.items {
+            match object {
+                DrawItem::Object(object) => object.render(context, pass_index)?,
+                DrawItem::Scene(scene) => scene.render(context, pass_index)?,
+            }
         }
         Ok(())
     }
@@ -94,7 +103,7 @@ impl Draw {
                 .set_viewport(0, [viewport].into_iter().collect())?;
 
             // Don't fail early, we must end the render pass
-            let result = self.render_objects(context, pass_index);
+            let result = self.render_items(context, pass_index);
             context
                 .command_builder
                 .end_render_pass(Default::default())?;
