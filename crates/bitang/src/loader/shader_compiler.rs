@@ -11,7 +11,6 @@ use spirq::var::Variable;
 use spirq::ReflectConfig;
 use std::cell::RefCell;
 use std::mem::size_of;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{debug, info, instrument, trace};
