@@ -29,7 +29,7 @@ impl Scene {
         let mesh_collection_future = tokio::spawn({
             let mesh_cache = chart_context.resource_repository.mesh_cache.clone();
             let vulkan_context = chart_context.vulkan_context.clone();
-            let path = chart_context.path.relative_path(&self.file);
+            let path = chart_context.path.relative_path(&self.file)?;
             async move { mesh_cache.load(&vulkan_context, &path).await }
         });
 

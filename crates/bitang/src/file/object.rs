@@ -27,7 +27,7 @@ impl Object {
         let object_cid = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
             &chart_context.vulkan_context,
-            &chart_context.path.relative_path(&self.mesh_file),
+            &chart_context.path.relative_path(&self.mesh_file)?,
             &self.mesh_name,
         );
 

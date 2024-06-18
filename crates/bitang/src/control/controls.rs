@@ -1,7 +1,7 @@
 use crate::control::spline::Spline;
 use crate::control::ControlIdPartType::Chart;
 use crate::control::{ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
-use crate::loader::{CHARTS_FOLDER, ROOT_FOLDER};
+use crate::loader::CHARTS_FOLDER;
 use crate::render::project::Project;
 use ahash::AHashSet;
 use anyhow::Context;
@@ -12,6 +12,7 @@ use glam::{Mat4, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
+use std::path::Path;
 use std::rc::Rc;
 use std::{array, mem, slice};
 use strum::EnumString;
@@ -191,10 +192,11 @@ impl ControlRepository {
 
     pub fn save_control_files(&self, project: &Project) -> Result<()> {
         for chart in project.charts_by_id.values() {
-            let path = format!(
-                "{ROOT_FOLDER}/{CHARTS_FOLDER}/{}/{CONTROLS_FILE_NAME}",
-                chart.id
-            );
+            let path = project
+                .root_path
+                .join(CHARTS_FOLDER)
+                .join(&chart.id)
+                .join(CONTROLS_FILE_NAME);
             let controls = self
                 .by_id
                 .iter()
@@ -204,27 +206,27 @@ impl ControlRepository {
             let serialized = SerializedControls { controls };
             let ron = ron::ser::to_string_pretty(&serialized, ron::ser::PrettyConfig::default())?;
             std::fs::write(&path, ron)
-                .with_context(|| format!("Failed to write controls to '{path}'."))?;
-            debug!("Saved controls to '{path}'.");
+                .with_context(|| format!("Failed to write controls to {path:?}."))?;
+            debug!("Saved controls to {path:?}.");
         }
         Ok(())
     }
 
     #[instrument]
-    pub fn load_control_files() -> Result<Self> {
+    pub fn load_control_files(root_path: &Path) -> Result<Self> {
         let by_id = DashMap::new();
-        let path = format!("{ROOT_FOLDER}/{CHARTS_FOLDER}/");
+        let path = root_path.join(CHARTS_FOLDER);
         for entry in std::fs::read_dir(path)? {
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
                 let chart_id = path.file_name().unwrap().to_str().unwrap();
-                let controls_path = format!(
-                    "{ROOT_FOLDER}/{CHARTS_FOLDER}/{}/{CONTROLS_FILE_NAME}",
-                    chart_id
-                );
+                let controls_path = root_path
+                    .join(CHARTS_FOLDER)
+                    .join(chart_id)
+                    .join(CONTROLS_FILE_NAME);
                 if let Ok(ron) = std::fs::read_to_string(&controls_path) {
-                    info!("Loading '{controls_path}'.");
+                    info!("Loading {controls_path:?}.");
                     let deserialized: DeserializedControls = ron::de::from_str(&ron)?;
                     for mut control in deserialized.controls {
                         control.id.parts.insert(
@@ -237,7 +239,7 @@ impl ControlRepository {
                         by_id.insert(control.id.clone(), Rc::new(control));
                     }
                 } else {
-                    warn!("No controls file found at '{controls_path}'.");
+                    warn!("No controls file found at {controls_path:?}.");
                 }
             }
         }

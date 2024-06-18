@@ -4,8 +4,9 @@ use crate::loader::async_cache::LoadFuture;
 use crate::loader::file_cache::FileCache;
 use crate::loader::gltf_loader::load_mesh_collection;
 use crate::loader::resource_cache::ResourceCache;
-use crate::loader::shader_loader::ShaderCache;
-use crate::loader::{ResourcePath, CHARTS_FOLDER, CHART_FILE_NAME, PROJECT_FILE_NAME};
+use crate::loader::resource_path::ResourcePath;
+use crate::loader::shader_cache::ShaderCache;
+use crate::loader::{CHARTS_FOLDER, CHART_FILE_NAME, PROJECT_FILE_NAME};
 use crate::render::chart::Chart;
 use crate::render::image::BitangImage;
 use crate::render::mesh::Mesh;
@@ -13,6 +14,7 @@ use crate::render::project::Project;
 use crate::tool::VulkanContext;
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -37,7 +39,8 @@ pub struct SceneFile {
 }
 
 pub struct ResourceRepository {
-    file_hash_cache: Arc<FileCache>,
+    pub root_path: Arc<PathBuf>,
+    file_cache: Arc<FileCache>,
     texture_cache: Arc<ResourceCache<BitangImage>>,
     pub mesh_cache: Arc<ResourceCache<SceneFile>>,
     chart_file_cache: Arc<ResourceCache<chart_file::Chart>>,
@@ -47,15 +50,16 @@ pub struct ResourceRepository {
 }
 
 impl ResourceRepository {
-    pub fn try_new(file_hash_cache: Arc<FileCache>) -> Result<Self> {
-        let control_repository = ControlRepository::load_control_files()?;
+    pub fn try_new(file_cache: Arc<FileCache>) -> Result<Self> {
+        let control_repository = ControlRepository::load_control_files(&file_cache.root_path)?;
         Ok(Self {
-            texture_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_texture)),
-            mesh_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_mesh_collection)),
-            shader_cache: ShaderCache::new(&file_hash_cache),
-            chart_file_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_chart_file)),
-            project_file_cache: Arc::new(ResourceCache::new(&file_hash_cache, load_project_file)),
-            file_hash_cache,
+            root_path: file_cache.root_path.clone(),
+            texture_cache: Arc::new(ResourceCache::new(&file_cache, load_texture)),
+            mesh_cache: Arc::new(ResourceCache::new(&file_cache, load_mesh_collection)),
+            shader_cache: ShaderCache::new(&file_cache),
+            chart_file_cache: Arc::new(ResourceCache::new(&file_cache, load_chart_file)),
+            project_file_cache: Arc::new(ResourceCache::new(&file_cache, load_project_file)),
+            file_cache,
             control_repository: Rc::new(control_repository),
         })
     }
@@ -69,7 +73,7 @@ impl ResourceRepository {
     }
 
     pub fn start_load_cycle(&self, changed_files: Option<&Vec<ResourcePath>>) {
-        self.file_hash_cache.start_load_cycle();
+        self.file_cache.start_load_cycle();
         self.texture_cache.start_load_cycle();
         self.mesh_cache.start_load_cycle();
         self.chart_file_cache.start_load_cycle();
@@ -102,15 +106,13 @@ impl ResourceRepository {
         let selector = selector.to_string();
         let loader = async move {
             let co = mesh_cache.load(&context, &path_clone).await?;
-            let node = co.nodes_by_name.get(&selector).cloned().with_context(|| {
-                anyhow!(
-                    "Could not find mesh '{selector}' in '{}'",
-                    path_clone.to_string()
-                )
-            })?;
+            let node =
+                co.nodes_by_name.get(&selector).cloned().with_context(|| {
+                    anyhow!("Could not find mesh '{selector}' in '{path_clone:?}'")
+                })?;
             Ok(Arc::clone(&node.mesh))
         };
-        LoadFuture::new(format!("mesh:{path}"), loader)
+        LoadFuture::new(format!("mesh:{path:?}"), loader)
     }
 
     #[instrument(skip(self, context))]
@@ -119,7 +121,8 @@ impl ResourceRepository {
         id: &str,
         context: &Arc<VulkanContext>,
     ) -> Result<Rc<Chart>> {
-        let path = ResourcePath::new(&format!("{CHARTS_FOLDER}/{id}"), CHART_FILE_NAME);
+        let subdirectory = [CHARTS_FOLDER, id].iter().collect::<PathBuf>();
+        let path = ResourcePath::new(&self.root_path, subdirectory, CHART_FILE_NAME);
         let chart = self.chart_file_cache.load(context, &path).await?;
         chart
             .load(id, context, self, &path)
@@ -128,7 +131,7 @@ impl ResourceRepository {
     }
 
     pub async fn load_project(self: &Rc<Self>, context: &Arc<VulkanContext>) -> Result<Project> {
-        let path = ResourcePath::new("", PROJECT_FILE_NAME);
+        let path = ResourcePath::new(&self.root_path, PathBuf::new(), PROJECT_FILE_NAME);
         let project = self.project_file_cache.load(context, &path).await?;
         project.load(context, self).await
     }

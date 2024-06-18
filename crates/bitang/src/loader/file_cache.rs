@@ -1,5 +1,6 @@
 use crate::loader::async_cache::AsyncCache;
-use crate::loader::{compute_hash, ResourcePath};
+use crate::loader::compute_hash;
+use crate::loader::resource_path::ResourcePath;
 use ahash::AHashSet;
 use anyhow::{bail, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
@@ -24,6 +25,9 @@ pub struct FileCacheEntry {
 }
 
 pub struct FileCache {
+    /// Every cached file is somewhere under the root path
+    pub root_path: Arc<PathBuf>,
+
     /// Stores the content of files
     cache: AsyncCache<PathBuf, FileCacheEntry>,
 
@@ -32,18 +36,15 @@ pub struct FileCache {
 
     /// True if we encountered a missing file during loading
     pub has_missing_files: AtomicBool,
-
-    /// The app's working directory
-    current_dir: PathBuf,
 }
 
 impl FileCache {
-    pub fn new() -> Self {
+    pub fn new(root_path: &Arc<PathBuf>) -> Self {
         Self {
+            root_path: Arc::clone(root_path),
             cache: AsyncCache::new(),
             paths_accessed_in_loading_cycle: Mutex::new(AHashSet::new()),
             has_missing_files: AtomicBool::new(false),
-            current_dir: env::current_dir().unwrap(),
         }
     }
 
@@ -52,23 +53,22 @@ impl FileCache {
     }
 
     pub async fn get(&self, path: &ResourcePath) -> Result<Arc<FileCacheEntry>> {
-        let path_string = path.to_string();
-        let absolute_path = self.to_absolute_path(&path_string);
-
+        let absolute_path = path.absolute_path();
         {
             let mut load_cycle_paths = self.paths_accessed_in_loading_cycle.lock().await;
             load_cycle_paths.insert(absolute_path.clone());
         }
 
+        let path = path.clone();
         let value = self
             .cache
             .get(
                 format!("file:{:?}", absolute_path),
                 absolute_path.clone(),
                 async move {
-                    debug!("Reading file: '{path_string}'");
-                    let Ok(content) = tokio::fs::read(absolute_path).await else {
-                        bail!("Failed to read file: '{path_string}'");
+                    debug!("Reading file: {path:?}");
+                    let Ok(content) = tokio::fs::read(&absolute_path).await else {
+                        bail!("Failed to read file: {path:?}");
                     };
                     let file_cache_entry = spawn_blocking(move || FileCacheEntry {
                         hash: compute_hash(&content),
@@ -84,34 +84,24 @@ impl FileCache {
         }
         value
     }
-
-    fn to_absolute_path(&self, path: &str) -> PathBuf {
-        let path = std::path::Path::new(path);
-        if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            self.current_dir.join(path)
-        }
-    }
 }
 
 /// Takes care of file change events
-pub struct FileManager {
+pub struct FileChangeHandler {
     pub file_cache: Arc<FileCache>,
     file_change_events: Receiver<Result<notify::Event, notify::Error>>,
-
     watched_paths: AHashSet<PathBuf>,
 
     // Listening for file changes
     file_watcher: RecommendedWatcher,
 }
 
-impl FileManager {
-    pub fn new() -> Self {
+impl FileChangeHandler {
+    pub fn new(file_cache: &Arc<FileCache>) -> Self {
         let (sender, receiver) = std::sync::mpsc::channel();
         let watcher = notify::recommended_watcher(sender).unwrap();
         Self {
-            file_cache: Arc::new(FileCache::new()),
+            file_cache: Arc::clone(file_cache),
             file_change_events: receiver,
             file_watcher: watcher,
             watched_paths: AHashSet::new(),
@@ -136,13 +126,8 @@ impl FileManager {
                     for path in event.paths {
                         trace!("File change detected: {:?}", path);
                         self.file_cache.cache.remove(&path);
-                        // File path relative to the app's working directory
-                        let relative_path =
-                            path.strip_prefix(&self.file_cache.current_dir).unwrap();
-
-                        // Hack, canonicalize path delimiters
-                        let path_canon = relative_path.to_str().unwrap().replace('\\', "/");
-                        let resource_path = ResourcePath::from_str(&path_canon).unwrap();
+                        let resource_path =
+                            ResourcePath::from_pathbuf(&self.file_cache.root_path, &path).unwrap();
                         changed_paths.push(resource_path);
                     }
                 }

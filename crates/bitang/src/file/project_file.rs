@@ -53,6 +53,10 @@ impl Project {
                 offset: cut.offset,
             })
             .collect();
-        Ok(render::project::Project::new(charts_by_id, cuts))
+        Ok(render::project::Project::new(
+            &resource_repository.root_path,
+            charts_by_id,
+            cuts,
+        ))
     }
 }
