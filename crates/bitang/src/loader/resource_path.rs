@@ -25,7 +25,7 @@ impl ResourcePath {
         }
     }
 
-    pub fn from_pathbuf(root_path: &Arc<PathBuf>, path: &PathBuf) -> anyhow::Result<Self> {
+    pub fn from_pathbuf(root_path: &Arc<PathBuf>, path: &Path) -> anyhow::Result<Self> {
         let relative_path = path.strip_prefix(root_path.as_path())?;
         let subdirectory = relative_path
             .parent()
@@ -82,7 +82,7 @@ impl ResourcePath {
         let absolute_path = self.absolute_path();
         if let Ok(pwd) = std::env::current_dir() {
             if let Ok(relative_path) = absolute_path.strip_prefix(&pwd) {
-                return format!(".\\{}", relative_path.to_string_lossy().to_string());
+                return format!(".\\{}", relative_path.to_string_lossy());
             }
         }
         absolute_path.to_string_lossy().to_string()
