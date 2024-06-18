@@ -25,7 +25,7 @@ impl AppConfig {
         }
     }
 
-    pub fn save(&self) -> Result<()> {
+    pub fn _save(&self) -> Result<()> {
         let config_str = ron::ser::to_string_pretty(&self, Default::default())?;
         std::fs::write(APP_CONFIG_FILE, config_str)?;
         Ok(())
