@@ -1,4 +1,3 @@
-use crate::loader::ROOT_FOLDER;
 use anyhow::{bail, Context, Result};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;
@@ -15,6 +14,7 @@ struct MusicDevice {
 pub struct MusicPlayer {
     device: Option<MusicDevice>,
     is_playing: bool,
+    music_file_path: Option<String>,
 }
 
 impl MusicPlayer {
@@ -24,6 +24,7 @@ impl MusicPlayer {
             return Self {
                 device: None,
                 is_playing: false,
+                music_file_path: None,
             };
         };
         let sink = Sink::try_new(&stream_handle).unwrap();
@@ -35,7 +36,12 @@ impl MusicPlayer {
                 _stream: stream,
             }),
             is_playing: false,
+            music_file_path: None,
         }
+    }
+
+    pub fn set_root_path(&mut self, root_path: &str) {
+        self.music_file_path = Self::find_music_file(root_path).ok();
     }
 
     pub fn play_from(&mut self, time: f32) {
@@ -46,11 +52,11 @@ impl MusicPlayer {
             info!("Music can't be played from negative time");
             return;
         }
-        let Ok(path) = Self::find_music_file() else {
+        let Some(path) = &self.music_file_path else {
             info!("Music file not found");
             return;
         };
-        let Ok(file) = File::open(&path) else {
+        let Ok(file) = File::open(path) else {
             info!("Music file '{path}' not found");
             return;
         };
@@ -74,9 +80,9 @@ impl MusicPlayer {
         }
     }
 
-    fn find_music_file() -> Result<String> {
-        let entries = std::fs::read_dir(ROOT_FOLDER)
-            .with_context(|| format!("Failed to read directory: {ROOT_FOLDER}"))?;
+    fn find_music_file(root_path: &str) -> Result<String> {
+        let entries = std::fs::read_dir(root_path)
+            .with_context(|| format!("Failed to read directory: {root_path}"))?;
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() {
@@ -88,6 +94,6 @@ impl MusicPlayer {
                 }
             }
         }
-        bail!("No music file found in {ROOT_FOLDER}")
+        bail!("No music file found in '{root_path}'")
     }
 }

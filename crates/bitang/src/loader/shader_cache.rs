@@ -1,7 +1,7 @@
 use crate::loader::async_cache::AsyncCache;
 use crate::loader::file_cache::{ContentHash, FileCache};
+use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
-use crate::loader::ResourcePath;
 use crate::render::shader::ShaderKind;
 use crate::tool::VulkanContext;
 use anyhow::{Context, Result};
@@ -165,7 +165,7 @@ impl ShaderCache {
                 )
             })
             .await
-            .with_context(|| format!("Shader compiler crashed for '{source_path}'"))??
+            .with_context(|| format!("Shader compiler crashed for {source_path:?}"))??
         };
 
         // Update cache

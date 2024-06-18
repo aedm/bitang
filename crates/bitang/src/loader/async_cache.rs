@@ -8,10 +8,10 @@ use std::hash::Hash;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio::task::JoinHandle;
-use tracing::{error};
+use tracing::error;
 
 struct LoadFutureInner<T> {
-    id: String,
+    label: String,
     value: Option<Arc<Result<Arc<T>>>>,
     handle: Option<JoinHandle<Result<Arc<T>>>>,
 }
@@ -46,13 +46,12 @@ impl<T> Hash for LoadFuture<T> {
 impl<T: Send + Sync + 'static> LoadFuture<T> {
     /// Executes the future and returns a LoadFuture that resolves to the result.
     pub fn new<F: Future<Output = Result<Arc<T>>> + Send + 'static>(
-        id: impl Into<String>,
+        label: impl Into<String>,
         func: F,
     ) -> Self {
-        let id = id.into();
         let join_handle = tokio::spawn(func);
         let inner = Arc::new(Mutex::new(LoadFutureInner {
-            id,
+            label: label.into(),
             value: None,
             handle: Some(join_handle),
         }));
@@ -60,10 +59,9 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
     }
 
     /// Creates a LoadFuture that is already resolved to the given value.
-    pub fn new_from_value(id: impl Into<String>, value: Arc<T>) -> Self {
-        let id = id.into();
+    pub fn new_from_value(label: impl Into<String>, value: Arc<T>) -> Self {
         let inner = Arc::new(Mutex::new(LoadFutureInner {
-            id,
+            label: label.into(),
             value: Some(Arc::new(Ok(value))),
             handle: None,
         }));
@@ -101,7 +99,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         match inner.value.as_ref().unwrap().as_ref() {
             Ok(_) => {}
             Err(err) => {
-                error!("id: '{}' {err:?}", inner.id);
+                error!("label:'{}' {err:?}", inner.label);
             }
         }
     }
@@ -125,7 +123,7 @@ impl<Key: Hash + Eq + Clone + Debug, Value: Send + Sync + 'static> AsyncCache<Ke
     /// Returns a shareable future for a particular cache key. Executes the loader if not cached.
     pub fn load<F: Future<Output = Result<Arc<Value>>> + Send + 'static>(
         &self,
-        id: impl Into<String>,
+        label: impl Into<String>,
         key: Key,
         loader: F,
     ) -> LoadFuture<Value> {
@@ -133,7 +131,7 @@ impl<Key: Hash + Eq + Clone + Debug, Value: Send + Sync + 'static> AsyncCache<Ke
             Occupied(entry) => entry.get().clone(),
             Vacant(entry) => {
                 let _key = entry.key();
-                let loading = LoadFuture::new(id.into(), loader);
+                let loading = LoadFuture::new(label.into(), loader);
                 entry.insert(loading.clone());
                 loading
             }
@@ -145,11 +143,11 @@ impl<Key: Hash + Eq + Clone + Debug, Value: Send + Sync + 'static> AsyncCache<Ke
     /// Returns the value for a particular cache key. Loads it if not cached.
     pub async fn get<F: Future<Output = Result<Arc<Value>>> + Send + 'static>(
         &self,
-        id: impl Into<String>,
+        label: impl Into<String>,
         key: Key,
         loader: F,
     ) -> Result<Arc<Value>> {
-        let future = self.load(id, key, loader);
+        let future = self.load(label, key, loader);
         future.get().await
     }
 

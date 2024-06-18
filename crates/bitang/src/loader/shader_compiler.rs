@@ -1,6 +1,6 @@
 use crate::control::controls::GlobalType;
 use crate::loader::file_cache::{ContentHash, FileCache};
-use crate::loader::ResourcePath;
+use crate::loader::resource_path::ResourcePath;
 use crate::render::shader::GlobalUniformMapping;
 use crate::tool::VulkanContext;
 use anyhow::{bail, ensure, Context, Result};
@@ -72,7 +72,13 @@ impl ShaderCompilation {
             options.set_include_callback(include_callback);
             options.set_generate_debug_info();
             compiler
-                .compile_into_spirv(source, kind, &path.to_string(), "main", Some(&options))
+                .compile_into_spirv(
+                    source,
+                    kind,
+                    &path.to_pwd_relative_path(),
+                    "main",
+                    Some(&options),
+                )
                 .with_context(|| format!("Failed to compile shader {:?}", path))?
         };
         info!("compiled in {:?}.", now.elapsed());
@@ -97,8 +103,12 @@ impl ShaderCompilation {
         trace!(
             "#include '{include_name}' ({include_type:?}) from '{source_name}' (depth: {depth})",
         );
-        let source_path = ResourcePath::from_str(source_name).map_err(|err| err.to_string())?;
-        let include_path = source_path.relative_path(include_name);
+        let source_path =
+            ResourcePath::from_pwd_relative_path(&file_hash_cache.root_path, source_name)
+                .map_err(|err| err.to_string())?;
+        let include_path = source_path
+            .relative_path(include_name)
+            .map_err(|err| err.to_string())?;
         let included_source_u8 = tokio::runtime::Handle::current()
             .block_on(async {
                 // x
@@ -113,7 +123,7 @@ impl ShaderCompilation {
         let content = String::from_utf8(included_source_u8.content.clone())
             .map_err(|err| format!("Shader source file is not UTF-8: '{include_name:?}': {err}"))?;
         Ok(shaderc::ResolvedInclude {
-            resolved_name: include_path.to_string(),
+            resolved_name: include_path.to_pwd_relative_path(),
             content,
         })
     }

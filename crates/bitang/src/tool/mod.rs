@@ -1,3 +1,4 @@
+mod app_config;
 mod app_state;
 pub mod content_renderer;
 mod music_player;

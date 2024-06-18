@@ -76,7 +76,7 @@ impl ShaderContext {
                     match &sampler.bind {
                         SamplerSource::File(texture_path) => resource_repository.get_texture(
                             &chart_context.vulkan_context,
-                            &chart_context.path.relative_path(texture_path),
+                            &chart_context.path.relative_path(texture_path)?,
                         ),
                         SamplerSource::Image(id) => chart_context
                             .image_futures_by_id
@@ -143,7 +143,7 @@ impl ShaderContext {
             .shader_cache
             .get(
                 chart_context.vulkan_context.clone(),
-                chart_context.path.relative_path(source_path),
+                chart_context.path.relative_path(source_path)?,
                 kind,
             )
             .await?;

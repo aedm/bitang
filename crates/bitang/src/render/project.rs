@@ -1,8 +1,11 @@
 use crate::render::chart::Chart;
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct Project {
+    pub root_path: Arc<PathBuf>,
     pub charts_by_id: HashMap<String, Rc<Chart>>,
     pub charts: Vec<Rc<Chart>>,
     pub cuts: Vec<Cut>,
@@ -17,7 +20,11 @@ pub struct Cut {
 }
 
 impl Project {
-    pub fn new(charts_by_id: HashMap<String, Rc<Chart>>, cuts: Vec<Cut>) -> Self {
+    pub fn new(
+        root_path: &Arc<PathBuf>,
+        charts_by_id: HashMap<String, Rc<Chart>>,
+        cuts: Vec<Cut>,
+    ) -> Self {
         let mut charts = vec![];
         let mut charts_inserted = HashSet::new();
         for cut in &cuts {
@@ -33,6 +40,7 @@ impl Project {
             .unwrap_or(1.0);
 
         Self {
+            root_path: Arc::clone(root_path),
             charts_by_id,
             charts,
             cuts,

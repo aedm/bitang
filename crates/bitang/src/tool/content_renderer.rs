@@ -1,6 +1,7 @@
 use crate::loader::project_loader::ProjectLoader;
 use crate::render::chart::Chart;
 use crate::render::SIMULATION_STEP_SECONDS;
+use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
 use crate::tool::{RenderContext, VulkanContext};
@@ -24,9 +25,12 @@ pub struct ContentRenderer {
 
 impl ContentRenderer {
     pub fn new(context: &Arc<VulkanContext>) -> Result<ContentRenderer> {
-        let music_player = MusicPlayer::new();
+        let mut music_player = MusicPlayer::new();
 
-        let mut project_loader = ProjectLoader::try_new()?;
+        let app_config = AppConfig::load()?;
+        music_player.set_root_path(&app_config.root_folder);
+
+        let mut project_loader = ProjectLoader::try_new(&app_config.root_folder)?;
         let project = project_loader.get_or_load_project(context);
         let has_render_failure = project.is_none();
 

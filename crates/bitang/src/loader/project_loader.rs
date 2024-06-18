@@ -1,8 +1,9 @@
-use crate::loader::file_cache::FileManager;
+use crate::loader::file_cache::{FileCache, FileChangeHandler};
 use crate::loader::resource_repository::ResourceRepository;
 use crate::render::project::Project;
 use crate::tool::VulkanContext;
-use anyhow::Result;
+use anyhow::{ensure, Result};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -13,24 +14,29 @@ const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Manages the load and reload cycles of the project.
 pub struct ProjectLoader {
+    pub root_path: Arc<PathBuf>,
     pub resource_repository: Rc<ResourceRepository>,
     cached_root: Option<Rc<Project>>,
     last_load_time: Instant,
-    file_loader: FileManager,
+    file_change_handler: FileChangeHandler,
     async_runtime: tokio::runtime::Runtime,
 }
 
 impl ProjectLoader {
-    pub fn try_new() -> Result<Self> {
-        let file_loader = FileManager::new();
+    pub fn try_new(root_path: &str) -> Result<Self> {
+        let pwd = std::env::current_dir()?;
+        let root_path = Arc::new(pwd.join(PathBuf::from(root_path)));
+        ensure!(root_path.exists());
+
+        let file_cache = Arc::new(FileCache::new(&root_path));
+        let file_change_handler = FileChangeHandler::new(&file_cache);
         let async_runtime = tokio::runtime::Runtime::new()?;
         Ok(Self {
-            resource_repository: Rc::new(ResourceRepository::try_new(
-                file_loader.file_cache.clone(),
-            )?),
+            root_path,
+            resource_repository: Rc::new(ResourceRepository::try_new(Arc::clone(&file_cache))?),
             cached_root: None,
             last_load_time: Instant::now() - LOAD_RETRY_INTERVAL,
-            file_loader,
+            file_change_handler,
             async_runtime,
         })
     }
@@ -38,16 +44,16 @@ impl ProjectLoader {
     fn run_project_loader(&mut self, context: &Arc<VulkanContext>) -> Result<Project> {
         self.async_runtime.block_on(async {
             let result = self.resource_repository.load_project(context).await;
-            self.file_loader.update_watchers().await;
+            self.file_change_handler.update_watchers().await;
             result
         })
     }
 
     #[instrument(skip_all, name = "load")]
     pub fn get_or_load_project(&mut self, context: &Arc<VulkanContext>) -> Option<Rc<Project>> {
-        let changed_files = self.file_loader.handle_file_changes();
+        let changed_files = self.file_change_handler.handle_file_changes();
         let needs_retry = self.cached_root.is_none()
-            && self.file_loader.has_missing_files()
+            && self.file_change_handler.has_missing_files()
             && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL;
         if changed_files.is_some() || needs_retry {
             let now = Instant::now();

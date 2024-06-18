@@ -1,6 +1,6 @@
 use crate::loader::async_cache::{AsyncCache, LoadFuture};
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
-use crate::loader::ResourcePath;
+use crate::loader::resource_path::ResourcePath;
 use crate::tool::VulkanContext;
 use anyhow::Result;
 use std::sync::Arc;
@@ -38,18 +38,14 @@ impl<T: Send + Sync> ResourceCache<T> {
                 let FileCacheEntry { hash: _, content } = cache_entry.as_ref();
                 let now = std::time::Instant::now();
                 let resource = loader_func(&context, content, &path_clone.file_name)?;
-                trace!(
-                    "Loading {} took {:?}",
-                    &path_clone.to_string(),
-                    now.elapsed()
-                );
+                trace!("Loading {path_clone:?} took {:?}", now.elapsed());
                 Ok(resource)
             };
             // Run the loader function in a blocking thread pool.
             spawn_blocking(sync_loader).await?
         };
         self.resource_cache
-            .get(format!("path:{}", path), hash, async_loader)
+            .get(format!("path:{path:?}"), hash, async_loader)
             .await
     }
 
@@ -61,7 +57,7 @@ impl<T: Send + Sync> ResourceCache<T> {
         let self_clone = self.clone();
         let context = context.clone();
         let path = path.clone();
-        LoadFuture::new(format!("resource:{path}"), async move {
+        LoadFuture::new(format!("resource:{path:?}"), async move {
             self_clone.load(&context, &path).await
         })
     }
