@@ -7,6 +7,7 @@ use itertools::Itertools;
 use log::warn;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tracing::{debug, error, info, instrument};
 
 // gltf is right-handed, y up
@@ -18,9 +19,11 @@ fn gltf_to_left_handed_y_up(v: &[f32; 3]) -> [f32; 3] {
 pub fn load_mesh_collection(
     context: &Arc<VulkanContext>,
     content: &[u8],
-    resource_name: &str,
+    path: &str,
 ) -> Result<Arc<SceneFile>> {
-    info!("Loading GLTF resource {resource_name}");
+    info!("Loading mesh collection");
+    let now = Instant::now();
+
     let (gltf, buffers, _) = gltf::import_slice(content)?;
     let scene = gltf.default_scene().context("No default scene found")?;
     let mut nodes_by_name = HashMap::new();
@@ -111,13 +114,12 @@ pub fn load_mesh_collection(
                 mesh,
             };
 
-            error!("{name} Rotation: {:?}, quat: {r:?}", node.rotation);
-
             let mesh_name = if pi > 0 { format!("{name}.{pi}") } else { name.to_string() };
 
             nodes_by_name.insert(mesh_name, Arc::new(node));
         }
     }
+    info!("Load time {:?}", now.elapsed());
 
     Ok(Arc::new(SceneFile { nodes_by_name }))
 }

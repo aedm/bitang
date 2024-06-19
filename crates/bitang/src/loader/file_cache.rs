@@ -53,7 +53,7 @@ impl FileCache {
     }
 
     pub async fn get(&self, path: &ResourcePath) -> Result<Arc<FileCacheEntry>> {
-        let absolute_path = path.absolute_path();
+        let absolute_path = path.absolute_path()?;
         {
             let mut load_cycle_paths = self.paths_accessed_in_loading_cycle.lock().await;
             load_cycle_paths.insert(absolute_path.clone());
