@@ -3,6 +3,7 @@ use crate::loader::resource_repository::ResourceRepository;
 use crate::render::project::Project;
 use crate::tool::VulkanContext;
 use anyhow::{ensure, Result};
+use dunce::canonicalize;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -25,7 +26,7 @@ pub struct ProjectLoader {
 impl ProjectLoader {
     pub fn try_new(root_path: &str) -> Result<Self> {
         let pwd = std::env::current_dir()?;
-        let root_path = Arc::new(pwd.join(PathBuf::from(root_path)));
+        let root_path = Arc::new(canonicalize(pwd.join(PathBuf::from(root_path)))?);
         ensure!(root_path.exists());
 
         let file_cache = Arc::new(FileCache::new(&root_path));
@@ -62,7 +63,7 @@ impl ProjectLoader {
             match self.run_project_loader(context) {
                 Ok(project) => {
                     info!("Project length: {} seconds", project.length);
-                    info!("Loading took {:?}", now.elapsed());
+                    info!("Load time {:?}", now.elapsed());
                     self.cached_root = Some(Rc::new(project));
                 }
                 Err(err) => {

@@ -75,7 +75,7 @@ impl ShaderCompilation {
                 .compile_into_spirv(
                     source,
                     kind,
-                    &path.to_pwd_relative_path(),
+                    &path.to_pwd_relative_path()?,
                     "main",
                     Some(&options),
                 )
@@ -122,8 +122,11 @@ impl ShaderCompilation {
         });
         let content = String::from_utf8(included_source_u8.content.clone())
             .map_err(|err| format!("Shader source file is not UTF-8: '{include_name:?}': {err}"))?;
+        let resolved_name = include_path
+            .to_pwd_relative_path()
+            .map_err(|err| err.to_string())?;
         Ok(shaderc::ResolvedInclude {
-            resolved_name: include_path.to_pwd_relative_path(),
+            resolved_name,
             content,
         })
     }

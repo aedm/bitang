@@ -38,6 +38,7 @@ notify = "5.1.0"
 image = { version = "0.24.8", default-features = false, features = ["jpeg", "png"] }
 ron = "0.8"
 gltf = "1.4.0"
+dunce = "1.0.4"
 
 rodio = { version = "0.17.3", default-features = false, features = ["mp3"] }
 build-time = "0.1.3"

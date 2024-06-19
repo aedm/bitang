@@ -1,4 +1,6 @@
-use anyhow::bail;
+use anyhow::{anyhow, Result};
+use anyhow::{bail, Context};
+use dunce::canonicalize;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -78,14 +80,18 @@ impl ResourcePath {
     /// Returns the path relative to the present working directory.
     /// The purpose is to log the path in a way that is recognizable by the user and the IDE.
     /// If the file is not in the present working directory, the path is absolute.
-    pub fn to_pwd_relative_path(&self) -> String {
-        let absolute_path = self.absolute_path();
-        if let Ok(pwd) = std::env::current_dir() {
-            if let Ok(relative_path) = absolute_path.strip_prefix(&pwd) {
-                return format!(".\\{}", relative_path.to_string_lossy());
-            }
-        }
-        absolute_path.to_string_lossy().to_string()
+    pub fn to_pwd_relative_path(&self) -> Result<String> {
+        let absolute_path = self.absolute_path()?;
+        let pwd = std::env::current_dir()?;
+        let path = if let Ok(relative_path) = absolute_path.strip_prefix(&pwd) {
+            relative_path
+        } else {
+            &absolute_path
+        };
+        Ok(path
+            .to_str()
+            .with_context(|| format!("Failed to convert path to string: {:?}", path))?
+            .to_string())
     }
 
     /// Makes a ResourcePath from path string relative to the present working directory,
@@ -111,15 +117,36 @@ impl ResourcePath {
         })
     }
 
-    pub fn absolute_path(&self) -> PathBuf {
-        self.root_path
-            .join(&self.subdirectory)
-            .join(&self.file_name)
+    pub fn absolute_path(&self) -> Result<PathBuf> {
+        canonicalize(
+            self.root_path
+                .join(&self.subdirectory)
+                .join(&self.file_name),
+        )
+        .map_err(|e| {
+            anyhow!(
+                "Failed to get absolute path for '{:?}/{:?}/{:?}': {}",
+                self.root_path,
+                self.subdirectory,
+                self.file_name,
+                e
+            )
+        })
     }
 }
 
 impl fmt::Debug for ResourcePath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_pwd_relative_path())
+        if let Ok(relative_path) = self.to_pwd_relative_path() {
+            write!(f, "{}", relative_path)
+        } else if let Ok(absolute_path) = self.absolute_path() {
+            write!(f, "{}", absolute_path.to_string_lossy())
+        } else {
+            let path = self
+                .root_path
+                .join(&self.subdirectory)
+                .join(&self.file_name);
+            write!(f, "{path:?}")
+        }
     }
 }
