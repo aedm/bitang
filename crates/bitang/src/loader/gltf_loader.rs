@@ -8,7 +8,7 @@ use log::warn;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 // gltf is right-handed, y up
 fn gltf_to_left_handed_y_up(v: &[f32; 3]) -> [f32; 3] {
