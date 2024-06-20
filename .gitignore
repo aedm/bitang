@@ -4,3 +4,5 @@ target
 app
 app_old
 framedump*
+config.ron
+demo-*
