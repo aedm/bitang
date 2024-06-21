@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 const APP_CONFIG_FILE: &str = "config.ron";
 
 fn default_root_folder() -> String {
-    "app".to_string()
+    "demo".to_string()
 }
 
 #[derive(Debug, Deserialize, Serialize)]

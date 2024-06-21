@@ -1,0 +1,10 @@
+Project (
+    cuts: [
+        Cut (
+            chart: "sample-chart-1",
+            offset: 0,
+            start_time: 0,
+            end_time: 60,
+        ),
+   ],
+)
