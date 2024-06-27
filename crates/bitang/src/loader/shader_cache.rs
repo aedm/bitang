@@ -73,11 +73,12 @@ impl ShaderCache {
         context: Arc<VulkanContext>,
         source_path: ResourcePath,
         kind: ShaderKind,
+        macros: Vec<(String, String)>,
     ) -> Result<Arc<ShaderArtifact>> {
         let key = ShaderCacheKey {
             source_path: source_path.clone(),
             kind,
-            macros: vec![],
+            macros,
         };
 
         let shader_tree_root = self

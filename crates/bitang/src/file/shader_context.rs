@@ -135,9 +135,18 @@ impl ShaderContext {
         &self,
         chart_context: &ChartContext,
         kind: ShaderKind,
-        // shader_compilation_result: &ShaderArtifact,
         source_path: &str,
     ) -> Result<Shader> {
+        let mut macros = vec![];
+
+        // Add sampler macros
+        for (sampler_name, _) in &self.sampler_futures {
+            macros.push((
+                format!("HAS_SAMPLER_{}", sampler_name.to_uppercase()),
+                "1".to_string(),
+            ));
+        }
+
         let shader_artifact = chart_context
             .resource_repository
             .shader_cache
@@ -145,6 +154,7 @@ impl ShaderContext {
                 chart_context.vulkan_context.clone(),
                 chart_context.path.relative_path(source_path)?,
                 kind,
+                macros,
             )
             .await?;
 
