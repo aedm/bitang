@@ -8,7 +8,7 @@ use crate::render::shader::{
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
-use tracing::{debug, instrument};
+use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 pub enum BufferSource {
