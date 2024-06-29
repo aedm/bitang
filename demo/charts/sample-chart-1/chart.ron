@@ -73,10 +73,10 @@ Chart(
                             ),
                         },
                         samplers: {
-                            // "noise": Sampler(
-                            //     bind: File("/noiseTexture.png"),
-                            //     address_mode: MirroredRepeat,
-                            // ),
+                            "noise": Sampler(
+                                bind: File("/noiseTexture.png"),
+                                address_mode: MirroredRepeat,
+                            ),
                         },
                     ),
                 ),

@@ -148,7 +148,6 @@ impl ShaderContext {
                 "1".to_string(),
             ));
         }
-        debug!("macros: {:?}", macros);
 
         let shader_artifact = chart_context
             .resource_repository
