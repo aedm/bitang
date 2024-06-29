@@ -73,40 +73,13 @@ Chart(
                             ),
                         },
                         samplers: {
-                            "noise": Sampler(
-                                bind: File("/noiseTexture.png"),
-                                address_mode: MirroredRepeat,
-                            ),
+                            // "noise": Sampler(
+                            //     bind: File("/noiseTexture.png"),
+                            //     address_mode: MirroredRepeat,
+                            // ),
                         },
                     ),
                 ),
-                // Object(
-                //     id: "cube",
-                //     mesh_file: "/cube.glb",
-                //     mesh_name: "Cube",
-                //     material: Material(
-                //         passes: {
-                //             "shadow": MaterialPass(
-                //                 vertex_shader: "vs.glsl",
-                //                 fragment_shader: "fs-noop.glsl",
-                //                 depth_test: true,
-                //                 depth_write: true,
-                //             ),
-                //             "solid": MaterialPass(
-                //                 vertex_shader: "vs.glsl",
-                //                 fragment_shader: "fs.glsl",
-                //                 depth_test: true,
-                //                 depth_write: true,
-                //             ),
-                //         },
-                //         samplers: {
-                //             "shadow": Sampler(
-                //                 bind: Image("shadow"),
-                //                 address_mode: ClampToEdge,
-                //             ),
-                //         },
-                //     ),
-                // ),
                 Scene(
                     id: "sample scene",
                     // file: "archiviz.glb",

@@ -22,4 +22,8 @@ void main() {
     col = pow(col, args2.rgb);
 
     f_color = vec4(col, 1);
+    
+    #ifdef HAS_SAMPLER_NOISE
+        f_color = vec4(1, 0, 1, 1);
+    #endif
 }

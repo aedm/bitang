@@ -78,7 +78,7 @@ impl ShaderCache {
         let key = ShaderCacheKey {
             source_path: source_path.clone(),
             kind,
-            macros,
+            macros: macros.clone(),
         };
 
         let shader_tree_root = self
@@ -103,6 +103,7 @@ impl ShaderCache {
                 source_path,
                 kind,
                 shader_tree_root,
+                macros,
             )
         };
         self.load_cycle_shader_cache
@@ -124,6 +125,7 @@ impl ShaderCache {
         source_path: ResourcePath,
         kind: ShaderKind,
         shader_tree_root: Arc<ShaderTreeNode>,
+        macros: Vec<(String, String)>,
     ) -> Result<Arc<ShaderArtifact>> {
         // Find the shader in the cache tree
         let mut node = shader_tree_root.clone();
@@ -163,6 +165,7 @@ impl ShaderCache {
                     &source_path_clone,
                     shaderc_kind,
                     file_hash_cache,
+                    &macros,
                 )
             })
             .await

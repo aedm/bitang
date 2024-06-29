@@ -8,6 +8,7 @@ use crate::render::shader::{
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
+use tracing::{debug, instrument};
 
 #[derive(Debug, Deserialize)]
 pub enum BufferSource {
@@ -131,6 +132,7 @@ impl ShaderContext {
         })
     }
 
+    #[instrument(skip(self, chart_context))]
     pub async fn make_shader(
         &self,
         chart_context: &ChartContext,
@@ -146,6 +148,7 @@ impl ShaderContext {
                 "1".to_string(),
             ));
         }
+        debug!("macros: {:?}", macros);
 
         let shader_artifact = chart_context
             .resource_repository

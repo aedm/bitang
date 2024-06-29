@@ -37,6 +37,7 @@ impl ShaderCompilation {
         path: &ResourcePath,
         kind: shaderc::ShaderKind,
         file_hash_cache: Arc<FileCache>,
+        macros: &[(String, String)],
     ) -> Result<Self> {
         let now = std::time::Instant::now();
 
@@ -71,6 +72,12 @@ impl ShaderCompilation {
             // options.set_optimization_level(shaderc::OptimizationLevel::Performance);
             options.set_include_callback(include_callback);
             options.set_generate_debug_info();
+
+            // Set macros
+            for (key, value) in macros {
+                options.add_macro_definition(key, Some(value))
+            }
+
             compiler
                 .compile_into_spirv(
                     source,
