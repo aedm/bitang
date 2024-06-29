@@ -144,7 +144,7 @@ impl ShaderContext {
         // Add sampler macros
         for (sampler_name, _) in &self.sampler_futures {
             macros.push((
-                format!("HAS_SAMPLER_{}", sampler_name.to_uppercase()),
+                format!("IMAGE_BOUND_TO_SAMPLER_{}", sampler_name.to_uppercase()),
                 "1".to_string(),
             ));
         }

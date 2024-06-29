@@ -23,7 +23,7 @@ void main() {
 
     f_color = vec4(col, 1);
     
-    #ifdef HAS_SAMPLER_NOISE
+    #if IMAGE_BOUND_TO_SAMPLER_NOISE
         f_color = vec4(1, 0, 1, 1);
     #endif
 }
