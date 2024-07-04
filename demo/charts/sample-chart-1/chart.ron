@@ -40,8 +40,48 @@ Chart(
             format: Rgba16F,
             size: CanvasRelative(0.125),
         ),
+        // Image(
+        //     id: "env",
+        //     path: "./env.jpg",
+        //     mipmaps: true,
+        // ),
     ],
     simulation_precalculation_time: 0,
+    // init: [
+    //     Draw(
+    //         id: "generate_env_mipmap_xyz",
+    //         run: EachMipLevel("texture")
+    //         passes: [
+    //             Pass(
+    //                 id: "solid",
+    //                 color_images: [CurrentMipLevel],
+    //             )
+    //         ],
+    //         items: [
+    //             Object(
+    //                 id: "quad",
+    //                 mesh_file: "plane_xz.glb",
+    //                 mesh_name: "Plane",
+    //                 material: Material(
+    //                     passes: {
+    //                         "solid": MaterialPass(
+    //                             vertex_shader: "/shaders/fullscreen_quad.vs.glsl",
+    //                             fragment_shader: "/shaders/mipmap/generate_envmap_mip.fs.glsl",
+    //                             depth_test: false,
+    //                             depth_write: false,
+    //                         ),
+    //                     },
+    //                     samplers: {
+    //                         "color_texture": Sampler(
+    //                             bind: PreviousMipLevel,
+    //                             address_mode: Repeat,
+    //                         ),
+    //                     },
+    //                 ),
+    //             ),
+    //         ],
+    //     ),
+    // ],
     steps: [
         Draw(
             id: "pass1",
@@ -77,12 +117,15 @@ Chart(
                                 bind: File("/noiseTexture.png"),
                                 address_mode: MirroredRepeat,
                             ),
+                            "env": Sampler(
+                                bind: File("marienplatz-2k-low.jpg"),
+                                address_mode: MirroredRepeat,
+                            ),
                         },
                     ),
                 ),
                 Scene(
                     id: "sample scene",
-                    // file: "archiviz.glb",
                     file: "demo-default.glb",
                     material: Material(
                         passes: {
@@ -107,37 +150,6 @@ Chart(
                         },
                     ),
                 ),
-                // Object(
-                //     id: "blendy",
-                //     mesh_file: "/archiviz.glb",
-                //     mesh_name: "Chair_Thonet",
-                //     material: Material(
-                //         passes: {
-                //             "shadow": MaterialPass(
-                //                 vertex_shader: "vs.glsl",
-                //                 fragment_shader: "fs-noop.glsl",
-                //                 depth_test: true,
-                //                 depth_write: true,
-                //             ),
-                //             "solid": MaterialPass(
-                //                 vertex_shader: "vs.glsl",
-                //                 fragment_shader: "fs.glsl",
-                //                 depth_test: true,
-                //                 depth_write: true,
-                //             ),
-                //         },
-                //         samplers: {
-                //             "shadow": Sampler(
-                //                 bind: Image("shadow"),
-                //                 address_mode: ClampToEdge,
-                //             ),
-                //         },
-                //     ),
-                //     control_map: {
-                //         "shadow_bias": "shadow_bias",
-                //         "ambient": "ambient",
-                //     }
-                // ),
             ],
         ),
         // DoF

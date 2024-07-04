@@ -57,7 +57,6 @@ impl ResourcePath {
                 .iter()
                 .collect::<PathBuf>()
         } else {
-            println!("Relative path: {:?}", components[0]);
             self.subdirectory.join(
                 components[0..components.len() - 1]
                     .iter()
