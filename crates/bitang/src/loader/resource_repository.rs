@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, BlitImageInfo, CommandBufferUsage, CopyBufferToImageInfo, ImageBlit,
@@ -27,8 +27,8 @@ use vulkano::command_buffer::{
 use vulkano::format::Format;
 use vulkano::image::sampler::Filter;
 use vulkano::image::{
-    max_mip_levels, mip_level_extent, Image, ImageAspect, ImageLayout, ImageSubresourceLayers,
-    ImageTiling, ImageType, ImageUsage,
+    max_mip_levels, mip_level_extent, Image, ImageLayout, ImageSubresourceLayers, ImageTiling,
+    ImageType, ImageUsage,
 };
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 
@@ -194,7 +194,6 @@ fn load_texture(
         image.clone(),
     ))?;
 
-    let mut mip_size = dimensions;
     for mip_level in 1..mip_levels {
         cbb.blit_image(BlitImageInfo {
             src_image_layout: ImageLayout::General,
@@ -221,7 +220,6 @@ fn load_texture(
             filter: Filter::Linear,
             ..BlitImageInfo::images(Arc::clone(&image), Arc::clone(&image))
         })?;
-        // mip_size = next_mip_size;
     }
 
     let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
