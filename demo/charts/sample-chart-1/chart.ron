@@ -113,10 +113,6 @@ Chart(
                             ),
                         },
                         samplers: {
-                            "noise": Sampler(
-                                bind: File("/noiseTexture.png"),
-                                address_mode: MirroredRepeat,
-                            ),
                             "env": Sampler(
                                 bind: File("marienplatz-2k-low.jpg"),
                                 address_mode: MirroredRepeat,
