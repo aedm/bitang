@@ -21,11 +21,15 @@ use std::time::Instant;
 use tracing::{info, instrument, warn};
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
+    AutoCommandBufferBuilder, BlitImageInfo, CommandBufferUsage, CopyBufferToImageInfo, ImageBlit,
     PrimaryCommandBufferAbstract,
 };
 use vulkano::format::Format;
-use vulkano::image::{Image, ImageType, ImageUsage};
+use vulkano::image::sampler::Filter;
+use vulkano::image::{
+    max_mip_levels, mip_level_extent, Image, ImageLayout, ImageSubresourceLayers, ImageTiling,
+    ImageType, ImageUsage,
+};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 
 pub struct SceneNode {
@@ -154,15 +158,17 @@ fn load_texture(
         CommandBufferUsage::OneTimeSubmit,
     )?;
 
+    let mip_levels = max_mip_levels(dimensions);
+
     let image = Image::new(
         context.memory_allocator.clone(),
         vulkano::image::ImageCreateInfo {
             image_type: ImageType::Dim2d,
             format: Format::R8G8B8A8_UNORM,
             extent: dimensions,
-            usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
-            // TODO: generate mipmaps
-            mip_levels: 1,
+            usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC,
+            mip_levels,
+            tiling: ImageTiling::Optimal,
             ..Default::default()
         },
         AllocationCreateInfo::default(),
@@ -181,14 +187,40 @@ fn load_texture(
             ..Default::default()
         },
         rgba.into_raw(),
-    )
-    .unwrap();
+    )?;
 
     cbb.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
         upload_buffer,
         image.clone(),
-    ))
-    .unwrap();
+    ))?;
+
+    for mip_level in 1..mip_levels {
+        cbb.blit_image(BlitImageInfo {
+            src_image_layout: ImageLayout::General,
+            dst_image_layout: ImageLayout::General,
+            regions: [ImageBlit {
+                src_subresource: ImageSubresourceLayers {
+                    aspects: image.format().aspects(),
+                    mip_level: mip_level - 1,
+                    array_layers: 0..image.array_layers(),
+                },
+                dst_subresource: ImageSubresourceLayers {
+                    aspects: image.format().aspects(),
+                    mip_level: mip_level,
+                    array_layers: 0..image.array_layers(),
+                },
+                src_offsets: [
+                    [0, 0, 0],
+                    mip_level_extent(dimensions, mip_level - 1).unwrap(),
+                ],
+                dst_offsets: [[0, 0, 0], mip_level_extent(dimensions, mip_level).unwrap()],
+                ..Default::default()
+            }]
+            .into(),
+            filter: Filter::Linear,
+            ..BlitImageInfo::images(Arc::clone(&image), Arc::clone(&image))
+        })?;
+    }
 
     let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
 
