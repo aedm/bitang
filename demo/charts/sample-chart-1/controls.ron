@@ -1,287 +1,7 @@
 (
     controls: [
         (
-            id: "[(ChartStep,\"gaussian-horizontal\"),(Object,\"gaussian-horizontal\"),(Value,\"do_clamp\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"instances\")]",
-            components: ((
-                value: 1.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"half1\"),(Object,\"quad\"),(Value,\"rotation\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"half2\"),(Value,\"shadow_map_size\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"rotation\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: -0.41,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Cube\"),(Value,\"position\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: -0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(Camera,\"camera\"),(Value,\"shake\")]",
-            components: ((
-                value: 4.02,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 3.3,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 8.2,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.42,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(Camera,\"camera\"),(Value,\"time_adjustment\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"half1\"),(Value,\"light_dir\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"position\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"gaussian-vertical\"),(Object,\"gaussian-vertical\"),(Value,\"do_clamp\")]",
+            id: "[(ChartStep,\"half2\"),(Object,\"quad\"),(Value,\"position\")]",
             components: ((
                 value: 0.0,
                 spline: (
@@ -337,175 +57,119 @@
             )),
         ),
         (
+            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"focus_scale\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"normal_factor\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(Camera,\"camera\"),(Value,\"time_adjustment\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"shadow_bias\")]",
+            components: ((
+                value: 1.95,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
             id: "[(ChartStep,\"half1\"),(Object,\"quad\"),(Value,\"position\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"gaussian-vertical\"),(Object,\"gaussian-vertical\"),(Value,\"position\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"gaussian-vertical\"),(Value,\"shadow_map_size\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Suzanne\"),(Value,\"instances\")]",
-            components: ((
-                value: 1.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"dof\"),(Value,\"shadow_map_size\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"instances\")]",
-            components: ((
-                value: 1.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"scale\")]",
             components: ((
                 value: 0.0,
                 spline: (
@@ -561,315 +225,7 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"rotation\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"gaussian-vertical\"),(Value,\"light_dir\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Value,\"light_dir\")]",
-            components: ((
-                value: 0.13,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.61,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: -0.35,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"dof\"),(Value,\"light_dir\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(Camera,\"camera\"),(Value,\"target\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.6,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
             id: "[(ChartStep,\"gaussian-horizontal\"),(Object,\"gaussian-horizontal\"),(Value,\"rotation\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"focus_distance\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Suzanne\"),(Value,\"rotation\")]",
-            components: ((
-                value: 0.20346797,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: -1.3798441,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.5240659,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"gaussian-horizontal\"),(Value,\"light_dir\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"half1\"),(Value,\"shadow_map_size\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"half2\"),(Object,\"quad\"),(Value,\"instances\")]",
-            components: ((
-                value: 1.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"half2\"),(Object,\"quad\"),(Value,\"rotation\")]",
             components: ((
                 value: 0.0,
                 spline: (
@@ -925,6 +281,62 @@
             )),
         ),
         (
+            id: "[(ChartStep,\"pass1\"),(Value,\"light_dir\")]",
+            components: ((
+                value: 0.13,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.61,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: -0.35,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Cube\"),(Value,\"instances\")]",
+            components: ((
+                value: 1.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
             id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"color\")]",
             components: ((
                 value: 1.0,
@@ -953,7 +365,147 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"gaussian-horizontal\"),(Object,\"gaussian-horizontal\"),(Value,\"position\")]",
+            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"specular_color\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-vertical\"),(Object,\"gaussian-vertical\"),(Value,\"rotation\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Cube\"),(Value,\"position\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: -0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"dof\"),(Value,\"shadow_map_size\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"half1\"),(Object,\"quad\"),(Value,\"rotation\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"position\")]",
             components: ((
                 value: 0.0,
                 spline: (
@@ -1009,9 +561,93 @@
             )),
         ),
         (
-            id: "[(Camera,\"camera\"),(Value,\"speed\")]",
+            id: "[(ChartStep,\"half2\"),(Object,\"quad\"),(Value,\"rotation\")]",
             components: ((
-                value: 0.06,
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"dof\"),(Value,\"light_dir\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"half2\"),(Value,\"shadow_map_size\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-vertical\"),(Object,\"gaussian-vertical\"),(Value,\"position\")]",
+            components: ((
+                value: 0.0,
                 spline: (
                     points: [],
                 ),
@@ -1065,7 +701,7 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"gaussian-vertical\"),(Object,\"gaussian-vertical\"),(Value,\"rotation\")]",
+            id: "[(ChartStep,\"half1\"),(Value,\"light_dir\")]",
             components: ((
                 value: 0.0,
                 spline: (
@@ -1093,7 +729,7 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"position\")]",
+            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"focus_distance\")]",
             components: ((
                 value: 0.0,
                 spline: (
@@ -1121,7 +757,7 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"gaussian-horizontal\"),(Object,\"gaussian-horizontal\"),(Value,\"instances\")]",
+            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"instances\")]",
             components: ((
                 value: 1.0,
                 spline: (
@@ -1149,15 +785,15 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"col2\")]",
+            id: "[(ChartStep,\"gaussian-horizontal\"),(Value,\"shadow_map_size\")]",
             components: ((
-                value: 0.58,
+                value: 0.0,
                 spline: (
                     points: [],
                 ),
                 use_spline: false,
             ), (
-                value: 0.05,
+                value: 0.0,
                 spline: (
                     points: [],
                 ),
@@ -1177,37 +813,65 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"half1\"),(Object,\"quad\"),(Value,\"instances\")]",
+            id: "[(Camera,\"camera\"),(Value,\"shake\")]",
+            components: ((
+                value: 4.02,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 3.3,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 8.2,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.42,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-horizontal\"),(Value,\"light_dir\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"half2\"),(Object,\"quad\"),(Value,\"instances\")]",
             components: ((
                 value: 1.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"shadow_bias\")]",
-            components: ((
-                value: 1.95,
                 spline: (
                     points: [],
                 ),
@@ -1234,174 +898,6 @@
         ),
         (
             id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"ambient\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"half2\"),(Object,\"quad\"),(Value,\"position\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"gaussian-vertical\"),(Object,\"gaussian-vertical\"),(Value,\"instances\")]",
-            components: ((
-                value: 1.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"normal_factor\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Cube\"),(Value,\"instances\")]",
-            components: ((
-                value: 1.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"col1\")]",
-            components: ((
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.13,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.23,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            ), (
-                value: 0.0,
-                spline: (
-                    points: [],
-                ),
-                use_spline: false,
-            )),
-        ),
-        (
-            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"focus_scale\")]",
             components: ((
                 value: 0.0,
                 spline: (
@@ -1457,7 +953,119 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"specular_color\")]",
+            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Cube\"),(Value,\"rotation\")]",
+            components: ((
+                value: -0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: -0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"half1\"),(Object,\"quad\"),(Value,\"instances\")]",
+            components: ((
+                value: 1.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-vertical\"),(Object,\"gaussian-vertical\"),(Value,\"instances\")]",
+            components: ((
+                value: 1.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"instances\")]",
+            components: ((
+                value: 1.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"position\")]",
             components: ((
                 value: 0.0,
                 spline: (
@@ -1485,7 +1093,287 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"gaussian-horizontal\"),(Value,\"shadow_map_size\")]",
+            id: "[(ChartStep,\"dof\"),(Object,\"quad\"),(Value,\"rotation\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"col1\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.13,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.23,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-vertical\"),(Value,\"shadow_map_size\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Value,\"scale\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-horizontal\"),(Object,\"gaussian-horizontal\"),(Value,\"position\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"rotation\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: -0.41,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Suzanne\"),(Value,\"rotation\")]",
+            components: ((
+                value: 0.20346797,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: -1.3798441,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.5240659,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(Camera,\"camera\"),(Value,\"target\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.6,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"half1\"),(Value,\"shadow_map_size\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-horizontal\"),(Object,\"gaussian-horizontal\"),(Value,\"do_clamp\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-vertical\"),(Value,\"light_dir\")]",
             components: ((
                 value: 0.0,
                 spline: (
@@ -1515,13 +1403,13 @@
         (
             id: "[(Camera,\"camera\"),(Value,\"orientation\")]",
             components: ((
-                value: -0.56,
+                value: -0.58,
                 spline: (
                     points: [],
                 ),
                 use_spline: false,
             ), (
-                value: 1.65,
+                value: 7.86,
                 spline: (
                     points: [],
                 ),
@@ -1541,9 +1429,9 @@
             )),
         ),
         (
-            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Cube\"),(Value,\"rotation\")]",
+            id: "[(Camera,\"camera\"),(Value,\"speed\")]",
             components: ((
-                value: -0.0,
+                value: 0.06,
                 spline: (
                     points: [],
                 ),
@@ -1555,7 +1443,35 @@
                 ),
                 use_spline: false,
             ), (
-                value: -0.0,
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-horizontal\"),(Object,\"gaussian-horizontal\"),(Value,\"instances\")]",
+            components: ((
+                value: 1.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
                 spline: (
                     points: [],
                 ),
@@ -1584,6 +1500,90 @@
                 use_spline: false,
             ), (
                 value: -0.34557915,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"gaussian-vertical\"),(Object,\"gaussian-vertical\"),(Value,\"do_clamp\")]",
+            components: ((
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Object,\"backdrop\"),(Value,\"col2\")]",
+            components: ((
+                value: 0.58,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.05,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            )),
+        ),
+        (
+            id: "[(ChartStep,\"pass1\"),(Scene,\"sample scene\"),(Object,\"Suzanne\"),(Value,\"instances\")]",
+            components: ((
+                value: 1.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
+                spline: (
+                    points: [],
+                ),
+                use_spline: false,
+            ), (
+                value: 0.0,
                 spline: (
                     points: [],
                 ),

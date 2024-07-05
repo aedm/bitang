@@ -33,7 +33,10 @@ layout (set = 1, binding = 0) uniform Uniforms {
     vec3 specular_color;
 };
 
+layout (set = 1, binding = 1) uniform sampler2D envmap;
 layout (set = 1, binding = 2) uniform sampler2D shadow;
+
+#include "common.glsl"
 
 const float DISTANCE_MAX = 100;
 const float SURFACE_PROXIMITY = 0.0001;
@@ -56,25 +59,18 @@ vec3 light_pixel(vec3 pos, vec3 normal, float ambient_occlusion, float ambient, 
     vec2 reflect_uv = reflect_dir.xy * 0.5 + 0.5;
     vec3 env_color = vec3(1);//texture(env_map, reflect_uv).rgb;
 
+    vec2 env_uv = direction_wn_to_spherical_envmap_uv(normal);
+    //    vec3 envmap_color = textureLod(env, env_uv, 9.0).rgb;
+    vec3 envmap_color = sample_environment_map(normal, 8.0).rgb;
+
     // Light components
     vec3 light_dir = normalize(g_light_dir);
     float diffuse = max(dot(normal, light_dir), 0) * light;
     float specular = max(pow(dot(normal, light_dir), 5.0), 0.00) * (light + 0.1);
 
-    vec3 final_color = base_color * v_color * (ambient + (1-ambient) * diffuse) + specular * env_color * specular_color;
+    vec3 final_color = base_color * envmap_color * (ambient + (1-ambient) * diffuse) + specular * env_color * specular_color;
 
     return final_color;
-}
-
-
-// https://iquilezles.org/articles/normalsSDF
-vec3 calc_sdf_normal(vec3 pos_cs) {
-    vec2 e = vec2(1.0, -1.0)*0.5773;
-    const float eps = 0.0005;
-    return normalize(e.xyy*sd(pos_cs + e.xyy*eps) +
-    e.yyx*sd(pos_cs + e.yyx*eps) +
-    e.yxy*sd(pos_cs + e.yxy*eps) +
-    e.xxx*sd(pos_cs + e.xxx*eps));
 }
 
 void main() {

@@ -113,8 +113,9 @@ Chart(
                             ),
                         },
                         samplers: {
-                            "env": Sampler(
+                            "envmap": Sampler(
                                 bind: File("marienplatz-2k-low.jpg"),
+                                // bind: File("IMG_0908_Panorama_sphere.jpg"),
                                 address_mode: MirroredRepeat,
                             ),
                         },
@@ -142,6 +143,11 @@ Chart(
                             "shadow": Sampler(
                                 bind: Image("shadow"),
                                 address_mode: ClampToEdge,
+                            ),
+                            "envmap": Sampler(
+                                bind: File("marienplatz-2k-low.jpg"),
+                                // bind: File("IMG_0908_Panorama_sphere.jpg"),
+                                address_mode: MirroredRepeat,
                             ),
                         },
                     ),
