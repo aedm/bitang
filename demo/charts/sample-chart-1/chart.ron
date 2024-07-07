@@ -116,7 +116,7 @@ Chart(
                             "envmap": Sampler(
                                 bind: File("marienplatz-2k-low.jpg"),
                                 // bind: File("IMG_0908_Panorama_sphere.jpg"),
-                                address_mode: MirroredRepeat,
+                                address_mode: Envmap,
                             ),
                         },
                     ),
@@ -147,7 +147,7 @@ Chart(
                             "envmap": Sampler(
                                 bind: File("marienplatz-2k-low.jpg"),
                                 // bind: File("IMG_0908_Panorama_sphere.jpg"),
-                                address_mode: MirroredRepeat,
+                                address_mode: Envmap,
                             ),
                         },
                     ),
