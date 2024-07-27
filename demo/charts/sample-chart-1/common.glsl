@@ -17,4 +17,8 @@ vec4 sample_environment_map(vec3 direction_wn, float bias) {
     vec2 uv = direction_wn_to_spherical_envmap_uv(direction_wn);
     return textureLod(envmap, uv, bias);
 }
+vec4 sample_environment_map2(vec3 direction_wn, float bias, sampler2D envmap) {
+    vec2 uv = direction_wn_to_spherical_envmap_uv(direction_wn);
+    return textureLod(envmap, uv, bias);
+}
 #endif

@@ -59,9 +59,7 @@ vec3 light_pixel(vec3 pos, vec3 normal, float ambient_occlusion, float ambient, 
     vec2 reflect_uv = reflect_dir.xy * 0.5 + 0.5;
     vec3 env_color = vec3(1);//texture(env_map, reflect_uv).rgb;
 
-    vec2 env_uv = direction_wn_to_spherical_envmap_uv(normal);
-    //    vec3 envmap_color = textureLod(env, env_uv, 9.0).rgb;
-    vec3 envmap_color = sample_environment_map(normal, 8.0).rgb;
+    vec3 envmap_color = sample_environment_map2(normal, 8.0, envmap).rgb;
 
     // Light components
     vec3 light_dir = normalize(g_light_dir);

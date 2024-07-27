@@ -175,8 +175,8 @@ impl ShaderArtifact {
         // Extract metadata from SPIRV
         let entry_points = ReflectConfig::new()
             .spv(spirv_binary)
-            .ref_all_rscs(false)
-            .combine_img_samplers(true)
+            .ref_all_rscs(true)
+            .combine_img_samplers(false)
             .gen_unique_names(false)
             .reflect()?;
         let entry_point = entry_points
