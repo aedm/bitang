@@ -3,6 +3,7 @@ use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::render::shader::GlobalUniformMapping;
 use crate::tool::VulkanContext;
+use ahash::AHashSet;
 use anyhow::{bail, ensure, Context, Result};
 use shaderc::{IncludeCallbackResult, IncludeType};
 use spirq::ty::ScalarType::Float;
@@ -13,7 +14,7 @@ use std::cell::RefCell;
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, instrument, trace, Instrument};
 use vulkano::shader;
 use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
 
@@ -176,7 +177,7 @@ impl ShaderArtifact {
         let entry_points = ReflectConfig::new()
             .spv(spirv_binary)
             .ref_all_rscs(true)
-            .combine_img_samplers(false)
+            .combine_img_samplers(true)
             .gen_unique_names(false)
             .reflect()?;
         let entry_point = entry_points
@@ -198,6 +199,17 @@ impl ShaderArtifact {
             shaderc::ShaderKind::Compute => 0,
             _ => panic!("Unsupported shader kind"),
         };
+
+        // Collect the actually used bindings. Spirq doesn't always get us the same results
+        // as Vulkano's pipeline layout, so we need to filter out the unused bindings.
+        let used_bindings = &module
+            .single_entry_point()
+            .context("Failed to get entry point")?
+            .info()
+            .descriptor_binding_requirements
+            .keys()
+            .map(|(_set, binding)| *binding)
+            .collect::<AHashSet<_>>();
 
         let mut samplers = Vec::new();
         let mut buffers = Vec::new();
@@ -223,6 +235,10 @@ impl ShaderArtifact {
                         )
                     );
                     let binding = desc_bind.bind();
+                    if !used_bindings.contains(&binding) {
+                        debug!("Skipping binding {} not in requirements", binding);
+                        continue;
+                    }
                     match desc_ty {
                         DescriptorType::CombinedImageSampler() => {
                             samplers.push(NamedResourceBinding {

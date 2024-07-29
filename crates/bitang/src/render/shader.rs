@@ -8,6 +8,7 @@ use smallvec::SmallVec;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
+use tracing::Instrument;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
