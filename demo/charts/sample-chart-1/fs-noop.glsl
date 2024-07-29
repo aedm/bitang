@@ -1,7 +1,5 @@
 #version 450
 
-//#include "common2.glsl"
-
 layout (location = 0) in vec2 v_uv;
 layout (location = 1) in vec3 v_normal;
 layout (location = 2) in vec3 v_model_pos;

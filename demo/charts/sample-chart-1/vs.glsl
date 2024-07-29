@@ -1,6 +1,6 @@
 #version 450
 
-#include "common2.glsl"
+#include "/shaders/math.glsl"
 
 layout (location = 0) in vec3 a_position;
 layout (location = 1) in vec3 a_normal;
@@ -41,8 +41,8 @@ void main() {
     vec3 move = vec3(0);
 
     vec3 rot = vec3(0, g_app_time * 0.0, 0);
-    mat4 tr_mat = translate(move);
-    mat4 rot_mat = rotate(rot);
+    mat4 tr_mat = translate_matrix(move);
+    mat4 rot_mat = rotate_xyz_matrix(rot);
 
     vec3 pos = a_position;
     vec4 new_pos = tr_mat * rot_mat * vec4(pos, 1.0);

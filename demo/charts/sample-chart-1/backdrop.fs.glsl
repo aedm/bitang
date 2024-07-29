@@ -15,13 +15,13 @@ layout (set = 1, binding = 0) uniform Uniforms {
     vec3 col2;
 };
 
-#include "common.glsl"
+#include "/shaders/common.glsl"
 
 void main() {
 
     #if IMAGE_BOUND_TO_SAMPLER_ENVMAP
     {
-        vec4 c = sample_environment_map(normalize(v_ray_direction), 0.0);
+        vec4 c = sample_environment_map(normalize(v_ray_direction), 0.0, envmap);
         f_color = vec4(c.rgb, 1 );
     }
     #else

@@ -1,6 +1,6 @@
 #version 450
 
-#include "common2.glsl"
+#include "/shaders/common.glsl"
 
 layout (location = 0) in vec2 v_uv;
 layout (location = 1) in vec3 v_normal;
@@ -36,7 +36,6 @@ layout (set = 1, binding = 0) uniform Uniforms {
 layout (set = 1, binding = 1) uniform sampler2D envmap;
 layout (set = 1, binding = 2) uniform sampler2D shadow;
 
-#include "common.glsl"
 
 const float DISTANCE_MAX = 100;
 const float SURFACE_PROXIMITY = 0.0001;
@@ -59,7 +58,7 @@ vec3 light_pixel(vec3 pos, vec3 normal, float ambient_occlusion, float ambient, 
     vec2 reflect_uv = reflect_dir.xy * 0.5 + 0.5;
     vec3 env_color = vec3(1);//texture(env_map, reflect_uv).rgb;
 
-    vec3 envmap_color = sample_environment_map2(normal, 8.0, envmap).rgb;
+    vec3 envmap_color = sample_environment_map(normal, 6.5, envmap).rgb;
 
     // Light components
     vec3 light_dir = normalize(g_light_dir);
