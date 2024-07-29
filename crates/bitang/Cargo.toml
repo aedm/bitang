@@ -24,7 +24,7 @@ vulkano-util = "0.34"
 vulkano-win = "0.34"
 
 shaderc = "0.8.3"
-spirq = "1.1.1"
+spirq = "1.2.2"
 glam = "0.25"
 
 ahash = "0.8.7"

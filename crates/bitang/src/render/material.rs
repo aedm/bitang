@@ -2,7 +2,7 @@ use crate::render::mesh::Mesh;
 use crate::render::shader::Shader;
 use crate::render::Vertex3;
 use crate::tool::{RenderContext, VulkanContext};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::sync::Arc;
 use vulkano::pipeline::graphics::color_blend::{
@@ -147,7 +147,13 @@ impl MaterialPass {
                 subpass: Some(subpass.into()),
                 ..GraphicsPipelineCreateInfo::layout(layout)
             };
-            GraphicsPipeline::new(context.device.clone(), None, pipeline_creation_info)?
+            GraphicsPipeline::new(context.device.clone(), None, pipeline_creation_info)
+                .with_context(|| {
+                    format!(
+                        "Failed to create graphics pipeline for material pass: {}",
+                        props.id,
+                    )
+                })?
         };
 
         Ok(MaterialPass {

@@ -69,7 +69,7 @@ impl ShaderCompilation {
                 shaderc::TargetEnv::Vulkan,
                 shaderc::EnvVersion::Vulkan1_2 as u32,
             );
-            // TODO: Enable optimization
+            // TODO: Enable optimization. First, automatic varying binding is needed, see https://github.com/aedm/bitang/issues/221
             // options.set_optimization_level(shaderc::OptimizationLevel::Performance);
             options.set_include_callback(include_callback);
             options.set_generate_debug_info();
