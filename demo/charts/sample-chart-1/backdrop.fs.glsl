@@ -1,10 +1,10 @@
 #version 450
 
+#include "/shaders/image_based_lighting.glsl"
+
 layout (location = 0) in vec3 v_ray_direction;
 
 layout (location = 0) out vec4 f_color;
-
-layout (set = 1, binding = 1) uniform sampler2D envmap;
 
 layout (set = 1, binding = 0) uniform Uniforms {
     float g_app_time;
@@ -15,7 +15,7 @@ layout (set = 1, binding = 0) uniform Uniforms {
     vec3 col2;
 };
 
-#include "/shaders/common.glsl"
+layout (set = 1, binding = 1) uniform sampler2D envmap;
 
 void main() {
 

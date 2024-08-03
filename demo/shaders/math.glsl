@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MATH_GLSL
+#define MATH_GLSL
 
 mat4 translate_matrix(vec3 translate_vector) {
     mat4 matrix;
@@ -45,3 +46,10 @@ mat4 rotate_z_matrix(float angle) {
 mat4 rotate_xyz_matrix(vec3 angle) {
     return rotate_x_matrix(angle.x) * rotate_y_matrix(angle.y) * rotate_z_matrix(angle.z);
 }
+
+vec3 calculate_camera_pos_worldspace(mat4 camera_from_world) {
+    mat3 inverse_rotation = inverse(mat3(camera_from_world));
+    return inverse_rotation * -camera_from_world[3].xyz;
+}
+
+#endif// MATH_GLSL

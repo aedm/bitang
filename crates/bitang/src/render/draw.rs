@@ -4,7 +4,7 @@ use crate::render::pass::Pass;
 use crate::render::render_object::RenderObject;
 use crate::tool::RenderContext;
 use anyhow::{ensure, Result};
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat3, Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
 use std::rc::Rc;
 
 use crate::render::scene::Scene;
@@ -20,7 +20,7 @@ pub struct Draw {
     pub id: String,
     pub passes: Vec<Pass>,
     pub items: Vec<DrawItem>,
-    pub light_dir: Rc<Control>,
+    pub light_dir_worldspace: Rc<Control>,
     pub shadow_map_size: Rc<Control>,
 }
 
@@ -29,14 +29,14 @@ impl Draw {
         id: &str,
         passes: Vec<Pass>,
         items: Vec<DrawItem>,
-        light_dir: Rc<Control>,
+        light_dir_worldspace: Rc<Control>,
         shadow_map_size: Rc<Control>,
     ) -> Result<Draw> {
         Ok(Draw {
             id: id.to_string(),
             passes,
             items,
-            light_dir,
+            light_dir_worldspace,
             shadow_map_size,
         })
     }
@@ -51,15 +51,18 @@ impl Draw {
         Ok(())
     }
 
-    fn set_light(&self, globals: &mut Globals) {
-        let light_dir = self.light_dir.as_vec3().normalize();
+    fn set_common_globals(&self, globals: &mut Globals) {
+        let light_dir_worldspace_norm = self.light_dir_worldspace.as_vec3().normalize();
+        globals.light_dir_worldspace_norm = light_dir_worldspace_norm;
+    }
+
+    fn set_globals_for_shadow_map_rendering(&self, globals: &mut Globals) {
         let shadow_map_size = self.shadow_map_size.as_float();
 
         globals.pixel_size = Vec2::new(1.0 / shadow_map_size, 1.0 / shadow_map_size);
         globals.aspect_ratio = 1.0;
         globals.field_of_view = 0.0;
         globals.z_near = -shadow_map_size;
-        globals.light_dir = light_dir;
         globals.shadow_map_size = shadow_map_size;
 
         globals.projection_from_camera = Mat4::orthographic_lh(
@@ -71,7 +74,11 @@ impl Draw {
             shadow_map_size,
         );
 
-        globals.camera_from_world = Mat4::look_to_lh(Vec3::ZERO, -light_dir, Vec3::Y);
+        globals.camera_from_world =
+            Mat4::look_to_lh(Vec3::ZERO, -globals.light_dir_worldspace_norm, Vec3::Y);
+
+        // When camera space is the light source space, the direction of light is always forward
+        globals.light_dir_camspace_norm = Vec3::Z;
 
         // Render objects should take care of their model-to-world transformation
         globals.world_from_model = Mat4::IDENTITY;
@@ -86,12 +93,18 @@ impl Draw {
 
         for (pass_index, pass) in self.passes.iter().enumerate() {
             let viewport = pass.get_viewport(context)?;
+
+            // Set globals unspecific to pass
+            self.set_common_globals(&mut context.globals);
+
+            // Set pass-specific globals
             if pass.id == "shadow" {
-                self.set_light(&mut context.globals);
+                self.set_globals_for_shadow_map_rendering(&mut context.globals);
             } else {
-                camera.set(&mut context.globals, viewport.extent);
+                camera.set_globals(&mut context.globals, viewport.extent);
             }
 
+            // Begin render pass
             let render_pass_begin_info = pass.make_render_pass_begin_info(context)?;
             let subpass_begin_info = SubpassBeginInfo {
                 contents: SubpassContents::Inline,
@@ -102,12 +115,16 @@ impl Draw {
                 .begin_render_pass(render_pass_begin_info, subpass_begin_info)?
                 .set_viewport(0, [viewport].into_iter().collect())?;
 
-            // Don't fail early, we must end the render pass
-            let result = self.render_items(context, pass_index);
+            // Don't fail early if there's a rendering error. We must end the render pass.
+            let render_result = self.render_items(context, pass_index);
+
+            // End render pass
             context
                 .command_builder
                 .end_render_pass(Default::default())?;
-            result?;
+
+            // Propagate error
+            render_result?;
         }
 
         Ok(())

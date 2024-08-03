@@ -380,7 +380,11 @@ pub enum GlobalType {
     AspectRatio,
     ZNear,
     FieldOfView,
-    LightDir,
+
+    /// Direction of light from the light source at infinite distance.
+    LightDirWorldspaceNorm,
+    LightDirCamspaceNorm,
+
     ShadowMapSize,
 
     /// The ratio between two consecutive frames in the simulation. 0..=1.
@@ -407,7 +411,8 @@ pub struct Globals {
     pub aspect_ratio: f32,
     pub z_near: f32,
     pub field_of_view: f32,
-    pub light_dir: Vec3,
+    pub light_dir_worldspace_norm: Vec3,
+    pub light_dir_camspace_norm: Vec3,
     pub shadow_map_size: f32,
     pub simulation_frame_ratio: f32,
     pub simulation_step_seconds: f32,
@@ -430,7 +435,8 @@ impl Globals {
             GlobalType::AspectRatio => slice::from_ref(&self.aspect_ratio),
             GlobalType::ZNear => slice::from_ref(&self.z_near),
             GlobalType::FieldOfView => slice::from_ref(&self.field_of_view),
-            GlobalType::LightDir => self.light_dir.as_ref(),
+            GlobalType::LightDirWorldspaceNorm => self.light_dir_worldspace_norm.as_ref(),
+            GlobalType::LightDirCamspaceNorm => self.light_dir_camspace_norm.as_ref(),
             GlobalType::ShadowMapSize => slice::from_ref(&self.shadow_map_size),
             GlobalType::SimulationFrameRatio => slice::from_ref(&self.simulation_frame_ratio),
             GlobalType::SimulationStepSeconds => slice::from_ref(&self.simulation_step_seconds),
