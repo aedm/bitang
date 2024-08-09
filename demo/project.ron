@@ -4,7 +4,7 @@ Project(
             chart: "sample-chart-1",
             offset: 0,
             start_time: 0,
-            end_time: 60,
+            end_time: 600,
         ),
     ],
 )

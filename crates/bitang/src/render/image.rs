@@ -2,28 +2,37 @@ use crate::tool::VulkanContext;
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
+use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage};
+use vulkano::command_buffer::{
+    AutoCommandBufferBuilder, BlitImageInfo, CommandBufferUsage, CopyBufferToImageInfo, ImageBlit,
+    PrimaryCommandBufferAbstract,
+};
+use vulkano::image::sampler::Filter;
 use vulkano::image::view::ImageView;
-use vulkano::image::{Image, ImageCreateInfo, ImageLayout, ImageType, ImageUsage, SampleCount};
-use vulkano::memory::allocator::AllocationCreateInfo;
+use vulkano::image::{
+    max_mip_levels, mip_level_extent, Image, ImageCreateInfo, ImageLayout, ImageSubresourceLayers,
+    ImageTiling, ImageType, ImageUsage, SampleCount,
+};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::render_pass::{AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp};
 
 #[derive(Debug, Deserialize, Clone, Copy)]
-pub enum ImageFormat {
+pub enum PixelFormat {
     Rgba16F,
+    Rgba32F,
     Depth32F,
     Rgba8U,
-
-    /// Only for swapchain.
     Rgba8Srgb,
 }
 
-impl ImageFormat {
+impl PixelFormat {
     pub fn vulkan_format(&self) -> vulkano::format::Format {
         match self {
-            ImageFormat::Rgba16F => vulkano::format::Format::R16G16B16A16_SFLOAT,
-            ImageFormat::Depth32F => vulkano::format::Format::D32_SFLOAT,
-            ImageFormat::Rgba8U => vulkano::format::Format::B8G8R8A8_UNORM,
-            ImageFormat::Rgba8Srgb => vulkano::format::Format::B8G8R8A8_SRGB,
+            PixelFormat::Rgba16F => vulkano::format::Format::R16G16B16A16_SFLOAT,
+            PixelFormat::Rgba32F => vulkano::format::Format::R32G32B32A32_SFLOAT,
+            PixelFormat::Depth32F => vulkano::format::Format::D32_SFLOAT,
+            PixelFormat::Rgba8U => vulkano::format::Format::R8G8B8A8_UNORM,
+            PixelFormat::Rgba8Srgb => vulkano::format::Format::R8G8B8A8_SRGB,
         }
     }
 }
@@ -62,7 +71,7 @@ impl BitangImage {
         })
     }
 
-    pub fn new_attachment(id: &str, format: ImageFormat, size_rule: ImageSizeRule) -> Arc<Self> {
+    pub fn new_attachment(id: &str, format: PixelFormat, size_rule: ImageSizeRule) -> Arc<Self> {
         Arc::new(Self {
             id: id.to_owned(),
             inner: ImageInner::SingleLevelAttachment(RwLock::new(None)),
@@ -72,7 +81,7 @@ impl BitangImage {
         })
     }
 
-    pub fn new_swapchain(id: &str, format: ImageFormat) -> Arc<Self> {
+    pub fn new_swapchain(id: &str, format: PixelFormat) -> Arc<Self> {
         Arc::new(Self {
             id: id.to_owned(),
             inner: ImageInner::Swapchain(RwLock::new(None)),
@@ -80,6 +89,93 @@ impl BitangImage {
             size: RwLock::new(None),
             vulkan_format: format.vulkan_format(),
         })
+    }
+
+    pub fn immutable_from_iter<I, T>(
+        id: &str,
+        context: &Arc<VulkanContext>,
+        format: PixelFormat,
+        dimensions: [u32; 3],
+        pixel_data: I,
+    ) -> Result<Arc<Self>>
+    where
+        T: BufferContents,
+        I: IntoIterator<Item = T>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let mut cbb = AutoCommandBufferBuilder::primary(
+            &context.command_buffer_allocator,
+            context.gfx_queue.queue_family_index(),
+            CommandBufferUsage::OneTimeSubmit,
+        )?;
+
+        let mip_levels = max_mip_levels(dimensions);
+
+        let image = Image::new(
+            context.memory_allocator.clone(),
+            vulkano::image::ImageCreateInfo {
+                image_type: ImageType::Dim2d,
+                format: format.vulkan_format(),
+                extent: dimensions,
+                usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC,
+                mip_levels,
+                tiling: ImageTiling::Optimal,
+                ..Default::default()
+            },
+            AllocationCreateInfo::default(),
+        )?;
+
+        // TODO: move buffer operations to BitangImage.
+        let upload_buffer = Buffer::from_iter(
+            context.memory_allocator.clone(),
+            BufferCreateInfo {
+                usage: BufferUsage::TRANSFER_SRC,
+                ..Default::default()
+            },
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_HOST
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                ..Default::default()
+            },
+            pixel_data,
+        )?;
+
+        cbb.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
+            upload_buffer,
+            image.clone(),
+        ))?;
+
+        for mip_level in 1..mip_levels {
+            cbb.blit_image(BlitImageInfo {
+                src_image_layout: ImageLayout::General,
+                dst_image_layout: ImageLayout::General,
+                regions: [ImageBlit {
+                    src_subresource: ImageSubresourceLayers {
+                        aspects: image.format().aspects(),
+                        mip_level: mip_level - 1,
+                        array_layers: 0..image.array_layers(),
+                    },
+                    dst_subresource: ImageSubresourceLayers {
+                        aspects: image.format().aspects(),
+                        mip_level: mip_level,
+                        array_layers: 0..image.array_layers(),
+                    },
+                    src_offsets: [
+                        [0, 0, 0],
+                        mip_level_extent(dimensions, mip_level - 1).unwrap(),
+                    ],
+                    dst_offsets: [[0, 0, 0], mip_level_extent(dimensions, mip_level).unwrap()],
+                    ..Default::default()
+                }]
+                .into(),
+                filter: Filter::Linear,
+                ..BlitImageInfo::images(Arc::clone(&image), Arc::clone(&image))
+            })?;
+        }
+
+        let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
+
+        Ok(BitangImage::new_immutable(id, image))
     }
 
     pub fn get_view(&self) -> Result<Arc<ImageView>> {

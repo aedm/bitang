@@ -75,7 +75,8 @@ Chart(
                         samplers: {
                             "envmap": Sampler(
                                 bind: File(
-                                    "marienplatz-2k-low.jpg",
+                                    "medieval_cafe_1k.jxl",
+
                                 ),
                                 address_mode: Envmap,
                             ),
@@ -87,12 +88,6 @@ Chart(
                     file: "demo-default.glb",
                     material: Material(
                         passes: {
-                            // "shadow": MaterialPass(
-                            //     vertex_shader: "vs.glsl",
-                            //     fragment_shader: "fs-noop.glsl",
-                            //     depth_test: true,
-                            //     depth_write: true,
-                            // ),
                             "solid": MaterialPass(
                                 vertex_shader: "vs.glsl",
                                 fragment_shader: "fs.glsl",
@@ -109,194 +104,50 @@ Chart(
                             ),
                             "envmap": Sampler(
                                 bind: File(
-                                    "marienplatz-2k-low.jpg",
+                                    "medieval_cafe_1k.jxl",
                                 ),
                                 address_mode: Envmap,
+                            ),
+                            "base_color_map": Sampler(
+                                bind: File(
+                                    "dark-rough-rock1/dark_rough_rock1_albedo.jpg",
+                                ),
+                                address_mode: Repeat,
+                            ),
+                            "roughness_map": Sampler(
+                                bind: File(
+                                    "dark-rough-rock1/dark_rough_rock1_Roughness.jpg",
+                                ),
+                                address_mode: Repeat,
+                            ),
+                            "metallic_map": Sampler(
+                                bind: File(
+                                    "dark-rough-rock1/dark_rough_rock1_Metallic.jpg",
+                                ),
+                                address_mode: Repeat,
+                            ),
+                            "normal_map": Sampler(
+                                bind: File(
+                                    "dark-rough-rock1/dark_rough_rock1_Normal-dx.jpg",
+                                ),
+                                address_mode: Repeat,
+                            ),
+                            "brdf_lut": Sampler(
+                                bind: File(
+                                    "ibl_brdf_lut.png",
+                                ),
+                                address_mode: ClampToEdge,
+                            ),
+                            "noise_map": Sampler(
+                                bind: File(
+                                    "noiseTexture.png",
+                                ),
+                                address_mode: Repeat,
                             ),
                         },
                     ),
                 ),
             ],
         ),
-        // Draw(
-        //     id: "dof",
-        //     passes: [
-        //         Pass(
-        //             id: "solid",
-        //             color_images: [Image("dof")],
-        //         ),
-        //     ],
-        //     items: [
-        //         Object(
-        //             id: "quad",
-        //             mesh_file: "plane_xz.glb",
-        //             mesh_name: "Plane",
-        //             material: Material(
-        //                 passes: {
-        //                     "solid": MaterialPass(
-        //                         vertex_shader: "/post/copy.vs.glsl",
-        //                         fragment_shader: "/post/dof.fs.glsl",
-        //                         depth_test: false,
-        //                         depth_write: false,
-        //                     ),
-        //                 },
-        //                 samplers: {
-        //                     "color_texture": Sampler(
-        //                         bind: Image(
-        //                             "color",
-        //                         ),
-        //                         address_mode: ClampToEdge,
-        //                     ),
-        //                     "depth_texture": Sampler(
-        //                         bind: Image(
-        //                             "depth",
-        //                         ),
-        //                         address_mode: ClampToEdge,
-        //                     ),
-        //                 },
-        //             ),
-        //         ),
-        //     ],
-        // ),
-        // Draw(
-        //     id: "half1",
-        //     passes: [
-        //         Pass(
-        //             id: "solid",
-        //             color_images: [Image("half1")],
-        //         ),
-        //     ],
-        //     items: [
-        //         Object(
-        //             id: "quad",
-        //             mesh_file: "plane_xz.glb",
-        //             mesh_name: "Plane",
-        //             material: Material(
-        //                 passes: {
-        //                     "solid": MaterialPass(
-        //                         vertex_shader: "/post/copy.vs.glsl",
-        //                         fragment_shader: "/post/copy-clamp.fs.glsl",
-        //                         depth_test: false,
-        //                         depth_write: false,
-        //                     ),
-        //                 },
-        //                 samplers: {
-        //                     "original": Sampler(
-        //                         bind: Image(
-        //                             "dof",
-        //                         ),
-        //                         address_mode: ClampToEdge,
-        //                     ),
-        //                 },
-        //             ),
-        //         ),
-        //     ],
-        // ),
-        // Draw(
-        //     id: "half2",
-        //     passes: [
-        //         Pass(
-        //             id: "solid",
-        //             color_images: [Image("half2")],
-        //         ),
-        //     ],
-        //     items: [
-        //         Object(
-        //             id: "quad",
-        //             mesh_file: "plane_xz.glb",
-        //             mesh_name: "Plane",
-        //             material: Material(
-        //                 passes: {
-        //                     "solid": MaterialPass(
-        //                         vertex_shader: "/post/copy.vs.glsl",
-        //                         fragment_shader: "/post/copy.fs.glsl",
-        //                         depth_test: false,
-        //                         depth_write: false,
-        //                     ),
-        //                 },
-        //                 samplers: {
-        //                     "original": Sampler(
-        //                         bind: Image(
-        //                             "half1",
-        //                         ),
-        //                         address_mode: ClampToEdge,
-        //                     ),
-        //                 },
-        //             ),
-        //         ),
-        //     ],
-        // ),
-        // Draw(
-        //     id: "gaussian-horizontal",
-        //     passes: [
-        //         Pass(
-        //             id: "solid",
-        //             color_images: [
-        //                 Image(
-        //                     "gaussian-horizontal",
-        //                 ),
-        //             ],
-        //         ),
-        //     ],
-        //     items: [
-        //         Object(
-        //             id: "gaussian-horizontal",
-        //             mesh_file: "plane_xz.glb",
-        //             mesh_name: "Plane",
-        //             material: Material(
-        //                 passes: {
-        //                     "solid": MaterialPass(
-        //                         vertex_shader: "/post/post.vs.glsl",
-        //                         fragment_shader: "/post/gauss-horizontal.fs.glsl",
-        //                         depth_test: false,
-        //                         depth_write: false,
-        //                     ),
-        //                 },
-        //                 samplers: {
-        //                     "original": Sampler(
-        //                         bind: Image(
-        //                             "half2",
-        //                         ),
-        //                         address_mode: ClampToEdge,
-        //                     ),
-        //                 },
-        //             ),
-        //         ),
-        //     ],
-        // ),
-        // Draw(
-        //     id: "gaussian-vertical",
-        //     passes: [
-        //         Pass(
-        //             id: "solid",
-        //             color_images: [Image("gaussian")],
-        //         ),
-        //     ],
-        //     items: [
-        //         Object(
-        //             id: "gaussian-vertical",
-        //             mesh_file: "plane_xz.glb",
-        //             mesh_name: "Plane",
-        //             material: Material(
-        //                 passes: {
-        //                     "solid": MaterialPass(
-        //                         vertex_shader: "/post/post.vs.glsl",
-        //                         fragment_shader: "/post/gauss-vertical.fs.glsl",
-        //                         depth_test: false,
-        //                         depth_write: false,
-        //                     ),
-        //                 },
-        //                 samplers: {
-        //                     "original": Sampler(
-        //                         bind: Image(
-        //                             "gaussian-horizontal",
-        //                         ),
-        //                         address_mode: ClampToEdge,
-        //                     ),
-        //                 },
-        //             ),
-        //         ),
-        //     ],
-        // ),
     ],
 )

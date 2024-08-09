@@ -153,7 +153,7 @@ impl Chart {
 pub struct Image {
     pub id: String,
     pub size: ImageSizeRule,
-    pub format: render::image::ImageFormat,
+    pub format: render::image::PixelFormat,
 }
 
 impl Image {

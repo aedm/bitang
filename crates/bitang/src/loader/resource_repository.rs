@@ -8,11 +8,15 @@ use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_cache::ShaderCache;
 use crate::loader::{CHARTS_FOLDER, CHART_FILE_NAME, PROJECT_FILE_NAME};
 use crate::render::chart::Chart;
-use crate::render::image::BitangImage;
+use crate::render::image::{BitangImage, PixelFormat};
 use crate::render::mesh::Mesh;
 use crate::render::project::Project;
 use crate::tool::VulkanContext;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
+use image::{EncodableLayout, GenericImageView};
+use itertools::Itertools;
+use jxl_oxide::image::BitDepth;
+use jxl_oxide::JxlImage;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -148,84 +152,58 @@ fn load_texture(
     resource_name: &str,
 ) -> Result<Arc<BitangImage>> {
     let now = Instant::now();
-    let rgba = image::load_from_memory(content)?.to_rgba8();
+
+    let image = if resource_name.ends_with(".jxl") {
+        let image = JxlImage::builder()
+            .read(content)
+            .map_err(|e| anyhow!("Can't load image {e}"))?;
+        let dimensions = [image.width(), image.height(), 1];
+        let render = image
+            .render_frame(0)
+            .map_err(|e| anyhow!("Can't render image {e}"))?;
+        let frame = render.image();
+        let buf = frame.buf();
+        ensure!(
+            image.image_header().metadata.encoded_color_channels() == 3,
+            "Only RGB images are supported"
+        );
+        // Map RGB to RGBA
+        let mut raw = vec![0.0f32; (dimensions[0] * dimensions[1] * 4) as usize];
+        for i in 0..((dimensions[0] * dimensions[1]) as usize) {
+            for o in 0..3 {
+                raw[i * 4 + o] = buf[i * 3 + o];
+            }
+        }
+        BitangImage::immutable_from_iter(
+            resource_name,
+            context,
+            PixelFormat::Rgba32F,
+            dimensions,
+            raw,
+        )
+    } else {
+        let image = image::load_from_memory(content)?;
+        let dimensions = [image.dimensions().0, image.dimensions().1, 1];
+        if resource_name.ends_with(".hdr") || resource_name.ends_with(".exr") {
+            BitangImage::immutable_from_iter(
+                resource_name,
+                context,
+                PixelFormat::Rgba32F,
+                dimensions,
+                image.into_rgba32f().into_raw(),
+            )
+        } else {
+            BitangImage::immutable_from_iter(
+                resource_name,
+                context,
+                PixelFormat::Rgba8Srgb,
+                dimensions,
+                image.into_rgba8().into_raw(),
+            )
+        }
+    };
     info!("decoded in {:?}", now.elapsed());
-    let dimensions = [rgba.dimensions().0, rgba.dimensions().1, 1];
-
-    let mut cbb = AutoCommandBufferBuilder::primary(
-        &context.command_buffer_allocator,
-        context.gfx_queue.queue_family_index(),
-        CommandBufferUsage::OneTimeSubmit,
-    )?;
-
-    let mip_levels = max_mip_levels(dimensions);
-
-    let image = Image::new(
-        context.memory_allocator.clone(),
-        vulkano::image::ImageCreateInfo {
-            image_type: ImageType::Dim2d,
-            format: Format::R8G8B8A8_UNORM,
-            extent: dimensions,
-            usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC,
-            mip_levels,
-            tiling: ImageTiling::Optimal,
-            ..Default::default()
-        },
-        AllocationCreateInfo::default(),
-    )?;
-
-    // TODO: move buffer operations to BitangImage.
-    let upload_buffer = Buffer::from_iter(
-        context.memory_allocator.clone(),
-        BufferCreateInfo {
-            usage: BufferUsage::TRANSFER_SRC,
-            ..Default::default()
-        },
-        AllocationCreateInfo {
-            memory_type_filter: MemoryTypeFilter::PREFER_HOST
-                | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-            ..Default::default()
-        },
-        rgba.into_raw(),
-    )?;
-
-    cbb.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
-        upload_buffer,
-        image.clone(),
-    ))?;
-
-    for mip_level in 1..mip_levels {
-        cbb.blit_image(BlitImageInfo {
-            src_image_layout: ImageLayout::General,
-            dst_image_layout: ImageLayout::General,
-            regions: [ImageBlit {
-                src_subresource: ImageSubresourceLayers {
-                    aspects: image.format().aspects(),
-                    mip_level: mip_level - 1,
-                    array_layers: 0..image.array_layers(),
-                },
-                dst_subresource: ImageSubresourceLayers {
-                    aspects: image.format().aspects(),
-                    mip_level: mip_level,
-                    array_layers: 0..image.array_layers(),
-                },
-                src_offsets: [
-                    [0, 0, 0],
-                    mip_level_extent(dimensions, mip_level - 1).unwrap(),
-                ],
-                dst_offsets: [[0, 0, 0], mip_level_extent(dimensions, mip_level).unwrap()],
-                ..Default::default()
-            }]
-            .into(),
-            filter: Filter::Linear,
-            ..BlitImageInfo::images(Arc::clone(&image), Arc::clone(&image))
-        })?;
-    }
-
-    let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
-
-    let image = BitangImage::new_immutable(resource_name, image);
-    Ok(image)
+    image
 }
 
 fn ron_loader() -> ron::Options {

@@ -58,6 +58,7 @@ impl ResourcePath {
                 .collect::<PathBuf>()
         } else {
             self.subdirectory.join(
+                // TODO: there was an underflow crash here once
                 components[0..components.len() - 1]
                     .iter()
                     .collect::<PathBuf>(),

@@ -16,8 +16,15 @@ vec2 direction_wn_to_spherical_envmap_uv(vec3 direction_wn) {
 }
 
 vec4 sample_environment_map(vec3 direction_wn, float bias, sampler2D envmap) {
+    int levels = textureQueryLevels(envmap);
+    float mipLevel = max(float(levels) - 3.5 - (1.0-bias) * 8.0, 0.0);
     vec2 uv = direction_wn_to_spherical_envmap_uv(direction_wn);
-    return textureLod(envmap, uv, bias);
+    return textureLod(envmap, uv, mipLevel);
 }
 
-#endif // SHADERS_IMAGE_BASED_LIGHTING_GLSL
+vec3 sample_srgb_as_linear(sampler2D map, vec2 uv) {
+    vec3 v = texture(map, uv).rgb;
+    return pow(v, vec3(1.0/2.2));
+}
+
+#endif// SHADERS_IMAGE_BASED_LIGHTING_GLSL
