@@ -27,4 +27,12 @@ vec3 sample_srgb_as_linear(sampler2D map, vec2 uv) {
     return pow(v, vec3(1.0/2.2));
 }
 
+vec3 apply_normal_map_amount(sampler2D normal_map, vec2 uv, vec3 normal, vec3 tangent, float normal_strength) {
+    vec3 n = sample_srgb_as_linear(normal_map, uv).rgb;
+    n = normalize(n * 2.0 - 1.0);
+    mat3 normal_space = mat3(tangent, cross(normal, tangent), normal);
+    n = normalize(normal_space * n);
+    return normalize(mix(normal, n, normal_strength));
+}
+
 #endif// SHADERS_IMAGE_BASED_LIGHTING_GLSL

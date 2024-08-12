@@ -31,7 +31,7 @@ pub struct Vertex3 {
     pub a_padding: f32,
 }
 
-pub const SCREEN_COLOR_FORMAT: PixelFormat = PixelFormat::Rgba8Srgb;
+pub const SCREEN_COLOR_FORMAT: PixelFormat = PixelFormat::Bgra8Srgb;
 pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
 
 type BufferItem = [f32; 4];
