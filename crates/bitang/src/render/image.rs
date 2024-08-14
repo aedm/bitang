@@ -104,7 +104,7 @@ impl BitangImage {
     ) -> Result<Arc<Self>>
     where
         T: BufferContents,
-        I: IntoIterator<Item = T>,
+        I: IntoIterator<Item=T>,
         I::IntoIter: ExactSizeIterator,
     {
         let mut cbb = AutoCommandBufferBuilder::primary(
@@ -129,7 +129,6 @@ impl BitangImage {
             AllocationCreateInfo::default(),
         )?;
 
-        // TODO: move buffer operations to BitangImage.
         let upload_buffer = Buffer::from_iter(
             context.memory_allocator.clone(),
             BufferCreateInfo {
@@ -171,7 +170,7 @@ impl BitangImage {
                     dst_offsets: [[0, 0, 0], mip_level_extent(dimensions, mip_level).unwrap()],
                     ..Default::default()
                 }]
-                .into(),
+                    .into(),
                 filter: Filter::Linear,
                 ..BlitImageInfo::images(Arc::clone(&image), Arc::clone(&image))
             })?;
