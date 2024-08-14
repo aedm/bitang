@@ -3,7 +3,7 @@ use crate::tool::RenderContext;
 use anyhow::Result;
 
 pub struct Scene {
-    pub id: String,
+    pub _id: String,
     pub objects: Vec<RenderObject>,
 }
 

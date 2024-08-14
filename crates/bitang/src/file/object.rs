@@ -45,7 +45,7 @@ impl Object {
         let instances_id = object_cid.add(ControlIdPartType::Value, "instances");
 
         let object = crate::render::render_object::RenderObject {
-            id: self.id.clone(),
+            _id: self.id.clone(),
             mesh,
             material,
             position: chart_context.control_set_builder.get_vec3(&position_id),

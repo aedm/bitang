@@ -62,7 +62,7 @@ impl Scene {
                 rotation.set(&[node_rot[0], node_rot[1], node_rot[2], 0.0]);
 
                 render::render_object::RenderObject {
-                    id: mesh_id.clone(),
+                    _id: mesh_id.clone(),
                     mesh: scene_node.mesh.clone(),
                     material: material.clone(),
                     position,
@@ -75,7 +75,7 @@ impl Scene {
             .collect();
 
         let scene = render::scene::Scene {
-            id: self.id.clone(),
+            _id: self.id.clone(),
             objects,
         };
         Ok(Rc::new(scene))

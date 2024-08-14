@@ -13,9 +13,7 @@ use crate::render::mesh::Mesh;
 use crate::render::project::Project;
 use crate::tool::VulkanContext;
 use anyhow::{anyhow, ensure, Context, Result};
-use image::{EncodableLayout, GenericImageView};
-use itertools::Itertools;
-use jxl_oxide::image::BitDepth;
+use image::GenericImageView;
 use jxl_oxide::JxlImage;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -23,18 +21,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{info, instrument, warn};
-use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
-use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, BlitImageInfo, CommandBufferUsage, CopyBufferToImageInfo, ImageBlit,
-    PrimaryCommandBufferAbstract,
-};
-use vulkano::format::Format;
-use vulkano::image::sampler::Filter;
-use vulkano::image::{
-    max_mip_levels, mip_level_extent, Image, ImageLayout, ImageSubresourceLayers, ImageTiling,
-    ImageType, ImageUsage,
-};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 
 pub struct SceneNode {
     pub position: [f32; 3],

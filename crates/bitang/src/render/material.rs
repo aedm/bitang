@@ -38,12 +38,14 @@ impl Material {
 }
 
 pub struct MaterialPass {
-    pub id: String,
+    pub _id: String,
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
-    pub depth_test: bool,
-    pub depth_write: bool,
-    pub blend_mode: BlendMode,
+
+    // TODO: check why these are here
+    pub _depth_test: bool,
+    pub _depth_write: bool,
+    pub _blend_mode: BlendMode,
     pipeline: Arc<GraphicsPipeline>,
 }
 
@@ -157,12 +159,12 @@ impl MaterialPass {
         };
 
         Ok(MaterialPass {
-            id: props.id,
+            _id: props.id,
             vertex_shader: props.vertex_shader,
             fragment_shader: props.fragment_shader,
-            depth_test: props.depth_test,
-            depth_write: props.depth_write,
-            blend_mode: props.blend_mode,
+            _depth_test: props.depth_test,
+            _depth_write: props.depth_write,
+            _blend_mode: props.blend_mode,
             pipeline,
         })
     }

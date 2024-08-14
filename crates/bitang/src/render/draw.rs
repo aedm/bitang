@@ -4,7 +4,7 @@ use crate::render::pass::Pass;
 use crate::render::render_object::RenderObject;
 use crate::tool::RenderContext;
 use anyhow::{ensure, Result};
-use glam::{Mat3, Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
+use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
 
 use crate::render::scene::Scene;

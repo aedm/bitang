@@ -14,7 +14,7 @@ use std::cell::RefCell;
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::{debug, info, instrument, trace, Instrument};
+use tracing::{debug, info, instrument, trace};
 use vulkano::shader;
 use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
 
