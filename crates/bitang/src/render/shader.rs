@@ -11,8 +11,9 @@ use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
-use vulkano::image::sampler::{Sampler, SamplerCreateInfo};
+use vulkano::image::sampler::{BorderColor, Sampler, SamplerCreateInfo};
 use vulkano::memory::allocator::MemoryTypeFilter;
+use vulkano::pipeline::graphics::depth_stencil::CompareOp;
 use vulkano::pipeline::{PipelineBindPoint, PipelineLayout};
 use vulkano::shader::ShaderModule;
 
@@ -147,7 +148,9 @@ impl Shader {
                     let sampler = Sampler::new(
                         context.vulkan_context.device.clone(),
                         SamplerCreateInfo {
-                            address_mode: image_descriptor.address_mode.to_vulkano(),
+                            address_mode: image_descriptor.mode.to_vulkano_address_mode(),
+                            compare: image_descriptor.mode.to_vulkano_compare_op(),
+                            border_color: BorderColor::FloatOpaqueBlack,
                             ..SamplerCreateInfo::simple_repeat_linear()
                         },
                     )?;
@@ -203,35 +206,48 @@ impl Shader {
     }
 }
 
-#[derive(Clone)]
-pub enum SamplerAddressMode {
+#[derive(Clone, Debug)]
+pub enum SamplerMode {
     Repeat,
     ClampToEdge,
     MirroredRepeat,
     Envmap,
+    Shadow,
 }
 
-impl SamplerAddressMode {
-    pub fn to_vulkano(&self) -> [vulkano::image::sampler::SamplerAddressMode; 3] {
+impl SamplerMode {
+    pub fn to_vulkano_compare_op(&self) -> Option<CompareOp> {
         match self {
-            SamplerAddressMode::Repeat => [
+            SamplerMode::Shadow => Some(CompareOp::Less),
+            _ => None,
+        }
+    }
+
+    pub fn to_vulkano_address_mode(&self) -> [vulkano::image::sampler::SamplerAddressMode; 3] {
+        match self {
+            SamplerMode::Repeat => [
                 vulkano::image::sampler::SamplerAddressMode::Repeat,
                 vulkano::image::sampler::SamplerAddressMode::Repeat,
                 vulkano::image::sampler::SamplerAddressMode::Repeat,
             ],
-            SamplerAddressMode::MirroredRepeat => [
+            SamplerMode::MirroredRepeat => [
                 vulkano::image::sampler::SamplerAddressMode::MirroredRepeat,
                 vulkano::image::sampler::SamplerAddressMode::MirroredRepeat,
                 vulkano::image::sampler::SamplerAddressMode::MirroredRepeat,
             ],
-            SamplerAddressMode::ClampToEdge => [
+            SamplerMode::ClampToEdge => [
                 vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
                 vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
                 vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
             ],
-            SamplerAddressMode::Envmap => [
+            SamplerMode::Envmap => [
                 vulkano::image::sampler::SamplerAddressMode::Repeat,
                 vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
+                vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
+            ],
+            SamplerMode::Shadow => [
+                vulkano::image::sampler::SamplerAddressMode::ClampToBorder,
+                vulkano::image::sampler::SamplerAddressMode::ClampToBorder,
                 vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
             ],
         }
@@ -241,7 +257,7 @@ impl SamplerAddressMode {
 #[derive(Clone)]
 pub struct ImageDescriptor {
     pub image: Arc<BitangImage>,
-    pub address_mode: SamplerAddressMode,
+    pub mode: SamplerMode,
 }
 
 #[derive(Clone)]

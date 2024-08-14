@@ -30,7 +30,7 @@ layout (set = 1, binding = 0) uniform Uniforms {
 } u;
 
 layout (set = 1, binding = 1) uniform sampler2D envmap;
-layout (set = 1, binding = 2) uniform sampler2D shadow;
+layout (set = 1, binding = 2) uniform sampler2DShadow shadow;
 
 layout (set = 1, binding = 3) uniform sampler2D base_color_map;
 layout (set = 1, binding = 4) uniform sampler2D roughness_map;
@@ -50,8 +50,8 @@ float adjust(float value, float factor) {
 float sample_shadow_map(vec3 world_pos) {
     vec3 lightspace_pos = (u.g_light_projection_from_world * vec4(world_pos, 1.0)).xyz;
     lightspace_pos.xy = lightspace_pos.xy * 0.5 + 0.5;
-    float shadow_z = texture(shadow, lightspace_pos.xy).r;
-    return (shadow_z + u.shadow_bias*0.01 > lightspace_pos.z) ? 1.0 : 0.0;
+    lightspace_pos.z -= u.shadow_bias * 0.001;
+    return texture(shadow, lightspace_pos);
 }
 
 void main() {
