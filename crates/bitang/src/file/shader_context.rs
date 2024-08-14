@@ -23,7 +23,7 @@ pub struct Sampler {
     bind: SamplerSource,
 
     #[serde(default)]
-    pub address_mode: SamplerAddressMode,
+    pub mode: SamplerMode,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -33,21 +33,23 @@ pub enum SamplerSource {
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
-pub enum SamplerAddressMode {
+pub enum SamplerMode {
     #[default]
     Repeat,
     ClampToEdge,
     MirroredRepeat,
     Envmap,
+    Shadow,
 }
 
-impl SamplerAddressMode {
-    pub fn load(&self) -> shader::SamplerAddressMode {
+impl SamplerMode {
+    pub fn load(&self) -> shader::SamplerMode {
         match self {
-            SamplerAddressMode::Repeat => shader::SamplerAddressMode::Repeat,
-            SamplerAddressMode::MirroredRepeat => shader::SamplerAddressMode::MirroredRepeat,
-            SamplerAddressMode::ClampToEdge => shader::SamplerAddressMode::ClampToEdge,
-            SamplerAddressMode::Envmap => shader::SamplerAddressMode::Envmap,
+            SamplerMode::Repeat => shader::SamplerMode::Repeat,
+            SamplerMode::MirroredRepeat => shader::SamplerMode::MirroredRepeat,
+            SamplerMode::ClampToEdge => shader::SamplerMode::ClampToEdge,
+            SamplerMode::Envmap => shader::SamplerMode::Envmap,
+            SamplerMode::Shadow => shader::SamplerMode::Shadow,
         }
     }
 }
@@ -212,7 +214,7 @@ impl ShaderContext {
                 id: sampler.name.clone(),
                 binding: sampler.binding,
                 source: DescriptorSource::Image(ImageDescriptor {
-                    address_mode: source.1.address_mode.load(),
+                    mode: source.1.mode.load(),
                     image,
                 }),
             };
