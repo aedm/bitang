@@ -28,7 +28,7 @@ layout (set = 0, binding = 0) uniform Context {
 };
 
 void main() {
-    vec3 mi = vec3(gl_InstanceIndex % 4, gl_InstanceIndex / 4, 0);
+    vec3 mi = vec3(gl_InstanceIndex % 5, gl_InstanceIndex / 5, 0);
     vec3 move = instance_move * mi;
     v_pos_worldspace = (g_world_from_model * vec4(a_position, 1.0)).xyz + move;
 
@@ -39,5 +39,5 @@ void main() {
     v_tangent_worldspace = mat3(g_world_from_model) * a_tangent;
     v_camera_pos_worldspace = calculate_camera_pos_worldspace(g_camera_from_world);
 
-    v_material_adjustment = vec3(0.99 - mi.x / 3.0, mi.y, 0.0);
+    v_material_adjustment = vec3(0.99 - mi.x / 4.0, mi.y / 2.0, 0.0);
 }

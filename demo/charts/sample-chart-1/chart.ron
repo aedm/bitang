@@ -116,25 +116,29 @@ Chart(
                             ),
                             "base_color_map": Sampler(
                                 bind: File(
-                                    "dark-rough-rock1/dark_rough_rock1_albedo.jpg",
+//                                    "dark-rough-rock1/dark_rough_rock1_albedo.jpg",
+                                    "chip-material/Chip001_1K-PNG_Color.jpg",
                                 ),
                                 address_mode: Repeat,
                             ),
                             "roughness_map": Sampler(
                                 bind: File(
-                                    "dark-rough-rock1/dark_rough_rock1_Roughness.jpg",
+//                                    "dark-rough-rock1/dark_rough_rock1_Roughness.jpg",
+                                    "chip-material/Chip001_1K-PNG_Roughness.jpg",
                                 ),
                                 address_mode: Repeat,
                             ),
                             "metallic_map": Sampler(
                                 bind: File(
-                                    "dark-rough-rock1/dark_rough_rock1_Metallic.jpg",
+//                                    "dark-rough-rock1/dark_rough_rock1_Metallic.jpg",
+                                    "chip-material/Chip001_1K-PNG_Metalness.jpg",
                                 ),
                                 address_mode: Repeat,
                             ),
                             "normal_map": Sampler(
                                 bind: File(
-                                    "dark-rough-rock1/dark_rough_rock1_Normal-dx.jpg",
+//                                    "dark-rough-rock1/dark_rough_rock1_Normal-dx.jpg",
+                                    "chip-material/Chip001_1K-PNG_NormalDX.jpg",
                                 ),
                                 address_mode: Repeat,
                             ),
