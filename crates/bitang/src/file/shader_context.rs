@@ -2,6 +2,7 @@ use crate::control::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
 use crate::loader::async_cache::LoadFuture;
 use crate::render::image::BitangImage;
+use crate::render::shader;
 use crate::render::shader::{
     DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, Shader, ShaderKind,
 };
@@ -37,18 +38,16 @@ pub enum SamplerAddressMode {
     Repeat,
     ClampToEdge,
     MirroredRepeat,
+    Envmap,
 }
 
 impl SamplerAddressMode {
-    pub fn load(&self) -> vulkano::image::sampler::SamplerAddressMode {
+    pub fn load(&self) -> shader::SamplerAddressMode {
         match self {
-            SamplerAddressMode::Repeat => vulkano::image::sampler::SamplerAddressMode::Repeat,
-            SamplerAddressMode::MirroredRepeat => {
-                vulkano::image::sampler::SamplerAddressMode::MirroredRepeat
-            }
-            SamplerAddressMode::ClampToEdge => {
-                vulkano::image::sampler::SamplerAddressMode::ClampToEdge
-            }
+            SamplerAddressMode::Repeat => shader::SamplerAddressMode::Repeat,
+            SamplerAddressMode::MirroredRepeat => shader::SamplerAddressMode::MirroredRepeat,
+            SamplerAddressMode::ClampToEdge => shader::SamplerAddressMode::ClampToEdge,
+            SamplerAddressMode::Envmap => shader::SamplerAddressMode::Envmap,
         }
     }
 }

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
-use vulkano::image::sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo};
+use vulkano::image::sampler::{Sampler, SamplerCreateInfo};
 use vulkano::memory::allocator::MemoryTypeFilter;
 use vulkano::pipeline::{PipelineBindPoint, PipelineLayout};
 use vulkano::shader::ShaderModule;
@@ -147,7 +147,7 @@ impl Shader {
                     let sampler = Sampler::new(
                         context.vulkan_context.device.clone(),
                         SamplerCreateInfo {
-                            address_mode: [image_descriptor.address_mode; 3],
+                            address_mode: image_descriptor.address_mode.to_vulkano(),
                             ..SamplerCreateInfo::simple_repeat_linear()
                         },
                     )?;
@@ -200,6 +200,41 @@ impl Shader {
         )?;
 
         Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub enum SamplerAddressMode {
+    Repeat,
+    ClampToEdge,
+    MirroredRepeat,
+    Envmap,
+}
+
+impl SamplerAddressMode {
+    pub fn to_vulkano(&self) -> [vulkano::image::sampler::SamplerAddressMode; 3] {
+        match self {
+            SamplerAddressMode::Repeat => [
+                vulkano::image::sampler::SamplerAddressMode::Repeat,
+                vulkano::image::sampler::SamplerAddressMode::Repeat,
+                vulkano::image::sampler::SamplerAddressMode::Repeat,
+            ],
+            SamplerAddressMode::MirroredRepeat => [
+                vulkano::image::sampler::SamplerAddressMode::MirroredRepeat,
+                vulkano::image::sampler::SamplerAddressMode::MirroredRepeat,
+                vulkano::image::sampler::SamplerAddressMode::MirroredRepeat,
+            ],
+            SamplerAddressMode::ClampToEdge => [
+                vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
+                vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
+                vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
+            ],
+            SamplerAddressMode::Envmap => [
+                vulkano::image::sampler::SamplerAddressMode::Repeat,
+                vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
+                vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
+            ],
+        }
     }
 }
 

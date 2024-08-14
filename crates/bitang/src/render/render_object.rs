@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct RenderObject {
-    pub id: String,
+    pub _id: String,
     pub mesh: Arc<Mesh>,
     pub material: Arc<Material>,
     pub position: Rc<Control>,

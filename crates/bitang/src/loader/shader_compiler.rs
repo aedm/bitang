@@ -3,6 +3,7 @@ use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::render::shader::GlobalUniformMapping;
 use crate::tool::VulkanContext;
+use ahash::AHashSet;
 use anyhow::{bail, ensure, Context, Result};
 use shaderc::{IncludeCallbackResult, IncludeType};
 use spirq::ty::ScalarType::Float;
@@ -68,7 +69,7 @@ impl ShaderCompilation {
                 shaderc::TargetEnv::Vulkan,
                 shaderc::EnvVersion::Vulkan1_2 as u32,
             );
-            // TODO: Enable optimization
+            // TODO: Enable optimization. First, automatic varying binding is needed, see https://github.com/aedm/bitang/issues/221
             // options.set_optimization_level(shaderc::OptimizationLevel::Performance);
             options.set_include_callback(include_callback);
             options.set_generate_debug_info();
@@ -175,7 +176,7 @@ impl ShaderArtifact {
         // Extract metadata from SPIRV
         let entry_points = ReflectConfig::new()
             .spv(spirv_binary)
-            .ref_all_rscs(false)
+            .ref_all_rscs(true)
             .combine_img_samplers(true)
             .gen_unique_names(false)
             .reflect()?;
@@ -198,6 +199,17 @@ impl ShaderArtifact {
             shaderc::ShaderKind::Compute => 0,
             _ => panic!("Unsupported shader kind"),
         };
+
+        // Collect the actually used bindings. Spirq doesn't always get us the same results
+        // as Vulkano's pipeline layout, so we need to filter out the unused bindings.
+        let used_bindings = &module
+            .single_entry_point()
+            .context("Failed to get entry point")?
+            .info()
+            .descriptor_binding_requirements
+            .keys()
+            .map(|(_set, binding)| *binding)
+            .collect::<AHashSet<_>>();
 
         let mut samplers = Vec::new();
         let mut buffers = Vec::new();
@@ -223,6 +235,10 @@ impl ShaderArtifact {
                         )
                     );
                     let binding = desc_bind.bind();
+                    if !used_bindings.contains(&binding) {
+                        debug!("Skipping binding {} not in requirements", binding);
+                        continue;
+                    }
                     match desc_ty {
                         DescriptorType::CombinedImageSampler() => {
                             samplers.push(NamedResourceBinding {

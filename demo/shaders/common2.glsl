@@ -1,48 +1,3 @@
-mat4 translate(vec3 translateVector) {
-    mat4 matrix;
-    matrix[0] = vec4(1, 0, 0, 0);
-    matrix[1] = vec4(0, 1, 0, 0);
-    matrix[2] = vec4(0, 0, 1, 0);
-    matrix[3] = vec4(translateVector, 1);
-    return matrix;
-}
-
-mat4 rotate_x(float angle) {
-    float s = sin(angle);
-    float c = cos(angle);
-    mat4 matrix;
-    matrix[0] = vec4(1, 0, 0, 0);
-    matrix[1] = vec4(0, c, s, 0);
-    matrix[2] = vec4(0, -s, c, 0);
-    matrix[3] = vec4(0, 0, 0, 1);
-    return matrix;
-}
-
-mat4 rotate_y(float angle) {
-    float s = sin(angle);
-    float c = cos(angle);
-    mat4 matrix;
-    matrix[0] = vec4(c, 0, s, 0);
-    matrix[1] = vec4(0, 1, 0, 0);
-    matrix[2] = vec4(-s, 0, c, 0);
-    matrix[3] = vec4(0, 0, 0, 1);
-    return matrix;
-}
-
-mat4 rotate_z(float angle) {
-    float s = sin(angle);
-    float c = cos(angle);
-    mat4 matrix;
-    matrix[0] = vec4(c, s, 0, 0);
-    matrix[1] = vec4(-s, c, 0, 0);
-    matrix[2] = vec4(0, 0, 1, 0);
-    matrix[3] = vec4(0, 0, 0, 1);
-    return matrix;
-}
-
-mat4 rotate(vec3 angle) {
-    return rotate_x(angle.x) * rotate_y(angle.y) * rotate_z(angle.z);
-}
 
 void calculate_ray(mat4 projection_from_camera, mat4 camera_from_world, vec2 uv, out vec3 eye, out vec3 dir) {
     vec2 fov = vec2(1 / projection_from_camera[0][0], 1 / projection_from_camera[1][1]);
@@ -83,7 +38,7 @@ vec4 traced_color(vec3 eye, vec3 dir, vec3 circle_plane_normal, vec3 circle_cent
 const float gauss_extrude = 0.5;
 const int gauss_kernel_size = 20;
 float gauss_weight[gauss_kernel_size * 2 + 1] = float[]
-(0.0003,	0.0004,	0.0007,	0.0012,	0.0019,	0.0029,	0.0044,	0.0064,	0.0090,	0.0124,	0.0166,	0.0216,	0.0274,	0.0337,	0.0404,	0.0470,	0.0532,	0.0587,	0.0629,	0.0655,	0.0665,	0.0655,	0.0629,	0.0587,	0.0532,	0.0470,	0.0404,	0.0337,	0.0274,	0.0216,	0.0166,	0.0124,	0.0090,	0.0064,	0.0044,	0.0029,	0.0019,	0.0012,	0.0007,	0.0004,	0.0003);
+(0.0003, 0.0004, 0.0007, 0.0012, 0.0019, 0.0029, 0.0044, 0.0064, 0.0090, 0.0124, 0.0166, 0.0216, 0.0274, 0.0337, 0.0404, 0.0470, 0.0532, 0.0587, 0.0629, 0.0655, 0.0665, 0.0655, 0.0629, 0.0587, 0.0532, 0.0470, 0.0404, 0.0337, 0.0274, 0.0216, 0.0166, 0.0124, 0.0090, 0.0064, 0.0044, 0.0029, 0.0019, 0.0012, 0.0007, 0.0004, 0.0003);
 
 
 

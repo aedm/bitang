@@ -2,6 +2,7 @@ use crate::control::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
 use crate::file::material::Material;
 use crate::render;
+use anyhow::Context;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -37,7 +38,8 @@ impl Scene {
         let material = self
             .material
             .load(chart_context, passes, &self.control_map, &scene_cid)
-            .await?;
+            .await
+            .with_context(|| format!("Failed to load material for scene '{}'", self.id))?;
 
         // Wait for resources to be loaded
         let mesh_collection = mesh_collection_future.await??;
@@ -60,7 +62,7 @@ impl Scene {
                 rotation.set(&[node_rot[0], node_rot[1], node_rot[2], 0.0]);
 
                 render::render_object::RenderObject {
-                    id: mesh_id.clone(),
+                    _id: mesh_id.clone(),
                     mesh: scene_node.mesh.clone(),
                     material: material.clone(),
                     position,
@@ -73,7 +75,7 @@ impl Scene {
             .collect();
 
         let scene = render::scene::Scene {
-            id: self.id.clone(),
+            _id: self.id.clone(),
             objects,
         };
         Ok(Rc::new(scene))

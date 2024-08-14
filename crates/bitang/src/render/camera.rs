@@ -1,6 +1,6 @@
 use crate::control::controls::{Control, ControlSetBuilder, Globals};
 use crate::control::{ControlId, ControlIdPartType};
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat3, Mat4, Vec2, Vec3};
 use std::f32::consts::PI;
 use std::rc::Rc;
 
@@ -35,7 +35,7 @@ impl Camera {
         }
     }
 
-    pub fn set(&self, globals: &mut Globals, viewport_size: [f32; 2]) {
+    pub fn set_globals(&self, globals: &mut Globals, viewport_size: [f32; 2]) {
         globals.pixel_size = Vec2::new(1.0 / viewport_size[0], 1.0 / viewport_size[1]);
         globals.aspect_ratio = viewport_size[0] / viewport_size[1];
         globals.field_of_view = self.field_of_view.as_float();
@@ -80,6 +80,10 @@ impl Camera {
         let target = Mat4::from_translation(-self.target.as_vec3());
         let distance = Mat4::from_translation(Vec3::new(0.0, 0.0, self.distance.as_float()));
         globals.camera_from_world = shake * distance * roll * pitch * yaw * target;
+
+        // Light direction in camera space
+        globals.light_dir_camspace_norm =
+            Mat3::from_mat4(globals.camera_from_world) * globals.light_dir_worldspace_norm;
 
         // Render objects should take care of their model-to-world transformation
         globals.world_from_model = Mat4::IDENTITY;

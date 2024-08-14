@@ -15,7 +15,8 @@ const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Manages the load and reload cycles of the project.
 pub struct ProjectLoader {
-    pub root_path: Arc<PathBuf>,
+    // TODO: remove if not needed
+    pub _root_path: Arc<PathBuf>,
     pub resource_repository: Rc<ResourceRepository>,
     cached_root: Option<Rc<Project>>,
     last_load_time: Instant,
@@ -33,7 +34,7 @@ impl ProjectLoader {
         let file_change_handler = FileChangeHandler::new(&file_cache);
         let async_runtime = tokio::runtime::Runtime::new()?;
         Ok(Self {
-            root_path,
+            _root_path: root_path,
             resource_repository: Rc::new(ResourceRepository::try_new(Arc::clone(&file_cache))?),
             cached_root: None,
             last_load_time: Instant::now() - LOAD_RETRY_INTERVAL,
