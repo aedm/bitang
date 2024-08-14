@@ -88,6 +88,12 @@ Chart(
                     file: "demo-default.glb",
                     material: Material(
                         passes: {
+                            "shadow": MaterialPass(
+                                vertex_shader: "vs.glsl",
+                                fragment_shader: "fs-noop.glsl",
+                                depth_test: true,
+                                depth_write: true,
+                            ),
                             "solid": MaterialPass(
                                 vertex_shader: "vs.glsl",
                                 fragment_shader: "fs.glsl",

@@ -8,6 +8,8 @@ layout (location = 2) in vec3 v_tangent_worldspace;
 layout (location = 3) in vec3 v_pos_worldspace;
 layout (location = 4) in vec3 v_camera_pos_worldspace;
 
+layout (location = 5) in vec3 v_material_adjustment;
+
 layout (location = 0) out vec4 f_color;
 
 layout (set = 1, binding = 0) uniform Uniforms {
@@ -19,11 +21,12 @@ layout (set = 1, binding = 0) uniform Uniforms {
     vec3 g_light_dir_camspace_norm;
     vec3 g_light_dir_worldspace_norm;
 
+    vec4 color;
     float roughness;
     float metallic;
-    vec4 color;
     float ambient;
     float normal_strength;
+    float shadow_bias;
 } u;
 
 layout (set = 1, binding = 1) uniform sampler2D envmap;
@@ -44,10 +47,22 @@ float adjust(float value, float factor) {
     return factor + value * (1.0 - factor);
 }
 
+float sample_shadow_map(vec3 world_pos) {
+    vec3 lightspace_pos = (u.g_light_projection_from_world * vec4(world_pos, 1.0)).xyz;
+    lightspace_pos.xy = lightspace_pos.xy * 0.5 + 0.5;
+    float shadow_z = texture(shadow, lightspace_pos.xy).r;
+    return (shadow_z + u.shadow_bias*0.01 > lightspace_pos.z) ? 1.0 : 0.0;
+}
+
 void main() {
+    float light = sample_shadow_map(v_pos_worldspace);
+
     vec3 base_color = texture(base_color_map, v_uv).rgb;
     float roughness = sample_srgb_as_linear(roughness_map, v_uv).r;
     float metallic = sample_srgb_as_linear(metallic_map, v_uv).r;
+
+    roughness = adjust(roughness, v_material_adjustment.x * 2.0 - 1.0);
+    metallic = adjust(metallic, v_material_adjustment.y * 2.0 - 1.0);
 
     roughness = adjust(roughness, u.roughness);
     metallic = adjust(metallic, u.metallic);
@@ -57,7 +72,7 @@ void main() {
     vec3 L = u.g_light_dir_worldspace_norm;
 
     vec3 color_acc = vec3(0);
-    color_acc += cook_torrance_brdf(V, N, L, base_color.rgb, metallic, roughness, u.color.rgb);
+    color_acc += cook_torrance_brdf(V, N, L, base_color.rgb, metallic, roughness, u.color.rgb* light);
     color_acc += cook_torrance_brdf_ibl(V, N, base_color.rgb, metallic, roughness, envmap, brdf_lut, vec3(u.ambient));
 
     // hdr

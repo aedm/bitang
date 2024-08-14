@@ -372,6 +372,7 @@ pub enum GlobalType {
     LightProjectionFromModel,
     LightProjectionFromWorld,
     ProjectionFromCamera,
+    ProjectionFromWorld,
     CameraFromModel,
     CameraFromWorld,
     WorldFromModel,
@@ -400,6 +401,7 @@ pub struct Globals {
     pub projection_from_model: Mat4,
     pub camera_from_model: Mat4,
     pub projection_from_camera: Mat4,
+    pub projection_from_world: Mat4,
     pub camera_from_world: Mat4,
     pub world_from_model: Mat4,
     pub light_projection_from_world: Mat4,
@@ -440,6 +442,7 @@ impl Globals {
             GlobalType::ShadowMapSize => slice::from_ref(&self.shadow_map_size),
             GlobalType::SimulationFrameRatio => slice::from_ref(&self.simulation_frame_ratio),
             GlobalType::SimulationStepSeconds => slice::from_ref(&self.simulation_step_seconds),
+            GlobalType::ProjectionFromWorld => self.projection_from_world.as_ref(),
         }
     }
 
@@ -447,5 +450,6 @@ impl Globals {
         self.camera_from_model = self.camera_from_world * self.world_from_model;
         self.projection_from_model = self.projection_from_camera * self.camera_from_model;
         self.light_projection_from_model = self.light_projection_from_world * self.world_from_model;
+        self.projection_from_world = self.projection_from_camera * self.camera_from_world;
     }
 }
