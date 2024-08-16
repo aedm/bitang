@@ -8,7 +8,7 @@ layout (location = 0) out vec4 f_color;
 
 layout (set = 1, binding = 0) uniform Uniforms {
     float g_app_time;
-    vec3 g_light_dir;
+//    vec3 g_light_dir;
     vec4 args;
     vec4 args2;
     vec3 col1;
@@ -22,8 +22,8 @@ void main() {
     #if IMAGE_BOUND_TO_SAMPLER_ENVMAP
     {
         vec4 c = sample_environment_map(normalize(v_ray_direction), 0.0, envmap);
-        c = c / (c + vec4(1.0));
-        f_color = vec4(c.rgb, 1);
+        //        c = c / (c + vec4(1.0));
+        f_color = vec4(c.rgb * args.r, 1);
     }
     #else
     {
