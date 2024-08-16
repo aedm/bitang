@@ -74,9 +74,6 @@ void main() {
     vec3 color_acc = vec3(0);
     color_acc += cook_torrance_brdf(V, N, L, base_color.rgb, metallic, roughness, u.color.rgb* light);
     color_acc += cook_torrance_brdf_ibl(V, N, base_color.rgb, metallic, roughness, envmap, brdf_lut, vec3(u.ambient));
-
-    // hdr
-    color_acc = color_acc / (color_acc + vec3(1.0));
-
+    
     f_color = vec4(color_acc, 1.0);
 }

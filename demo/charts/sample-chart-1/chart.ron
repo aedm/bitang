@@ -4,6 +4,7 @@ Chart(
             id: "color",
             format: Rgba16F,
             size: CanvasRelative(1.0),
+            has_mipmaps: true,
         ),
         Image(
             id: "depth",
@@ -54,7 +55,7 @@ Chart(
                 Pass(
                     id: "solid",
                     depth_image: Image("depth"),
-                    color_images: [Image("screen")],
+                    color_images: [Image("color")],
                     clear_color: (0, 0.37, 0, 0),
                 ),
             ],
@@ -149,6 +150,44 @@ Chart(
                                     "noiseTexture.png",
                                 ),
                                 mode: Repeat,
+                            ),
+                        },
+                    ),
+                ),
+            ],
+        ),
+
+
+
+
+        // Final composition
+        Draw(
+            id: "compose",
+            passes: [
+                Pass(
+                    id: "solid",
+                    color_images: [Image("screen")],
+                    clear_color: (0, 0.37, 0, 0),
+                ),
+            ],
+            items: [
+                Object(
+                    id: "compose",
+                    mesh_file: "plane_xz.glb",
+                    mesh_name: "Plane",
+                    material: Material(
+                        passes: {
+                            "solid": MaterialPass(
+                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                fragment_shader: "/shaders/post/compose.fs.glsl",
+                                depth_test: false,
+                                depth_write: false,
+                            ),
+                        },
+                        samplers: {
+                            "base_color": Sampler(
+                                bind: Image("color"),
+                                address_mode: ClampToEdge,
                             ),
                         },
                     ),

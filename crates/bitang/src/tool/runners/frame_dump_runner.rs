@@ -29,8 +29,12 @@ pub struct FrameDumpRunner {
 impl FrameDumpRunner {
     pub fn run(init_context: InitContext) -> Result<()> {
         let frame_size = ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
-        let final_render_target =
-            BitangImage::new_attachment(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT, frame_size);
+        let final_render_target = BitangImage::new_attachment(
+            SCREEN_RENDER_TARGET_ID,
+            SCREEN_COLOR_FORMAT,
+            frame_size,
+            false,
+        );
 
         let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
