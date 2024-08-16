@@ -160,35 +160,35 @@ impl Ui {
             id,
             default_open,
         )
-            .show_header(ui, |ui| {
-                let selected = ui_state.selected_control_id == node.id_prefix;
-                let mut new_selected = selected;
-                let icon = match control_id_part.part_type {
-                    ControlIdPartType::Chart => '📈',
-                    ControlIdPartType::ChartValues => '🌐',
-                    ControlIdPartType::ChartStep => '📦',
-                    ControlIdPartType::Camera => '📷',
-                    ControlIdPartType::Object => '🏠',
-                    ControlIdPartType::Scene => '🏰',
-                    ControlIdPartType::Value => '📊',
-                    ControlIdPartType::BufferGenerator => '🔮',
-                    ControlIdPartType::Compute => '🧮',
-                };
-                ui.toggle_value(
-                    &mut new_selected,
-                    format!("{icon} {}", control_id_part.name),
-                );
-                if new_selected && !selected {
-                    ui_state.selected_control_id = node.id_prefix.clone();
+        .show_header(ui, |ui| {
+            let selected = ui_state.selected_control_id == node.id_prefix;
+            let mut new_selected = selected;
+            let icon = match control_id_part.part_type {
+                ControlIdPartType::Chart => '📈',
+                ControlIdPartType::ChartValues => '🌐',
+                ControlIdPartType::ChartStep => '📦',
+                ControlIdPartType::Camera => '📷',
+                ControlIdPartType::Object => '🏠',
+                ControlIdPartType::Scene => '🏰',
+                ControlIdPartType::Value => '📊',
+                ControlIdPartType::BufferGenerator => '🔮',
+                ControlIdPartType::Compute => '🧮',
+            };
+            ui.toggle_value(
+                &mut new_selected,
+                format!("{icon} {}", control_id_part.name),
+            );
+            if new_selected && !selected {
+                ui_state.selected_control_id = node.id_prefix.clone();
+            }
+        })
+        .body(|ui| {
+            for child in &node.children {
+                if !child.children.is_empty() {
+                    Self::draw_control_tree_node(ui, child, ui_state);
                 }
-            })
-            .body(|ui| {
-                for child in &node.children {
-                    if !child.children.is_empty() {
-                        Self::draw_control_tree_node(ui, child, ui_state);
-                    }
-                }
-            });
+            }
+        });
     }
 
     // Returns the spline that was activated
@@ -262,7 +262,7 @@ impl Ui {
                 ..Default::default()
             },
         )
-            .unwrap();
+        .unwrap();
 
         context
             .command_builder
