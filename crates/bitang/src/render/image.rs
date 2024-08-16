@@ -27,6 +27,7 @@ pub enum PixelFormat {
 
     // Intel only apparently supports this surface format, no RGBA_SRGB.
     Bgra8Srgb,
+    Bgra8U,
 }
 
 impl PixelFormat {
@@ -38,6 +39,7 @@ impl PixelFormat {
             PixelFormat::Rgba8U => vulkano::format::Format::R8G8B8A8_UNORM,
             PixelFormat::Rgba8Srgb => vulkano::format::Format::R8G8B8A8_SRGB,
             PixelFormat::Bgra8Srgb => vulkano::format::Format::B8G8R8A8_SRGB,
+            PixelFormat::Bgra8U => vulkano::format::Format::B8G8R8A8_UNORM,
         }
     }
 }
@@ -50,8 +52,13 @@ pub enum ImageSizeRule {
 }
 
 enum ImageInner {
+    // Immutable image that is loaded from an external source, e.g. a jpg file.
     Immutable(Arc<Image>),
-    SingleLevelAttachment(RwLock<Option<Arc<Image>>>),
+
+    // Attachment image used both as a render target and a sampler source.
+    Attachment(RwLock<Option<Arc<Image>>>),
+
+    // The final render target. In windowed mode, this is displayed on the screen
     Swapchain(RwLock<Option<Arc<ImageView>>>),
 }
 
@@ -74,7 +81,7 @@ impl BitangImage {
     ) -> Arc<Self> {
         Arc::new(Self {
             id: id.to_owned(),
-            inner: ImageInner::SingleLevelAttachment(RwLock::new(None)),
+            inner: ImageInner::Attachment(RwLock::new(None)),
             size_rule,
             size: RwLock::new(None),
             vulkan_format: format.vulkan_format(),
@@ -160,10 +167,14 @@ impl BitangImage {
         }))
     }
 
-    pub fn get_view(&self) -> Result<Arc<ImageView>> {
+    // Returns an image view that only has one mip level.
+    pub fn get_view_for_render_target(&self) -> Result<Arc<ImageView>> {
         let view: Arc<ImageView> = match &self.inner {
-            ImageInner::Immutable(image) => ImageView::new_default(image.clone())?,
-            ImageInner::SingleLevelAttachment(image) => {
+            ImageInner::Immutable(image) => {
+                bail!("Immutable image can't be used as a render target");
+                // ImageView::new_default(image.clone())?
+            }
+            ImageInner::Attachment(image) => {
                 let image = image.read().unwrap();
                 if let Some(image) = image.as_ref() {
                     let i = ImageViewCreateInfo::from_image(&image);
@@ -191,10 +202,34 @@ impl BitangImage {
         Ok(view)
     }
 
+    // Returns an image view for sampling purposes. It includes all mip levels.
+    pub fn get_view_for_sampler(&self) -> Result<Arc<ImageView>> {
+        let view: Arc<ImageView> = match &self.inner {
+            ImageInner::Immutable(image) => ImageView::new_default(image.clone())?,
+            ImageInner::Attachment(image) => {
+                let image = image.read().unwrap();
+                let Some(image) = image.as_ref() else {
+                    bail!("Attachment image not initialized");
+                };
+                ImageView::new_default(image.clone())?
+            }
+            ImageInner::Swapchain(image) => {
+                bail!("Swapchain image can't be used in a sampler");
+                // let image = image.read().unwrap();
+                // if let Some(image) = image.as_ref() {
+                //     image.clone()
+                // } else {
+                //     bail!("Swapchain image not initialized");
+                // }
+            }
+        };
+        Ok(view)
+    }
+
     pub fn get_image(&self) -> Arc<Image> {
         match &self.inner {
             ImageInner::Immutable(image) => Arc::clone(image),
-            ImageInner::SingleLevelAttachment(image) => {
+            ImageInner::Attachment(image) => {
                 let image = image.read().unwrap();
                 if let Some(image) = image.as_ref() {
                     Arc::clone(image)
@@ -231,7 +266,7 @@ impl BitangImage {
         viewport_size: [f32; 2],
     ) -> Result<()> {
         // Only attachments need to be resized.
-        let ImageInner::SingleLevelAttachment(attachment) = &self.inner else {
+        let ImageInner::Attachment(attachment) = &self.inner else {
             return Ok(());
         };
 

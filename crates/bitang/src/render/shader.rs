@@ -144,7 +144,7 @@ impl Shader {
         for descriptor_resource in &self.descriptor_resources {
             let write_descriptor_set = match &descriptor_resource.source {
                 DescriptorSource::Image(image_descriptor) => {
-                    let image_view = image_descriptor.image.get_view()?;
+                    let image_view = image_descriptor.image.get_view_for_sampler()?;
                     let sampler = Sampler::new(
                         context.vulkan_context.device.clone(),
                         SamplerCreateInfo {

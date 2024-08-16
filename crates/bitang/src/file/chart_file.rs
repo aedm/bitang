@@ -178,7 +178,7 @@ fn default_clear_color() -> Option<[f32; 4]> {
 pub enum ChartStep {
     Draw(Draw),
     Compute(Compute),
-    GenerateMipmaps(GenerateMipLevels),
+    GenerateMipLevels(GenerateMipLevels),
 }
 
 impl ChartStep {
@@ -196,7 +196,7 @@ impl ChartStep {
                 let compute = compute.load(context, chart_context).await?;
                 Ok(render::chart::ChartStep::Compute(compute))
             }
-            ChartStep::GenerateMipmaps(generate_mip_levels) => {
+            ChartStep::GenerateMipLevels(generate_mip_levels) => {
                 let generate_mip_levels = generate_mip_levels.load(chart_context).await?;
                 Ok(render::chart::ChartStep::GenerateMipLevels(
                     generate_mip_levels,
@@ -378,6 +378,7 @@ impl Compute {
     }
 }
 
+// TODO: get rid of this, use a plain string id instead
 #[derive(Debug, Deserialize)]
 pub enum ImageSelector {
     /// Level 0 of the image
@@ -388,14 +389,14 @@ impl ImageSelector {
     pub async fn load(
         &self,
         images_by_id: &AHashMap<String, LoadFuture<render::image::BitangImage>>,
-    ) -> Result<render::pass::ImageSelector> {
+    ) -> Result<Arc<render::image::BitangImage>> {
         match self {
             ImageSelector::Image(id) => {
                 let image_future = images_by_id
                     .get(id)
                     .with_context(|| anyhow!("Render target not found: {id}"))?;
                 let image = image_future.get().await?;
-                Ok(render::pass::ImageSelector::Image(image))
+                Ok(image)
             }
         }
     }

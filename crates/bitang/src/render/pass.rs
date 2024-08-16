@@ -11,28 +11,28 @@ use vulkano::render_pass::{
     FramebufferCreateInfo, RenderPassCreateInfo, SubpassDescription,
 };
 
-pub enum ImageSelector {
-    Image(Arc<BitangImage>),
-}
-
-impl ImageSelector {
-    pub fn get_image(&self) -> &Arc<BitangImage> {
-        match self {
-            ImageSelector::Image(image) => image,
-        }
-    }
-
-    pub fn get_image_view(&self) -> Result<Arc<ImageView>> {
-        match self {
-            ImageSelector::Image(image) => image.get_view(),
-        }
-    }
-}
+// pub enum ImageSelector {
+//     Image(Arc<BitangImage>),
+// }
+//
+// impl ImageSelector {
+//     pub fn get_image(&self) -> &Arc<BitangImage> {
+//         match self {
+//             ImageSelector::Image(image) => image,
+//         }
+//     }
+//
+//     pub fn get_image_view(&self) -> Result<Arc<ImageView>> {
+//         match self {
+//             ImageSelector::Image(image) => image.get_view(),
+//         }
+//     }
+// }
 
 pub struct Pass {
     pub id: String,
-    pub color_buffers: Vec<ImageSelector>,
-    pub depth_buffer: Option<ImageSelector>,
+    pub color_buffers: Vec<Arc<BitangImage>>,
+    pub depth_buffer: Option<Arc<BitangImage>>,
     pub clear_color: Option<[f32; 4]>,
     pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
 }
@@ -41,8 +41,8 @@ impl Pass {
     pub fn new(
         id: &str,
         context: &Arc<VulkanContext>,
-        color_buffers: Vec<ImageSelector>,
-        depth_buffer: Option<ImageSelector>,
+        color_buffers: Vec<Arc<BitangImage>>,
+        depth_buffer: Option<Arc<BitangImage>>,
         clear_color: Option<[f32; 4]>,
     ) -> Result<Self> {
         let vulkan_render_pass = Self::make_vulkan_render_pass(
@@ -62,8 +62,8 @@ impl Pass {
 
     fn make_vulkan_render_pass(
         context: &Arc<VulkanContext>,
-        color_buffers: &[ImageSelector],
-        depth_buffer: &Option<ImageSelector>,
+        color_buffers: &[Arc<BitangImage>],
+        depth_buffer: &Option<Arc<BitangImage>>,
         clear_buffers: bool,
     ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
         let mut attachments = vec![];
@@ -106,7 +106,7 @@ impl Pass {
     }
 
     fn make_attachment_reference(
-        selector: &ImageSelector,
+        image: &Arc<BitangImage>,
         attachments: &mut Vec<AttachmentDescription>,
         layout: ImageLayout,
         load_op: AttachmentLoadOp,
@@ -117,9 +117,10 @@ impl Pass {
             ..Default::default()
         };
 
-        let attachment_description = match selector {
-            ImageSelector::Image(image) => image.make_attachment_description(layout, load_op),
-        };
+        let attachment_description = image.make_attachment_description(layout, load_op);
+        // let attachment_description = match selector {
+        //     ImageSelector::Image(image) => image.make_attachment_description(layout, load_op),
+        // };
 
         attachments.push(attachment_description);
         reference
@@ -127,17 +128,16 @@ impl Pass {
 
     pub fn get_viewport(&self, context: &mut RenderContext) -> Result<Viewport> {
         let first_image = if let Some(img) = self.color_buffers.first() {
-            img.get_image()
+            img
         } else if let Some(img) = &self.depth_buffer {
-            img.get_image()
+            img
         } else {
             bail!("Pass {} has no color or depth buffers", self.id);
         };
 
         // Check that all render targets have the same size
         let size = first_image.get_size()?;
-        for img_selector in &self.color_buffers {
-            let image = img_selector.get_image();
+        for image in &self.color_buffers {
             ensure!(
                 image.get_size()? == size,
                 "Image '{}' in Pass '{}' has different size than other images",
@@ -165,15 +165,14 @@ impl Pass {
         // Collect color attachment images...
         let mut attachments = vec![];
         let mut clear_values = vec![];
-        for img_selector in &self.color_buffers {
-            let image = img_selector.get_image();
-            attachments.push(image.get_view()?);
+        for image in &self.color_buffers {
+            attachments.push(image.get_view_for_render_target()?);
             clear_values.push(self.clear_color.map(|c| c.into()));
         }
 
         // ...and the depth attachment image
         if let Some(depth) = &self.depth_buffer {
-            attachments.push(depth.get_image_view()?);
+            attachments.push(depth.get_view_for_render_target()?);
             clear_values.push(self.clear_color.map(|_| 1f32.into()));
         }
 

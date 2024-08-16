@@ -4,6 +4,11 @@ Chart(
             id: "color",
             format: Rgba16F,
             size: CanvasRelative(1.0),
+        ),
+        Image(
+            id: "color-gamma",
+            format: Rgba16F,
+            size: CanvasRelative(1.0),
             has_mipmaps: true,
         ),
         Image(
@@ -20,16 +25,6 @@ Chart(
             id: "dof",
             format: Rgba16F,
             size: CanvasRelative(1.0),
-        ),
-        Image(
-            id: "half1",
-            format: Rgba16F,
-            size: CanvasRelative(0.5),
-        ),
-        Image(
-            id: "half2",
-            format: Rgba16F,
-            size: CanvasRelative(0.25),
         ),
         Image(
             id: "gaussian-horizontal",
@@ -157,7 +152,45 @@ Chart(
             ],
         ),
 
+        // Gamma compression
+        Draw(
+            id: "gamma-compression",
+            passes: [
+                Pass(
+                    id: "solid",
+                    color_images: [Image("color-gamma")],
+                    clear_color: (0, 0.37, 0, 0),
+                ),
+            ],
+            items: [
+                Object(
+                    id: "gamma-compression",
+                    mesh_file: "plane_xz.glb",
+                    mesh_name: "Plane",
+                    material: Material(
+                        passes: {
+                            "solid": MaterialPass(
+                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                fragment_shader: "/shaders/post/gamma_compress.fs.glsl",
+                                depth_test: false,
+                                depth_write: false,
+                            ),
+                        },
+                        samplers: {
+                            "base_color": Sampler(
+                                bind: Image("color"),
+                                address_mode: ClampToEdge,
+                            ),
+                        },
+                    ),
+                ),
+            ],
+        ),
 
+        GenerateMipLevels(
+            id: "mip1",
+            image_id: "color-gamma",
+        ),
 
 
         // Final composition
@@ -186,7 +219,7 @@ Chart(
                         },
                         samplers: {
                             "base_color": Sampler(
-                                bind: Image("color"),
+                                bind: Image("color-gamma"),
                                 address_mode: ClampToEdge,
                             ),
                         },
