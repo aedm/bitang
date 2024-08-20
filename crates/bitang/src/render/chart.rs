@@ -183,7 +183,7 @@ impl Chart {
                 ChartStep::Draw(draw) => {
                     draw.render(context, &self.camera)?;
                 }
-                ChartStep::Compute(compute) => {
+                ChartStep::Compute(_) => {
                     // Compute only runs simulation or init, ignore for now
                 }
                 ChartStep::GenerateMipLevels(genmips) => {

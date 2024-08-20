@@ -1,4 +1,3 @@
-use crate::render::compute::Run;
 use crate::render::image::BitangImage;
 use crate::tool::RenderContext;
 use std::sync::Arc;

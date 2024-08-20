@@ -3,31 +3,12 @@ use crate::tool::{RenderContext, VulkanContext};
 use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
 use vulkano::command_buffer::RenderPassBeginInfo;
-use vulkano::image::view::ImageView;
 use vulkano::image::ImageLayout;
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::render_pass::{
     AttachmentDescription, AttachmentLoadOp, AttachmentReference, Framebuffer,
     FramebufferCreateInfo, RenderPassCreateInfo, SubpassDescription,
 };
-
-// pub enum ImageSelector {
-//     Image(Arc<BitangImage>),
-// }
-//
-// impl ImageSelector {
-//     pub fn get_image(&self) -> &Arc<BitangImage> {
-//         match self {
-//             ImageSelector::Image(image) => image,
-//         }
-//     }
-//
-//     pub fn get_image_view(&self) -> Result<Arc<ImageView>> {
-//         match self {
-//             ImageSelector::Image(image) => image.get_view(),
-//         }
-//     }
-// }
 
 pub struct Pass {
     pub id: String,

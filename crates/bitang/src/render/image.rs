@@ -1,18 +1,17 @@
-use crate::render::generate_mip_levels::{generate_mip_levels, GenerateMipLevels};
+use crate::render::generate_mip_levels::generate_mip_levels;
 use crate::tool::VulkanContext;
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, BlitImageInfo, CommandBufferUsage, CopyBufferToImageInfo, ImageBlit,
+    AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
     PrimaryCommandBufferAbstract,
 };
-use vulkano::image::sampler::Filter;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{
-    max_mip_levels, mip_level_extent, Image, ImageAspects, ImageCreateInfo, ImageLayout,
-    ImageSubresourceLayers, ImageSubresourceRange, ImageTiling, ImageType, ImageUsage, SampleCount,
+    max_mip_levels, Image, ImageCreateInfo, ImageLayout, ImageSubresourceRange, ImageTiling,
+    ImageType, ImageUsage, SampleCount,
 };
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::render_pass::{AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp};
@@ -170,9 +169,8 @@ impl BitangImage {
     // Returns an image view that only has one mip level.
     pub fn get_view_for_render_target(&self) -> Result<Arc<ImageView>> {
         let view: Arc<ImageView> = match &self.inner {
-            ImageInner::Immutable(image) => {
+            ImageInner::Immutable(_) => {
                 bail!("Immutable image can't be used as a render target");
-                // ImageView::new_default(image.clone())?
             }
             ImageInner::Attachment(image) => {
                 let image = image.read().unwrap();
@@ -213,14 +211,8 @@ impl BitangImage {
                 };
                 ImageView::new_default(image.clone())?
             }
-            ImageInner::Swapchain(image) => {
+            ImageInner::Swapchain(_) => {
                 bail!("Swapchain image can't be used in a sampler");
-                // let image = image.read().unwrap();
-                // if let Some(image) = image.as_ref() {
-                //     image.clone()
-                // } else {
-                //     bail!("Swapchain image not initialized");
-                // }
             }
         };
         Ok(view)
