@@ -22,7 +22,6 @@ void main() {
     #if IMAGE_BOUND_TO_SAMPLER_ENVMAP
     {
         vec4 c = sample_environment_map(normalize(v_ray_direction), 0.0, envmap);
-        //        c = c / (c + vec4(1.0));
         f_color = vec4(c.rgb * args.r, 1);
     }
     #else

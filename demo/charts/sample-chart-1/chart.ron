@@ -184,10 +184,6 @@ Chart(
 
         GenerateMipLevels(
             id: "mip1",
-            image_id: "color",
-        ),
-        GenerateMipLevels(
-            id: "mip1",
             image_id: "color-gamma",
         ),
 

@@ -26,7 +26,6 @@ pub enum PixelFormat {
 
     // Intel only apparently supports this surface format, no RGBA_SRGB.
     Bgra8Srgb,
-    Bgra8U,
 }
 
 impl PixelFormat {
@@ -38,7 +37,6 @@ impl PixelFormat {
             PixelFormat::Rgba8U => vulkano::format::Format::R8G8B8A8_UNORM,
             PixelFormat::Rgba8Srgb => vulkano::format::Format::R8G8B8A8_SRGB,
             PixelFormat::Bgra8Srgb => vulkano::format::Format::B8G8R8A8_SRGB,
-            PixelFormat::Bgra8U => vulkano::format::Format::B8G8R8A8_UNORM,
         }
     }
 }

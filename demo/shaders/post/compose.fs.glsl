@@ -15,29 +15,35 @@ layout (set = 1, binding = 0) uniform Uniforms {
     float glow;
     float glow_pow;
     float g_app_time;
+    float hdr_adjust;
 };
 
+float noise2d(vec2 co) {
+    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 void main() {
+    // base color
     vec3 color = textureLod(base_color, v_uv, 0.0).rgb;
     color = min(color, 1);
-    //    color = gamma_decompress(color);
 
+    // glow
     #if IMAGE_BOUND_TO_SAMPLER_GLOW_MAP
     vec3 glow_color = textureLod(glow_map, v_uv, 0.0).rgb;
-    //    glow_color = gamma_decompress(glow_color);
-    //    glow_color = max(glow_color - COLOR_BASE_LEVEL, 0);
+    glow_color = gamma_decompress(glow_color);
     glow_color = pow(glow_color, vec3(glow_pow)) * glow;
-    //    color = clamp(color, 0, 1) + max(glow_color, 0);
     color += glow_color;
     #endif
 
-
-    //    vec3 toned = pow(clamp(color, 0, 1), tone_mapping) * coloring;
-    //    float dither = fract((v_uv.x * 32 + v_uv.y * 32 + g_app_time * 0.1) * 321.423) / 512;
-    //    color = toned + dither;
+    // tone mapping
+    color = pow(clamp(color, 0, 1), tone_mapping) * coloring;
 
     // hdr
-    color = color / (color + vec3(0.4));
+    color = color / (color + vec3(1-hdr_adjust));
+
+    // dither
+    float dither = noise2d(v_uv * 512 + g_app_time*10) / 512;
+    color += dither;
 
     f_color = vec4(color, 1);
 }
