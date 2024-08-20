@@ -1,17 +1,17 @@
+use crate::render::generate_mip_levels::generate_mip_levels;
 use crate::tool::VulkanContext;
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, BlitImageInfo, CommandBufferUsage, CopyBufferToImageInfo, ImageBlit,
+    AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
     PrimaryCommandBufferAbstract,
 };
-use vulkano::image::sampler::Filter;
-use vulkano::image::view::ImageView;
+use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{
-    max_mip_levels, mip_level_extent, Image, ImageCreateInfo, ImageLayout, ImageSubresourceLayers,
-    ImageTiling, ImageType, ImageUsage, SampleCount,
+    max_mip_levels, Image, ImageCreateInfo, ImageLayout, ImageSubresourceRange, ImageTiling,
+    ImageType, ImageUsage, SampleCount,
 };
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::render_pass::{AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp};
@@ -49,8 +49,13 @@ pub enum ImageSizeRule {
 }
 
 enum ImageInner {
+    // Immutable image that is loaded from an external source, e.g. a jpg file.
     Immutable(Arc<Image>),
-    SingleLevelAttachment(RwLock<Option<Arc<Image>>>),
+
+    // Attachment image used both as a render target and a sampler source.
+    Attachment(RwLock<Option<Arc<Image>>>),
+
+    // The final render target. In windowed mode, this is displayed on the screen
     Swapchain(RwLock<Option<Arc<ImageView>>>),
 }
 
@@ -61,27 +66,23 @@ pub struct BitangImage {
     // pub mip_levels: MipLevels,
     inner: ImageInner,
     size: RwLock<Option<(u32, u32)>>,
+    has_mipmaps: bool,
 }
 
 impl BitangImage {
-    pub fn new_immutable(id: &str, source: Arc<Image>) -> Arc<Self> {
-        let dim = source.extent();
+    pub fn new_attachment(
+        id: &str,
+        format: PixelFormat,
+        size_rule: ImageSizeRule,
+        has_mipmaps: bool,
+    ) -> Arc<Self> {
         Arc::new(Self {
             id: id.to_owned(),
-            vulkan_format: source.format(),
-            inner: ImageInner::Immutable(source),
-            size_rule: ImageSizeRule::Fixed(dim[0], dim[1]),
-            size: RwLock::new(Some((dim[0], dim[1]))),
-        })
-    }
-
-    pub fn new_attachment(id: &str, format: PixelFormat, size_rule: ImageSizeRule) -> Arc<Self> {
-        Arc::new(Self {
-            id: id.to_owned(),
-            inner: ImageInner::SingleLevelAttachment(RwLock::new(None)),
+            inner: ImageInner::Attachment(RwLock::new(None)),
             size_rule,
             size: RwLock::new(None),
             vulkan_format: format.vulkan_format(),
+            has_mipmaps,
         })
     }
 
@@ -92,6 +93,7 @@ impl BitangImage {
             size_rule: ImageSizeRule::CanvasRelative(1.0),
             size: RwLock::new(None),
             vulkan_format: format.vulkan_format(),
+            has_mipmaps: false,
         })
     }
 
@@ -148,46 +150,38 @@ impl BitangImage {
             image.clone(),
         ))?;
 
-        for mip_level in 1..mip_levels {
-            cbb.blit_image(BlitImageInfo {
-                src_image_layout: ImageLayout::General,
-                dst_image_layout: ImageLayout::General,
-                regions: [ImageBlit {
-                    src_subresource: ImageSubresourceLayers {
-                        aspects: image.format().aspects(),
-                        mip_level: mip_level - 1,
-                        array_layers: 0..image.array_layers(),
-                    },
-                    dst_subresource: ImageSubresourceLayers {
-                        aspects: image.format().aspects(),
-                        mip_level: mip_level,
-                        array_layers: 0..image.array_layers(),
-                    },
-                    src_offsets: [
-                        [0, 0, 0],
-                        mip_level_extent(dimensions, mip_level - 1).unwrap(),
-                    ],
-                    dst_offsets: [[0, 0, 0], mip_level_extent(dimensions, mip_level).unwrap()],
-                    ..Default::default()
-                }]
-                .into(),
-                filter: Filter::Linear,
-                ..BlitImageInfo::images(Arc::clone(&image), Arc::clone(&image))
-            })?;
-        }
+        generate_mip_levels(image.clone(), &mut cbb)?;
 
         let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
 
-        Ok(BitangImage::new_immutable(id, image))
+        Ok(Arc::new(Self {
+            id: id.to_owned(),
+            vulkan_format: image.format(),
+            inner: ImageInner::Immutable(image),
+            size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
+            size: RwLock::new(Some((dimensions[0], dimensions[1]))),
+            has_mipmaps: true,
+        }))
     }
 
-    pub fn get_view(&self) -> Result<Arc<ImageView>> {
+    // Returns an image view that only has one mip level.
+    pub fn get_view_for_render_target(&self) -> Result<Arc<ImageView>> {
         let view: Arc<ImageView> = match &self.inner {
-            ImageInner::Immutable(image) => ImageView::new_default(image.clone())?,
-            ImageInner::SingleLevelAttachment(image) => {
+            ImageInner::Immutable(_) => {
+                bail!("Immutable image can't be used as a render target");
+            }
+            ImageInner::Attachment(image) => {
                 let image = image.read().unwrap();
                 if let Some(image) = image.as_ref() {
-                    ImageView::new_default(image.clone())?
+                    let i = ImageViewCreateInfo::from_image(&image);
+                    let vci = ImageViewCreateInfo {
+                        subresource_range: ImageSubresourceRange {
+                            mip_levels: 0..1,
+                            ..i.subresource_range
+                        },
+                        ..i
+                    };
+                    ImageView::new(image.clone(), vci)?
                 } else {
                     bail!("Attachment image not initialized");
                 }
@@ -204,10 +198,28 @@ impl BitangImage {
         Ok(view)
     }
 
+    // Returns an image view for sampling purposes. It includes all mip levels.
+    pub fn get_view_for_sampler(&self) -> Result<Arc<ImageView>> {
+        let view: Arc<ImageView> = match &self.inner {
+            ImageInner::Immutable(image) => ImageView::new_default(image.clone())?,
+            ImageInner::Attachment(image) => {
+                let image = image.read().unwrap();
+                let Some(image) = image.as_ref() else {
+                    bail!("Attachment image not initialized");
+                };
+                ImageView::new_default(image.clone())?
+            }
+            ImageInner::Swapchain(_) => {
+                bail!("Swapchain image can't be used in a sampler");
+            }
+        };
+        Ok(view)
+    }
+
     pub fn get_image(&self) -> Arc<Image> {
         match &self.inner {
             ImageInner::Immutable(image) => Arc::clone(image),
-            ImageInner::SingleLevelAttachment(image) => {
+            ImageInner::Attachment(image) => {
                 let image = image.read().unwrap();
                 if let Some(image) = image.as_ref() {
                     Arc::clone(image)
@@ -244,7 +256,7 @@ impl BitangImage {
         viewport_size: [f32; 2],
     ) -> Result<()> {
         // Only attachments need to be resized.
-        let ImageInner::SingleLevelAttachment(attachment) = &self.inner else {
+        let ImageInner::Attachment(attachment) = &self.inner else {
             return Ok(());
         };
 
@@ -280,6 +292,7 @@ impl BitangImage {
         };
 
         // Create a new image with the correct size.
+        let mip_levels = if self.has_mipmaps { max_mip_levels(extent) } else { 1 };
         let image = Image::new(
             context.memory_allocator.clone(),
             ImageCreateInfo {
@@ -287,6 +300,7 @@ impl BitangImage {
                 usage,
                 format: self.vulkan_format,
                 extent,
+                mip_levels,
                 ..Default::default()
             },
             AllocationCreateInfo::default(),

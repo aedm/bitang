@@ -21,8 +21,6 @@ pub enum BufferSource {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Sampler {
     bind: SamplerSource,
-
-    #[serde(default)]
     pub mode: SamplerMode,
 }
 
@@ -32,9 +30,8 @@ pub enum SamplerSource {
     File(String),
 }
 
-#[derive(Debug, Deserialize, Default, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum SamplerMode {
-    #[default]
     Repeat,
     ClampToEdge,
     MirroredRepeat,

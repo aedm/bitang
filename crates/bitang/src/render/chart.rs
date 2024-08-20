@@ -4,6 +4,7 @@ use crate::render::buffer_generator::BufferGenerator;
 use crate::render::camera::Camera;
 use crate::render::compute::{Compute, Run};
 use crate::render::draw::Draw;
+use crate::render::generate_mip_levels::GenerateMipLevels;
 use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::RenderContext;
@@ -15,6 +16,7 @@ use std::sync::Arc;
 pub enum ChartStep {
     Draw(Draw),
     Compute(Compute),
+    GenerateMipLevels(GenerateMipLevels),
 }
 
 pub struct Chart {
@@ -54,6 +56,7 @@ impl Chart {
             .map(|step| match step {
                 ChartStep::Draw(draw) => draw.id.clone(),
                 ChartStep::Compute(compute) => compute.id.clone(),
+                ChartStep::GenerateMipLevels(genmips) => genmips._id.clone(),
             })
             .collect::<Vec<String>>();
         let controls = Rc::new(control_set_builder.into_control_set(&chart_step_ids));
@@ -176,6 +179,17 @@ impl Chart {
             buffer_generator.generate()?;
         }
         for step in &self.steps {
+            match step {
+                ChartStep::Draw(draw) => {
+                    draw.render(context, &self.camera)?;
+                }
+                ChartStep::Compute(_) => {
+                    // Compute only runs simulation or init, ignore for now
+                }
+                ChartStep::GenerateMipLevels(genmips) => {
+                    genmips.execute(context)?;
+                }
+            }
             if let ChartStep::Draw(draw) = step {
                 draw.render(context, &self.camera)?;
             }

@@ -4,6 +4,13 @@ Chart(
             id: "color",
             format: Rgba16F,
             size: CanvasRelative(1.0),
+            has_mipmaps: true,
+        ),
+        Image(
+            id: "color-gamma",
+            format: Rgba16F,
+            size: CanvasRelative(1.0),
+            has_mipmaps: true,
         ),
         Image(
             id: "depth",
@@ -19,16 +26,6 @@ Chart(
             id: "dof",
             format: Rgba16F,
             size: CanvasRelative(1.0),
-        ),
-        Image(
-            id: "half1",
-            format: Rgba16F,
-            size: CanvasRelative(0.5),
-        ),
-        Image(
-            id: "half2",
-            format: Rgba16F,
-            size: CanvasRelative(0.25),
         ),
         Image(
             id: "gaussian-horizontal",
@@ -54,7 +51,7 @@ Chart(
                 Pass(
                     id: "solid",
                     depth_image: Image("depth"),
-                    color_images: [Image("screen")],
+                    color_images: [Image("color")],
                     clear_color: (0, 0.37, 0, 0),
                 ),
             ],
@@ -78,7 +75,7 @@ Chart(
                                     "medieval_cafe_1k.jxl",
 
                                 ),
-                                address_mode: Envmap,
+                                mode: Envmap,
                             ),
                         },
                     ),
@@ -144,11 +141,153 @@ Chart(
                                 ),
                                 mode: ClampToEdge,
                             ),
-                            "noise_map": Sampler(
-                                bind: File(
-                                    "noiseTexture.png",
-                                ),
-                                mode: Repeat,
+                        },
+                    ),
+                ),
+            ],
+        ),
+
+        // Gamma compression
+        Draw(
+            id: "gamma-compression",
+            passes: [
+                Pass(
+                    id: "solid",
+                    color_images: [Image("color-gamma")],
+                    clear_color: (0, 0.37, 0, 0),
+                ),
+            ],
+            items: [
+                Object(
+                    id: "gamma-compression",
+                    mesh_file: "plane_xz.glb",
+                    mesh_name: "Plane",
+                    material: Material(
+                        passes: {
+                            "solid": MaterialPass(
+                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                fragment_shader: "/shaders/post/gamma_compress.fs.glsl",
+                                depth_test: false,
+                                depth_write: false,
+                            ),
+                        },
+                        samplers: {
+                            "base_color": Sampler(
+                                bind: Image("color"),
+                                mode: ClampToEdge,
+                            ),
+                        },
+                    ),
+                ),
+            ],
+        ),
+
+        GenerateMipLevels(
+            id: "mip1",
+            image_id: "color-gamma",
+        ),
+
+        // Gaussian convolution
+        Draw(
+            id: "gaussian-horizontal",
+            passes: [
+                Pass(
+                    id: "solid",
+                    color_images: [Image("gaussian-horizontal")],
+                    clear_color: (0, 0.37, 0, 0),
+                ),
+            ],
+            items: [
+                Object(
+                    id: "gamma-compression",
+                    mesh_file: "plane_xz.glb",
+                    mesh_name: "Plane",
+                    material: Material(
+                        passes: {
+                            "solid": MaterialPass(
+                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                fragment_shader: "/shaders/post/gauss_horizontal.fs.glsl",
+                                depth_test: false,
+                                depth_write: false,
+                            ),
+                        },
+                        samplers: {
+                            "base_color": Sampler(
+                                bind: Image("color-gamma"),
+                                mode: ClampToEdge,
+                            ),
+                        },
+                    ),
+                ),
+            ],
+        ),
+        Draw(
+            id: "gaussian-vertical",
+            passes: [
+                Pass(
+                    id: "solid",
+                    color_images: [Image("gaussian")],
+                    clear_color: (0, 0.37, 0, 0),
+                ),
+            ],
+            items: [
+                Object(
+                    id: "gamma-compression",
+                    mesh_file: "plane_xz.glb",
+                    mesh_name: "Plane",
+                    material: Material(
+                        passes: {
+                            "solid": MaterialPass(
+                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                fragment_shader: "/shaders/post/gauss_vertical.fs.glsl",
+                                depth_test: false,
+                                depth_write: false,
+                            ),
+                        },
+                        samplers: {
+                            "base_color": Sampler(
+                                bind: Image("gaussian-horizontal"),
+                                mode: ClampToEdge,
+                            ),
+                        },
+                    ),
+                ),
+            ],
+        ),
+
+
+        // Final composition
+        Draw(
+            id: "compose",
+            passes: [
+                Pass(
+                    id: "solid",
+                    color_images: [Image("screen")],
+                    clear_color: (0, 0.37, 0, 0),
+                ),
+            ],
+            items: [
+                Object(
+                    id: "compose",
+                    mesh_file: "plane_xz.glb",
+                    mesh_name: "Plane",
+                    material: Material(
+                        passes: {
+                            "solid": MaterialPass(
+                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                fragment_shader: "/shaders/post/compose.fs.glsl",
+                                depth_test: false,
+                                depth_write: false,
+                            ),
+                        },
+                        samplers: {
+                            "base_color": Sampler(
+                                bind: Image("color"),
+                                mode: ClampToEdge,
+                            ),
+                            "glow_map": Sampler(
+                                bind: Image("gaussian"),
+                                mode: ClampToEdge,
                             ),
                         },
                     ),

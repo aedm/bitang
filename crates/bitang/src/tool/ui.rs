@@ -252,7 +252,7 @@ impl Ui {
         let target_image = context
             .vulkan_context
             .final_render_target
-            .get_view()
+            .get_view_for_render_target()
             .unwrap();
         let [width, height, _] = target_image.image().extent();
         let framebuffer = Framebuffer::new(

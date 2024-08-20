@@ -154,11 +154,19 @@ pub struct Image {
     pub id: String,
     pub size: ImageSizeRule,
     pub format: render::image::PixelFormat,
+
+    #[serde(default)]
+    pub has_mipmaps: bool,
 }
 
 impl Image {
     pub fn load(&self) -> Arc<render::image::BitangImage> {
-        render::image::BitangImage::new_attachment(&self.id, self.format, self.size)
+        render::image::BitangImage::new_attachment(
+            &self.id,
+            self.format,
+            self.size,
+            self.has_mipmaps,
+        )
     }
 }
 
@@ -170,6 +178,7 @@ fn default_clear_color() -> Option<[f32; 4]> {
 pub enum ChartStep {
     Draw(Draw),
     Compute(Compute),
+    GenerateMipLevels(GenerateMipLevels),
 }
 
 impl ChartStep {
@@ -187,7 +196,44 @@ impl ChartStep {
                 let compute = compute.load(context, chart_context).await?;
                 Ok(render::chart::ChartStep::Compute(compute))
             }
+            ChartStep::GenerateMipLevels(generate_mip_levels) => {
+                let generate_mip_levels = generate_mip_levels.load(chart_context).await?;
+                Ok(render::chart::ChartStep::GenerateMipLevels(
+                    generate_mip_levels,
+                ))
+            }
         }
+    }
+}
+
+/// Represents a mipmap generation step in the chart sequence.
+#[derive(Debug, Deserialize)]
+pub struct GenerateMipLevels {
+    pub id: String,
+    pub image_id: String,
+}
+
+impl GenerateMipLevels {
+    pub async fn load(
+        &self,
+        chart_context: &ChartContext,
+    ) -> Result<render::generate_mip_levels::GenerateMipLevels> {
+        let image = chart_context
+            .image_futures_by_id
+            .get(&self.image_id)
+            .with_context(|| {
+                anyhow!(
+                    "Image id not found: '{}' (mipmap generation step: '{}')",
+                    self.image_id,
+                    self.id
+                )
+            })?;
+        let image = image.get().await?;
+
+        Ok(render::generate_mip_levels::GenerateMipLevels {
+            _id: self.id.clone(),
+            image: image.clone(),
+        })
     }
 }
 
@@ -332,6 +378,7 @@ impl Compute {
     }
 }
 
+// TODO: get rid of this, use a plain string id instead
 #[derive(Debug, Deserialize)]
 pub enum ImageSelector {
     /// Level 0 of the image
@@ -342,14 +389,14 @@ impl ImageSelector {
     pub async fn load(
         &self,
         images_by_id: &AHashMap<String, LoadFuture<render::image::BitangImage>>,
-    ) -> Result<render::pass::ImageSelector> {
+    ) -> Result<Arc<render::image::BitangImage>> {
         match self {
             ImageSelector::Image(id) => {
                 let image_future = images_by_id
                     .get(id)
                     .with_context(|| anyhow!("Render target not found: {id}"))?;
                 let image = image_future.get().await?;
-                Ok(render::pass::ImageSelector::Image(image))
+                Ok(image)
             }
         }
     }

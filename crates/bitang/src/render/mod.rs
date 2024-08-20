@@ -4,6 +4,7 @@ pub mod camera;
 pub mod chart;
 pub mod compute;
 pub mod draw;
+pub mod generate_mip_levels;
 pub mod image;
 pub mod material;
 pub mod mesh;

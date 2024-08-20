@@ -55,11 +55,13 @@ float sample_shadow_map(vec3 world_pos) {
 }
 
 void main() {
-    float light = sample_shadow_map(v_pos_worldspace);
+    vec2 uv = v_uv * 2;
+    vec3 base_color = texture(base_color_map, uv).rgb;
 
-    vec3 base_color = texture(base_color_map, v_uv).rgb;
-    float roughness = sample_srgb_as_linear(roughness_map, v_uv).r;
-    float metallic = sample_srgb_as_linear(metallic_map, v_uv).r;
+    float roughness = sample_srgb_as_linear(roughness_map, uv).r;
+    float metallic = sample_srgb_as_linear(metallic_map, uv).r;
+
+    float light = sample_shadow_map(v_pos_worldspace);
 
     roughness = adjust(roughness, v_material_adjustment.x * 2.0 - 1.0);
     metallic = adjust(metallic, v_material_adjustment.y * 2.0 - 1.0);
@@ -67,16 +69,16 @@ void main() {
     roughness = adjust(roughness, u.roughness);
     metallic = adjust(metallic, u.metallic);
 
-    vec3 N = apply_normal_map_amount(normal_map, v_uv * 4, v_normal_worldspace, v_tangent_worldspace, u.normal_strength);
+    vec3 normal_wn = normalize(v_normal_worldspace);
+    vec3 tangent_wn = normalize(v_tangent_worldspace);
+
+    vec3 N = apply_normal_map_amount(normal_map, uv, normal_wn, tangent_wn, u.normal_strength);
     vec3 V = normalize(v_camera_pos_worldspace - v_pos_worldspace);
     vec3 L = u.g_light_dir_worldspace_norm;
 
     vec3 color_acc = vec3(0);
     color_acc += cook_torrance_brdf(V, N, L, base_color.rgb, metallic, roughness, u.color.rgb* light);
     color_acc += cook_torrance_brdf_ibl(V, N, base_color.rgb, metallic, roughness, envmap, brdf_lut, vec3(u.ambient));
-
-    // hdr
-    color_acc = color_acc / (color_acc + vec3(1.0));
 
     f_color = vec4(color_acc, 1.0);
 }
