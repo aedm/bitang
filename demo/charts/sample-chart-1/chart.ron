@@ -75,7 +75,7 @@ Chart(
                                     "medieval_cafe_1k.jxl",
 
                                 ),
-                                address_mode: Envmap,
+                                mode: Envmap,
                             ),
                         },
                     ),
@@ -141,12 +141,6 @@ Chart(
                                 ),
                                 mode: ClampToEdge,
                             ),
-                            "noise_map": Sampler(
-                                bind: File(
-                                    "noiseTexture.png",
-                                ),
-                                mode: Repeat,
-                            ),
                         },
                     ),
                 ),
@@ -180,7 +174,7 @@ Chart(
                         samplers: {
                             "base_color": Sampler(
                                 bind: Image("color"),
-                                address_mode: ClampToEdge,
+                                mode: ClampToEdge,
                             ),
                         },
                     ),
@@ -224,7 +218,7 @@ Chart(
                         samplers: {
                             "base_color": Sampler(
                                 bind: Image("color-gamma"),
-                                address_mode: ClampToEdge,
+                                mode: ClampToEdge,
                             ),
                         },
                     ),
@@ -257,7 +251,7 @@ Chart(
                         samplers: {
                             "base_color": Sampler(
                                 bind: Image("gaussian-horizontal"),
-                                address_mode: ClampToEdge,
+                                mode: ClampToEdge,
                             ),
                         },
                     ),
@@ -293,11 +287,11 @@ Chart(
                         samplers: {
                             "base_color": Sampler(
                                 bind: Image("color"),
-                                address_mode: ClampToEdge,
+                                mode: ClampToEdge,
                             ),
                             "glow_map": Sampler(
                                 bind: Image("gaussian"),
-                                address_mode: ClampToEdge,
+                                mode: ClampToEdge,
                             ),
                         },
                     ),
