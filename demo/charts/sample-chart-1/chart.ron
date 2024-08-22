@@ -7,6 +7,12 @@ Chart(
             has_mipmaps: true,
         ),
         Image(
+            id: "dof",
+            format: Rgba16F,
+            size: CanvasRelative(1.0),
+            has_mipmaps: true,
+        ),
+        Image(
             id: "color-gamma",
             format: Rgba16F,
             size: CanvasRelative(1.0),
@@ -147,6 +153,45 @@ Chart(
             ],
         ),
 
+        // Depth of field
+        Draw(
+            id: "depth-of-field",
+            passes: [
+                Pass(
+                    id: "solid",
+                    color_images: [Image("dof")],
+                    clear_color: (0, 0.37, 0, 0),
+                ),
+            ],
+            items: [
+                Object(
+                    id: "shader",
+                    mesh_file: "plane_xz.glb",
+                    mesh_name: "Plane",
+                    material: Material(
+                        passes: {
+                            "solid": MaterialPass(
+                                vertex_shader: "/shaders/fullscreen.vs.glsl",
+                                fragment_shader: "/shaders/post/dof-singlepass.fs.glsl",
+                                depth_test: false,
+                                depth_write: false,
+                            ),
+                        },
+                        samplers: {
+                            "color_texture": Sampler(
+                                bind: Image("color"),
+                                mode: ClampToEdge,
+                            ),
+                            "depth_texture": Sampler(
+                                bind: Image("depth"),
+                                mode: ClampToEdge,
+                            ),
+                        },
+                    ),
+                ),
+            ],
+        ),
+
         // Gamma compression
         Draw(
             id: "gamma-compression",
@@ -159,13 +204,13 @@ Chart(
             ],
             items: [
                 Object(
-                    id: "gamma-compression",
+                    id: "shader",
                     mesh_file: "plane_xz.glb",
                     mesh_name: "Plane",
                     material: Material(
                         passes: {
                             "solid": MaterialPass(
-                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                vertex_shader: "/shaders/fullscreen.vs.glsl",
                                 fragment_shader: "/shaders/post/gamma_compress.fs.glsl",
                                 depth_test: false,
                                 depth_write: false,
@@ -199,13 +244,13 @@ Chart(
             ],
             items: [
                 Object(
-                    id: "gamma-compression",
+                    id: "shader",
                     mesh_file: "plane_xz.glb",
                     mesh_name: "Plane",
                     material: Material(
                         passes: {
                             "solid": MaterialPass(
-                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                vertex_shader: "/shaders/fullscreen.vs.glsl",
                                 fragment_shader: "/shaders/post/gauss_horizontal.fs.glsl",
                                 depth_test: false,
                                 depth_write: false,
@@ -232,13 +277,13 @@ Chart(
             ],
             items: [
                 Object(
-                    id: "gamma-compression",
+                    id: "shader",
                     mesh_file: "plane_xz.glb",
                     mesh_name: "Plane",
                     material: Material(
                         passes: {
                             "solid": MaterialPass(
-                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                vertex_shader: "/shaders/fullscreen.vs.glsl",
                                 fragment_shader: "/shaders/post/gauss_vertical.fs.glsl",
                                 depth_test: false,
                                 depth_write: false,
@@ -274,7 +319,7 @@ Chart(
                     material: Material(
                         passes: {
                             "solid": MaterialPass(
-                                vertex_shader: "/shaders/post/compose.vs.glsl",
+                                vertex_shader: "/shaders/fullscreen.vs.glsl",
                                 fragment_shader: "/shaders/post/compose.fs.glsl",
                                 depth_test: false,
                                 depth_write: false,
@@ -282,7 +327,7 @@ Chart(
                         },
                         samplers: {
                             "base_color": Sampler(
-                                bind: Image("color"),
+                                bind: Image("dof"),
                                 mode: ClampToEdge,
                             ),
                             "glow_map": Sampler(

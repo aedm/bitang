@@ -66,6 +66,7 @@ pub struct VulkanContext {
 pub struct RenderContext<'a> {
     pub vulkan_context: Arc<VulkanContext>,
     pub screen_viewport: Viewport,
+    // TODO: rename to command queue
     pub command_builder: &'a mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
     pub globals: Globals,
     pub simulation_elapsed_time_since_last_render: f32,

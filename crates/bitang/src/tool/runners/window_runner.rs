@@ -257,6 +257,7 @@ impl WindowRunner {
             .then_execute(self.vulkan_context.gfx_queue.clone(), command_buffer)
             .unwrap()
             .boxed();
+        // TODO: check if we really need to wait for the future
         self.get_renderer().present(after_future, true);
 
         if let Some(project) = &self.app.app_state.project {
