@@ -14,11 +14,16 @@ A framework for creative coding, mainly targeted at demoscene productions. Curre
 Not a lot of docs yet. Use the example project [`"Attractors"`](https://github.com/aedm/bitang/releases/tag/0.1.0) available on the releases page.
 
 
-## Building
+## Development
 
-You'll need Rust. 
+Dependencies:
+- Rust
+- Cmake, Ninja and Python (see https://github.com/aedm/bitang/issues/227)
 
-Just run `cargo build --release` and you'll find the executable in `target/release/bitang`. You might need to install additional resources depending on the platform.
+
+### Build & run
+
+Just run `cargo run --release`.
 
 The development platform is Windows, but Linux and MacOS should work as well.
 
