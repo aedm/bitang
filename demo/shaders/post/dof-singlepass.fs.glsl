@@ -17,8 +17,8 @@ layout (set = 1, binding = 1) uniform sampler2D color_texture;
 layout (set = 1, binding = 2) uniform sampler2D depth_texture;
 
 const float GOLDEN_ANGLE = 2.39996323;
-const float MAX_BLUR_SIZE = 20.0;
-const float RAD_SCALE = 8.0;// Smaller = nicer blur, larger = faster
+const float MAX_BLUR_SIZE = 12.0;
+const float RAD_SCALE = 3.0;// Smaller = nicer blur, larger = faster
 
 #define FILM_GRAIN 0.04
 
