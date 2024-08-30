@@ -88,7 +88,7 @@ Chart(
                 ),
                 Scene(
                     id: "sample scene",
-                    file: "demo-default.glb",
+                    file: "sphere.glb",
                     material: Material(
                         passes: {
                             "shadow": MaterialPass(
