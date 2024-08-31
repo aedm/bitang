@@ -17,7 +17,7 @@ vec2 direction_wn_to_spherical_envmap_uv(vec3 direction_wn) {
 
 vec4 sample_environment_map(vec3 direction_wn, float bias, sampler2D envmap) {
     int levels = textureQueryLevels(envmap);
-    float adjust = pow(1.0-bias, 3.0);
+    float adjust = pow(1.0-bias, 4.0);
     float mipLevel = max(float(levels) - 3.5 - adjust * 7.0, 0.0);
     vec2 uv = direction_wn_to_spherical_envmap_uv(direction_wn);
     return textureLod(envmap, uv, mipLevel);
