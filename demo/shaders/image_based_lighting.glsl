@@ -3,13 +3,14 @@
 
 #include "common.glsl"
 
+// Center of image is mapped to z-forward
 vec2 direction_wn_to_spherical_envmap_uv(vec3 direction_wn) {
     // Calculate the azimuthal angle (phi) and the polar angle (theta)
     float phi = atan(direction_wn.z, direction_wn.x);
     float theta = acos(direction_wn.y);
 
     // Convert angles to UV coordinates
-    float u = phi / (2.0 * PI) + 0.5;
+    float u = phi / (2.0 * PI) + 0.25;
     float v = theta / PI;
 
     return vec2(u, v);
@@ -34,6 +35,13 @@ vec3 apply_normal_map_amount(sampler2D normal_map, vec2 uv, vec3 normal_n, vec3 
     n = normalize(n * 2.0 - 1.0);
     n = normal_space * n;
     return normalize(mix(normal_n, n, normal_strength));
+}
+
+mat3 make_ibl_transformation(vec3 light_dir_worldspace_n) {
+    vec3 light_z = light_dir_worldspace_n;
+    vec3 light_x = normalize(cross(light_z, vec3(0, 1, 0)));
+    vec3 light_y = cross(light_x, light_z);
+    return inverse(mat3(light_x, light_y, light_z));
 }
 
 #endif// SHADERS_IMAGE_BASED_LIGHTING_GLSL

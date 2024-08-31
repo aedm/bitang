@@ -63,7 +63,7 @@ vec3 cook_torrance_brdf_ibl(vec3 V, vec3 N, vec3 baseColor, float metallic, floa
 
     // Sample environment map and irradiance map
     vec3 irradiance = light_color * sample_environment_map(N, 1.0, envmap).rgb;
-    vec3 envSample = light_color* sample_environment_map(reflect(-V, N), roughness, envmap).rgb;
+    vec3 envSample = light_color * sample_environment_map(reflect(-V, N), roughness, envmap).rgb;
 
     // Calculate specular and diffuse terms
     vec3 kD = (1.0 - F) * (1.0 - metallic);
@@ -71,6 +71,32 @@ vec3 cook_torrance_brdf_ibl(vec3 V, vec3 N, vec3 baseColor, float metallic, floa
 
     vec3 envBRDF = textureLod(brdf_lut, vec2(n_dot_v, roughness), 0.0).rgb;
     vec3 specular = envSample * (F * envBRDF.x + envBRDF.y);
+
+    // Combine and ensure energy conservation
+    return diffuse + specular;// Simple approximation to avoid exceeding 1
+}
+
+vec3 cook_torrance_brdf_lightmap(vec3 V, vec3 N, vec3 L, vec3 baseColor, float metallic, float roughness, sampler2D envmap, sampler2D brdf_lut, vec3 light_color) {
+    mat3 light_transform = make_ibl_transformation(L);
+    vec3 F0 = mix(vec3(0.04), baseColor, metallic);
+
+    // Calculate DFG terms
+    float n_dot_v = max(dot(N, V), 0);
+    vec3 F = fresnel_schlick_roughness(n_dot_v, F0, roughness);
+
+    // Sample environment map and irradiance map
+    vec3 normal_lightspace = light_transform * N;
+    vec3 irradiance = light_color * sample_environment_map(normal_lightspace, 1.0, envmap).rgb;
+    vec3 reflection = reflect(-V, N);
+    vec3 reflection_lightspace = light_transform * reflection;
+    vec3 envSample = light_color * sample_environment_map(reflection_lightspace, roughness, envmap).rgb;
+
+    // Calculate specular and diffuse terms
+    vec3 kD = (1.0 - F) * (1.0 - metallic);
+    vec3 diffuse = kD * irradiance * baseColor * max(dot(N, L), 0.0);
+
+    vec3 envBRDF = textureLod(brdf_lut, vec2(n_dot_v, roughness), 0.0).rgb;
+    vec3 specular = envSample * (F * envBRDF.x + envBRDF.y) * max(dot(L, N), 0.0);
 
     // Combine and ensure energy conservation
     return diffuse + specular;// Simple approximation to avoid exceeding 1
