@@ -78,9 +78,6 @@ void main() {
     vec3 normal_wn = normalize(v_normal_worldspace);
     vec3 tangent_wn = normalize(v_tangent_worldspace);
 
-//    f_color = vec4(roughness, metallic, 0, 1);
-//    return;
-
     vec3 N = apply_normal_map_amount(normal_map, uv, normal_wn, tangent_wn, u.normal_strength);
     vec3 V = normalize(v_camera_pos_worldspace - v_pos_worldspace);
     vec3 L = u.g_light_dir_worldspace_norm;
