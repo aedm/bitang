@@ -20,7 +20,8 @@ layout (set = 1, binding = 0) uniform Uniforms {
     float g_app_time;
     vec3 g_light_dir_worldspace_norm;
 
-    vec4 color;
+    vec3 color;
+    vec3 light_color;
     float roughness;
     float metallic;
     float ambient;
@@ -70,8 +71,10 @@ void main() {
     roughness = adjust(roughness, u.roughness);
     metallic = adjust(metallic, u.metallic);
 
-    float clearcoat = adjust(roughness, u.clearcoat);
+    roughness = u.roughness;
+    metallic = u.metallic;
 
+    float clearcoat = adjust(roughness, u.clearcoat);
 
     vec3 normal_wn = normalize(v_normal_worldspace);
     vec3 tangent_wn = normalize(v_tangent_worldspace);
@@ -80,18 +83,10 @@ void main() {
     vec3 V = normalize(v_camera_pos_worldspace - v_pos_worldspace);
     vec3 L = u.g_light_dir_worldspace_norm;
 
-    vec3 light_y = -u.g_light_dir_worldspace_norm;
-    vec3 light_x = normalize(cross(light_y, vec3(0, 0, 1)));
-    vec3 light_z = cross(light_x, light_y);
-//    mat3 light_transform = mat3(vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1));
-//    vec3 light_z = u.g_light_dir_worldspace_norm;
-    mat3 light_transform = mat3(-light_y, -light_x, light_z);
-
-
     vec3 color_acc = vec3(0);
-//    color_acc += cook_torrance_brdf_ibl(V, N, base_color.rgb, metallic, roughness, envmap, brdf_lut, vec3(u.ambient));
-//    color_acc += cook_torrance_brdf(V, N, L, base_color.rgb, metallic, roughness, u.color.rgb * light);
-    color_acc += cook_torrance_brdf_lightmap(V, N, L, base_color.rgb, metallic, clearcoat, lightmap, brdf_lut, u.color.rgb * light, light_transform);
+    color_acc += cook_torrance_brdf_ibl(V, N, base_color.rgb, metallic, roughness, envmap, brdf_lut, vec3(u.ambient));
+//    color_acc += cook_torrance_brdf(V, N, L, base_color.rgb, metallic, roughness, u.light_color * light);
+    color_acc += cook_torrance_brdf_lightmap(V, N, L, base_color.rgb, metallic, clearcoat, lightmap, brdf_lut, u.color.rgb * light);
 
     f_color = vec4(color_acc, 1.0);
 }

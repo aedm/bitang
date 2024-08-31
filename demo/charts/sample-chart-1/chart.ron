@@ -79,6 +79,7 @@ Chart(
                             "envmap": Sampler(
                                 bind: File(
                                     "medieval_cafe_1k.jxl",
+//                                    "lightmap.png",
 
                                 ),
                                 mode: Envmap,
@@ -90,6 +91,8 @@ Chart(
                     id: "duck",
                     mesh_file: "/duck/duck.glb",
                     mesh_name: "Duck_002",
+//                    mesh_file: "sphere.glb",
+//                    mesh_name: "Icosphere",
                     material: Material(
                         passes: {
                             "shadow": MaterialPass(
