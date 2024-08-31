@@ -28,8 +28,9 @@ layout (set = 0, binding = 0) uniform Context {
 };
 
 void main() {
-    vec3 mi = vec3(gl_InstanceIndex % 5, gl_InstanceIndex / 5, 0);
-    vec3 move = instance_move * mi;
+    const int per_row = 8;
+    vec3 mi = vec3(gl_InstanceIndex % per_row, gl_InstanceIndex / per_row, 0);
+    vec3 move = instance_move * (mi - vec3((per_row -1.0)/ 2.0, 0, 0));
     v_pos_worldspace = (g_world_from_model * vec4(a_position, 1.0)).xyz + move;
 
     gl_Position = g_projection_from_world * vec4(v_pos_worldspace, 1.0);
@@ -39,5 +40,5 @@ void main() {
     v_tangent_worldspace = mat3(g_world_from_model) * a_tangent;
     v_camera_pos_worldspace = calculate_camera_pos_worldspace(g_camera_from_world);
 
-    v_material_adjustment = vec3(0.99 - mi.x / 4.0, mi.y / 2.0, 0.0);
+    v_material_adjustment = vec3(0.99 - mi.x / (per_row-1.0), mi.y / 2.0, 0.0);
 }

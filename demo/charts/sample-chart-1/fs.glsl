@@ -21,12 +21,14 @@ layout (set = 1, binding = 0) uniform Uniforms {
     vec3 g_light_dir_camspace_norm;
     vec3 g_light_dir_worldspace_norm;
 
-    vec4 color;
+    vec4 light_color;
     float roughness;
     float metallic;
     float ambient;
     float normal_strength;
     float shadow_bias;
+    float pop;
+    vec3 color;
 } u;
 
 layout (set = 1, binding = 1) uniform sampler2D envmap;
@@ -57,6 +59,7 @@ float sample_shadow_map(vec3 world_pos) {
 void main() {
     vec2 uv = v_uv * 2;
     vec3 base_color = texture(base_color_map, uv).rgb;
+    base_color = u.color;
 
     float roughness = sample_srgb_as_linear(roughness_map, uv).r;
     float metallic = sample_srgb_as_linear(metallic_map, uv).r;
@@ -69,6 +72,9 @@ void main() {
     roughness = adjust(roughness, u.roughness);
     metallic = adjust(metallic, u.metallic);
 
+    roughness = v_material_adjustment.x;
+    metallic = v_material_adjustment.y;
+
     vec3 normal_wn = normalize(v_normal_worldspace);
     vec3 tangent_wn = normalize(v_tangent_worldspace);
 
@@ -76,9 +82,10 @@ void main() {
     vec3 V = normalize(v_camera_pos_worldspace - v_pos_worldspace);
     vec3 L = u.g_light_dir_worldspace_norm;
 
+    base_color /= (u.pop+1);
     vec3 color_acc = vec3(0);
-    color_acc += cook_torrance_brdf(V, N, L, base_color.rgb, metallic, roughness, u.color.rgb* light);
-    color_acc += cook_torrance_brdf_ibl(V, N, base_color.rgb, metallic, roughness, envmap, brdf_lut, vec3(u.ambient));
+    color_acc += cook_torrance_brdf(V, N, L, base_color.rgb, metallic, roughness, u.light_color.rgb * light);
+    color_acc += cook_torrance_brdf_ibl(V, N, base_color.rgb, metallic, roughness, envmap, brdf_lut, vec3(u.ambient * (u.pop+1)));
 
     f_color = vec4(color_acc, 1.0);
 }
