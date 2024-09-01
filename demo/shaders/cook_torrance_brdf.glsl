@@ -77,7 +77,7 @@ vec3 cook_torrance_brdf_ibl(vec3 V, vec3 N, vec3 baseColor, float metallic, floa
 }
 
 vec3 cook_torrance_brdf_lightmap(vec3 V, vec3 N, vec3 L, vec3 baseColor, float metallic, float roughness, sampler2D envmap, sampler2D brdf_lut, vec3 light_color) {
-    mat3 light_transform = make_ibl_transformation(L);
+    mat3 light_from_world = make_lightspace_from_worldspace_transformation(L);
     vec3 F0 = mix(vec3(0.04), baseColor, metallic);
 
     // Calculate DFG terms
@@ -85,10 +85,10 @@ vec3 cook_torrance_brdf_lightmap(vec3 V, vec3 N, vec3 L, vec3 baseColor, float m
     vec3 F = fresnel_schlick_roughness(n_dot_v, F0, roughness);
 
     // Sample environment map and irradiance map
-    vec3 normal_lightspace = light_transform * N;
+    vec3 normal_lightspace = light_from_world * N;
     vec3 irradiance = light_color * sample_environment_map(normal_lightspace, 1.0, envmap).rgb;
     vec3 reflection = reflect(-V, N);
-    vec3 reflection_lightspace = light_transform * reflection;
+    vec3 reflection_lightspace = light_from_world * reflection;
     vec3 envSample = light_color * sample_environment_map(reflection_lightspace, roughness, envmap).rgb;
 
     // Calculate specular and diffuse terms
