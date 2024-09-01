@@ -37,11 +37,20 @@ vec3 apply_normal_map_amount(sampler2D normal_map, vec2 uv, vec3 normal_n, vec3 
     return normalize(mix(normal_n, n, normal_strength));
 }
 
-mat3 make_ibl_transformation(vec3 light_dir_worldspace_n) {
+mat3 make_lightspace_from_worldspace_transformation(vec3 light_dir_worldspace_n) {
+    // Axes of lightspace expressed in worldspace
     vec3 light_z = light_dir_worldspace_n;
     vec3 light_x = normalize(cross(light_z, vec3(0, 1, 0)));
     vec3 light_y = cross(light_x, light_z);
-    return inverse(mat3(light_x, light_y, light_z));
+
+    // Orthonormal transformation from lightspace to worldspace
+    mat3 world_from_light = mat3(light_x, light_y, light_z);
+
+    // We need the inverse to transform worldspace vectors to lightspace.
+    // For orthonormal vectors, transpose is the same as inverse but cheaper.
+    mat3 light_from_world = transpose(world_from_light);
+
+    return light_from_world;
 }
 
 #endif// SHADERS_IMAGE_BASED_LIGHTING_GLSL
