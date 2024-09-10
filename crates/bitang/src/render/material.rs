@@ -171,17 +171,26 @@ impl MaterialPass {
 
     pub fn render(&self, context: &mut RenderContext, mesh: &Mesh) -> Result<()> {
         let pipeline_layout = self.pipeline.layout();
+        let instance_count = context.globals.instance_count as u32;
         context
             .command_builder
             .bind_pipeline_graphics(self.pipeline.clone())?
             .bind_vertex_buffers(0, mesh.vertex_buffer.clone())?;
         self.vertex_shader.bind(context, pipeline_layout)?;
         self.fragment_shader.bind(context, pipeline_layout)?;
-
-        let instance_count = context.globals.instance_count as u32;
-        context
-            .command_builder
-            .draw(mesh.vertex_buffer.len() as u32, instance_count, 0, 0)?;
+        match &mesh.index_buffer {
+            None => {
+                context
+                    .command_builder
+                    .draw(mesh.vertex_buffer.len() as u32, instance_count, 0, 0)?;
+            }
+            Some(index_buffer) => {
+                context
+                    .command_builder
+                    .bind_index_buffer(index_buffer.clone())?
+                    .draw_indexed(index_buffer.len() as u32, instance_count, 0, 0, 0)?;
+            }
+        }
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 crates/**/target
 target
 .idea
-app
+app*
 app_old
 framedump*
 config.ron

@@ -150,7 +150,7 @@ impl Shader {
                         SamplerCreateInfo {
                             address_mode: image_descriptor.mode.to_vulkano_address_mode(),
                             compare: image_descriptor.mode.to_vulkano_compare_op(),
-                            border_color: BorderColor::FloatOpaqueBlack,
+                            border_color: BorderColor::FloatOpaqueWhite,
                             ..SamplerCreateInfo::simple_repeat_linear()
                         },
                     )?;
