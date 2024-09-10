@@ -85,12 +85,9 @@ pub fn load_mesh_collection(
             };
 
             // Read indices
-            if let Some(indices) = reader.read_indices() {
-                vertices = indices
-                    .into_u32()
-                    .map(|i| vertices[i as usize])
-                    .collect::<Vec<_>>();
-            }
+            let indices = reader
+                .read_indices()
+                .and_then(|indices| Some(indices.into_u32().collect_vec()));
 
             debug!("Loaded {} vertices", vertices.len());
 
@@ -106,7 +103,7 @@ pub fn load_mesh_collection(
                 vertex.a_position[2] *= _scale[2];
             }
 
-            let mesh = Arc::new(Mesh::try_new(context, vertices)?);
+            let mesh = Arc::new(Mesh::try_new(context, vertices, indices)?);
 
             let node = SceneNode {
                 position: gltf_to_left_handed_y_up(&translation),

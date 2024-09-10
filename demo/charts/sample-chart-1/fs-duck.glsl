@@ -71,8 +71,8 @@ void main() {
     roughness = adjust(roughness, u.roughness);
     metallic = adjust(metallic, u.metallic);
 
-    roughness = u.roughness;
-    metallic = u.metallic;
+//    roughness = u.roughness;
+//    metallic = u.metallic;
 
     float clearcoat = adjust(roughness, u.clearcoat);
 

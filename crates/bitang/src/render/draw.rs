@@ -74,6 +74,7 @@ impl Draw {
             shadow_map_size,
         );
 
+        // TODO: position shadow center to camera target, fix artifacts
         globals.camera_from_world =
             Mat4::look_to_lh(Vec3::ZERO, -globals.light_dir_worldspace_norm, Vec3::Y);
 
