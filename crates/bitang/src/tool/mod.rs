@@ -7,13 +7,13 @@ mod spline_editor;
 mod timer;
 mod ui;
 
-use std::default::Default;
 use crate::control::controls::Globals;
 use crate::render::image::BitangImage;
 use crate::render::SCREEN_COLOR_FORMAT;
 use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
 use crate::tool::runners::window_runner::WindowRunner;
 use anyhow::Result;
+use std::default::Default;
 use std::sync::Arc;
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
@@ -75,14 +75,14 @@ pub struct RenderContext<'a> {
 }
 
 pub fn run_app() -> Result<()> {
-    let vulkano_context = Arc::new(VulkanoContext::new(VulkanoConfig{
-        instance_create_info: InstanceCreateInfo{
+    let vulkano_context = Arc::new(VulkanoContext::new(VulkanoConfig {
+        instance_create_info: InstanceCreateInfo {
             enabled_extensions: InstanceExtensions {
                 // TODO: implement debug flag
                 // ext_debug_utils: true,
                 ..InstanceExtensions::empty()
             },
-          ..InstanceCreateInfo::default()
+            ..InstanceCreateInfo::default()
         },
         ..Default::default()
     }));
