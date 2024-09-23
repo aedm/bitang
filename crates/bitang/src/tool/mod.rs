@@ -13,12 +13,14 @@ use crate::render::SCREEN_COLOR_FORMAT;
 use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
 use crate::tool::runners::window_runner::WindowRunner;
 use anyhow::Result;
+use std::default::Default;
 use std::sync::Arc;
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::device::{Device, Queue};
 use vulkano::format::Format;
+use vulkano::instance::{InstanceCreateInfo, InstanceExtensions};
 use vulkano::memory::allocator::StandardMemoryAllocator;
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano_util::context::{VulkanoConfig, VulkanoContext};
@@ -73,7 +75,17 @@ pub struct RenderContext<'a> {
 }
 
 pub fn run_app() -> Result<()> {
-    let vulkano_context = Arc::new(VulkanoContext::new(VulkanoConfig::default()));
+    let vulkano_context = Arc::new(VulkanoContext::new(VulkanoConfig {
+        instance_create_info: InstanceCreateInfo {
+            enabled_extensions: InstanceExtensions {
+                // TODO: implement debug flag
+                // ext_debug_utils: true,
+                ..InstanceExtensions::empty()
+            },
+            ..InstanceCreateInfo::default()
+        },
+        ..Default::default()
+    }));
 
     let command_buffer_allocator =
         StandardCommandBufferAllocator::new(vulkano_context.device().clone(), Default::default());

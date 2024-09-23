@@ -14,7 +14,11 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn try_new(context: &Arc<VulkanContext>, vertices: Vec<Vertex3>, indices: Option<Vec<u32>>) -> Result<Mesh> {
+    pub fn try_new(
+        context: &Arc<VulkanContext>,
+        vertices: Vec<Vertex3>,
+        indices: Option<Vec<u32>>,
+    ) -> Result<Mesh> {
         let vertex_buffer = Buffer::from_iter(
             context.memory_allocator.clone(),
             BufferCreateInfo {
@@ -29,20 +33,28 @@ impl Mesh {
             vertices,
         )?;
         let index_buffer = if let Some(indices) = indices {
-            Some(Buffer::from_iter(
-                context.memory_allocator.clone(),
-                BufferCreateInfo {
-                    usage: BufferUsage::INDEX_BUFFER,
-                    ..Default::default()
-                },
-                AllocationCreateInfo {
-                    memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                        | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                    ..Default::default()
-                },
-                indices,
-            )?.into())
-        } else { None };
-        Ok(Mesh { vertex_buffer, index_buffer })
+            Some(
+                Buffer::from_iter(
+                    context.memory_allocator.clone(),
+                    BufferCreateInfo {
+                        usage: BufferUsage::INDEX_BUFFER,
+                        ..Default::default()
+                    },
+                    AllocationCreateInfo {
+                        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                            | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                        ..Default::default()
+                    },
+                    indices,
+                )?
+                .into(),
+            )
+        } else {
+            None
+        };
+        Ok(Mesh {
+            vertex_buffer,
+            index_buffer,
+        })
     }
 }

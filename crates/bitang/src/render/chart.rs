@@ -190,9 +190,6 @@ impl Chart {
                     genmips.execute(context)?;
                 }
             }
-            if let ChartStep::Draw(draw) = step {
-                draw.render(context, &self.camera)?;
-            }
         }
         Ok(())
     }

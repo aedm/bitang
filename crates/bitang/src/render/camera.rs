@@ -39,7 +39,7 @@ impl Camera {
         globals.pixel_size = Vec2::new(1.0 / viewport_size[0], 1.0 / viewport_size[1]);
         globals.aspect_ratio = viewport_size[0] / viewport_size[1];
         globals.field_of_view = self.field_of_view.as_float();
-        globals.z_near = 0.1;
+        globals.z_near = 0.05;
 
         // Vulkan uses a [0,1] depth range, ideal for infinite far plane
         globals.projection_from_camera = Mat4::perspective_infinite_lh(

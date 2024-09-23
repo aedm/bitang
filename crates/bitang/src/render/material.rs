@@ -70,7 +70,8 @@ impl MaterialPass {
         let depth_stencil_state = if subpass.subpass_desc().depth_stencil_attachment.is_none() {
             None
         } else {
-            let compare_op = if props.depth_test { CompareOp::Less } else { CompareOp::Always };
+            let compare_op =
+                if props.depth_test { CompareOp::LessOrEqual } else { CompareOp::Always };
             Some(DepthStencilState {
                 depth: Some(DepthState {
                     compare_op,
@@ -180,9 +181,12 @@ impl MaterialPass {
         self.fragment_shader.bind(context, pipeline_layout)?;
         match &mesh.index_buffer {
             None => {
-                context
-                    .command_builder
-                    .draw(mesh.vertex_buffer.len() as u32, instance_count, 0, 0)?;
+                context.command_builder.draw(
+                    mesh.vertex_buffer.len() as u32,
+                    instance_count,
+                    0,
+                    0,
+                )?;
             }
             Some(index_buffer) => {
                 context
