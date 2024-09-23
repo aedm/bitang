@@ -111,6 +111,15 @@ impl Draw {
                 contents: SubpassContents::Inline,
                 ..Default::default()
             };
+
+            // TODO: implement debug flag
+            // context
+            //     .command_builder
+            //     .begin_debug_utils_label(DebugUtilsLabel {
+            //         label_name: self.id.clone(),
+            //         ..Default::default()
+            //     })?;
+
             context
                 .command_builder
                 .begin_render_pass(render_pass_begin_info, subpass_begin_info)?
@@ -123,6 +132,11 @@ impl Draw {
             context
                 .command_builder
                 .end_render_pass(Default::default())?;
+
+            // TODO: implement debug flag
+            // unsafe {
+            //     context.command_builder.end_debug_utils_label()?;
+            // }
 
             // Propagate error
             render_result?;

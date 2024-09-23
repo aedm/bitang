@@ -72,6 +72,7 @@ impl FrameDumpRunner {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let job_count: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
         let cpu_count = num_cpus::get();
+        info!("Rendering demo using {cpu_count} CPUs");
         let project_length = self.app.app_state.project.as_ref().unwrap().length;
         let mut frame_count = 0;
 
@@ -87,7 +88,7 @@ impl FrameDumpRunner {
             let content = self.get_frame_content();
 
             // If we're rendering too fast, wait a bit
-            while job_count.load(Ordering::Relaxed) >= cpu_count + 10 {
+            while job_count.load(Ordering::Relaxed) >= cpu_count + 20 {
                 sleep(Duration::from_millis(1));
             }
 

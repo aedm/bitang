@@ -70,7 +70,7 @@ impl MaterialPass {
         let depth_stencil_state = if subpass.subpass_desc().depth_stencil_attachment.is_none() {
             None
         } else {
-            let compare_op = if props.depth_test { CompareOp::Less } else { CompareOp::Always };
+            let compare_op = if props.depth_test { CompareOp::LessOrEqual } else { CompareOp::Always };
             Some(DepthStencilState {
                 depth: Some(DepthState {
                     compare_op,
