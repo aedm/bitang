@@ -154,16 +154,11 @@ impl ShaderCache {
         } = {
             let source_path_clone = source_path.clone();
             let file_hash_cache = Arc::clone(&file_hash_cache);
-            let shaderc_kind = match kind {
-                ShaderKind::Vertex => shaderc::ShaderKind::Vertex,
-                ShaderKind::Fragment => shaderc::ShaderKind::Fragment,
-                ShaderKind::Compute => shaderc::ShaderKind::Compute,
-            };
             spawn_blocking(move || {
                 ShaderCompilation::compile_shader(
                     &context,
                     &source_path_clone,
-                    shaderc_kind,
+                    kind,
                     file_hash_cache,
                     &macros,
                 )

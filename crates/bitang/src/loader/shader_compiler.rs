@@ -1,11 +1,10 @@
 use crate::control::controls::GlobalType;
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
-use crate::render::shader::GlobalUniformMapping;
+use crate::render::shader::{GlobalUniformMapping, ShaderKind};
 use crate::tool::VulkanContext;
 use ahash::AHashSet;
 use anyhow::{bail, ensure, Context, Result};
-use shaderc::{IncludeCallbackResult, IncludeType};
 use spirq::ty::ScalarType::Float;
 use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
@@ -14,6 +13,7 @@ use std::cell::RefCell;
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
+use naga::ShaderStage;
 use tracing::{debug, info, instrument, trace};
 use vulkano::shader;
 use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
@@ -36,7 +36,7 @@ impl ShaderCompilation {
     pub fn compile_shader(
         context: &Arc<VulkanContext>,
         path: &ResourcePath,
-        kind: shaderc::ShaderKind,
+        kind: ShaderKind,
         file_hash_cache: Arc<FileCache>,
         macros: &[(String, String)],
     ) -> Result<Self> {
@@ -50,94 +50,102 @@ impl ShaderCompilation {
         let source = std::str::from_utf8(&source_file.content)
             .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
 
-        let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
-        let deps = RefCell::new(vec![]);
+        // let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
+        // let deps = RefCell::new(vec![]);
         let spirv = {
-            let include_callback = |include_name: &str, include_type, source_name: &str, depth| {
-                Self::include_callback(
-                    include_name,
-                    include_type,
-                    source_name,
-                    depth,
-                    &mut deps.borrow_mut(),
-                    &file_hash_cache,
-                )
-            };
-            let mut options = shaderc::CompileOptions::new()
-                .context("Failed to create shader compiler options")?;
-            options.set_target_env(
-                shaderc::TargetEnv::Vulkan,
-                shaderc::EnvVersion::Vulkan1_2 as u32,
-            );
-            // TODO: Enable optimization. First, automatic varying binding is needed, see https://github.com/aedm/bitang/issues/221
-            // options.set_optimization_level(shaderc::OptimizationLevel::Performance);
-            options.set_include_callback(include_callback);
-            options.set_generate_debug_info();
 
-            // Set macros
-            for (key, value) in macros {
-                options.add_macro_definition(key, Some(value))
-            }
+            let mut frontend = naga::front::glsl::Frontend::default();
+            let options = naga::front::glsl::Options::from(ShaderStage::Vertex);
+            let res = frontend.parse(&options, source)?;
 
-            compiler
-                .compile_into_spirv(
-                    source,
-                    kind,
-                    &path.to_pwd_relative_path()?,
-                    "main",
-                    Some(&options),
-                )
-                .with_context(|| format!("Failed to compile shader {:?}", path))?
+
+
+            unimplemented!()
+            // let include_callback = |include_name: &str, include_type, source_name: &str, depth| {
+            //     Self::include_callback(
+            //         include_name,
+            //         include_type,
+            //         source_name,
+            //         depth,
+            //         &mut deps.borrow_mut(),
+            //         &file_hash_cache,
+            //     )
+            // };
+            // let mut options = shaderc::CompileOptions::new()
+            //     .context("Failed to create shader compiler options")?;
+            // options.set_target_env(
+            //     shaderc::TargetEnv::Vulkan,
+            //     shaderc::EnvVersion::Vulkan1_2 as u32,
+            // );
+            // // TODO: Enable optimization. First, automatic varying binding is needed, see https://github.com/aedm/bitang/issues/221
+            // // options.set_optimization_level(shaderc::OptimizationLevel::Performance);
+            // options.set_include_callback(include_callback);
+            // options.set_generate_debug_info();
+            //
+            // // Set macros
+            // for (key, value) in macros {
+            //     options.add_macro_definition(key, Some(value))
+            // }
+            //
+            // compiler
+            //     .compile_into_spirv(
+            //         source,
+            //         kind,
+            //         &path.to_pwd_relative_path()?,
+            //         "main",
+            //         Some(&options),
+            //     )
+            //     .with_context(|| format!("Failed to compile shader {:?}", path))?
         };
-        info!("compiled in {:?}.", now.elapsed());
+        // info!("compiled in {:?}.", now.elapsed());
 
-        let shader_artifact =
-            ShaderArtifact::from_spirv_binary(context, kind, spirv.as_binary_u8())?;
-
-        Ok(Self {
-            shader_artifact,
-            include_chain: deps.take(),
-        })
+        // let shader_artifact =
+        //     ShaderArtifact::from_spirv_binary(context, kind, spirv.as_binary_u8())?;
+        //
+        // Ok(Self {
+        //     shader_artifact,
+        //     include_chain: deps.take(),
+        // })
     }
 
-    fn include_callback(
-        include_name: &str,
-        include_type: IncludeType,
-        source_name: &str,
-        depth: usize,
-        deps: &mut Vec<IncludeChainLink>,
-        file_hash_cache: &FileCache,
-    ) -> IncludeCallbackResult {
-        trace!(
-            "#include '{include_name}' ({include_type:?}) from '{source_name}' (depth: {depth})",
-        );
-        let source_path =
-            ResourcePath::from_pwd_relative_path(&file_hash_cache.root_path, source_name)
-                .map_err(|err| err.to_string())?;
-        let include_path = source_path
-            .relative_path(include_name)
-            .map_err(|err| err.to_string())?;
-        let included_source_u8 = tokio::runtime::Handle::current()
-            .block_on(async {
-                // x
-                let x = file_hash_cache.get(&include_path);
-                x.await
-            })
-            .map_err(|err| err.to_string())?;
-        deps.push(IncludeChainLink {
-            resource_path: include_path.clone(),
-            hash: included_source_u8.hash,
-        });
-        let content = String::from_utf8(included_source_u8.content.clone())
-            .map_err(|err| format!("Shader source file is not UTF-8: '{include_name:?}': {err}"))?;
-        let resolved_name = include_path
-            .to_pwd_relative_path()
-            .map_err(|err| err.to_string())?;
-        Ok(shaderc::ResolvedInclude {
-            resolved_name,
-            content,
-        })
-    }
+    // fn include_callback(
+    //     include_name: &str,
+    //     include_type: IncludeType,
+    //     source_name: &str,
+    //     depth: usize,
+    //     deps: &mut Vec<IncludeChainLink>,
+    //     file_hash_cache: &FileCache,
+    // ) -> IncludeCallbackResult {
+    //     trace!(
+    //         "#include '{include_name}' ({include_type:?}) from '{source_name}' (depth: {depth})",
+    //     );
+    //     let source_path =
+    //         ResourcePath::from_pwd_relative_path(&file_hash_cache.root_path, source_name)
+    //             .map_err(|err| err.to_string())?;
+    //     let include_path = source_path
+    //         .relative_path(include_name)
+    //         .map_err(|err| err.to_string())?;
+    //     let included_source_u8 = tokio::runtime::Handle::current()
+    //         .block_on(async {
+    //             // x
+    //             let x = file_hash_cache.get(&include_path);
+    //             x.await
+    //         })
+    //         .map_err(|err| err.to_string())?;
+    //     deps.push(IncludeChainLink {
+    //         resource_path: include_path.clone(),
+    //         hash: included_source_u8.hash,
+    //     });
+    //     let content = String::from_utf8(included_source_u8.content.clone())
+    //         .map_err(|err| format!("Shader source file is not UTF-8: '{include_name:?}': {err}"))?;
+    //     let resolved_name = include_path
+    //         .to_pwd_relative_path()
+    //         .map_err(|err| err.to_string())?;
+    //     Ok(shaderc::ResolvedInclude {
+    //         resolved_name,
+    //         content,
+    //     })
+    // }
 }
 
 /// A descriptor binding point for a named resource
@@ -170,7 +178,7 @@ pub struct ShaderArtifact {
 impl ShaderArtifact {
     fn from_spirv_binary(
         context: &Arc<VulkanContext>,
-        kind: shaderc::ShaderKind,
+        kind: ShaderKind,
         spirv_binary: &[u8],
     ) -> Result<Self> {
         // Extract metadata from SPIRV
@@ -194,10 +202,9 @@ impl ShaderArtifact {
         }?;
 
         let descriptor_set_index = match kind {
-            shaderc::ShaderKind::Vertex => 0,
-            shaderc::ShaderKind::Fragment => 1,
-            shaderc::ShaderKind::Compute => 0,
-            _ => panic!("Unsupported shader kind"),
+            ShaderKind::Vertex => 0,
+            ShaderKind::Fragment => 1,
+            ShaderKind::Compute => 0,
         };
 
         // Collect the actually used bindings. Spirq doesn't always get us the same results
