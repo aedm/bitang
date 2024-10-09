@@ -15,7 +15,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() -> Result<()> {
     set_up_tracing()?;
-    if VERSION == "0.0.0" {
+    if VERSION == "0.0.1" {
         info!("Bitang dev version, build time {}", build_time_local!());
     } else {
         info!("Bitang {VERSION}");

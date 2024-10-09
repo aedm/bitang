@@ -13,13 +13,15 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 nu-ansi-term = "*"
 
-egui_winit_vulkano = "0.27"
+#egui_winit_vulkano = "0.27"
 egui = "0.24"
 egui_plot = "0.24"
 egui-winit = "0.24"
 winit = "0.28"
 
-vulkano = "0.34"
+#vulkano = "0.34"
+vulkano = { version = "0.34", default-features = false, features = ["macros"] }
+
 vulkano-util = "0.34"
 vulkano-win = "0.34"
 

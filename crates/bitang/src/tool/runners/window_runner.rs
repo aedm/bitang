@@ -1,7 +1,7 @@
 use crate::render::image::BitangImage;
 use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
-use crate::tool::ui::Ui;
+// use crate::tool::ui::Ui;
 use crate::tool::{
     InitContext, RenderContext, VulkanContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
     START_IN_DEMO_MODE,
@@ -24,7 +24,7 @@ use winit::window::{Fullscreen, Window};
 pub struct WindowRunner {
     pub vulkan_context: Arc<VulkanContext>,
     is_fullscreen: bool,
-    ui: Ui,
+    // ui: Ui,
     windows: VulkanoWindows,
     app: ContentRenderer,
     app_start_time: Instant,
@@ -62,16 +62,16 @@ impl WindowRunner {
             ci.min_image_count = ci.min_image_count.max(3);
         });
 
-        let ui = Ui::new(
-            &vulkan_context,
-            &event_loop,
-            &windows.get_primary_renderer().unwrap().surface(),
-        )?;
+        // let ui = Ui::new(
+        //     &vulkan_context,
+        //     &event_loop,
+        //     &windows.get_primary_renderer().unwrap().surface(),
+        // )?;
 
         let window_runner = Self {
             vulkan_context,
             is_fullscreen: false,
-            ui,
+            // ui,
             windows,
             app,
             app_start_time: Instant::now(),
@@ -92,7 +92,7 @@ impl WindowRunner {
         event_loop.run(move |event, _, control_flow| {
             match event {
                 Event::WindowEvent { event, window_id } if window_id == self.get_window().id() => {
-                    self.ui.handle_window_event(&event);
+                    // self.ui.handle_window_event(&event);
                     match event {
                         WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                             self.get_renderer().resize();
@@ -242,14 +242,14 @@ impl WindowRunner {
         self.app.draw(&mut render_context);
 
         // Render UI
-        if !self.is_fullscreen && ui_height > 0.0 {
-            self.ui.draw(
-                &mut render_context,
-                ui_height,
-                scale_factor,
-                &mut self.app.app_state,
-            );
-        }
+        // if !self.is_fullscreen && ui_height > 0.0 {
+        //     self.ui.draw(
+        //         &mut render_context,
+        //         ui_height,
+        //         scale_factor,
+        //         &mut self.app.app_state,
+        //     );
+        // }
 
         // Execute commands and display the result
         let command_buffer = command_builder.build().unwrap();
