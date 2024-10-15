@@ -160,7 +160,7 @@ impl ShaderCache {
                     &source_path_clone,
                     kind,
                     file_hash_cache,
-                    &macros,
+                    macros,
                 )
             })
             .await

@@ -57,7 +57,7 @@ Chart(
                 Pass(
                     id: "solid",
                     depth_image: Image("depth"),
-                    color_images: [Image("color")],
+                    color_images: [Image("screen")],
                     clear_color: (0, 0.37, 0, 0),
                 ),
             ],
@@ -79,87 +79,88 @@ Chart(
                             "envmap": Sampler(
                                 bind: File(
                                     "medieval_cafe_1k.jxl",
-//                                    "lightmap.png",
+                                ),
+                                mode: Envmap,
+                            ),
+                        },
+                    ),
+                ),
 
-                                ),
-                                mode: Envmap,
-                            ),
-                        },
-                    ),
-                ),
-                Object(
-                    id: "duck",
-                    mesh_file: "/duck/duck.glb",
-                    mesh_name: "Duck_002",
-//                    mesh_file: "sphere.glb",
-//                    mesh_name: "Icosphere",
-                    material: Material(
-                        passes: {
-                            "shadow": MaterialPass(
-                                vertex_shader: "vs-duck.glsl",
-                                fragment_shader: "fs-noop.glsl",
-                                depth_test: true,
-                                depth_write: true,
-                            ),
-                            "solid": MaterialPass(
-                                vertex_shader: "vs-duck.glsl",
-                                fragment_shader: "fs-duck.glsl",
-                                depth_test: true,
-                                depth_write: true,
-                            ),
-                        },
-                        samplers: {
-                            "shadow": Sampler(
-                                bind: Image(
-                                    "shadow",
-                                ),
-                                mode: Shadow,
-                            ),
-                            "envmap": Sampler(
-                                bind: File(
-                                    "medieval_cafe_1k.jxl",
-                                ),
-                                mode: Envmap,
-                            ),
-                            "base_color_map": Sampler(
-                                bind: File(
-                                    "/duck/Duck_002_Albedo.png",
-                                ),
-                                mode: Repeat,
-                            ),
-                            "roughness_map": Sampler(
-                                bind: File(
-                                    "/duck/Duck_002_Roughness.png",
-                                ),
-                                mode: Repeat,
-                            ),
-                            "metallic_map": Sampler(
-                                bind: File(
-                                    "/duck/Duck_002_Metallic.png",
-                                ),
-                                mode: Repeat,
-                            ),
-                            "normal_map": Sampler(
-                                bind: File(
-                                    "/duck/Duck_002_Normal.png",
-                                ),
-                                mode: Repeat,
-                            ),
-                            "brdf_lut": Sampler(
-                                bind: File(
-                                    "ibl_brdf_lut.png",
-                                ),
-                                mode: ClampToEdge,
-                            ),
-                            "lightmap": Sampler(
-                                bind: File(
-                                    "lightmap.png",
-                                ),
-                                mode: Envmap,
-                            ),
-                        },
-                    ),
-                ),
+
+//                Object(
+//                    id: "duck",
+//                    mesh_file: "/duck/duck.glb",
+//                    mesh_name: "Duck_002",
+//                    material: Material(
+//                        passes: {
+//                            "shadow": MaterialPass(
+//                                vertex_shader: "vs-duck.glsl",
+//                                fragment_shader: "fs-noop.glsl",
+//                                depth_test: true,
+//                                depth_write: true,
+//                            ),
+//                            "solid": MaterialPass(
+//                                vertex_shader: "vs-duck.glsl",
+//                                fragment_shader: "fs-duck.glsl",
+//                                depth_test: true,
+//                                depth_write: true,
+//                            ),
+//                        },
+//                        samplers: {
+//                            "shadow": Sampler(
+//                                bind: Image(
+//                                    "shadow",
+//                                ),
+//                                mode: Shadow,
+//                            ),
+//                            "envmap": Sampler(
+//                                bind: File(
+//                                    "medieval_cafe_1k.jxl",
+//                                ),
+//                                mode: Envmap,
+//                            ),
+//                            "base_color_map": Sampler(
+//                                bind: File(
+//                                    "/duck/Duck_002_Albedo.png",
+//                                ),
+//                                mode: Repeat,
+//                            ),
+//                            "roughness_map": Sampler(
+//                                bind: File(
+//                                    "/duck/Duck_002_Roughness.png",
+//                                ),
+//                                mode: Repeat,
+//                            ),
+//                            "metallic_map": Sampler(
+//                                bind: File(
+//                                    "/duck/Duck_002_Metallic.png",
+//                                ),
+//                                mode: Repeat,
+//                            ),
+//                            "normal_map": Sampler(
+//                                bind: File(
+//                                    "/duck/Duck_002_Normal.png",
+//                                ),
+//                                mode: Repeat,
+//                            ),
+//                            "brdf_lut": Sampler(
+//                                bind: File(
+//                                    "ibl_brdf_lut.png",
+//                                ),
+//                                mode: ClampToEdge,
+//                            ),
+//                            "lightmap": Sampler(
+//                                bind: File(
+//                                    "lightmap.png",
+//                                ),
+//                                mode: Envmap,
+//                            ),
+//                        },
+//                    ),
+//                ),
+//
+
+
 //                Scene(
 //                    id: "sample scene",
 //                    file: "demo-default.glb",
@@ -227,191 +228,191 @@ Chart(
             ],
         ),
 
-        // Depth of field
-        Draw(
-            id: "depth-of-field",
-            passes: [
-                Pass(
-                    id: "solid",
-                    color_images: [Image("dof")],
-                    clear_color: (0, 0.37, 0, 0),
-                ),
-            ],
-            items: [
-                Object(
-                    id: "shader",
-                    mesh_file: "plane_xz.glb",
-                    mesh_name: "Plane",
-                    material: Material(
-                        passes: {
-                            "solid": MaterialPass(
-                                vertex_shader: "/shaders/fullscreen.vs.glsl",
-                                fragment_shader: "/shaders/post/dof-singlepass.fs.glsl",
-                                depth_test: false,
-                                depth_write: false,
-                            ),
-                        },
-                        samplers: {
-                            "color_texture": Sampler(
-                                bind: Image("color"),
-                                mode: ClampToEdge,
-                            ),
-                            "depth_texture": Sampler(
-                                bind: Image("depth"),
-                                mode: ClampToEdge,
-                            ),
-                        },
-                    ),
-                ),
-            ],
-        ),
-
-        // Gamma compression
-        Draw(
-            id: "gamma-compression",
-            passes: [
-                Pass(
-                    id: "solid",
-                    color_images: [Image("color-gamma")],
-                    clear_color: (0, 0.37, 0, 0),
-                ),
-            ],
-            items: [
-                Object(
-                    id: "shader",
-                    mesh_file: "plane_xz.glb",
-                    mesh_name: "Plane",
-                    material: Material(
-                        passes: {
-                            "solid": MaterialPass(
-                                vertex_shader: "/shaders/fullscreen.vs.glsl",
-                                fragment_shader: "/shaders/post/gamma_compress.fs.glsl",
-                                depth_test: false,
-                                depth_write: false,
-                            ),
-                        },
-                        samplers: {
-                            "base_color": Sampler(
-                                bind: Image("color"),
-                                mode: ClampToEdge,
-                            ),
-                        },
-                    ),
-                ),
-            ],
-        ),
-
-        GenerateMipLevels(
-            id: "mip1",
-            image_id: "color-gamma",
-        ),
-
-        // Gaussian convolution
-        Draw(
-            id: "gaussian-horizontal",
-            passes: [
-                Pass(
-                    id: "solid",
-                    color_images: [Image("gaussian-horizontal")],
-                    clear_color: (0, 0.37, 0, 0),
-                ),
-            ],
-            items: [
-                Object(
-                    id: "shader",
-                    mesh_file: "plane_xz.glb",
-                    mesh_name: "Plane",
-                    material: Material(
-                        passes: {
-                            "solid": MaterialPass(
-                                vertex_shader: "/shaders/fullscreen.vs.glsl",
-                                fragment_shader: "/shaders/post/gauss_horizontal.fs.glsl",
-                                depth_test: false,
-                                depth_write: false,
-                            ),
-                        },
-                        samplers: {
-                            "base_color": Sampler(
-                                bind: Image("color-gamma"),
-                                mode: ClampToEdge,
-                            ),
-                        },
-                    ),
-                ),
-            ],
-        ),
-        Draw(
-            id: "gaussian-vertical",
-            passes: [
-                Pass(
-                    id: "solid",
-                    color_images: [Image("gaussian")],
-                    clear_color: (0, 0.37, 0, 0),
-                ),
-            ],
-            items: [
-                Object(
-                    id: "shader",
-                    mesh_file: "plane_xz.glb",
-                    mesh_name: "Plane",
-                    material: Material(
-                        passes: {
-                            "solid": MaterialPass(
-                                vertex_shader: "/shaders/fullscreen.vs.glsl",
-                                fragment_shader: "/shaders/post/gauss_vertical.fs.glsl",
-                                depth_test: false,
-                                depth_write: false,
-                            ),
-                        },
-                        samplers: {
-                            "base_color": Sampler(
-                                bind: Image("gaussian-horizontal"),
-                                mode: ClampToEdge,
-                            ),
-                        },
-                    ),
-                ),
-            ],
-        ),
-
-
-        // Final composition
-        Draw(
-            id: "compose",
-            passes: [
-                Pass(
-                    id: "solid",
-                    color_images: [Image("screen")],
-                    clear_color: (0, 0.37, 0, 0),
-                ),
-            ],
-            items: [
-                Object(
-                    id: "compose",
-                    mesh_file: "plane_xz.glb",
-                    mesh_name: "Plane",
-                    material: Material(
-                        passes: {
-                            "solid": MaterialPass(
-                                vertex_shader: "/shaders/fullscreen.vs.glsl",
-                                fragment_shader: "/shaders/post/compose.fs.glsl",
-                                depth_test: false,
-                                depth_write: false,
-                            ),
-                        },
-                        samplers: {
-                            "base_color": Sampler(
-                                bind: Image("dof"),
-                                mode: ClampToEdge,
-                            ),
-                            "glow_map": Sampler(
-                                bind: Image("gaussian"),
-                                mode: ClampToEdge,
-                            ),
-                        },
-                    ),
-                ),
-            ],
-        ),
+//        // Depth of field
+//        Draw(
+//            id: "depth-of-field",
+//            passes: [
+//                Pass(
+//                    id: "solid",
+//                    color_images: [Image("dof")],
+//                    clear_color: (0, 0.37, 0, 0),
+//                ),
+//            ],
+//            items: [
+//                Object(
+//                    id: "shader",
+//                    mesh_file: "plane_xz.glb",
+//                    mesh_name: "Plane",
+//                    material: Material(
+//                        passes: {
+//                            "solid": MaterialPass(
+//                                vertex_shader: "/shaders/fullscreen.vs.glsl",
+//                                fragment_shader: "/shaders/post/dof-singlepass.fs.glsl",
+//                                depth_test: false,
+//                                depth_write: false,
+//                            ),
+//                        },
+//                        samplers: {
+//                            "color_texture": Sampler(
+//                                bind: Image("color"),
+//                                mode: ClampToEdge,
+//                            ),
+//                            "depth_texture": Sampler(
+//                                bind: Image("depth"),
+//                                mode: ClampToEdge,
+//                            ),
+//                        },
+//                    ),
+//                ),
+//            ],
+//        ),
+//
+//        // Gamma compression
+//        Draw(
+//            id: "gamma-compression",
+//            passes: [
+//                Pass(
+//                    id: "solid",
+//                    color_images: [Image("color-gamma")],
+//                    clear_color: (0, 0.37, 0, 0),
+//                ),
+//            ],
+//            items: [
+//                Object(
+//                    id: "shader",
+//                    mesh_file: "plane_xz.glb",
+//                    mesh_name: "Plane",
+//                    material: Material(
+//                        passes: {
+//                            "solid": MaterialPass(
+//                                vertex_shader: "/shaders/fullscreen.vs.glsl",
+//                                fragment_shader: "/shaders/post/gamma_compress.fs.glsl",
+//                                depth_test: false,
+//                                depth_write: false,
+//                            ),
+//                        },
+//                        samplers: {
+//                            "base_color": Sampler(
+//                                bind: Image("color"),
+//                                mode: ClampToEdge,
+//                            ),
+//                        },
+//                    ),
+//                ),
+//            ],
+//        ),
+//
+//        GenerateMipLevels(
+//            id: "mip1",
+//            image_id: "color-gamma",
+//        ),
+//
+//        // Gaussian convolution
+//        Draw(
+//            id: "gaussian-horizontal",
+//            passes: [
+//                Pass(
+//                    id: "solid",
+//                    color_images: [Image("gaussian-horizontal")],
+//                    clear_color: (0, 0.37, 0, 0),
+//                ),
+//            ],
+//            items: [
+//                Object(
+//                    id: "shader",
+//                    mesh_file: "plane_xz.glb",
+//                    mesh_name: "Plane",
+//                    material: Material(
+//                        passes: {
+//                            "solid": MaterialPass(
+//                                vertex_shader: "/shaders/fullscreen.vs.glsl",
+//                                fragment_shader: "/shaders/post/gauss_horizontal.fs.glsl",
+//                                depth_test: false,
+//                                depth_write: false,
+//                            ),
+//                        },
+//                        samplers: {
+//                            "base_color": Sampler(
+//                                bind: Image("color-gamma"),
+//                                mode: ClampToEdge,
+//                            ),
+//                        },
+//                    ),
+//                ),
+//            ],
+//        ),
+//        Draw(
+//            id: "gaussian-vertical",
+//            passes: [
+//                Pass(
+//                    id: "solid",
+//                    color_images: [Image("gaussian")],
+//                    clear_color: (0, 0.37, 0, 0),
+//                ),
+//            ],
+//            items: [
+//                Object(
+//                    id: "shader",
+//                    mesh_file: "plane_xz.glb",
+//                    mesh_name: "Plane",
+//                    material: Material(
+//                        passes: {
+//                            "solid": MaterialPass(
+//                                vertex_shader: "/shaders/fullscreen.vs.glsl",
+//                                fragment_shader: "/shaders/post/gauss_vertical.fs.glsl",
+//                                depth_test: false,
+//                                depth_write: false,
+//                            ),
+//                        },
+//                        samplers: {
+//                            "base_color": Sampler(
+//                                bind: Image("gaussian-horizontal"),
+//                                mode: ClampToEdge,
+//                            ),
+//                        },
+//                    ),
+//                ),
+//            ],
+//        ),
+//
+//
+//        // Final composition
+//        Draw(
+//            id: "compose",
+//            passes: [
+//                Pass(
+//                    id: "solid",
+//                    color_images: [Image("screen")],
+//                    clear_color: (0, 0.37, 0, 0),
+//                ),
+//            ],
+//            items: [
+//                Object(
+//                    id: "compose",
+//                    mesh_file: "plane_xz.glb",
+//                    mesh_name: "Plane",
+//                    material: Material(
+//                        passes: {
+//                            "solid": MaterialPass(
+//                                vertex_shader: "/shaders/fullscreen.vs.glsl",
+//                                fragment_shader: "/shaders/post/compose.fs.glsl",
+//                                depth_test: false,
+//                                depth_write: false,
+//                            ),
+//                        },
+//                        samplers: {
+//                            "base_color": Sampler(
+//                                bind: Image("dof"),
+//                                mode: ClampToEdge,
+//                            ),
+//                            "glow_map": Sampler(
+//                                bind: Image("gaussian"),
+//                                mode: ClampToEdge,
+//                            ),
+//                        },
+//                    ),
+//                ),
+//            ],
+//        ),
     ],
 )

@@ -13,7 +13,9 @@ use std::cell::RefCell;
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
+use log::{error, warn};
 use naga::ShaderStage;
+use naga::valid::Capabilities;
 use tracing::{debug, info, instrument, trace};
 use vulkano::shader;
 use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
@@ -38,7 +40,7 @@ impl ShaderCompilation {
         path: &ResourcePath,
         kind: ShaderKind,
         file_hash_cache: Arc<FileCache>,
-        macros: &[(String, String)],
+        macros: Vec<(String, String)>,
     ) -> Result<Self> {
         let now = std::time::Instant::now();
 
@@ -55,12 +57,31 @@ impl ShaderCompilation {
         let spirv = {
 
             let mut frontend = naga::front::glsl::Frontend::default();
-            let options = naga::front::glsl::Options::from(ShaderStage::Vertex);
+            let stage = match kind {
+                ShaderKind::Vertex => ShaderStage::Vertex,
+                ShaderKind::Fragment => ShaderStage::Fragment,
+                ShaderKind::Compute => ShaderStage::Compute,
+            };
+            let mut options = naga::front::glsl::Options::from(stage);
+            for (k, v) in macros {
+                options.defines.insert(k, v);
+            }
             let res = frontend.parse(&options, source)?;
 
+            // info!("ENTRY POINTS: {:#?}", res.entry_points);
 
+            let mut validator = naga::valid::Validator::new(naga::valid::ValidationFlags::all(), Capabilities::all());
+            let module_info = validator.validate(&res)?;
 
-            unimplemented!()
+            // warn!("MODULE INFO: {:#?}", module_info);
+
+            let mut spv_options = naga::back::spv::Options::default();
+            spv_options.flags = naga::back::spv::WriterFlags::DEBUG | naga::back::spv::WriterFlags::LABEL_VARYINGS;
+            let spirv_u32 = naga::back::spv::write_vec(&res, &module_info, &spv_options, None)?;
+            // warn!("SPIRV: {:?}", spirv_u32);
+            let spirv_u8 = spirv_u32.iter().flat_map(|&w| w.to_le_bytes().to_vec()).collect::<Vec<u8>>();
+            spirv_u8
+
             // let include_callback = |include_name: &str, include_type, source_name: &str, depth| {
             //     Self::include_callback(
             //         include_name,
@@ -97,15 +118,15 @@ impl ShaderCompilation {
             //     )
             //     .with_context(|| format!("Failed to compile shader {:?}", path))?
         };
-        // info!("compiled in {:?}.", now.elapsed());
+        info!("compiled in {:?}.", now.elapsed());
 
-        // let shader_artifact =
-        //     ShaderArtifact::from_spirv_binary(context, kind, spirv.as_binary_u8())?;
-        //
-        // Ok(Self {
-        //     shader_artifact,
-        //     include_chain: deps.take(),
-        // })
+        let shader_artifact =
+            ShaderArtifact::from_spirv_binary(context, kind, &spirv)?;
+
+        Ok(Self {
+            shader_artifact,
+            include_chain: vec![], //deps.take(),
+        })
     }
 
     // fn include_callback(
@@ -233,6 +254,7 @@ impl ShaderArtifact {
                     desc_bind,
                     ..
                 } => {
+                    // warn!("VAR: {:#?}", var);
                     ensure!(
                         desc_bind.set() == descriptor_set_index,
                         format!(
@@ -262,39 +284,53 @@ impl ShaderArtifact {
                         DescriptorType::UniformBuffer() => match ty {
                             Type::Struct(struct_type) => {
                                 for member in &struct_type.members {
-                                    let name = member
-                                        .name
-                                        .clone()
-                                        .context("Failed to get name of uniform variable")?;
-                                    let f32_offset = member.offset.with_context(|| {
-                                        format!("Failed to get offset for uniform variable {name}")
-                                    })? / size_of::<f32>();
+                                    // warn!("MEMBER: {:#?}", member);
+                                    match &member.ty {
+                                        Type::Struct(struct_type) => {
+                                            for member in &struct_type.members {
+                                                let name = member
+                                                    .name
+                                                    .clone()
+                                                    .context("Failed to get name of uniform variable")?;
+                                                let f32_offset = member.offset.with_context(|| {
+                                                    format!("Failed to get offset for uniform variable {name}")
+                                                })? / size_of::<f32>();
 
-                                    if let Some(global_name) =
-                                        name.strip_prefix(GLOBAL_UNIFORM_PREFIX)
-                                    {
-                                        let global_type = GlobalType::from_str(global_name)
-                                            .with_context(|| {
-                                                format!("Unknown global: {:?}", name)
-                                            })?;
-                                        global_uniform_bindings.push(GlobalUniformMapping {
-                                            global_type,
-                                            f32_offset,
-                                        });
-                                    } else {
-                                        let f32_count = match &member.ty {
-                                            Type::Scalar(Float { bits: 32 }) => 1,
-                                            Type::Vector(VectorType { scalar_ty: Float { bits: 32 }, nscalar, }) => *nscalar,
-                                            _ => bail!("Uniform variable {name} is not a float scalar or float vector"),
-                                        };
-                                        local_uniform_bindings.push(
-                                            ShaderCompilationLocalUniform {
-                                                name,
-                                                f32_offset,
-                                                f32_count: f32_count as usize,
-                                            },
-                                        );
+                                                if let Some(global_name) =
+                                                    name.strip_prefix(GLOBAL_UNIFORM_PREFIX)
+                                                {
+                                                    let global_type = GlobalType::from_str(global_name)
+                                                        .with_context(|| {
+                                                            format!("Unknown global: {:?}", name)
+                                                        })?;
+                                                    global_uniform_bindings.push(GlobalUniformMapping {
+                                                        global_type,
+                                                        f32_offset,
+                                                    });
+                                                } else {
+                                                    let f32_count = match &member.ty {
+                                                        Type::Scalar(Float { bits: 32 }) => 1,
+                                                        Type::Vector(VectorType { scalar_ty: Float { bits: 32 }, nscalar, }) => *nscalar,
+                                                        _ => bail!("Uniform variable {name} is not a float scalar or float vector"),
+                                                    };
+                                                    local_uniform_bindings.push(
+                                                        ShaderCompilationLocalUniform {
+                                                            name,
+                                                            f32_offset,
+                                                            f32_count: f32_count as usize,
+                                                        },
+                                                    );
+                                                }
+
+                                            }
+
+
+                                        }
+                                        _ => {
+                                            error!("Unsupported uniform buffer member type {:?}", member.ty);
+                                        }
                                     }
+
                                 }
                                 let byte_size = struct_type.nbyte().with_context(|| {
                                     format!("Failed to get byte size of uniform struct {name:?}")
