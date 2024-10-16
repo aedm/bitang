@@ -147,7 +147,6 @@ impl Shader {
 
         // warn!("descriptor resource count: {:?}", self.descriptor_resources.len());
 
-
         for descriptor_resource in &self.descriptor_resources {
             // warn!("descriptor resource id: {:?}", descriptor_resource.id);
             // warn!("descriptor resource binding: {:?}", descriptor_resource.binding);
@@ -155,21 +154,20 @@ impl Shader {
             let write_descriptor_set = match &descriptor_resource.source {
                 DescriptorSource::Image(image_descriptor) => {
                     let image_view = image_descriptor.image.get_view_for_sampler()?;
+                    WriteDescriptorSet::image_view(descriptor_resource.binding, image_view)
+                }
+                DescriptorSource::Sampler(sampler_descriptor) => {
                     let sampler = Sampler::new(
                         context.vulkan_context.device.clone(),
                         SamplerCreateInfo {
-                            address_mode: image_descriptor.mode.to_vulkano_address_mode(),
-                            compare: image_descriptor.mode.to_vulkano_compare_op(),
+                            address_mode: sampler_descriptor.mode.to_vulkano_address_mode(),
+                            compare: sampler_descriptor.mode.to_vulkano_compare_op(),
                             border_color: BorderColor::FloatOpaqueWhite,
                             ..SamplerCreateInfo::simple_repeat_linear()
                         },
                     )?;
 
-                    WriteDescriptorSet::image_view_sampler(
-                        descriptor_resource.binding,
-                        image_view,
-                        sampler,
-                    )
+                    WriteDescriptorSet::sampler(descriptor_resource.binding, sampler)
                 }
                 DescriptorSource::BufferGenerator(buffer_generator) => {
                     let buffer = buffer_generator.get_buffer().with_context(|| {
@@ -267,12 +265,17 @@ impl SamplerMode {
 #[derive(Clone)]
 pub struct ImageDescriptor {
     pub image: Arc<BitangImage>,
+}
+
+#[derive(Clone)]
+pub struct SamplerDescriptor {
     pub mode: SamplerMode,
 }
 
 #[derive(Clone)]
 pub enum DescriptorSource {
     Image(ImageDescriptor),
+    Sampler(SamplerDescriptor),
     BufferGenerator(Rc<BufferGenerator>),
     BufferCurrent(Rc<Buffer>),
     BufferNext(Rc<Buffer>),

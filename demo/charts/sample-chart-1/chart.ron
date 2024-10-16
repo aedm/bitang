@@ -69,18 +69,17 @@ Chart(
                     material: Material(
                         passes: {
                             "solid": MaterialPass(
-                                vertex_shader: "backdrop.vs.glsl",
-                                fragment_shader: "backdrop.fs.glsl",
+                                vertex_shader: "backdrop.vs.wgsl",
+                                fragment_shader: "backdrop.fs.wgsl",
                                 depth_test: false,
                                 depth_write: false,
                             ),
                         },
-                        samplers: {
-                            "envmap": Sampler(
+                        textures: {
+                            "envmap": Texture(
                                 bind: File(
                                     "medieval_cafe_1k.jxl",
                                 ),
-                                mode: Envmap,
                             ),
                         },
                     ),

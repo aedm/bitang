@@ -20,7 +20,7 @@ vec2 direction_wn_to_spherical_envmap_uv(vec3 direction_wn) {
 
 vec4 sample_environment_map(vec3 direction_wn, float bias, texture2D envmap) {
     int levels = textureQueryLevels(envmap);
-    float adjust = pow(1.0-bias, 4.0);
+    float adjust = pow(1.0 - bias, 4.0);
     float mipLevel = max(float(levels) - 3.5 - adjust * 7.0, 0.0);
     vec2 uv = direction_wn_to_spherical_envmap_uv(direction_wn);
     return textureLod(envmap, uv, mipLevel);
@@ -28,7 +28,7 @@ vec4 sample_environment_map(vec3 direction_wn, float bias, texture2D envmap) {
 
 vec3 sample_srgb_as_linear(sampler2D map, vec2 uv) {
     vec3 v = texture(map, uv).rgb;
-    return pow(v, vec3(1.0/2.2));
+    return pow(v, vec3(1.0 / 2.2));
 }
 
 vec3 apply_normal_map_amount(sampler2D normal_map, vec2 uv, vec3 normal_n, vec3 tangent_n, float normal_strength) {
@@ -72,20 +72,8 @@ layout (set = 1, binding = 0) uniform Uniforms {
 layout (set = 1, binding = 1) uniform texture2D envmap;
 
 void main() {
-//    f_color = vec4(1, 0, 1, 1);
+    //    f_color = vec4(1, 0, 1, 1);
 
-    #if IMAGE_BOUND_TO_SAMPLER_ENVMAP
-    {
-        vec4 c = sample_environment_map(normalize(v_ray_direction), -1, envmap);
-        f_color = vec4(c.rgb * args.r, 1);
-    }
-    #else
-    {
-        float d = dot(normalize(v_ray_direction), g_light_dir);
-        d = (d + 1) * 0.5;
-        vec3 col = mix(col1, col2, d);
-        col = pow(col, args2.rgb);
-        f_color = vec4(col, 1);
-    }
-    #endif
+    vec4 c = sample_environment_map(normalize(v_ray_direction), -1, envmap);
+    f_color = vec4(c.rgb * args.r, 1);
 }

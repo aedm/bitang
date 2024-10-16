@@ -1,5 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run bitang (dev-nowarn)" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+    <option name="buildProfileId" value="Custom:dev-nowarn" />
     <option name="command" value="run --package bitang --bin bitang --profile dev-nowarn" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs>

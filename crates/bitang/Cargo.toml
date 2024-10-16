@@ -24,7 +24,7 @@ vulkano-util = "0.34"
 vulkano-win = "0.34"
 
 #shaderc = { version = "0.8.3", features = ["prefer-static-linking"] }
-naga = { version = "22.1.0", features = ["glsl-in", "spv-out"] }
+naga = { version = "22.1.0", features = ["glsl-in", "spv-out", "wgsl-in"] }
 spirq = "1.2.2"
 glam = "0.25"
 

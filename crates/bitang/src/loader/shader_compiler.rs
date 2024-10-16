@@ -5,6 +5,9 @@ use crate::render::shader::{GlobalUniformMapping, ShaderKind};
 use crate::tool::VulkanContext;
 use ahash::AHashSet;
 use anyhow::{bail, ensure, Context, Result};
+use log::{error, warn};
+use naga::valid::Capabilities;
+use naga::ShaderStage;
 use spirq::ty::ScalarType::Float;
 use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
@@ -13,9 +16,6 @@ use std::cell::RefCell;
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
-use log::{error, warn};
-use naga::ShaderStage;
-use naga::valid::Capabilities;
 use tracing::{debug, info, instrument, trace};
 use vulkano::shader;
 use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
@@ -55,8 +55,7 @@ impl ShaderCompilation {
         // let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
         // let deps = RefCell::new(vec![]);
         let spirv = {
-
-            let mut frontend = naga::front::glsl::Frontend::default();
+            let mut frontend = naga::front::wgsl::Frontend::new();
             let stage = match kind {
                 ShaderKind::Vertex => ShaderStage::Vertex,
                 ShaderKind::Fragment => ShaderStage::Fragment,
@@ -66,20 +65,27 @@ impl ShaderCompilation {
             for (k, v) in macros {
                 options.defines.insert(k, v);
             }
-            let res = frontend.parse(&options, source)?;
+            let res = frontend.parse(source)?;
 
             // info!("ENTRY POINTS: {:#?}", res.entry_points);
 
-            let mut validator = naga::valid::Validator::new(naga::valid::ValidationFlags::all(), Capabilities::all());
+            let mut validator = naga::valid::Validator::new(
+                naga::valid::ValidationFlags::all(),
+                Capabilities::all(),
+            );
             let module_info = validator.validate(&res)?;
 
             // warn!("MODULE INFO: {:#?}", module_info);
 
             let mut spv_options = naga::back::spv::Options::default();
-            spv_options.flags = naga::back::spv::WriterFlags::DEBUG | naga::back::spv::WriterFlags::LABEL_VARYINGS;
+            spv_options.flags =
+                naga::back::spv::WriterFlags::DEBUG | naga::back::spv::WriterFlags::LABEL_VARYINGS;
             let spirv_u32 = naga::back::spv::write_vec(&res, &module_info, &spv_options, None)?;
             // warn!("SPIRV: {:?}", spirv_u32);
-            let spirv_u8 = spirv_u32.iter().flat_map(|&w| w.to_le_bytes().to_vec()).collect::<Vec<u8>>();
+            let spirv_u8 = spirv_u32
+                .iter()
+                .flat_map(|&w| w.to_le_bytes().to_vec())
+                .collect::<Vec<u8>>();
             spirv_u8
 
             // let include_callback = |include_name: &str, include_type, source_name: &str, depth| {
@@ -120,8 +126,7 @@ impl ShaderCompilation {
         };
         info!("compiled in {:?}.", now.elapsed());
 
-        let shader_artifact =
-            ShaderArtifact::from_spirv_binary(context, kind, &spirv)?;
+        let shader_artifact = ShaderArtifact::from_spirv_binary(context, kind, &spirv)?;
 
         Ok(Self {
             shader_artifact,
@@ -188,6 +193,7 @@ pub struct ShaderCompilationLocalUniform {
 pub struct ShaderArtifact {
     pub module: Arc<ShaderModule>,
     pub samplers: Vec<NamedResourceBinding>,
+    pub textures: Vec<NamedResourceBinding>,
     pub buffers: Vec<NamedResourceBinding>,
     pub global_uniform_bindings: Vec<GlobalUniformMapping>,
     pub local_uniform_bindings: Vec<ShaderCompilationLocalUniform>,
@@ -240,6 +246,7 @@ impl ShaderArtifact {
             .collect::<AHashSet<_>>();
 
         let mut samplers = Vec::new();
+        let mut textures = Vec::new();
         let mut buffers = Vec::new();
         let mut global_uniform_bindings = Vec::new();
         let mut local_uniform_bindings = Vec::new();
@@ -269,9 +276,25 @@ impl ShaderArtifact {
                         continue;
                     }
                     match desc_ty {
-                        DescriptorType::CombinedImageSampler() => {
+                        // DescriptorType::CombinedImageSampler() => {
+                        //     samplers.push(NamedResourceBinding {
+                        //         name: name.clone().with_context(|| format!("Failed to get name for combined image sampler at binding={binding}"))?,
+                        //         binding,
+                        //     });
+                        // }
+                        DescriptorType::Sampler() => {
                             samplers.push(NamedResourceBinding {
-                                name: name.clone().with_context(|| format!("Failed to get name for combined image sampler at binding={binding}"))?,
+                                name: name.clone().with_context(|| {
+                                    format!("Failed to get name for sampler at binding={binding}")
+                                })?,
+                                binding,
+                            });
+                        }
+                        DescriptorType::SampledImage() => {
+                            textures.push(NamedResourceBinding {
+                                name: name.clone().with_context(|| {
+                                    format!("Failed to get name for texture at binding={binding}")
+                                })?,
                                 binding,
                             });
                         }
@@ -288,10 +311,9 @@ impl ShaderArtifact {
                                     match &member.ty {
                                         Type::Struct(struct_type) => {
                                             for member in &struct_type.members {
-                                                let name = member
-                                                    .name
-                                                    .clone()
-                                                    .context("Failed to get name of uniform variable")?;
+                                                let name = member.name.clone().context(
+                                                    "Failed to get name of uniform variable",
+                                                )?;
                                                 let f32_offset = member.offset.with_context(|| {
                                                     format!("Failed to get offset for uniform variable {name}")
                                                 })? / size_of::<f32>();
@@ -299,14 +321,20 @@ impl ShaderArtifact {
                                                 if let Some(global_name) =
                                                     name.strip_prefix(GLOBAL_UNIFORM_PREFIX)
                                                 {
-                                                    let global_type = GlobalType::from_str(global_name)
-                                                        .with_context(|| {
-                                                            format!("Unknown global: {:?}", name)
-                                                        })?;
-                                                    global_uniform_bindings.push(GlobalUniformMapping {
-                                                        global_type,
-                                                        f32_offset,
-                                                    });
+                                                    let global_type =
+                                                        GlobalType::from_str(global_name)
+                                                            .with_context(|| {
+                                                                format!(
+                                                                    "Unknown global: {:?}",
+                                                                    name
+                                                                )
+                                                            })?;
+                                                    global_uniform_bindings.push(
+                                                        GlobalUniformMapping {
+                                                            global_type,
+                                                            f32_offset,
+                                                        },
+                                                    );
                                                 } else {
                                                     let f32_count = match &member.ty {
                                                         Type::Scalar(Float { bits: 32 }) => 1,
@@ -321,16 +349,15 @@ impl ShaderArtifact {
                                                         },
                                                     );
                                                 }
-
                                             }
-
-
                                         }
                                         _ => {
-                                            error!("Unsupported uniform buffer member type {:?}", member.ty);
+                                            error!(
+                                                "Unsupported uniform buffer member type {:?}",
+                                                member.ty
+                                            );
                                         }
                                     }
-
                                 }
                                 let byte_size = struct_type.nbyte().with_context(|| {
                                     format!("Failed to get byte size of uniform struct {name:?}")
@@ -363,6 +390,7 @@ impl ShaderArtifact {
         let result = ShaderArtifact {
             module,
             samplers,
+            textures,
             buffers,
             local_uniform_bindings,
             global_uniform_bindings,
