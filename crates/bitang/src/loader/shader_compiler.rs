@@ -215,9 +215,14 @@ impl ShaderArtifact {
             .combine_img_samplers(true)
             .gen_unique_names(false)
             .reflect()?;
+        let main_function = match kind {
+            ShaderKind::Vertex => "vs_main",
+            ShaderKind::Fragment => "fs_main",
+            ShaderKind::Compute => "main",
+        };
         let entry_point = entry_points
             .iter()
-            .find(|ep| ep.name == "main")
+            .find(|ep| ep.name == main_function)
             .context("Failed to find entry point 'main'")?;
 
         let module = unsafe {
@@ -237,7 +242,7 @@ impl ShaderArtifact {
         // Collect the actually used bindings. Spirq doesn't always get us the same results
         // as Vulkano's pipeline layout, so we need to filter out the unused bindings.
         let used_bindings = &module
-            .single_entry_point()
+            .entry_point(main_function)
             .context("Failed to get entry point")?
             .info()
             .descriptor_binding_requirements
@@ -262,6 +267,9 @@ impl ShaderArtifact {
                     ..
                 } => {
                     // warn!("VAR: {:#?}", var);
+                    if desc_bind.set() != descriptor_set_index {
+                        continue;
+                    }
                     ensure!(
                         desc_bind.set() == descriptor_set_index,
                         format!(

@@ -69,8 +69,8 @@ Chart(
                     material: Material(
                         passes: {
                             "solid": MaterialPass(
-                                vertex_shader: "backdrop.vs.wgsl",
-                                fragment_shader: "backdrop.fs.wgsl",
+                                vertex_shader: "backdrop.wgsl",
+                                fragment_shader: "backdrop.wgsl",
                                 depth_test: false,
                                 depth_write: false,
                             ),
