@@ -73,7 +73,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 // Fragment Shader
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let c = sample_environment_map(normalize(in.v_ray_direction), -1.0);
-    return vec4<f32>(c.rgb * uniforms.args.r, 1.0);
+    return vec4f(c.rgb * uniforms.args.r, 1.0);
 }
