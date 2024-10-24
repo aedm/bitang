@@ -52,22 +52,9 @@ impl ShaderCompilation {
         let source = std::str::from_utf8(&source_file.content)
             .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
 
-        // let compiler = shaderc::Compiler::new().context("Failed to create shader compiler")?;
-        // let deps = RefCell::new(vec![]);
         let spirv = {
             let mut frontend = naga::front::wgsl::Frontend::new();
-            let stage = match kind {
-                ShaderKind::Vertex => ShaderStage::Vertex,
-                ShaderKind::Fragment => ShaderStage::Fragment,
-                ShaderKind::Compute => ShaderStage::Compute,
-            };
-            let mut options = naga::front::glsl::Options::from(stage);
-            for (k, v) in macros {
-                options.defines.insert(k, v);
-            }
             let res = frontend.parse(source)?;
-
-            // info!("ENTRY POINTS: {:#?}", res.entry_points);
 
             let mut validator = naga::valid::Validator::new(
                 naga::valid::ValidationFlags::all(),
@@ -75,54 +62,15 @@ impl ShaderCompilation {
             );
             let module_info = validator.validate(&res)?;
 
-            // warn!("MODULE INFO: {:#?}", module_info);
-
             let mut spv_options = naga::back::spv::Options::default();
             spv_options.flags =
                 naga::back::spv::WriterFlags::DEBUG | naga::back::spv::WriterFlags::LABEL_VARYINGS;
             let spirv_u32 = naga::back::spv::write_vec(&res, &module_info, &spv_options, None)?;
-            // warn!("SPIRV: {:?}", spirv_u32);
             let spirv_u8 = spirv_u32
                 .iter()
                 .flat_map(|&w| w.to_le_bytes().to_vec())
                 .collect::<Vec<u8>>();
             spirv_u8
-
-            // let include_callback = |include_name: &str, include_type, source_name: &str, depth| {
-            //     Self::include_callback(
-            //         include_name,
-            //         include_type,
-            //         source_name,
-            //         depth,
-            //         &mut deps.borrow_mut(),
-            //         &file_hash_cache,
-            //     )
-            // };
-            // let mut options = shaderc::CompileOptions::new()
-            //     .context("Failed to create shader compiler options")?;
-            // options.set_target_env(
-            //     shaderc::TargetEnv::Vulkan,
-            //     shaderc::EnvVersion::Vulkan1_2 as u32,
-            // );
-            // // TODO: Enable optimization. First, automatic varying binding is needed, see https://github.com/aedm/bitang/issues/221
-            // // options.set_optimization_level(shaderc::OptimizationLevel::Performance);
-            // options.set_include_callback(include_callback);
-            // options.set_generate_debug_info();
-            //
-            // // Set macros
-            // for (key, value) in macros {
-            //     options.add_macro_definition(key, Some(value))
-            // }
-            //
-            // compiler
-            //     .compile_into_spirv(
-            //         source,
-            //         kind,
-            //         &path.to_pwd_relative_path()?,
-            //         "main",
-            //         Some(&options),
-            //     )
-            //     .with_context(|| format!("Failed to compile shader {:?}", path))?
         };
         info!("compiled in {:?}.", now.elapsed());
 
@@ -130,48 +78,9 @@ impl ShaderCompilation {
 
         Ok(Self {
             shader_artifact,
-            include_chain: vec![], //deps.take(),
+            include_chain: vec![],
         })
     }
-
-    // fn include_callback(
-    //     include_name: &str,
-    //     include_type: IncludeType,
-    //     source_name: &str,
-    //     depth: usize,
-    //     deps: &mut Vec<IncludeChainLink>,
-    //     file_hash_cache: &FileCache,
-    // ) -> IncludeCallbackResult {
-    //     trace!(
-    //         "#include '{include_name}' ({include_type:?}) from '{source_name}' (depth: {depth})",
-    //     );
-    //     let source_path =
-    //         ResourcePath::from_pwd_relative_path(&file_hash_cache.root_path, source_name)
-    //             .map_err(|err| err.to_string())?;
-    //     let include_path = source_path
-    //         .relative_path(include_name)
-    //         .map_err(|err| err.to_string())?;
-    //     let included_source_u8 = tokio::runtime::Handle::current()
-    //         .block_on(async {
-    //             // x
-    //             let x = file_hash_cache.get(&include_path);
-    //             x.await
-    //         })
-    //         .map_err(|err| err.to_string())?;
-    //     deps.push(IncludeChainLink {
-    //         resource_path: include_path.clone(),
-    //         hash: included_source_u8.hash,
-    //     });
-    //     let content = String::from_utf8(included_source_u8.content.clone())
-    //         .map_err(|err| format!("Shader source file is not UTF-8: '{include_name:?}': {err}"))?;
-    //     let resolved_name = include_path
-    //         .to_pwd_relative_path()
-    //         .map_err(|err| err.to_string())?;
-    //     Ok(shaderc::ResolvedInclude {
-    //         resolved_name,
-    //         content,
-    //     })
-    // }
 }
 
 /// A descriptor binding point for a named resource
@@ -266,7 +175,6 @@ impl ShaderArtifact {
                     desc_bind,
                     ..
                 } => {
-                    // warn!("VAR: {:#?}", var);
                     if desc_bind.set() != descriptor_set_index {
                         continue;
                     }
@@ -284,12 +192,6 @@ impl ShaderArtifact {
                         continue;
                     }
                     match desc_ty {
-                        // DescriptorType::CombinedImageSampler() => {
-                        //     samplers.push(NamedResourceBinding {
-                        //         name: name.clone().with_context(|| format!("Failed to get name for combined image sampler at binding={binding}"))?,
-                        //         binding,
-                        //     });
-                        // }
                         DescriptorType::Sampler() => {
                             samplers.push(NamedResourceBinding {
                                 name: name.clone().with_context(|| {

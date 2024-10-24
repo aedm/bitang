@@ -117,9 +117,6 @@ impl Shader {
 
         let mut descriptors = SmallVec::<[_; 64]>::new();
 
-        // warn!("Shader kind: {:?}", self.kind);
-        // warn!("uniform buffer size: {:?}", self.uniform_buffer_size);
-
         if self.uniform_buffer_size > 0 {
             // Fill uniform array
             let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
@@ -145,12 +142,7 @@ impl Shader {
             descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
         }
 
-        // warn!("descriptor resource count: {:?}", self.descriptor_resources.len());
-
         for descriptor_resource in &self.descriptor_resources {
-            // warn!("descriptor resource id: {:?}", descriptor_resource.id);
-            // warn!("descriptor resource binding: {:?}", descriptor_resource.binding);
-
             let write_descriptor_set = match &descriptor_resource.source {
                 DescriptorSource::Image(image_descriptor) => {
                     let image_view = image_descriptor.image.get_view_for_sampler()?;

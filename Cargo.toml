@@ -26,8 +26,3 @@ strip = true
 lto = true
 panic = "abort"
 opt-level = "s"
-
-[profile.release]
-strip = true
-panic = "abort"
-opt-level = "s"
