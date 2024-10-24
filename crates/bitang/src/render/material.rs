@@ -118,12 +118,12 @@ impl MaterialPass {
             let vs = props
                 .vertex_shader
                 .shader_module
-                .entry_point("main")
+                .entry_point("vs_main")
                 .unwrap();
             let fs = props
                 .fragment_shader
                 .shader_module
-                .entry_point("main")
+                .entry_point("fs_main")
                 .unwrap();
 
             let vertex_input_state =

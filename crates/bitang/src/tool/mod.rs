@@ -31,7 +31,7 @@ const BORDERLESS_FULL_SCREEN: bool = true;
 pub const FRAMEDUMP_MODE: bool = false;
 pub const FRAMEDUMP_WIDTH: u32 = 3840;
 pub const FRAMEDUMP_HEIGHT: u32 = 2160;
-pub const FRAMEDUMP_FPS: u32 = 60;
+pub const FRAMEDUMP_FPS: u32 = 61;
 
 const SCREEN_RATIO: (u32, u32) = (16, 9);
 
