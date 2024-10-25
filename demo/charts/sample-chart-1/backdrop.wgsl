@@ -32,11 +32,11 @@ struct VertexOutput {
 
 fn calculate_backdrop_ray(uv: vec2<f32>) -> vec3<f32> {
     let fov = vec2<f32>(1.0 / u.g_projection_from_camera[0][0], 1.0 / u.g_projection_from_camera[1][1]);
-    let inverse_rotation = mat3x3<f32>(
+    let inverse_rotation = transpose(mat3x3<f32>(
         u.g_camera_from_world[0].xyz,
         u.g_camera_from_world[1].xyz,
         u.g_camera_from_world[2].xyz
-    );
+    ));
     return inverse_rotation * vec3<f32>(uv * fov, 1.0);
 }
 
