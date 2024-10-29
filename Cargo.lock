@@ -244,6 +244,7 @@ dependencies = [
  "ahash",
  "anyhow",
  "build-time",
+ "codespan-reporting",
  "dashmap",
  "dunce",
  "egui",

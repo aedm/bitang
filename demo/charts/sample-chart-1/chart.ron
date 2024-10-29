@@ -86,78 +86,70 @@ Chart(
                 ),
 
 
-//                Object(
-//                    id: "duck",
-//                    mesh_file: "/duck/duck.glb",
-//                    mesh_name: "Duck_002",
-//                    material: Material(
-//                        passes: {
+                Object(
+                    id: "duck",
+                    mesh_file: "/duck/duck.glb",
+                    mesh_name: "Duck_002",
+                    material: Material(
+                        passes: {
 //                            "shadow": MaterialPass(
 //                                vertex_shader: "vs-duck.glsl",
 //                                fragment_shader: "fs-noop.glsl",
 //                                depth_test: true,
 //                                depth_write: true,
 //                            ),
-//                            "solid": MaterialPass(
-//                                vertex_shader: "vs-duck.glsl",
-//                                fragment_shader: "fs-duck.glsl",
-//                                depth_test: true,
-//                                depth_write: true,
-//                            ),
-//                        },
-//                        samplers: {
-//                            "shadow": Sampler(
-//                                bind: Image(
-//                                    "shadow",
-//                                ),
-//                                mode: Shadow,
-//                            ),
-//                            "envmap": Sampler(
-//                                bind: File(
-//                                    "medieval_cafe_1k.jxl",
-//                                ),
-//                                mode: Envmap,
-//                            ),
-//                            "base_color_map": Sampler(
-//                                bind: File(
-//                                    "/duck/Duck_002_Albedo.png",
-//                                ),
-//                                mode: Repeat,
-//                            ),
-//                            "roughness_map": Sampler(
-//                                bind: File(
-//                                    "/duck/Duck_002_Roughness.png",
-//                                ),
-//                                mode: Repeat,
-//                            ),
-//                            "metallic_map": Sampler(
-//                                bind: File(
-//                                    "/duck/Duck_002_Metallic.png",
-//                                ),
-//                                mode: Repeat,
-//                            ),
-//                            "normal_map": Sampler(
-//                                bind: File(
-//                                    "/duck/Duck_002_Normal.png",
-//                                ),
-//                                mode: Repeat,
-//                            ),
-//                            "brdf_lut": Sampler(
-//                                bind: File(
-//                                    "ibl_brdf_lut.png",
-//                                ),
-//                                mode: ClampToEdge,
-//                            ),
-//                            "lightmap": Sampler(
-//                                bind: File(
-//                                    "lightmap.png",
-//                                ),
-//                                mode: Envmap,
-//                            ),
-//                        },
-//                    ),
-//                ),
-//
+                            "solid": MaterialPass(
+                                vertex_shader: "vs.wgsl",
+                                fragment_shader: "fs.wgsl",
+                                depth_test: true,
+                                depth_write: true,
+                            ),
+                        },
+                        textures: {
+                            "shadow": Texture(
+                                bind: Image(
+                                    "shadow",
+                                ),
+                            ),
+                            "envmap": Texture(
+                                bind: File(
+                                    "medieval_cafe_1k.jxl",
+                                ),
+                            ),
+                            "base_color_map": Texture(
+                                bind: File(
+                                    "/duck/Duck_002_Albedo.png",
+                                ),
+                            ),
+                            "roughness_map": Texture(
+                                bind: File(
+                                    "/duck/Duck_002_Roughness.png",
+                                ),
+                            ),
+                            "metallic_map": Texture(
+                                bind: File(
+                                    "/duck/Duck_002_Metallic.png",
+                                ),
+                            ),
+                            "normal_map": Texture(
+                                bind: File(
+                                    "/duck/Duck_002_Normal.png",
+                                ),
+                            ),
+                            "brdf_lut": Texture(
+                                bind: File(
+                                    "ibl_brdf_lut.png",
+                                ),
+                            ),
+                            "lightmap": Texture(
+                                bind: File(
+                                    "lightmap.png",
+                                ),
+                            ),
+                        },
+                    ),
+                ),
+
 
 
 //                Scene(

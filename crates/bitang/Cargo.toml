@@ -12,6 +12,7 @@ smallvec = "1.11.0"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 nu-ansi-term = "*"
+codespan-reporting = "0.11.1"
 
 egui_winit_vulkano = "0.27"
 egui = "0.24"
