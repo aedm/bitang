@@ -35,7 +35,7 @@ fn calculate_camera_pos_worldspace(camera_from_world: mat4x4<f32>) -> vec3<f32> 
 }
 
 @vertex
-fn main(input: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
+fn vs_main(input: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var output: VertexOutput;
     let per_row = 8;
     let mi = vec3<f32>(f32(instance_index % u32(per_row)), f32(instance_index / u32(per_row)), 0.0);
