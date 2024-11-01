@@ -18,9 +18,12 @@ use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
 use spirq::ReflectConfig;
 use std::cell::RefCell;
+use std::error::Error;
 use std::mem::size_of;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::thread;
+use tokio::task;
 use tracing::{debug, info, instrument, trace};
 use vulkano::shader;
 use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
@@ -92,13 +95,52 @@ impl ShaderCompilation {
                 }
             };
 
-            let mut validator = naga::valid::Validator::new(
-                naga::valid::ValidationFlags::all(),
-                Capabilities::all(),
-            );
-            let module_info = validator
-                .validate(&res)
-                .with_context(|| format!("Failed to validate shader source file '{:?}'", path))?;
+            // let mut validator = naga::valid::Validator::new(
+            //     naga::valid::ValidationFlags::all(),
+            //     Capabilities::all(),
+            // );
+            let res_clone = res.clone();
+            let module_info = thread::spawn(move || {
+                let mut validator = naga::valid::Validator::new(
+                    naga::valid::ValidationFlags::all(),
+                    Capabilities::all(),
+                );
+                validator.validate(&res_clone)
+            }).join()
+                .map_err(|err| anyhow::anyhow!("Failed to validate shader source file '{:?}': {:?}", path, err))?;
+            let module_info = match module_info {
+                Ok(res) => res,
+                Err(err) => {
+                    let mut files = SimpleFiles::new();
+                    let file_id = files.add(path.to_pwd_relative_path().unwrap(), source);
+
+                    let labels = err
+                        .spans()
+                        .map(|(span, msg)| {
+                            Label::primary(file_id, span.to_range().unwrap()).with_message(msg)
+                        })
+                        .collect_vec();
+                    let diagnostic = Diagnostic::error()
+                        .with_labels(labels)
+                        .with_message(format!("{:?}", err.source()));
+                    let writer = StandardStream::stderr(ColorChoice::Always);
+                    let config = codespan_reporting::term::Config::default();
+
+                    codespan_reporting::term::emit(
+                        &mut writer.lock(),
+                        &config,
+                        &files,
+                        &diagnostic,
+                    )?;
+
+                    bail!(
+                       "Failed to parse shader source file '{path:?}', error: {err:?}",
+                        );
+                }
+            };
+        // let module_info = validator
+            //     .validate(&res)
+            //     .with_context(|| format!("Failed to validate shader source file '{:?}'", path))?;
 
             let mut spv_options = naga::back::spv::Options::default();
             spv_options.flags =

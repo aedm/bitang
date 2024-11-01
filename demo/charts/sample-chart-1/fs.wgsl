@@ -34,9 +34,9 @@ struct Uniforms {
 @group(1) @binding(6) var normal_map: texture_2d<f32>;
 @group(1) @binding(7) var brdf_lut: texture_2d<f32>;
 
-@group(1) @binding(1) var sampler_envmap: sampler;
-@group(1) @binding(2) var sampler_shadow: sampler_comparison;
-@group(1) @binding(3) var sampler_repeat: sampler;
+@group(1) @binding(11) var sampler_envmap: sampler;
+@group(1) @binding(12) var sampler_shadow: sampler_comparison;
+@group(1) @binding(13) var sampler_repeat: sampler;
 
 // Constants
 const PI: f32 = 3.14159265359;
@@ -149,8 +149,9 @@ fn cook_torrance_brdf(V: vec3<f32>, N: vec3<f32>, L: vec3<f32>, baseColor: vec3<
     return light_color * (diffuse + specular);
 }
 
-fn cook_torrance_brdf_ibl(V: vec3<f32>, N: vec3<f32>, baseColor: vec3<f32>,
-    metallic: f32, roughness: f32, light_color: vec3<f32>) -> vec3<f32> {
+// vec3 cook_torrance_brdf_ibl(vec3 V, vec3 N, vec3 baseColor, float metallic, float roughness, sampler2D envmap, sampler2D brdf_lut, vec3 light_color) {
+//    color_acc += cook_torrance_brdf_ibl(V, N, base_color, metallic, roughness, envmap, brdf_lut, vec3<f32>(u.ambient * (u.pop + 1.0)));
+fn cook_torrance_brdf_ibl(V: vec3<f32>, N: vec3<f32>, baseColor: vec3<f32>, metallic: f32, roughness: f32, envmap: texture_2d<f32>, brdf_lut: texture_2d<f32>, light_color: vec3<f32>) -> vec3<f32> {
     let F0 = mix(vec3<f32>(0.04), baseColor, metallic);
 
     // Calculate DFG terms
@@ -158,8 +159,8 @@ fn cook_torrance_brdf_ibl(V: vec3<f32>, N: vec3<f32>, baseColor: vec3<f32>,
     let F = fresnel_schlick_roughness(n_dot_v, F0, roughness);
 
     // Sample environment map and irradiance map
-    let irradiance = light_color * sample_environment_map(N, 1.0);
-    let envSample = light_color * sample_environment_map(reflect(-V, N), roughness);
+    let irradiance = light_color * sample_environment_map(N, 1.0, envmap).rgb;
+    let envSample = light_color * sample_environment_map(reflect(-V, N), roughness, envmap).rgb;
 
     // Calculate specular and diffuse terms
     let kD = (vec3<f32>(1.0) - F) * (1.0 - metallic);

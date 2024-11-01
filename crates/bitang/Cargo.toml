@@ -24,7 +24,8 @@ vulkano = "0.34"
 vulkano-util = "0.34"
 vulkano-win = "0.34"
 
-naga = { version = "22.1.0", features = ["spv-out", "wgsl-in"] }
+#naga = { version = "22.1.0", features = ["spv-out", "wgsl-in"] }
+naga = { path = "d:/repos/wgpu/naga", features = ["spv-out", "wgsl-in"] }
 spirq = "1.2.2"
 glam = "0.25"
 
