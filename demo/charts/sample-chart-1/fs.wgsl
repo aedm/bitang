@@ -55,14 +55,13 @@ fn direction_wn_to_spherical_envmap_uv(direction_wn: vec3<f32>) -> vec2<f32> {
 }
 
 fn sample_environment_map(direction_wn: vec3<f32>, bias: f32, envmap: texture_2d<f32>) -> vec4<f32> {
-    let levels = textureNumLevels(envmap);
+    let levels = 10; // textureNumLevels(envmap);
     let adjust = pow(1.0 - bias, 4.0);
-//    let mipLevel = max(f32(levels) - 3.5 - adjust * 7.0, 0.0);
+    let mipLevel = max(f32(levels) - 3.5 - adjust * 7.0, 0.0);
 //    let mipLevel = f32(levels) - 3.5 - adjust * 7.0;
-    return vec4f(1, 0, 0, 1);
-//    let mipLevel = bias * f32(levels);
-//    let uv = direction_wn_to_spherical_envmap_uv(direction_wn);
-//    return textureSampleLevel(envmap, sampler_envmap, uv, mipLevel);
+//    return vec4f(bias, 0, 0, 1);
+    let uv = direction_wn_to_spherical_envmap_uv(direction_wn);
+    return textureSampleLevel(envmap, sampler_envmap, uv, mipLevel);
 }
 
 fn sample_srgb_as_linear(map: texture_2d<f32>, uv: vec2<f32>) -> vec3<f32> {
