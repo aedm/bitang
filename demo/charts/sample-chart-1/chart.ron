@@ -92,12 +92,12 @@ Chart(
                     mesh_name: "Duck_002",
                     material: Material(
                         passes: {
-//                            "shadow": MaterialPass(
-//                                vertex_shader: "vs-duck.glsl",
-//                                fragment_shader: "fs-noop.glsl",
-//                                depth_test: true,
-//                                depth_write: true,
-//                            ),
+                            "shadow": MaterialPass(
+                                vertex_shader: "vs.wgsl",
+                                fragment_shader: "fs-noop.wgsl",
+                                depth_test: true,
+                                depth_write: true,
+                            ),
                             "solid": MaterialPass(
                                 vertex_shader: "vs.wgsl",
                                 fragment_shader: "fs.wgsl",

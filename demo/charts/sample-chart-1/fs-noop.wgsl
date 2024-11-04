@@ -8,4 +8,4 @@ struct VertexOutput {
 };
 
 @fragment
-fn main(in: VertexOutput) {}
+fn fs_main(in: VertexOutput) {}

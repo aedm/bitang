@@ -57,9 +57,12 @@ fn direction_wn_to_spherical_envmap_uv(direction_wn: vec3<f32>) -> vec2<f32> {
 fn sample_environment_map(direction_wn: vec3<f32>, bias: f32, envmap: texture_2d<f32>) -> vec4<f32> {
     let levels = textureNumLevels(envmap);
     let adjust = pow(1.0 - bias, 4.0);
-    let mipLevel = max(f32(levels) - 3.5 - adjust * 7.0, 0.0);
-    let uv = direction_wn_to_spherical_envmap_uv(direction_wn);
-    return textureSampleLevel(envmap, sampler_envmap, uv, mipLevel);
+//    let mipLevel = max(f32(levels) - 3.5 - adjust * 7.0, 0.0);
+//    let mipLevel = f32(levels) - 3.5 - adjust * 7.0;
+    return vec4f(1, 0, 0, 1);
+//    let mipLevel = bias * f32(levels);
+//    let uv = direction_wn_to_spherical_envmap_uv(direction_wn);
+//    return textureSampleLevel(envmap, sampler_envmap, uv, mipLevel);
 }
 
 fn sample_srgb_as_linear(map: texture_2d<f32>, uv: vec2<f32>) -> vec3<f32> {
@@ -222,23 +225,12 @@ fn sample_shadow_map(world_pos: vec3<f32>) -> f32 {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let uv = in.v_uv * 2.0;
+    let uv = in.v_uv * 1.0;
     var base_color = textureSample(base_color_map, sampler_repeat, uv).rgb;
-    base_color = u.color;
-
     var roughness = textureSample(roughness_map, sampler_repeat, uv).r;
     var metallic = textureSample(metallic_map, sampler_repeat, uv).r;
 
     let light = sample_shadow_map(in.v_pos_worldspace);
-
-    roughness = adjust(roughness, in.v_material_adjustment.x * 2.0 - 1.0);
-    metallic = adjust(metallic, in.v_material_adjustment.y * 2.0 - 1.0);
-
-    roughness = adjust(roughness, u.roughness);
-    metallic = adjust(metallic, u.metallic);
-
-    roughness = in.v_material_adjustment.x;
-    metallic = in.v_material_adjustment.y;
 
     let normal_wn = normalize(in.v_normal_worldspace);
     let tangent_wn = normalize(in.v_tangent_worldspace);
@@ -247,7 +239,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let V = normalize(in.v_camera_pos_worldspace - in.v_pos_worldspace);
     let L = u.g_light_dir_worldspace_norm;
 
-    base_color /= (u.pop + 1.0);
+//    base_color /= (u.pop + 1.0);
     var color_acc = vec3<f32>(0.0);
     color_acc += cook_torrance_brdf(V, N, L, base_color, metallic, roughness, u.light_color.rgb * light);
     color_acc += cook_torrance_brdf_ibl(V, N, base_color, metallic, roughness, envmap, brdf_lut, vec3<f32>(u.ambient * (u.pop + 1.0)));
