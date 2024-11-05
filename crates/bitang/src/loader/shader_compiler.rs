@@ -61,6 +61,7 @@ impl ShaderCompilation {
             .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
 
         let spirv = {
+            // TODO: report code spans on the top level, not here
             let mut frontend = naga::front::wgsl::Frontend::new();
             let res = match frontend.parse(source) {
                 Ok(res) => res,
@@ -95,10 +96,6 @@ impl ShaderCompilation {
                 }
             };
 
-            // let mut validator = naga::valid::Validator::new(
-            //     naga::valid::ValidationFlags::all(),
-            //     Capabilities::all(),
-            // );
             let res_clone = res.clone();
             let module_info = thread::spawn(move || {
                 let mut validator = naga::valid::Validator::new(
@@ -138,9 +135,6 @@ impl ShaderCompilation {
                         );
                 }
             };
-        // let module_info = validator
-            //     .validate(&res)
-            //     .with_context(|| format!("Failed to validate shader source file '{:?}'", path))?;
 
             let mut spv_options = naga::back::spv::Options::default();
             spv_options.flags =

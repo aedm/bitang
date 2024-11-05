@@ -128,6 +128,7 @@ impl ShaderContext {
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
+        // TODO: put this somewhere more global
         let samplers = HashMap::from([
             (
                 "sampler_repeat".to_string(),

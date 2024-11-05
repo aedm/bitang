@@ -17,11 +17,6 @@ debug = true
 [profile.dev.package.vulkano]
 opt-level = 2
 
-[profile.dev.package.naga]
-opt-level = 0
-debug = true
-overflow-checks = true
-
 [profile.dev-nowarn]
 inherits = "dev"
 
