@@ -28,18 +28,10 @@ struct VertexOutput {
     @location(5) v_material_adjustment: vec3<f32>,
 };
 
-//vec3 calculate_camera_pos_worldspace(mat4 camera_from_world) {
-//    mat3 inverse_rotation = inverse(mat3(camera_from_world));
-//    return inverse_rotation * -camera_from_world[3].xyz;
-//}
-
 fn calculate_camera_pos_worldspace(camera_from_world: mat4x4<f32>) -> vec3<f32> {
-    // Implement this function based on your math.glsl implementation
-    // For now, I'll return a placeholder value
     let myMat3x3 = mat3x3(camera_from_world[0].xyz, camera_from_world[1].xyz, camera_from_world[2].xyz);
     let inverse_rotation = transpose(myMat3x3);
     return inverse_rotation * -camera_from_world[3].xyz;
-//    return vec3<f32>(0.0, 0.0, 0.0);
 }
 
 @vertex

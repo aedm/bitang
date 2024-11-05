@@ -21,7 +21,6 @@ struct Uniforms {
     ambient: f32,
     normal_strength: f32,
     shadow_bias: f32,
-    pop: f32,
     color: vec3<f32>,
 };
 
@@ -38,10 +37,8 @@ struct Uniforms {
 @group(1) @binding(12) var sampler_shadow: sampler_comparison;
 @group(1) @binding(13) var sampler_repeat: sampler;
 
-// Constants
 const PI: f32 = 3.14159265359;
 
-// Functions
 fn direction_wn_to_spherical_envmap_uv(direction_wn: vec3<f32>) -> vec2<f32> {
     // Calculate the azimuthal angle (phi) and the polar angle (theta)
     let phi = atan2(direction_wn.z, direction_wn.x);
@@ -55,11 +52,9 @@ fn direction_wn_to_spherical_envmap_uv(direction_wn: vec3<f32>) -> vec2<f32> {
 }
 
 fn sample_environment_map(direction_wn: vec3<f32>, bias: f32, envmap: texture_2d<f32>) -> vec4<f32> {
-    let levels = 10; // textureNumLevels(envmap);
+    let levels = textureNumLevels(envmap);
     let adjust = pow(1.0 - bias, 4.0);
     let mipLevel = max(f32(levels) - 3.5 - adjust * 7.0, 0.0);
-//    let mipLevel = f32(levels) - 3.5 - adjust * 7.0;
-//    return vec4f(bias, 0, 0, 1);
     let uv = direction_wn_to_spherical_envmap_uv(direction_wn);
     return textureSampleLevel(envmap, sampler_envmap, uv, mipLevel);
 }
@@ -151,8 +146,6 @@ fn cook_torrance_brdf(V: vec3<f32>, N: vec3<f32>, L: vec3<f32>, baseColor: vec3<
     return light_color * (diffuse + specular);
 }
 
-// vec3 cook_torrance_brdf_ibl(vec3 V, vec3 N, vec3 baseColor, float metallic, float roughness, sampler2D envmap, sampler2D brdf_lut, vec3 light_color) {
-//    color_acc += cook_torrance_brdf_ibl(V, N, base_color, metallic, roughness, envmap, brdf_lut, vec3<f32>(u.ambient * (u.pop + 1.0)));
 fn cook_torrance_brdf_ibl(V: vec3<f32>, N: vec3<f32>, baseColor: vec3<f32>, metallic: f32, roughness: f32, envmap: texture_2d<f32>, brdf_lut: texture_2d<f32>, light_color: vec3<f32>) -> vec3<f32> {
     let F0 = mix(vec3<f32>(0.04), baseColor, metallic);
 
@@ -177,7 +170,6 @@ fn cook_torrance_brdf_ibl(V: vec3<f32>, N: vec3<f32>, baseColor: vec3<f32>, meta
 
 // Note: The sample_environment_map function needs to be implemented separately
 // as it depends on your specific environment mapping implementation
-
 fn cook_torrance_brdf_lightmap(V: vec3<f32>, N: vec3<f32>, L: vec3<f32>,
     baseColor: vec3<f32>, metallic: f32, roughness: f32, envmap: texture_2d<f32>,
     brdf_lut: texture_2d<f32>, light_color: vec3<f32>) -> vec3<f32> {
@@ -217,8 +209,6 @@ fn adjust(value: f32, factor: f32) -> f32 {
 fn sample_shadow_map(world_pos: vec3<f32>) -> f32 {
     var lightspace_pos = (u.g_light_projection_from_world * vec4<f32>(world_pos, 1.0)).xyz;
     lightspace_pos = lightspace_pos * vec3f(0.5, 0.5, 1) + vec3f(0.5, 0.5, u.shadow_bias * -0.001);
-//    lightspace_pos.xy = lightspace_pos.xy * 0.5 + 0.5;
-//    lightspace_pos.z -= u.shadow_bias * 0.001;
     return textureSampleCompare(shadow, sampler_shadow, lightspace_pos.xy, lightspace_pos.z);
 }
 
@@ -238,10 +228,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let V = normalize(in.v_camera_pos_worldspace - in.v_pos_worldspace);
     let L = u.g_light_dir_worldspace_norm;
 
-//    base_color /= (u.pop + 1.0);
     var color_acc = vec3<f32>(0.0);
     color_acc += cook_torrance_brdf(V, N, L, base_color, metallic, roughness, u.light_color.rgb * light);
-    color_acc += cook_torrance_brdf_ibl(V, N, base_color, metallic, roughness, envmap, brdf_lut, vec3<f32>(u.ambient * (u.pop + 1.0)));
+    color_acc += cook_torrance_brdf_ibl(V, N, base_color, metallic, roughness, envmap, brdf_lut, vec3f(u.ambient));
 
     return vec4<f32>(color_acc, 1.0);
 }
