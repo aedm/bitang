@@ -4,7 +4,8 @@ use crate::loader::async_cache::LoadFuture;
 use crate::render::image::BitangImage;
 use crate::render::shader;
 use crate::render::shader::{
-    DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, Shader, ShaderKind,
+    DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, SamplerDescriptor,
+    Shader, ShaderKind,
 };
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
@@ -19,13 +20,17 @@ pub enum BufferSource {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct Texture {
+    bind: ImageSource,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Sampler {
-    bind: SamplerSource,
     pub mode: SamplerMode,
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub enum SamplerSource {
+pub enum ImageSource {
     Image(String),
     File(String),
 }
@@ -55,7 +60,8 @@ impl SamplerMode {
 pub struct ShaderContext {
     control_map: HashMap<String, String>,
     control_id: ControlId,
-    sampler_futures: HashMap<String, (LoadFuture<BitangImage>, Sampler)>,
+    texture_futures: HashMap<String, (LoadFuture<BitangImage>, Texture)>,
+    samplers: HashMap<String, Sampler>,
     buffers_by_binding: HashMap<String, DescriptorSource>,
 }
 
@@ -64,27 +70,27 @@ impl ShaderContext {
         chart_context: &ChartContext,
         control_map: &HashMap<String, String>,
         control_id: &ControlId,
-        samplers: &HashMap<String, Sampler>,
+        textures: &HashMap<String, Texture>,
         buffers: &HashMap<String, BufferSource>,
     ) -> Result<Self> {
-        let sampler_futures = samplers
+        let texture_futures = textures
             .iter()
-            .map(|(name, sampler)| {
+            .map(|(name, texture)| {
                 let resource_repository = chart_context.resource_repository.clone();
                 let image: LoadFuture<BitangImage> = {
-                    match &sampler.bind {
-                        SamplerSource::File(texture_path) => resource_repository.get_texture(
+                    match &texture.bind {
+                        ImageSource::File(texture_path) => resource_repository.get_texture(
                             &chart_context.vulkan_context,
                             &chart_context.path.relative_path(texture_path)?,
                         ),
-                        SamplerSource::Image(id) => chart_context
+                        ImageSource::Image(id) => chart_context
                             .image_futures_by_id
                             .get(id)
                             .with_context(|| anyhow!("Render target '{id}' not found"))?
                             .clone(),
                     }
                 };
-                let value = (image, sampler.clone());
+                let value = (image, texture.clone());
                 Ok((name.clone(), value))
             })
             .collect::<Result<HashMap<_, _>>>()?;
@@ -122,10 +128,45 @@ impl ShaderContext {
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
+        // TODO: put this somewhere more global
+        let samplers = HashMap::from([
+            (
+                "sampler_repeat".to_string(),
+                Sampler {
+                    mode: SamplerMode::Repeat,
+                },
+            ),
+            (
+                "sampler_clamp_to_edge".to_string(),
+                Sampler {
+                    mode: SamplerMode::ClampToEdge,
+                },
+            ),
+            (
+                "sampler_mirror".to_string(),
+                Sampler {
+                    mode: SamplerMode::MirroredRepeat,
+                },
+            ),
+            (
+                "sampler_envmap".to_string(),
+                Sampler {
+                    mode: SamplerMode::Envmap,
+                },
+            ),
+            (
+                "sampler_shadow".to_string(),
+                Sampler {
+                    mode: SamplerMode::Shadow,
+                },
+            ),
+        ]);
+
         Ok(ShaderContext {
             control_map: control_map.clone(),
             control_id: control_id.clone(),
-            sampler_futures,
+            texture_futures,
+            samplers,
             buffers_by_binding,
         })
     }
@@ -140,7 +181,7 @@ impl ShaderContext {
         let mut macros = vec![];
 
         // Add sampler macros
-        for (sampler_name, _) in &self.sampler_futures {
+        for (sampler_name, _) in &self.texture_futures {
             macros.push((
                 format!("IMAGE_BOUND_TO_SAMPLER_{}", sampler_name.to_uppercase()),
                 "1".to_string(),
@@ -199,20 +240,33 @@ impl ShaderContext {
             descriptor_resources.push(buffer_descriptor);
         }
 
-        // Collect sampler bindings
-        for sampler in &shader_artifact.samplers {
+        // Collect texture bindings
+        for texture in &shader_artifact.textures {
             let source = self
-                .sampler_futures
-                .get(&sampler.name)
-                .with_context(|| anyhow!("Sampler definition for '{}' not found", sampler.name))?;
+                .texture_futures
+                .get(&texture.name)
+                .with_context(|| anyhow!("Texture definition for '{}' not found", texture.name))?;
             // Wait for the image to load
             let image = source.0.get().await?;
             let sampler_descriptor = DescriptorResource {
+                id: texture.name.clone(),
+                binding: texture.binding,
+                source: DescriptorSource::Image(ImageDescriptor { image }),
+            };
+            descriptor_resources.push(sampler_descriptor);
+        }
+
+        // Collect sampler bindings
+        for sampler in &shader_artifact.samplers {
+            let source = self
+                .samplers
+                .get(&sampler.name)
+                .with_context(|| anyhow!("Sampler definition for '{}' not found", sampler.name))?;
+            let sampler_descriptor = DescriptorResource {
                 id: sampler.name.clone(),
                 binding: sampler.binding,
-                source: DescriptorSource::Image(ImageDescriptor {
-                    mode: source.1.mode.load(),
-                    image,
+                source: DescriptorSource::Sampler(SamplerDescriptor {
+                    mode: source.mode.load(),
                 }),
             };
             descriptor_resources.push(sampler_descriptor);

@@ -31,7 +31,7 @@ layout (set = 1, binding = 0) uniform Uniforms {
     vec3 color;
 } u;
 
-layout (set = 1, binding = 1) uniform sampler2D envmap;
+layout (set = 1, binding = 1) uniform sampler2D envmaFp;
 layout (set = 1, binding = 2) uniform sampler2DShadow shadow;
 
 layout (set = 1, binding = 3) uniform sampler2D base_color_map;
@@ -82,10 +82,10 @@ void main() {
     vec3 V = normalize(v_camera_pos_worldspace - v_pos_worldspace);
     vec3 L = u.g_light_dir_worldspace_norm;
 
-    base_color /= (u.pop+1);
+    base_color /= (u.pop + 1);
     vec3 color_acc = vec3(0);
     color_acc += cook_torrance_brdf(V, N, L, base_color.rgb, metallic, roughness, u.light_color.rgb * light);
-    color_acc += cook_torrance_brdf_ibl(V, N, base_color.rgb, metallic, roughness, envmap, brdf_lut, vec3(u.ambient * (u.pop+1)));
+    color_acc += cook_torrance_brdf_ibl(V, N, base_color.rgb, metallic, roughness, envmap, brdf_lut, vec3(u.ambient * (u.pop + 1)));
 
     f_color = vec4(color_acc, 1.0);
 }

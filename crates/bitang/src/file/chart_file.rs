@@ -1,6 +1,6 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::shader_context::{BufferSource, Sampler, ShaderContext};
+use crate::file::shader_context::{BufferSource, Sampler, ShaderContext, Texture};
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::resource_repository::ResourceRepository;
@@ -326,7 +326,7 @@ pub struct Compute {
     run: ComputeRun,
 
     #[serde(default)]
-    samplers: HashMap<String, Sampler>,
+    textures: HashMap<String, Texture>,
 
     #[serde(default)]
     buffers: HashMap<String, BufferSource>,
@@ -366,7 +366,7 @@ impl Compute {
             chart_context,
             &self.control_map,
             &control_id,
-            &self.samplers,
+            &self.textures,
             &self.buffers,
         )?;
 

@@ -10,11 +10,11 @@ layout (location = 0) out vec3 v_ray_direction;
 layout (set = 0, binding = 0) uniform Uniforms {
     mat4 g_projection_from_camera;
     mat4 g_camera_from_world;
-};
+} u;
 
 vec3 calculate_backdrop_ray(vec2 uv) {
-    vec2 fov = vec2(1 / g_projection_from_camera[0][0], 1 / g_projection_from_camera[1][1]);
-    mat3 inverse_rotation = inverse(mat3(g_camera_from_world));
+    vec2 fov = vec2(1 / u.g_projection_from_camera[0][0], 1 / u.g_projection_from_camera[1][1]);
+    mat3 inverse_rotation = inverse(mat3(u.g_camera_from_world));
     return inverse_rotation * vec3(uv * fov, 1);
 }
 

@@ -88,7 +88,11 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
         Self::resolve(&mut inner).await;
         match inner.value.as_ref().unwrap().as_ref() {
             Ok(value) => Ok(value.clone()),
-            Err(err) => Err(anyhow!("{err:?}")),
+            // TODO: add context to the error, don't drop stack trace
+            Err(err) => {
+                error!("label:'{}' {err:?}", inner.label);
+                Err(anyhow!("{err:?}"))
+            },
         }
     }
 
