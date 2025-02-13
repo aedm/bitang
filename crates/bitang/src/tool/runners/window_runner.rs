@@ -3,7 +3,7 @@ use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{
-    WgpuInitContext, FrameContext, RenderContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
+    WgpuContext, FrameContext, RenderContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
     START_IN_DEMO_MODE,
 };
 use anyhow::Result;
@@ -37,7 +37,7 @@ pub enum PaintResult {
 
 impl WindowRunner {
     pub fn run() -> Result<()> {
-        let wgpu_init_context = WgpuInitContext::new()?;
+        let wgpu_init_context = WgpuContext::new()?;
 
         // let final_render_target =
         //     BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);

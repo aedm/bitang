@@ -17,7 +17,7 @@ use vulkano::sync::GpuFuture;
 
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::{
-    WgpuInitContext, FrameContext, RenderContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH,
+    WgpuContext, FrameContext, RenderContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH,
 };
 
 pub struct FrameDumpRunner {

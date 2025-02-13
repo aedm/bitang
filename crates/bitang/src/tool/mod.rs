@@ -35,7 +35,7 @@ pub const FRAMEDUMP_FPS: u32 = 61;
 
 const SCREEN_RATIO: (u32, u32) = (16, 9);
 
-pub struct WgpuInitContext {
+pub struct WgpuContext {
     // pub vulkano_context: Arc<VulkanoContext>,
     // pub command_buffer_allocator: StandardCommandBufferAllocator,
     // pub descriptor_set_allocator: StandardDescriptorSetAllocator,
@@ -44,7 +44,7 @@ pub struct WgpuInitContext {
     pub device: wgpu::Device,
 }
 
-impl WgpuInitContext {
+impl WgpuContext {
     async fn new() -> Result<Self> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         let adapter = instance
@@ -59,25 +59,23 @@ impl WgpuInitContext {
         Ok(Self { adapter, queue, device })
     }
 
-    fn into_wgpu_context(self, surface: wgpu::Surface<'_>) -> Arc<RenderContext> {
-        Arc::new(RenderContext {
-            adapter: self.adapter,
-            queue: self.queue,
-            device: self.device,
-            surface,
-        })
-        // Arc::new(WgpuContext {
-        //     command_buffer_allocator: self.command_buffer_allocator,
-        //     descriptor_set_allocator: self.descriptor_set_allocator,
-        //     memory_allocator: self.vulkano_context.memory_allocator().clone(),
-        //     gfx_queue: self.vulkano_context.graphics_queue().clone(),
-        //     device: self.vulkano_context.device().clone(),
-        //     gfx_queue: self.vulkano_context.graphics_queue().clone(),
-        //     device: self.vulkano_context.device().clone(),
-        //     swapchain_format: SCREEN_COLOR_FORMAT.vulkan_format(),
-        //     final_render_target,
-        // })
-    }
+    // fn into_wgpu_context(self, surface: wgpu::Surface<'_>) -> RenderContext {
+    //     RenderContext {
+    //         wgpu_context: self,
+    //         surface,
+    //     }
+    //     // Arc::new(WgpuContext {
+    //     //     command_buffer_allocator: self.command_buffer_allocator,
+    //     //     descriptor_set_allocator: self.descriptor_set_allocator,
+    //     //     memory_allocator: self.vulkano_context.memory_allocator().clone(),
+    //     //     gfx_queue: self.vulkano_context.graphics_queue().clone(),
+    //     //     device: self.vulkano_context.device().clone(),
+    //     //     gfx_queue: self.vulkano_context.graphics_queue().clone(),
+    //     //     device: self.vulkano_context.device().clone(),
+    //     //     swapchain_format: SCREEN_COLOR_FORMAT.vulkan_format(),
+    //     //     final_render_target,
+    //     // })
+    // }
 }
 
 pub struct RenderContext<'window> {
@@ -88,20 +86,30 @@ pub struct RenderContext<'window> {
     // pub gfx_queue: Arc<Queue>,
     // pub swapchain_format: Format,
     // pub final_render_target: Arc<BitangImage>,
-    pub adapter: wgpu::Adapter,
-    pub queue: wgpu::Queue,
-    pub device: wgpu::Device,
+    pub wgpu_context: WgpuContext,
     pub surface: wgpu::Surface<'window>,
 }
 
-pub struct FrameContext<'frame> 
-{
+impl<'window> RenderContext<'window> {
+    fn new(wgpu_context: WgpuContext, surface: wgpu::Surface<'window>) -> Self {
+        Self { wgpu_context, surface }
+    }
+}
+
+struct Viewport {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}   
+
+pub struct FrameContext<'frame> {
     // pub vulkan_context: Arc<WgpuContext<'window>>,
     pub screen_viewport: Viewport,
-    // TODO: rename to command queue
     // pub command_builder: &'frame mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
     pub render_target: &'frame wgpu::SurfaceTexture,
     pub command_encoder: &'frame wgpu::CommandEncoder,
+    pub queue: &'frame wgpu::Queue,
     pub globals: Globals,
     pub simulation_elapsed_time_since_last_render: f32,
 }
