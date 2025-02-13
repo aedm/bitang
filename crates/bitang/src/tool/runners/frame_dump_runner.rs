@@ -17,17 +17,17 @@ use vulkano::sync::GpuFuture;
 
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::{
-    InitContext, RenderContext, VulkanContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH,
+    WgpuInitContext, FrameContext, RenderContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH,
 };
 
 pub struct FrameDumpRunner {
-    vulkan_context: Arc<VulkanContext>,
+    vulkan_context: Arc<RenderContext>,
     dumped_frame_buffer: Subbuffer<[u8]>,
     app: ContentRenderer,
 }
 
 impl FrameDumpRunner {
-    pub fn run(init_context: InitContext) -> Result<()> {
+    pub fn run() -> Result<()> {
         let frame_size = ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
         let final_render_target = BitangImage::new_attachment(
             SCREEN_RENDER_TARGET_ID,
@@ -157,7 +157,7 @@ impl FrameDumpRunner {
         .unwrap();
 
         // Render content
-        let mut render_context = RenderContext {
+        let mut render_context = FrameContext {
             vulkan_context: self.vulkan_context.clone(),
             screen_viewport,
             command_builder: &mut command_builder,
@@ -187,7 +187,7 @@ impl FrameDumpRunner {
         buffer_lock.to_vec()
     }
 
-    fn add_frame_to_buffer_copy_command(&mut self, render_context: &mut RenderContext) {
+    fn add_frame_to_buffer_copy_command(&mut self, render_context: &mut FrameContext) {
         let image = render_context
             .vulkan_context
             .final_render_target

@@ -1,6 +1,6 @@
 use crate::render::buffer::Buffer;
 use crate::render::shader::Shader;
-use crate::tool::{RenderContext, VulkanContext};
+use crate::tool::{FrameContext, RenderContext};
 use anyhow::{Context, Result};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ pub struct Compute {
 
 impl Compute {
     pub fn new(
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         id: &str,
         shader: Shader,
         run: Run,
@@ -50,7 +50,7 @@ impl Compute {
         })
     }
 
-    pub fn execute(&self, context: &mut RenderContext) -> Result<()> {
+    pub fn execute(&self, context: &mut FrameContext) -> Result<()> {
         let dispatch_count = match &self.run {
             Run::Init(buffer) => buffer.item_size_in_vec4 * buffer.item_count / 64,
             Run::Simulate(buffer) => {

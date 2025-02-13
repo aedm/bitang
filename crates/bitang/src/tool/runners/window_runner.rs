@@ -3,7 +3,7 @@ use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{
-    InitContext, RenderContext, VulkanContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
+    WgpuInitContext, FrameContext, RenderContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
     START_IN_DEMO_MODE,
 };
 use anyhow::Result;
@@ -11,18 +11,18 @@ use std::cmp::max;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{error, info};
-use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
-use vulkano::pipeline::graphics::viewport::Viewport;
-use vulkano::sync::GpuFuture;
-use vulkano_util::renderer::VulkanoWindowRenderer;
-use vulkano_util::window::{VulkanoWindows, WindowDescriptor};
+// use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
+// use vulkano::pipeline::graphics::viewport::Viewport;
+// use vulkano::sync::GpuFuture;
+// use vulkano_util::renderer::VulkanoWindowRenderer;
+// use vulkano_util::window::{VulkanoWindows, WindowDescriptor};
 use winit::dpi::PhysicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Fullscreen, Window};
 
 pub struct WindowRunner {
-    pub vulkan_context: Arc<VulkanContext>,
+    pub vulkan_context: Arc<RenderContext>,
     is_fullscreen: bool,
     ui: Ui,
     windows: VulkanoWindows,
@@ -36,19 +36,19 @@ pub enum PaintResult {
 }
 
 impl WindowRunner {
-    pub fn run(init_context: InitContext) -> Result<()> {
-        let final_render_target =
-            BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
+    pub fn run() -> Result<()> {
+        let wgpu_init_context = WgpuInitContext::new()?;
 
-        let vulkano_context = init_context.vulkano_context.clone();
-        let vulkan_context = init_context.into_vulkan_context(final_render_target);
+        // let final_render_target =
+        //     BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
+        // let vulkano_context = init_context.vulkano_context.clone();
+        // let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
         let mut app = ContentRenderer::new(&vulkan_context)?;
         info!("Init DOOM refresh daemon...");
         app.reset_simulation(&vulkan_context)?;
 
         let event_loop = EventLoop::new();
-
         let mut windows = VulkanoWindows::default();
         let window_descriptor = WindowDescriptor {
             title: "Bitang".to_string(),
@@ -222,7 +222,7 @@ impl WindowRunner {
         .unwrap();
 
         // Make render context
-        let mut render_context = RenderContext {
+        let mut render_context = FrameContext {
             vulkan_context: self.vulkan_context.clone(),
             screen_viewport,
             command_builder: &mut command_builder,

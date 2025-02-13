@@ -1,6 +1,6 @@
 use crate::control::controls::{Control, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::tool::VulkanContext;
+use crate::tool::RenderContext;
 use anyhow::Result;
 use glam::Vec3;
 use serde::Deserialize;
@@ -35,7 +35,7 @@ pub struct BufferGenerator {
 impl BufferGenerator {
     pub fn new(
         size: u32,
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         control_id: &ControlId,
         control_set_builder: &ControlSetBuilder,
         generator_type: &BufferGeneratorType,

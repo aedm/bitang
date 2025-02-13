@@ -1,5 +1,5 @@
 use crate::render::BufferItem;
-use crate::tool::VulkanContext;
+use crate::tool::RenderContext;
 use std::sync::{Arc, RwLock};
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::{BufferUsage, Subbuffer};
@@ -17,7 +17,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new(context: &Arc<VulkanContext>, item_size_in_vec4: usize, item_count: usize) -> Self {
+    pub fn new(context: &Arc<RenderContext>, item_size_in_vec4: usize, item_count: usize) -> Self {
         let buffer_pool = SubbufferAllocator::new(
             context.memory_allocator.clone(),
             SubbufferAllocatorCreateInfo {

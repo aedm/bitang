@@ -2,7 +2,7 @@ use crate::control::controls::GlobalType;
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::render::shader::{GlobalUniformMapping, ShaderKind};
-use crate::tool::VulkanContext;
+use crate::tool::RenderContext;
 use ahash::AHashSet;
 use anyhow::{bail, ensure, Context, Result};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -44,7 +44,7 @@ pub struct ShaderCompilation {
 impl ShaderCompilation {
     #[instrument(skip(context, kind, file_hash_cache))]
     pub fn compile_shader(
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         path: &ResourcePath,
         kind: ShaderKind,
         file_hash_cache: Arc<FileCache>,
@@ -187,7 +187,7 @@ pub struct ShaderArtifact {
 
 impl ShaderArtifact {
     fn from_spirv_binary(
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         kind: ShaderKind,
         spirv_binary: &[u8],
     ) -> Result<Self> {

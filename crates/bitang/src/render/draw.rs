@@ -2,7 +2,7 @@ use crate::control::controls::{Control, Globals};
 use crate::render::camera::Camera;
 use crate::render::pass::Pass;
 use crate::render::render_object::RenderObject;
-use crate::tool::RenderContext;
+use crate::tool::FrameContext;
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
@@ -41,7 +41,7 @@ impl Draw {
         })
     }
 
-    fn render_items(&self, context: &mut RenderContext, pass_index: usize) -> Result<()> {
+    fn render_items(&self, context: &mut FrameContext, pass_index: usize) -> Result<()> {
         for object in &self.items {
             match object {
                 DrawItem::Object(object) => object.render(context, pass_index)?,
@@ -89,7 +89,7 @@ impl Draw {
         globals.update_compound_matrices();
     }
 
-    pub fn render(&self, context: &mut RenderContext, camera: &Camera) -> Result<()> {
+    pub fn render(&self, context: &mut FrameContext, camera: &Camera) -> Result<()> {
         ensure!(!self.passes.is_empty(), "Draw '{}' has no passes", self.id);
 
         for (pass_index, pass) in self.passes.iter().enumerate() {

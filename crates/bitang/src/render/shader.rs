@@ -2,7 +2,7 @@ use crate::control::controls::{Control, GlobalType};
 use crate::render::buffer::Buffer;
 use crate::render::buffer_generator::BufferGenerator;
 use crate::render::image::BitangImage;
-use crate::tool::{RenderContext, VulkanContext};
+use crate::tool::{FrameContext, RenderContext};
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use std::mem::size_of;
@@ -72,7 +72,7 @@ pub struct Shader {
 
 impl Shader {
     pub fn new(
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         shader_module: Arc<ShaderModule>,
         kind: ShaderKind,
         global_uniform_bindings: Vec<GlobalUniformMapping>,
@@ -103,7 +103,7 @@ impl Shader {
 
     pub fn bind(
         &self,
-        context: &mut RenderContext,
+        context: &mut FrameContext,
         pipeline_layout: &Arc<PipelineLayout>,
     ) -> Result<()> {
         if self.uniform_buffer_size == 0 && self.descriptor_resources.is_empty() {

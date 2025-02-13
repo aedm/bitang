@@ -1,7 +1,7 @@
 use crate::render::mesh::Mesh;
 use crate::render::shader::Shader;
 use crate::render::Vertex3;
-use crate::tool::{RenderContext, VulkanContext};
+use crate::tool::{FrameContext, RenderContext};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::sync::Arc;
@@ -60,7 +60,7 @@ pub struct MaterialPassProps {
 
 impl MaterialPass {
     pub fn new(
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         props: MaterialPassProps,
         vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<MaterialPass> {
@@ -170,7 +170,7 @@ impl MaterialPass {
         })
     }
 
-    pub fn render(&self, context: &mut RenderContext, mesh: &Mesh) -> Result<()> {
+    pub fn render(&self, context: &mut FrameContext, mesh: &Mesh) -> Result<()> {
         let pipeline_layout = self.pipeline.layout();
         let instance_count = context.globals.instance_count as u32;
         context

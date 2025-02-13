@@ -2,7 +2,7 @@ use crate::control::controls::{Control, ControlSet, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::tool::app_state::AppState;
 use crate::tool::spline_editor::SplineEditor;
-use crate::tool::{RenderContext, VulkanContext};
+use crate::tool::{FrameContext, RenderContext};
 use anyhow::Result;
 use egui_winit_vulkano::{Gui, GuiConfig};
 use std::rc::Rc;
@@ -23,7 +23,7 @@ pub struct Ui {
 
 impl Ui {
     pub fn new(
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         event_loop: &EventLoop<()>,
         surface: &Arc<Surface>,
     ) -> Result<Ui> {
@@ -65,7 +65,7 @@ impl Ui {
 
     pub fn draw(
         &mut self,
-        context: &mut RenderContext,
+        context: &mut FrameContext,
         bottom_panel_height: f32,
         scale_factor: f32,
         ui_state: &mut AppState,
@@ -248,7 +248,7 @@ impl Ui {
         })
     }
 
-    fn render_to_swapchain(&mut self, context: &mut RenderContext) {
+    fn render_to_swapchain(&mut self, context: &mut FrameContext) {
         let target_image = context
             .vulkan_context
             .final_render_target

@@ -1,7 +1,7 @@
 use crate::loader::resource_repository::{SceneFile, SceneNode};
 use crate::render::mesh::Mesh;
 use crate::render::Vertex3;
-use crate::tool::VulkanContext;
+use crate::tool::RenderContext;
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use log::warn;
@@ -17,7 +17,7 @@ fn gltf_to_left_handed_y_up(v: &[f32; 3]) -> [f32; 3] {
 
 #[instrument(skip(context, content))]
 pub fn load_mesh_collection(
-    context: &Arc<VulkanContext>,
+    context: &Arc<RenderContext>,
     content: &[u8],
     path: &str,
 ) -> Result<Arc<SceneFile>> {

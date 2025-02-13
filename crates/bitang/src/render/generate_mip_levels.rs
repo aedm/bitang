@@ -1,5 +1,5 @@
 use crate::render::image::BitangImage;
-use crate::tool::RenderContext;
+use crate::tool::FrameContext;
 use std::sync::Arc;
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, BlitImageInfo, ImageBlit, PrimaryAutoCommandBuffer,
@@ -15,7 +15,7 @@ pub struct GenerateMipLevels {
 }
 
 impl GenerateMipLevels {
-    pub fn execute(&self, context: &mut RenderContext) -> anyhow::Result<()> {
+    pub fn execute(&self, context: &mut FrameContext) -> anyhow::Result<()> {
         generate_mip_levels(self.image.get_image(), context.command_builder)
     }
 }

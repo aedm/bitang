@@ -1,7 +1,7 @@
 use crate::control::controls::Control;
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
-use crate::tool::RenderContext;
+use crate::tool::FrameContext;
 use anyhow::Result;
 use glam::{EulerRot, Mat4};
 use std::rc::Rc;
@@ -17,7 +17,7 @@ pub struct RenderObject {
 }
 
 impl RenderObject {
-    pub fn render(&self, context: &mut RenderContext, material_pass_index: usize) -> Result<()> {
+    pub fn render(&self, context: &mut FrameContext, material_pass_index: usize) -> Result<()> {
         let Some(material_pass) = self.material.get_pass(material_pass_index) else {
             return Ok(());
         };
@@ -33,7 +33,7 @@ impl RenderObject {
         result
     }
 
-    fn apply_transformations(&self, context: &mut RenderContext) {
+    fn apply_transformations(&self, context: &mut FrameContext) {
         let rotation = self.rotation.as_vec3();
         let rotation_matrix = Mat4::from_euler(EulerRot::ZXY, rotation.z, rotation.x, rotation.y);
 

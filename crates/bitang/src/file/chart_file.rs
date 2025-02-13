@@ -8,7 +8,7 @@ use crate::render::buffer_generator::BufferGeneratorType;
 use crate::render::image::ImageSizeRule;
 use crate::render::shader::ShaderKind;
 use crate::render::SCREEN_RENDER_TARGET_ID;
-use crate::tool::VulkanContext;
+use crate::tool::RenderContext;
 use crate::{file, render};
 use ahash::AHashMap;
 use anyhow::{anyhow, Context, Result};
@@ -21,7 +21,7 @@ use tracing::{instrument, trace};
 
 /// A context for loading a chart.
 pub struct ChartContext {
-    pub vulkan_context: Arc<VulkanContext>,
+    pub vulkan_context: Arc<RenderContext>,
     pub resource_repository: Rc<ResourceRepository>,
     pub image_futures_by_id: AHashMap<String, LoadFuture<render::image::BitangImage>>,
     pub control_set_builder: ControlSetBuilder,
@@ -55,7 +55,7 @@ impl Chart {
     pub async fn load(
         &self,
         id: &str,
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         resource_repository: &Rc<ResourceRepository>,
         chart_file_path: &ResourcePath,
     ) -> Result<Rc<render::chart::Chart>> {
@@ -184,7 +184,7 @@ pub enum ChartStep {
 impl ChartStep {
     async fn load(
         &self,
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         chart_context: &ChartContext,
     ) -> Result<render::chart::ChartStep> {
         match self {
@@ -338,7 +338,7 @@ pub struct Compute {
 impl Compute {
     async fn load(
         &self,
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         chart_context: &ChartContext,
     ) -> Result<render::compute::Compute> {
         let run = match &self.run {
@@ -448,7 +448,7 @@ pub struct BufferGenerator {
 impl BufferGenerator {
     pub fn load(
         &self,
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         parent_id: &ControlId,
         control_set_builder: &ControlSetBuilder,
     ) -> render::buffer_generator::BufferGenerator {
@@ -472,7 +472,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn load(&self, context: &Arc<VulkanContext>) -> render::buffer::Buffer {
+    pub fn load(&self, context: &Arc<RenderContext>) -> render::buffer::Buffer {
         render::buffer::Buffer::new(context, self.item_size_in_vec4, self.item_count)
     }
 }

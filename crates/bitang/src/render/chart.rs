@@ -7,7 +7,7 @@ use crate::render::draw::Draw;
 use crate::render::generate_mip_levels::GenerateMipLevels;
 use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
-use crate::tool::RenderContext;
+use crate::tool::FrameContext;
 use anyhow::Result;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -77,7 +77,7 @@ impl Chart {
     /// catch up with the current time.
     pub fn reset_simulation(
         &self,
-        context: &mut RenderContext,
+        context: &mut FrameContext,
         run_init: bool,
         run_precalc: bool,
     ) -> Result<bool> {
@@ -97,7 +97,7 @@ impl Chart {
         Ok(true)
     }
 
-    fn initialize(&self, context: &mut RenderContext) -> Result<()> {
+    fn initialize(&self, context: &mut FrameContext) -> Result<()> {
         self.simulation_next_buffer_time.set(0.0);
         self.simulation_elapsed_time.set(0.0);
         for step in &self.steps {
@@ -117,7 +117,7 @@ impl Chart {
     ///
     /// Returns true if the simulation is done, false if the simulation needs more iteration to
     /// catch up with the current time.
-    fn simulate(&self, context: &mut RenderContext, is_precalculation: bool) -> Result<bool> {
+    fn simulate(&self, context: &mut FrameContext, is_precalculation: bool) -> Result<bool> {
         // Save the app time and restore it after the simulation step.
         // The simulation sees the simulation time as the current time.
         let app_time = context.globals.app_time;
@@ -166,7 +166,7 @@ impl Chart {
         Ok(simulation_next_buffer_time >= time)
     }
 
-    pub fn render(&self, context: &mut RenderContext) -> Result<()> {
+    pub fn render(&self, context: &mut FrameContext) -> Result<()> {
         // Simulation step
         self.simulate(context, false)?;
 

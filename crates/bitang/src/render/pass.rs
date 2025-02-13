@@ -1,5 +1,5 @@
 use crate::render::image::BitangImage;
-use crate::tool::{RenderContext, VulkanContext};
+use crate::tool::{FrameContext, RenderContext};
 use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
 use vulkano::command_buffer::RenderPassBeginInfo;
@@ -21,7 +21,7 @@ pub struct Pass {
 impl Pass {
     pub fn new(
         id: &str,
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         color_buffers: Vec<Arc<BitangImage>>,
         depth_buffer: Option<Arc<BitangImage>>,
         clear_color: Option<[f32; 4]>,
@@ -42,7 +42,7 @@ impl Pass {
     }
 
     fn make_vulkan_render_pass(
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         color_buffers: &[Arc<BitangImage>],
         depth_buffer: &Option<Arc<BitangImage>>,
         clear_buffers: bool,
@@ -107,7 +107,7 @@ impl Pass {
         reference
     }
 
-    pub fn get_viewport(&self, context: &mut RenderContext) -> Result<Viewport> {
+    pub fn get_viewport(&self, context: &mut FrameContext) -> Result<Viewport> {
         let first_image = if let Some(img) = self.color_buffers.first() {
             img
         } else if let Some(img) = &self.depth_buffer {
@@ -141,7 +141,7 @@ impl Pass {
 
     pub fn make_render_pass_begin_info(
         &self,
-        _context: &mut RenderContext,
+        _context: &mut FrameContext,
     ) -> Result<RenderPassBeginInfo> {
         // Collect color attachment images...
         let mut attachments = vec![];

@@ -1,14 +1,14 @@
 use crate::loader::async_cache::{AsyncCache, LoadFuture};
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::loader::resource_path::ResourcePath;
-use crate::tool::VulkanContext;
+use crate::tool::RenderContext;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
 use tracing::trace;
 
 type LoaderFunc<T> =
-    fn(context: &Arc<VulkanContext>, blob: &[u8], resource_name: &str) -> Result<Arc<T>>;
+    fn(context: &Arc<RenderContext>, blob: &[u8], resource_name: &str) -> Result<Arc<T>>;
 
 /// Async cache for CPU bound resources.
 pub struct ResourceCache<T: Send + Sync + 'static> {
@@ -26,7 +26,7 @@ impl<T: Send + Sync> ResourceCache<T> {
         }
     }
 
-    pub async fn load(&self, context: &Arc<VulkanContext>, path: &ResourcePath) -> Result<Arc<T>> {
+    pub async fn load(&self, context: &Arc<RenderContext>, path: &ResourcePath) -> Result<Arc<T>> {
         let file_hash_cache = self.file_hash_cache.clone();
         let cache_entry = file_hash_cache.get(path).await?;
         let hash = cache_entry.hash;
@@ -51,7 +51,7 @@ impl<T: Send + Sync> ResourceCache<T> {
 
     pub fn get_future(
         self: &Arc<Self>,
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         path: &ResourcePath,
     ) -> LoadFuture<T> {
         let self_clone = self.clone();

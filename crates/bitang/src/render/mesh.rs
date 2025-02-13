@@ -1,5 +1,5 @@
 use crate::render::Vertex3;
-use crate::tool::VulkanContext;
+use crate::tool::RenderContext;
 use anyhow::Result;
 use std::sync::Arc;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, IndexBuffer, Subbuffer};
@@ -15,7 +15,7 @@ pub struct Mesh {
 
 impl Mesh {
     pub fn try_new(
-        context: &Arc<VulkanContext>,
+        context: &Arc<RenderContext>,
         vertices: Vec<Vertex3>,
         indices: Option<Vec<u32>>,
     ) -> Result<Mesh> {

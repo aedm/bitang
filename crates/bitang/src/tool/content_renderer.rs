@@ -4,7 +4,7 @@ use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
-use crate::tool::{RenderContext, VulkanContext};
+use crate::tool::{FrameContext, RenderContext};
 use anyhow::{bail, Result};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -24,7 +24,7 @@ pub struct ContentRenderer {
 }
 
 impl ContentRenderer {
-    pub fn new(context: &Arc<VulkanContext>) -> Result<ContentRenderer> {
+    pub fn new(context: &Arc<RenderContext>) -> Result<ContentRenderer> {
         let mut music_player = MusicPlayer::new();
 
         let app_config = AppConfig::load()?;
@@ -51,7 +51,7 @@ impl ContentRenderer {
         })
     }
 
-    pub fn draw(&mut self, context: &mut RenderContext) {
+    pub fn draw(&mut self, context: &mut FrameContext) {
         self.app_state.tick();
 
         // TODO: This value should be set to Globals at its initialization
@@ -81,12 +81,12 @@ impl ContentRenderer {
         }
     }
 
-    fn draw_chart(&mut self, chart: &Chart, context: &mut RenderContext) -> Result<()> {
+    fn draw_chart(&mut self, chart: &Chart, context: &mut FrameContext) -> Result<()> {
         context.globals.chart_time = self.app_state.cursor_time;
         chart.render(context)
     }
 
-    fn draw_project(&mut self, context: &mut RenderContext) -> Result<()> {
+    fn draw_project(&mut self, context: &mut FrameContext) -> Result<()> {
         let Some(project) = &self.app_state.project else {
             bail!("Can't load project.");
         };
@@ -102,7 +102,7 @@ impl ContentRenderer {
     }
 
     /// Returns true if the project changed.
-    pub fn reload_project(&mut self, vulkan_context: &Arc<VulkanContext>) -> bool {
+    pub fn reload_project(&mut self, vulkan_context: &Arc<RenderContext>) -> bool {
         let project = self.project_loader.get_or_load_project(vulkan_context);
 
         // Compare references to see if it's the same cached value that we tried rendering last time
@@ -133,7 +133,7 @@ impl ContentRenderer {
         self.app_state.pause();
     }
 
-    fn reset_chart_simulation(vulkan_context: &Arc<VulkanContext>, chart: &Chart) -> Result<()> {
+    fn reset_chart_simulation(vulkan_context: &Arc<RenderContext>, chart: &Chart) -> Result<()> {
         let mut first_iteration = true;
         let mut is_simulation_done = false;
         while !is_simulation_done {
@@ -145,7 +145,7 @@ impl ContentRenderer {
             )?;
 
             // Make render context to run simulation
-            let mut context = RenderContext {
+            let mut context = FrameContext {
                 vulkan_context: vulkan_context.clone(),
                 screen_viewport: Viewport {
                     offset: [0.0, 0.0],
@@ -171,7 +171,7 @@ impl ContentRenderer {
         Ok(())
     }
 
-    pub fn reset_simulation(&mut self, vulkan_context: &Arc<VulkanContext>) -> Result<()> {
+    pub fn reset_simulation(&mut self, vulkan_context: &Arc<RenderContext>) -> Result<()> {
         match self.app_state.get_chart() {
             // Reset only the selected chart
             Some(chart) => Self::reset_chart_simulation(vulkan_context, &chart)?,
