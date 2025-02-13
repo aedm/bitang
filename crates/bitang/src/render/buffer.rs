@@ -1,30 +1,33 @@
 use crate::render::BufferItem;
 use crate::tool::RenderContext;
 use std::sync::{Arc, RwLock};
-use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
-use vulkano::buffer::{BufferUsage, Subbuffer};
+// use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
+// use vulkano::buffer::{BufferUsage, Subbuffer};
+
 
 pub struct Subbuffers {
-    pub current: Subbuffer<[BufferItem]>,
-    pub next: Subbuffer<[BufferItem]>,
+    // pub current: Subbuffer<[BufferItem]>,
+    // pub next: Subbuffer<[BufferItem]>,
+    pub current: wgpu::Buffer,
+    pub next: wgpu::Buffer,
 }
 
 pub struct Buffer {
     pub item_size_in_vec4: usize,
     pub item_count: usize,
-    buffer_pool: SubbufferAllocator,
+    // buffer_pool: SubbufferAllocator,
     pub buffers: RwLock<Subbuffers>,
 }
 
 impl Buffer {
-    pub fn new(context: &Arc<RenderContext>, item_size_in_vec4: usize, item_count: usize) -> Self {
-        let buffer_pool = SubbufferAllocator::new(
-            context.memory_allocator.clone(),
-            SubbufferAllocatorCreateInfo {
-                buffer_usage: BufferUsage::STORAGE_BUFFER,
-                ..Default::default()
-            },
-        );
+    pub fn new(context: &RenderContext, item_size_in_vec4: usize, item_count: usize) -> Self {
+        // let buffer_pool = SubbufferAllocator::new(
+        //     context.memory_allocator.clone(),
+        //     SubbufferAllocatorCreateInfo {
+        //         buffer_usage: BufferUsage::STORAGE_BUFFER,
+        //         ..Default::default()
+        //     },
+        // );
 
         let subbuffers = Subbuffers {
             current: Self::allocate_buffer(&buffer_pool, item_size_in_vec4, item_count),

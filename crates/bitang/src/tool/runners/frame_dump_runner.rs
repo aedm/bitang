@@ -28,6 +28,8 @@ pub struct FrameDumpRunner {
 
 impl FrameDumpRunner {
     pub fn run() -> Result<()> {
+        let wgpu_init_context = WgpuContext::new()?;
+
         let frame_size = ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
         let final_render_target = BitangImage::new_attachment(
             SCREEN_RENDER_TARGET_ID,

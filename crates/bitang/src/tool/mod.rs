@@ -51,12 +51,16 @@ impl WgpuContext {
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
             .context("No suitable adapter found")?;
-    
+
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default(), None)
             .await?;
-    
-        Ok(Self { adapter, queue, device })
+
+        Ok(Self {
+            adapter,
+            queue,
+            device,
+        })
     }
 
     // fn into_wgpu_context(self, surface: wgpu::Surface<'_>) -> RenderContext {
@@ -86,13 +90,20 @@ pub struct RenderContext<'window> {
     // pub gfx_queue: Arc<Queue>,
     // pub swapchain_format: Format,
     // pub final_render_target: Arc<BitangImage>,
-    pub wgpu_context: WgpuContext,
+    pub adapter: wgpu::Adapter,
+    pub queue: wgpu::Queue,
+    pub device: wgpu::Device,
     pub surface: wgpu::Surface<'window>,
 }
 
 impl<'window> RenderContext<'window> {
     fn new(wgpu_context: WgpuContext, surface: wgpu::Surface<'window>) -> Self {
-        Self { wgpu_context, surface }
+        Self {
+            adapter: wgpu_context.adapter,
+            queue: wgpu_context.queue,
+            device: wgpu_context.device,
+            surface,
+        }
     }
 }
 
@@ -101,7 +112,7 @@ struct Viewport {
     pub y: u32,
     pub width: u32,
     pub height: u32,
-}   
+}
 
 pub struct FrameContext<'frame> {
     // pub vulkan_context: Arc<WgpuContext<'window>>,
