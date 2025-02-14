@@ -1,21 +1,22 @@
 use crate::control::controls::{ControlSet, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::render::buffer_generator::BufferGenerator;
+// use crate::render::buffer_generator::BufferGenerator;
 use crate::render::camera::Camera;
-use crate::render::compute::{Compute, Run};
+// use crate::render::compute::{Compute, Run};
 use crate::render::draw::Draw;
 use crate::render::generate_mip_levels::GenerateMipLevels;
 use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::FrameContext;
 use anyhow::Result;
+use tracing::warn;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
 
 pub enum ChartStep {
     Draw(Draw),
-    Compute(Compute),
+    // Compute(Compute),
     GenerateMipLevels(GenerateMipLevels),
 }
 
@@ -24,7 +25,7 @@ pub struct Chart {
     pub controls: Rc<ControlSet>,
     camera: Camera,
     images: Vec<Arc<BitangImage>>,
-    buffer_generators: Vec<Rc<BufferGenerator>>,
+    // buffer_generators: Vec<Rc<BufferGenerator>>,
     pub steps: Vec<ChartStep>,
 
     /// The time representing the `Next` step
@@ -43,7 +44,7 @@ impl Chart {
         control_id: &ControlId,
         control_set_builder: ControlSetBuilder,
         images: Vec<Arc<BitangImage>>,
-        buffer_generators: Vec<Rc<BufferGenerator>>,
+        // buffer_generators: Vec<Rc<BufferGenerator>>,
         steps: Vec<ChartStep>,
         simulation_precalculation_time: f32,
     ) -> Self {
@@ -64,7 +65,7 @@ impl Chart {
             id: id.to_string(),
             camera: _camera,
             images,
-            buffer_generators,
+            // buffer_generators,
             steps,
             controls,
             simulation_next_buffer_time: Cell::new(0.0),
@@ -81,6 +82,9 @@ impl Chart {
         run_init: bool,
         run_precalc: bool,
     ) -> Result<bool> {
+        warn!("reset_simulation unimplemented");
+        return Ok(true);
+
         if run_init {
             self.initialize(context)?;
 
@@ -98,15 +102,16 @@ impl Chart {
     }
 
     fn initialize(&self, context: &mut FrameContext) -> Result<()> {
+        warn!("initialize() unimplemented");
         self.simulation_next_buffer_time.set(0.0);
         self.simulation_elapsed_time.set(0.0);
-        for step in &self.steps {
-            if let ChartStep::Compute(compute) = step {
-                if let Run::Init(_) = compute.run {
-                    compute.execute(context)?;
-                }
-            }
-        }
+        // for step in &self.steps {
+        //     if let ChartStep::Compute(compute) = step {
+        //         if let Run::Init(_) = compute.run {
+        //             compute.execute(context)?;
+        //         }
+        //     }
+        // }
         Ok(())
     }
 
@@ -141,13 +146,14 @@ impl Chart {
                 self.evaluate_splines(simulation_next_buffer_time);
             }
 
-            for step in &self.steps {
-                if let ChartStep::Compute(compute) = step {
-                    if let Run::Simulate(_) = compute.run {
-                        compute.execute(context)?;
-                    }
-                }
-            }
+            warn!("simulate() unimplemented");
+            // for step in &self.steps {
+            //     if let ChartStep::Compute(compute) = step {
+            //         if let Run::Simulate(_) = compute.run {
+            //             compute.execute(context)?;
+            //         }
+            //     }
+            // }
             simulation_next_buffer_time += SIMULATION_STEP_SECONDS;
         }
 

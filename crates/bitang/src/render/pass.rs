@@ -2,13 +2,13 @@ use crate::render::image::BitangImage;
 use crate::tool::{FrameContext, WindowContext};
 use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
-use vulkano::command_buffer::RenderPassBeginInfo;
-use vulkano::image::ImageLayout;
-use vulkano::pipeline::graphics::viewport::Viewport;
-use vulkano::render_pass::{
-    AttachmentDescription, AttachmentLoadOp, AttachmentReference, Framebuffer,
-    FramebufferCreateInfo, RenderPassCreateInfo, SubpassDescription,
-};
+// use vulkano::command_buffer::RenderPassBeginInfo;
+// use vulkano::image::ImageLayout;
+// use vulkano::pipeline::graphics::viewport::Viewport;
+// use vulkano::render_pass::{
+//     AttachmentDescription, AttachmentLoadOp, AttachmentReference, Framebuffer,
+//     FramebufferCreateInfo, RenderPassCreateInfo, SubpassDescription,
+// };
 
 pub struct Pass {
     pub id: String,
@@ -139,10 +139,9 @@ impl Pass {
         Ok(viewport)
     }
 
-    pub fn make_render_pass_begin_info(
+    pub fn make_render_pass_descriptor(
         &self,
-        _context: &mut FrameContext,
-    ) -> Result<RenderPassBeginInfo> {
+    ) -> Result<wgpu::RenderPassDescriptor> {
         // Collect color attachment images...
         let mut attachments = vec![];
         let mut clear_values = vec![];

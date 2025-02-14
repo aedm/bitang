@@ -1,20 +1,22 @@
-use crate::render::generate_mip_levels::generate_mip_levels;
-use crate::tool::WindowContext;
+// use crate::render::generate_mip_levels::generate_mip_levels;
+use crate::tool::{GpuContext, WindowContext};
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
+use tracing::warn;
+use wgpu::util::DeviceExt;
 use std::sync::{Arc, RwLock};
-use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage};
-use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
-    PrimaryCommandBufferAbstract,
-};
-use vulkano::image::view::{ImageView, ImageViewCreateInfo};
-use vulkano::image::{
-    max_mip_levels, Image, ImageCreateInfo, ImageLayout, ImageSubresourceRange, ImageTiling,
-    ImageType, ImageUsage, SampleCount,
-};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
-use vulkano::render_pass::{AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp};
+// use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage};
+// use vulkano::command_buffer::{
+//     AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
+//     PrimaryCommandBufferAbstract,
+// };
+// use vulkano::image::view::{ImageView, ImageViewCreateInfo};
+// use vulkano::image::{
+//     max_mip_levels, Image, ImageCreateInfo, ImageLayout, ImageSubresourceRange, ImageTiling,
+//     ImageType, ImageUsage, SampleCount,
+// };
+// use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
+// use vulkano::render_pass::{AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp};
 
 #[derive(Debug, Deserialize, Clone, Copy)]
 pub enum PixelFormat {
@@ -29,14 +31,25 @@ pub enum PixelFormat {
 }
 
 impl PixelFormat {
-    pub fn vulkan_format(&self) -> vulkano::format::Format {
+    // pub fn vulkan_format(&self) -> vulkano::format::Format {
+    //     match self {
+    //         PixelFormat::Rgba16F => vulkano::format::Format::R16G16B16A16_SFLOAT,
+    //         PixelFormat::Rgba32F => vulkano::format::Format::R32G32B32A32_SFLOAT,
+    //         PixelFormat::Depth32F => vulkano::format::Format::D32_SFLOAT,
+    //         PixelFormat::Rgba8U => vulkano::format::Format::R8G8B8A8_UNORM,
+    //         PixelFormat::Rgba8Srgb => vulkano::format::Format::R8G8B8A8_SRGB,
+    //         PixelFormat::Bgra8Srgb => vulkano::format::Format::B8G8R8A8_SRGB,
+    //     }
+    // }
+
+    pub fn wgpu_format(&self) -> wgpu::TextureFormat {
         match self {
-            PixelFormat::Rgba16F => vulkano::format::Format::R16G16B16A16_SFLOAT,
-            PixelFormat::Rgba32F => vulkano::format::Format::R32G32B32A32_SFLOAT,
-            PixelFormat::Depth32F => vulkano::format::Format::D32_SFLOAT,
-            PixelFormat::Rgba8U => vulkano::format::Format::R8G8B8A8_UNORM,
-            PixelFormat::Rgba8Srgb => vulkano::format::Format::R8G8B8A8_SRGB,
-            PixelFormat::Bgra8Srgb => vulkano::format::Format::B8G8R8A8_SRGB,
+            PixelFormat::Rgba16F => wgpu::TextureFormat::Rgba16Float,
+            PixelFormat::Rgba32F => wgpu::TextureFormat::Rgba32Float,
+            PixelFormat::Depth32F => wgpu::TextureFormat::Depth32Float,
+            PixelFormat::Rgba8U => wgpu::TextureFormat::Rgba8Unorm,
+            PixelFormat::Rgba8Srgb => wgpu::TextureFormat::Rgba8Srgb,
+            PixelFormat::Bgra8Srgb => wgpu::TextureFormat::Bgra8UnormSrgb,
         }
     }
 }
@@ -50,19 +63,21 @@ pub enum ImageSizeRule {
 
 enum ImageInner {
     // Immutable image that is loaded from an external source, e.g. a jpg file.
-    Immutable(Arc<Image>),
+    Immutable(Arc<wgpu::Texture>),
 
     // Attachment image used both as a render target and a sampler source.
-    Attachment(RwLock<Option<Arc<Image>>>),
+    Attachment(RwLock<Option<Arc<wgpu::Texture>>>),
 
     // The final render target. In windowed mode, this is displayed on the screen
-    Swapchain(RwLock<Option<Arc<ImageView>>>),
+    Swapchain(RwLock<Option<Arc<wgpu::TextureView>>>),
 }
 
 pub struct BitangImage {
     pub id: String,
     pub size_rule: ImageSizeRule,
-    pub vulkan_format: vulkano::format::Format,
+    // pub vulkan_format: vulkano::format::Format,
+    // TODO: use Pixelformat
+    pub wgpu_format: wgpu::TextureFormat,
     // pub mip_levels: MipLevels,
     inner: ImageInner,
     size: RwLock<Option<(u32, u32)>>,
@@ -81,7 +96,7 @@ impl BitangImage {
             inner: ImageInner::Attachment(RwLock::new(None)),
             size_rule,
             size: RwLock::new(None),
-            vulkan_format: format.vulkan_format(),
+            wgpu_format: format.wgpu_format(),
             has_mipmaps,
         })
     }
@@ -92,77 +107,118 @@ impl BitangImage {
             inner: ImageInner::Swapchain(RwLock::new(None)),
             size_rule: ImageSizeRule::CanvasRelative(1.0),
             size: RwLock::new(None),
-            vulkan_format: format.vulkan_format(),
+            wgpu_format: format.wgpu_format(),
             has_mipmaps: false,
         })
     }
 
-    pub fn immutable_from_iter<I, T>(
+    pub fn immutable_from_srgb(
         id: &str,
-        context: &Arc<WindowContext>,
+        context: &GpuContext,
         format: PixelFormat,
         dimensions: [u32; 3],
-        pixel_data: I,
-    ) -> Result<Arc<Self>>
-    where
-        T: BufferContents,
-        I: IntoIterator<Item = T>,
-        I::IntoIter: ExactSizeIterator,
-    {
-        let mut cbb = AutoCommandBufferBuilder::primary(
-            &context.command_buffer_allocator,
-            context.gfx_queue.queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )?;
+        data: &[u8]) -> Result<Arc<Self>> {
 
-        let mip_levels = max_mip_levels(dimensions);
+            let texture_descriptor = wgpu::TextureDescriptor {
+                label: Some(id),
+                size: wgpu::Extent3d {
+                    width: dimensions[0],
+                    height: dimensions[1],
+                    depth_or_array_layers: dimensions[2],
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_DST,
+                format: format.wgpu_format(),
+                dimension: wgpu::TextureDimension::D2,
+                view_formats: &[PixelFormat::Rgba8Srgb.wgpu_format(), PixelFormat::Rgba8U.wgpu_format()],
+            };
+            let image = context.device.create_texture_with_data(
+                &context.queue,
+                &texture_descriptor,
+                wgpu::util::TextureDataOrder::default(),
+                data,
+            );
 
-        let image = Image::new(
-            context.memory_allocator.clone(),
-            vulkano::image::ImageCreateInfo {
-                image_type: ImageType::Dim2d,
-                format: format.vulkan_format(),
-                extent: dimensions,
-                usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC,
-                mip_levels,
-                tiling: ImageTiling::Optimal,
-                ..Default::default()
-            },
-            AllocationCreateInfo::default(),
-        )?;
+            warn!("immutable_from_srgb(): no mipmaps");
 
-        let upload_buffer = Buffer::from_iter(
-            context.memory_allocator.clone(),
-            BufferCreateInfo {
-                usage: BufferUsage::TRANSFER_SRC,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_HOST
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                ..Default::default()
-            },
-            pixel_data,
-        )?;
+            Ok(Arc::new(Self {
+                id: id.to_owned(),
+                wgpu_format: image.format(),
+                inner: ImageInner::Immutable(image),
+                size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
+                size: RwLock::new(Some((dimensions[0], dimensions[1]))),
+                has_mipmaps: true,
+            }))
+        }
 
-        cbb.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
-            upload_buffer,
-            image.clone(),
-        ))?;
+    // pub fn immutable_from_iter<I, T>(
+    //     id: &str,
+    //     context: &Arc<WindowContext>,
+    //     format: PixelFormat,
+    //     dimensions: [u32; 3],
+    //     pixel_data: I,
+    // ) -> Result<Arc<Self>>
+    // where
+    //     T: BufferContents,
+    //     I: IntoIterator<Item = T>,
+    //     I::IntoIter: ExactSizeIterator,
+    // {
+    //     let mut cbb = AutoCommandBufferBuilder::primary(
+    //         &context.command_buffer_allocator,
+    //         context.gfx_queue.queue_family_index(),
+    //         CommandBufferUsage::OneTimeSubmit,
+    //     )?;
 
-        generate_mip_levels(image.clone(), &mut cbb)?;
+    //     let mip_levels = max_mip_levels(dimensions);
 
-        let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
+    //     let image = Image::new(
+    //         context.memory_allocator.clone(),
+    //         vulkano::image::ImageCreateInfo {
+    //             image_type: ImageType::Dim2d,
+    //             format: format.vulkan_format(),
+    //             extent: dimensions,
+    //             usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC,
+    //             mip_levels,
+    //             tiling: ImageTiling::Optimal,
+    //             ..Default::default()
+    //         },
+    //         AllocationCreateInfo::default(),
+    //     )?;
 
-        Ok(Arc::new(Self {
-            id: id.to_owned(),
-            vulkan_format: image.format(),
-            inner: ImageInner::Immutable(image),
-            size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
-            size: RwLock::new(Some((dimensions[0], dimensions[1]))),
-            has_mipmaps: true,
-        }))
-    }
+    //     let upload_buffer = Buffer::from_iter(
+    //         context.memory_allocator.clone(),
+    //         BufferCreateInfo {
+    //             usage: BufferUsage::TRANSFER_SRC,
+    //             ..Default::default()
+    //         },
+    //         AllocationCreateInfo {
+    //             memory_type_filter: MemoryTypeFilter::PREFER_HOST
+    //                 | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+    //             ..Default::default()
+    //         },
+    //         pixel_data,
+    //     )?;
+
+    //     cbb.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
+    //         upload_buffer,
+    //         image.clone(),
+    //     ))?;
+
+    //     generate_mip_levels(image.clone(), &mut cbb)?;
+
+    //     let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
+
+    //     Ok(Arc::new(Self {
+    //         id: id.to_owned(),
+    //         vulkan_format: image.format(),
+    //         inner: ImageInner::Immutable(image),
+    //         size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
+    //         size: RwLock::new(Some((dimensions[0], dimensions[1]))),
+    //         has_mipmaps: true,
+    //     }))
+    // }
 
     // Returns an image view that only has one mip level.
     pub fn get_view_for_render_target(&self) -> Result<Arc<ImageView>> {

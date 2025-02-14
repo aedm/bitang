@@ -5,10 +5,11 @@ use crate::render::render_object::RenderObject;
 use crate::tool::FrameContext;
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
+use tracing::warn;
 use std::rc::Rc;
 
 use crate::render::scene::Scene;
-use vulkano::command_buffer::{SubpassBeginInfo, SubpassContents};
+// use vulkano::command_buffer::{SubpassBeginInfo, SubpassContents};
 
 pub(crate) enum DrawItem {
     Object(Rc<RenderObject>),
@@ -106,32 +107,27 @@ impl Draw {
             }
 
             // Begin render pass
-            let render_pass_begin_info = pass.make_render_pass_begin_info(context)?;
-            let subpass_begin_info = SubpassBeginInfo {
-                contents: SubpassContents::Inline,
-                ..Default::default()
-            };
+            // let render_pass_begin_info = pass.make_render_pass_begin_info(context)?;
+            // let subpass_begin_info = SubpassBeginInfo {
+            //     contents: SubpassContents::Inline,
+            //     ..Default::default()
+            // };
 
-            // TODO: implement debug flag
             // context
             //     .command_builder
-            //     .begin_debug_utils_label(DebugUtilsLabel {
-            //         label_name: self.id.clone(),
-            //         ..Default::default()
-            //     })?;
-
-            context
-                .command_builder
-                .begin_render_pass(render_pass_begin_info, subpass_begin_info)?
-                .set_viewport(0, [viewport].into_iter().collect())?;
+            //     .begin_render_pass(render_pass_begin_info, subpass_begin_info)?
+            //     .set_viewport(0, [viewport].into_iter().collect())?;
+            let render_pass_descriptor = pass.make_render_pass_descriptor()?;
+            context.command_encoder.begin_render_pass(&render_pass_descriptor);
+            warn!("draw.rs render set_viewport");
 
             // Don't fail early if there's a rendering error. We must end the render pass.
             let render_result = self.render_items(context, pass_index);
 
             // End render pass
-            context
-                .command_builder
-                .end_render_pass(Default::default())?;
+            // context
+            //     .command_builder
+            //     .end_render_pass(Default::default())?;
 
             // TODO: implement debug flag
             // unsafe {
