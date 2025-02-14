@@ -48,7 +48,7 @@ impl PixelFormat {
             PixelFormat::Rgba32F => wgpu::TextureFormat::Rgba32Float,
             PixelFormat::Depth32F => wgpu::TextureFormat::Depth32Float,
             PixelFormat::Rgba8U => wgpu::TextureFormat::Rgba8Unorm,
-            PixelFormat::Rgba8Srgb => wgpu::TextureFormat::Rgba8Srgb,
+            PixelFormat::Rgba8Srgb => wgpu::TextureFormat::Rgba8UnormSrgb,
             PixelFormat::Bgra8Srgb => wgpu::TextureFormat::Bgra8UnormSrgb,
         }
     }
@@ -66,10 +66,11 @@ enum ImageInner {
     Immutable(Arc<wgpu::Texture>),
 
     // Attachment image used both as a render target and a sampler source.
+    // TODO: might not need Arc or Rc
     Attachment(RwLock<Option<Arc<wgpu::Texture>>>),
 
     // The final render target. In windowed mode, this is displayed on the screen
-    Swapchain(RwLock<Option<Arc<wgpu::TextureView>>>),
+    Swapchain(RwLock<Option<wgpu::TextureView>>),
 }
 
 pub struct BitangImage {
@@ -146,7 +147,7 @@ impl BitangImage {
             Ok(Arc::new(Self {
                 id: id.to_owned(),
                 wgpu_format: image.format(),
-                inner: ImageInner::Immutable(image),
+                inner: ImageInner::Immutable(Arc::new(image)),
                 size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
                 size: RwLock::new(Some((dimensions[0], dimensions[1]))),
                 has_mipmaps: true,
@@ -221,23 +222,25 @@ impl BitangImage {
     // }
 
     // Returns an image view that only has one mip level.
-    pub fn get_view_for_render_target(&self) -> Result<Arc<ImageView>> {
-        let view: Arc<ImageView> = match &self.inner {
+    pub fn get_view_for_render_target(&self) -> Result<wgpu::TextureView> {
+        let view: wgpu::TextureView = match &self.inner {
             ImageInner::Immutable(_) => {
                 bail!("Immutable image can't be used as a render target");
             }
             ImageInner::Attachment(image) => {
                 let image = image.read().unwrap();
                 if let Some(image) = image.as_ref() {
-                    let i = ImageViewCreateInfo::from_image(&image);
-                    let vci = ImageViewCreateInfo {
-                        subresource_range: ImageSubresourceRange {
-                            mip_levels: 0..1,
-                            ..i.subresource_range
-                        },
-                        ..i
-                    };
-                    ImageView::new(image.clone(), vci)?
+                    image.create_view(&wgpu::TextureViewDescriptor::default())
+
+                    // let i = ImageViewCreateInfo::from_image(&image);
+                    // let vci = ImageViewCreateInfo {
+                    //     subresource_range: ImageSubresourceRange {
+                    //         mip_levels: 0..1,
+                    //         ..i.subresource_range
+                    //     },
+                    //     ..i
+                    // };
+                    // ImageView::new(image.clone(), vci)?
                 } else {
                     bail!("Attachment image not initialized");
                 }
