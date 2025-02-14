@@ -2,9 +2,10 @@
 use crate::tool::{GpuContext, WindowContext};
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
+use std::sync::{Arc, RwLock};
 use tracing::warn;
 use wgpu::util::DeviceExt;
-use std::sync::{Arc, RwLock};
+
 // use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage};
 // use vulkano::command_buffer::{
 //     AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
@@ -118,41 +119,43 @@ impl BitangImage {
         context: &GpuContext,
         format: PixelFormat,
         dimensions: [u32; 3],
-        data: &[u8]) -> Result<Arc<Self>> {
+        data: &[u8],
+    ) -> Result<Arc<Self>> {
+        let texture_descriptor = wgpu::TextureDescriptor {
+            label: Some(id),
+            size: wgpu::Extent3d {
+                width: dimensions[0],
+                height: dimensions[1],
+                depth_or_array_layers: dimensions[2],
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            format: format.wgpu_format(),
+            dimension: wgpu::TextureDimension::D2,
+            view_formats: &[
+                PixelFormat::Rgba8Srgb.wgpu_format(),
+                PixelFormat::Rgba8U.wgpu_format(),
+            ],
+        };
+        let image = context.device.create_texture_with_data(
+            &context.queue,
+            &texture_descriptor,
+            wgpu::util::TextureDataOrder::default(),
+            data,
+        );
 
-            let texture_descriptor = wgpu::TextureDescriptor {
-                label: Some(id),
-                size: wgpu::Extent3d {
-                    width: dimensions[0],
-                    height: dimensions[1],
-                    depth_or_array_layers: dimensions[2],
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING
-                    | wgpu::TextureUsages::COPY_DST,
-                format: format.wgpu_format(),
-                dimension: wgpu::TextureDimension::D2,
-                view_formats: &[PixelFormat::Rgba8Srgb.wgpu_format(), PixelFormat::Rgba8U.wgpu_format()],
-            };
-            let image = context.device.create_texture_with_data(
-                &context.queue,
-                &texture_descriptor,
-                wgpu::util::TextureDataOrder::default(),
-                data,
-            );
+        warn!("immutable_from_srgb(): no mipmaps");
 
-            warn!("immutable_from_srgb(): no mipmaps");
-
-            Ok(Arc::new(Self {
-                id: id.to_owned(),
-                wgpu_format: image.format(),
-                inner: ImageInner::Immutable(Arc::new(image)),
-                size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
-                size: RwLock::new(Some((dimensions[0], dimensions[1]))),
-                has_mipmaps: true,
-            }))
-        }
+        Ok(Arc::new(Self {
+            id: id.to_owned(),
+            wgpu_format: image.format(),
+            inner: ImageInner::Immutable(Arc::new(image)),
+            size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
+            size: RwLock::new(Some((dimensions[0], dimensions[1]))),
+            has_mipmaps: true,
+        }))
+    }
 
     // pub fn immutable_from_iter<I, T>(
     //     id: &str,
@@ -258,15 +261,18 @@ impl BitangImage {
     }
 
     // Returns an image view for sampling purposes. It includes all mip levels.
-    pub fn get_view_for_sampler(&self) -> Result<Arc<ImageView>> {
-        let view: Arc<ImageView> = match &self.inner {
-            ImageInner::Immutable(image) => ImageView::new_default(image.clone())?,
+    pub fn get_view_for_sampler(&self) -> Result<wgpu::TextureView> {
+        let view: wgpu::TextureView = match &self.inner {
+            ImageInner::Immutable(image) => {
+                image.create_view(&wgpu::TextureViewDescriptor::default())
+            }
             ImageInner::Attachment(image) => {
                 let image = image.read().unwrap();
+                // TODO: .context()
                 let Some(image) = image.as_ref() else {
                     bail!("Attachment image not initialized");
                 };
-                ImageView::new_default(image.clone())?
+                image.create_view(&wgpu::TextureViewDescriptor::default())
             }
             ImageInner::Swapchain(_) => {
                 bail!("Swapchain image can't be used in a sampler");
@@ -275,22 +281,22 @@ impl BitangImage {
         Ok(view)
     }
 
-    pub fn get_image(&self) -> Arc<Image> {
-        match &self.inner {
-            ImageInner::Immutable(image) => Arc::clone(image),
-            ImageInner::Attachment(image) => {
-                let image = image.read().unwrap();
-                if let Some(image) = image.as_ref() {
-                    Arc::clone(image)
-                } else {
-                    panic!("Attachment image not initialized");
-                }
-            }
-            ImageInner::Swapchain(_image) => {
-                panic!("Swapchain image can't be accessed");
-            }
-        }
-    }
+    // pub fn get_image(&self) -> Arc<Image> {
+    //     match &self.inner {
+    //         ImageInner::Immutable(image) => Arc::clone(image),
+    //         ImageInner::Attachment(image) => {
+    //             let image = image.read().unwrap();
+    //             if let Some(image) = image.as_ref() {
+    //                 Arc::clone(image)
+    //             } else {
+    //                 panic!("Attachment image not initialized");
+    //             }
+    //         }
+    //         ImageInner::Swapchain(_image) => {
+    //             panic!("Swapchain image can't be accessed");
+    //         }
+    //     }
+    // }
 
     pub fn make_attachment_description(
         &self,
@@ -309,63 +315,80 @@ impl BitangImage {
     }
 
     /// Enforce the size rule.
-    pub fn enforce_size_rule(
-        &self,
-        context: &Arc<WindowContext>,
-        viewport_size: [f32; 2],
-    ) -> Result<()> {
+    pub fn enforce_size_rule(&self, context: &GpuContext, viewport_size: [f32; 2]) -> Result<()> {
         // Only attachments need to be resized.
         let ImageInner::Attachment(attachment) = &self.inner else {
             return Ok(());
         };
 
         // Calculate the size of the image.
-        let extent = match self.size_rule {
-            ImageSizeRule::Fixed(w, h) => [w, h, 1],
-            ImageSizeRule::CanvasRelative(r) => [
-                (viewport_size[0] * r) as u32,
-                (viewport_size[1] * r) as u32,
-                1,
-            ],
+        let size = match self.size_rule {
+            ImageSizeRule::Fixed(w, h) => [w, h],
+            ImageSizeRule::CanvasRelative(r) => {
+                [(viewport_size[0] * r) as u32, (viewport_size[1] * r) as u32]
+            }
             ImageSizeRule::At4k(w, h) => {
                 let scale = 4096.0 / viewport_size[0];
-                [(w as f32 * scale) as u32, (h as f32 * scale) as u32, 1]
+                [(w as f32 * scale) as u32, (h as f32 * scale) as u32]
             }
+        };
+        let size = wgpu::Extent3d {
+            width: size[0],
+            height: size[1],
+            depth_or_array_layers: 1,
         };
 
         // Check if the image is already the correct size.
         let mut attachment = attachment.write().unwrap();
         if let Some(attachment) = attachment.as_ref() {
-            if attachment.extent() == extent {
+            if attachment.size() == size {
                 return Ok(());
             }
         }
 
-        let usage = if self.vulkan_format == vulkano::format::Format::D32_SFLOAT {
-            ImageUsage::SAMPLED | ImageUsage::DEPTH_STENCIL_ATTACHMENT
-        } else {
-            ImageUsage::SAMPLED
-                | ImageUsage::COLOR_ATTACHMENT
-                | ImageUsage::TRANSFER_DST
-                | ImageUsage::TRANSFER_SRC
-        };
+        // let usage = if self.vulkan_format == vulkano::format::Format::D32_SFLOAT {
+        //     ImageUsage::SAMPLED | ImageUsage::DEPTH_STENCIL_ATTACHMENT
+        // } else {
+        //     ImageUsage::SAMPLED
+        //         | ImageUsage::COLOR_ATTACHMENT
+        //         | ImageUsage::TRANSFER_DST
+        //         | ImageUsage::TRANSFER_SRC
+        // };
 
         // Create a new image with the correct size.
-        let mip_levels = if self.has_mipmaps { max_mip_levels(extent) } else { 1 };
-        let image = Image::new(
-            context.memory_allocator.clone(),
-            ImageCreateInfo {
-                image_type: ImageType::Dim2d,
-                usage,
-                format: self.vulkan_format,
-                extent,
-                mip_levels,
-                ..Default::default()
-            },
-            AllocationCreateInfo::default(),
-        )?;
-        *attachment = Some(image);
-        *self.size.write().unwrap() = Some((extent[0], extent[1]));
+        let mip_levels =
+            if self.has_mipmaps { size.max_mips(wgpu::TextureDimension::D2) } else { 1 };
+        // let image = Image::new(
+        //     context.memory_allocator.clone(),
+        //     ImageCreateInfo {
+        //         image_type: ImageType::Dim2d,
+        //         usage,
+        //         format: self.vulkan_format,
+        //         extent: size,
+        //         mip_levels,
+        //         ..Default::default()
+        //     },
+        //     AllocationCreateInfo::default(),
+        // )?;
+
+        let usage = wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT;
+
+        let image = context.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(&self.id),
+            size,
+            mip_level_count: mip_levels,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.wgpu_format,
+            usage,
+            view_formats: &[
+                PixelFormat::Rgba8Srgb.wgpu_format(),
+                PixelFormat::Rgba8U.wgpu_format(),
+            ],
+        });
+
+        *attachment = Some(Arc::new(image));
+        *self.size.write().unwrap() = Some((size.width, size.height));
         Ok(())
     }
 
@@ -378,10 +401,9 @@ impl BitangImage {
         matches!(&self.inner, ImageInner::Swapchain(_))
     }
 
-    pub fn set_swapchain_image(&self, image: Arc<ImageView>) {
+    pub fn set_swapchain_image_view(&self, image: wgpu::TextureView, size: [u32; 2]) {
         match &self.inner {
             ImageInner::Swapchain(swapchain_image) => {
-                let size = image.image().extent();
                 *self.size.write().unwrap() = Some((size[0], size[1]));
                 *swapchain_image.write().unwrap() = Some(image);
             }

@@ -15,7 +15,7 @@ pub struct Pass {
     pub color_buffers: Vec<Arc<BitangImage>>,
     pub depth_buffer: Option<Arc<BitangImage>>,
     pub clear_color: Option<[f32; 4]>,
-    pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
+    // pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
 }
 
 impl Pass {
@@ -26,65 +26,65 @@ impl Pass {
         depth_buffer: Option<Arc<BitangImage>>,
         clear_color: Option<[f32; 4]>,
     ) -> Result<Self> {
-        let vulkan_render_pass = Self::make_vulkan_render_pass(
-            context,
-            &color_buffers,
-            &depth_buffer,
-            clear_color.is_some(),
-        )?;
+        // let vulkan_render_pass = Self::make_vulkan_render_pass(
+        //     context,
+        //     &color_buffers,
+        //     &depth_buffer,
+        //     clear_color.is_some(),
+        // )?;
         Ok(Pass {
             id: id.to_string(),
             depth_buffer,
             color_buffers,
             clear_color,
-            vulkan_render_pass,
+            // vulkan_render_pass,
         })
     }
 
-    fn make_vulkan_render_pass(
-        context: &Arc<WindowContext>,
-        color_buffers: &[Arc<BitangImage>],
-        depth_buffer: &Option<Arc<BitangImage>>,
-        clear_buffers: bool,
-    ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
-        let mut attachments = vec![];
-        let load_op = if clear_buffers { AttachmentLoadOp::Clear } else { AttachmentLoadOp::Load };
+    // fn make_vulkan_render_pass(
+    //     context: &Arc<WindowContext>,
+    //     color_buffers: &[Arc<BitangImage>],
+    //     depth_buffer: &Option<Arc<BitangImage>>,
+    //     clear_buffers: bool,
+    // ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
+    //     let mut attachments = vec![];
+    //     let load_op = if clear_buffers { AttachmentLoadOp::Clear } else { AttachmentLoadOp::Load };
 
-        let color_attachments = color_buffers
-            .iter()
-            .map(|selector| {
-                Some(Self::make_attachment_reference(
-                    selector,
-                    &mut attachments,
-                    ImageLayout::ColorAttachmentOptimal,
-                    load_op,
-                ))
-            })
-            .collect::<Vec<_>>();
-        let depth_stencil_attachment = depth_buffer.as_ref().map(|selector| {
-            Self::make_attachment_reference(
-                selector,
-                &mut attachments,
-                ImageLayout::DepthStencilAttachmentOptimal,
-                load_op,
-            )
-        });
+    //     let color_attachments = color_buffers
+    //         .iter()
+    //         .map(|selector| {
+    //             Some(Self::make_attachment_reference(
+    //                 selector,
+    //                 &mut attachments,
+    //                 ImageLayout::ColorAttachmentOptimal,
+    //                 load_op,
+    //             ))
+    //         })
+    //         .collect::<Vec<_>>();
+    //     let depth_stencil_attachment = depth_buffer.as_ref().map(|selector| {
+    //         Self::make_attachment_reference(
+    //             selector,
+    //             &mut attachments,
+    //             ImageLayout::DepthStencilAttachmentOptimal,
+    //             load_op,
+    //         )
+    //     });
 
-        let subpasses = vec![SubpassDescription {
-            color_attachments,
-            depth_stencil_attachment,
-            ..Default::default()
-        }];
+    //     let subpasses = vec![SubpassDescription {
+    //         color_attachments,
+    //         depth_stencil_attachment,
+    //         ..Default::default()
+    //     }];
 
-        let create_info = RenderPassCreateInfo {
-            attachments,
-            subpasses,
-            ..Default::default()
-        };
-        let render_pass =
-            vulkano::render_pass::RenderPass::new(context.device.clone(), create_info)?;
-        Ok(render_pass)
-    }
+    //     let create_info = RenderPassCreateInfo {
+    //         attachments,
+    //         subpasses,
+    //         ..Default::default()
+    //     };
+    //     let render_pass =
+    //         vulkano::render_pass::RenderPass::new(context.device.clone(), create_info)?;
+    //     Ok(render_pass)
+    // }
 
     fn make_attachment_reference(
         image: &Arc<BitangImage>,
