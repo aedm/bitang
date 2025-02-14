@@ -1,6 +1,6 @@
 use crate::render::buffer::Buffer;
 use crate::render::shader::Shader;
-use crate::tool::{FrameContext, RenderContext};
+use crate::tool::{FrameContext, WindowContext};
 use anyhow::{Context, Result};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ pub struct Compute {
 
 impl Compute {
     pub fn new(
-        context: &Arc<RenderContext>,
+        context: &Arc<WindowContext>,
         id: &str,
         shader: Shader,
         run: Run,

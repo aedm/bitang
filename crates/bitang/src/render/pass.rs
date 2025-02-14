@@ -1,5 +1,5 @@
 use crate::render::image::BitangImage;
-use crate::tool::{FrameContext, RenderContext};
+use crate::tool::{FrameContext, WindowContext};
 use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
 use vulkano::command_buffer::RenderPassBeginInfo;
@@ -21,7 +21,7 @@ pub struct Pass {
 impl Pass {
     pub fn new(
         id: &str,
-        context: &Arc<RenderContext>,
+        context: &Arc<WindowContext>,
         color_buffers: Vec<Arc<BitangImage>>,
         depth_buffer: Option<Arc<BitangImage>>,
         clear_color: Option<[f32; 4]>,
@@ -42,7 +42,7 @@ impl Pass {
     }
 
     fn make_vulkan_render_pass(
-        context: &Arc<RenderContext>,
+        context: &Arc<WindowContext>,
         color_buffers: &[Arc<BitangImage>],
         depth_buffer: &Option<Arc<BitangImage>>,
         clear_buffers: bool,

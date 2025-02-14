@@ -35,7 +35,7 @@ pub const FRAMEDUMP_FPS: u32 = 61;
 
 const SCREEN_RATIO: (u32, u32) = (16, 9);
 
-pub struct WgpuContext {
+pub struct GpuContext {
     // pub vulkano_context: Arc<VulkanoContext>,
     // pub command_buffer_allocator: StandardCommandBufferAllocator,
     // pub descriptor_set_allocator: StandardDescriptorSetAllocator,
@@ -44,8 +44,8 @@ pub struct WgpuContext {
     pub device: wgpu::Device,
 }
 
-impl WgpuContext {
-    async fn new() -> Result<Self> {
+impl GpuContext {
+    async fn new() -> Result<Arc<Self>> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
@@ -56,11 +56,11 @@ impl WgpuContext {
             .request_device(&wgpu::DeviceDescriptor::default(), None)
             .await?;
 
-        Ok(Self {
+        Ok(Arc::new(Self {
             adapter,
             queue,
             device,
-        })
+        }))
     }
 
     // fn into_wgpu_context(self, surface: wgpu::Surface<'_>) -> RenderContext {
@@ -82,7 +82,7 @@ impl WgpuContext {
     // }
 }
 
-pub struct RenderContext<'window> {
+pub struct WindowContext<'window> {
     // pub device: Arc<Device>,
     // pub command_buffer_allocator: StandardCommandBufferAllocator,
     // pub descriptor_set_allocator: StandardDescriptorSetAllocator,
@@ -90,18 +90,14 @@ pub struct RenderContext<'window> {
     // pub gfx_queue: Arc<Queue>,
     // pub swapchain_format: Format,
     // pub final_render_target: Arc<BitangImage>,
-    pub adapter: wgpu::Adapter,
-    pub queue: wgpu::Queue,
-    pub device: wgpu::Device,
+    pub gpu_context: Arc<GpuContext>,
     pub surface: wgpu::Surface<'window>,
 }
 
-impl<'window> RenderContext<'window> {
-    fn new(wgpu_context: WgpuContext, surface: wgpu::Surface<'window>) -> Self {
+impl<'window> WindowContext<'window> {
+    fn new(gpu_context: Arc<GpuContext>, surface: wgpu::Surface<'window>) -> Self {
         Self {
-            adapter: wgpu_context.adapter,
-            queue: wgpu_context.queue,
-            device: wgpu_context.device,
+            gpu_context,
             surface,
         }
     }
@@ -114,13 +110,13 @@ struct Viewport {
     pub height: u32,
 }
 
-pub struct FrameContext<'frame> {
+pub struct FrameContext {
     // pub vulkan_context: Arc<WgpuContext<'window>>,
+    pub gpu_context: Arc<GpuContext>,
     pub screen_viewport: Viewport,
     // pub command_builder: &'frame mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-    pub render_target: &'frame wgpu::SurfaceTexture,
-    pub command_encoder: &'frame wgpu::CommandEncoder,
-    pub queue: &'frame wgpu::Queue,
+    pub final_render_target: Arc<BitangImage>,
+    pub command_encoder: wgpu::CommandEncoder,
     pub globals: Globals,
     pub simulation_elapsed_time_since_last_render: f32,
 }

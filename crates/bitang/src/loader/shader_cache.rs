@@ -3,7 +3,7 @@ use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
 use crate::render::shader::ShaderKind;
-use crate::tool::RenderContext;
+use crate::tool::WindowContext;
 use anyhow::{Context, Result};
 use dashmap::DashMap;
 use std::fmt::Debug;
@@ -70,7 +70,7 @@ impl ShaderCache {
 
     pub async fn get(
         &self,
-        context: Arc<RenderContext>,
+        context: Arc<WindowContext>,
         source_path: ResourcePath,
         kind: ShaderKind,
         macros: Vec<(String, String)>,
@@ -120,7 +120,7 @@ impl ShaderCache {
     }
 
     async fn load_shader(
-        context: Arc<RenderContext>,
+        context: Arc<WindowContext>,
         file_hash_cache: Arc<FileCache>,
         source_path: ResourcePath,
         kind: ShaderKind,

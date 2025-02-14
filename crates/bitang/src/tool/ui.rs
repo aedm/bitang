@@ -2,7 +2,7 @@ use crate::control::controls::{Control, ControlSet, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::tool::app_state::AppState;
 use crate::tool::spline_editor::SplineEditor;
-use crate::tool::{FrameContext, RenderContext};
+use crate::tool::{FrameContext, WindowContext};
 use anyhow::Result;
 use egui_winit_vulkano::{Gui, GuiConfig};
 use std::rc::Rc;
@@ -23,7 +23,7 @@ pub struct Ui {
 
 impl Ui {
     pub fn new(
-        context: &Arc<RenderContext>,
+        context: &Arc<WindowContext>,
         event_loop: &EventLoop<()>,
         surface: &Arc<Surface>,
     ) -> Result<Ui> {

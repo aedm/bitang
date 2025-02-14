@@ -17,18 +17,18 @@ use vulkano::sync::GpuFuture;
 
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::{
-    WgpuContext, FrameContext, RenderContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH,
+    GpuContext, FrameContext, WindowContext, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH,
 };
 
 pub struct FrameDumpRunner {
-    vulkan_context: Arc<RenderContext>,
+    vulkan_context: Arc<WindowContext>,
     dumped_frame_buffer: Subbuffer<[u8]>,
     app: ContentRenderer,
 }
 
 impl FrameDumpRunner {
     pub fn run() -> Result<()> {
-        let wgpu_init_context = WgpuContext::new()?;
+        let wgpu_init_context = GpuContext::new()?;
 
         let frame_size = ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT);
         let final_render_target = BitangImage::new_attachment(

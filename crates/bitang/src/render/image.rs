@@ -1,5 +1,5 @@
 use crate::render::generate_mip_levels::generate_mip_levels;
-use crate::tool::RenderContext;
+use crate::tool::WindowContext;
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
@@ -99,7 +99,7 @@ impl BitangImage {
 
     pub fn immutable_from_iter<I, T>(
         id: &str,
-        context: &Arc<RenderContext>,
+        context: &Arc<WindowContext>,
         format: PixelFormat,
         dimensions: [u32; 3],
         pixel_data: I,
@@ -252,7 +252,7 @@ impl BitangImage {
     /// Enforce the size rule.
     pub fn enforce_size_rule(
         &self,
-        context: &Arc<RenderContext>,
+        context: &Arc<WindowContext>,
         viewport_size: [f32; 2],
     ) -> Result<()> {
         // Only attachments need to be resized.

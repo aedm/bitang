@@ -1,6 +1,6 @@
 use crate::loader::resource_repository::ResourceRepository;
 use crate::render;
-use crate::tool::RenderContext;
+use crate::tool::WindowContext;
 use anyhow::Result;
 use futures::future::join_all;
 use serde::Deserialize;
@@ -26,7 +26,7 @@ pub struct Cut {
 impl Project {
     pub async fn load(
         &self,
-        context: &Arc<RenderContext>,
+        context: &Arc<WindowContext>,
         resource_repository: &Rc<ResourceRepository>,
     ) -> Result<render::project::Project> {
         let chart_ids: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();
