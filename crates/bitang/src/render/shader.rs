@@ -484,7 +484,17 @@ impl SamplerMode {
 #[derive(Clone)]
 pub struct ImageDescriptor {
     pub image: Arc<BitangImage>,
+    texture_view: wgpu::TextureView,
 }
+
+impl ImageDescriptor {
+    pub fn new(context: &GpuContext, image: Arc<BitangImage>) -> Self {
+        unimplemented!();
+        let texture_view = image.get_view_for_sampler();
+        Self { image, texture_view }
+    }
+}
+
 
 #[derive(Clone)]
 pub struct SamplerDescriptor {
