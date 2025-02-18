@@ -79,7 +79,8 @@ pub struct BitangImage {
     pub size_rule: ImageSizeRule,
     // pub vulkan_format: vulkano::format::Format,
     // TODO: use Pixelformat
-    pub wgpu_format: wgpu::TextureFormat,
+    // pub wgpu_format: wgpu::TextureFormat,
+    pub pixel_format: PixelFormat,
     // pub mip_levels: MipLevels,
     inner: ImageInner,
     size: RwLock<Option<(u32, u32)>>,

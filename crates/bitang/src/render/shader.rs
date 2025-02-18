@@ -9,6 +9,8 @@ use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 use tracing::warn;
+
+use super::image::PixelFormat;
 // use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 // use vulkano::buffer::BufferUsage;
 // use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
@@ -54,6 +56,7 @@ pub struct Shader {
     /// The kind of shader, either vertex or fragment.
     pub kind: ShaderKind,
 
+    // TODO: merge local and global uniform sources
     /// The value global uniforms are taken from a `Globals` struct.
     pub global_uniform_bindings: Vec<GlobalUniformMapping>,
 
@@ -101,21 +104,73 @@ impl Shader {
 
         let mut entries = vec![];
 
+        let visibility = match kind {
+            ShaderKind::Vertex => wgpu::ShaderStages::VERTEX,
+            ShaderKind::Fragment => wgpu::ShaderStages::FRAGMENT,
+            ShaderKind::Compute => wgpu::ShaderStages::COMPUTE,
+        };
+
+        if uniform_buffer_size > 0 {
+            entries.push(wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            });
+        }   
+
+        for descriptor_resource in &descriptor_resources {
+            // TODO: just the resource instead of BindGroupEntry
+            let ty = match &descriptor_resource.source {
+                DescriptorSource::Image(image_descriptor) => {
+                    let sample_type = match image_descriptor.image.pixel_format {
+                        PixelFormat::Depth32F => wgpu::TextureSampleType::Depth,
+                        _ => wgpu::TextureSampleType::Float { filterable: true },
+                    };
+                    wgpu::BindingType::Texture {
+                        sample_type,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    }
+                }
+                DescriptorSource::Sampler(sampler_descriptor) => {
+                    let filtering = match sampler_descriptor.mode.to_wgpu_compare_op() {
+                        None => wgpu::SamplerBindingType::Filtering,
+                        _ => wgpu::SamplerBindingType::Comparison,
+                    };
+                    wgpu::BindingType::Sampler(filtering)
+                    // WriteDescriptorSet::sampler(descriptor_resource.binding, sampler)
+                }
+                DescriptorSource::BufferCurrent(buffer) => wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage {
+                        read_only: true,
+                    },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                DescriptorSource::BufferNext(buffer) => wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage {
+                        read_only: false,
+                    },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+            };
+            entries.push(wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility,
+                ty,
+                count: None,
+            });
+        }     
 
         let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ],
+            entries: &entries,
         });
 
         Shader {
@@ -126,12 +181,13 @@ impl Shader {
             uniform_buffer_size,
             descriptor_resources,
             uniform_buffer,
+            bind_group_layout,
         }
     }
 
     pub fn bind(
         &self,
-        context: &RenderPassContext<'_>,
+        context: &mut RenderPassContext<'_>,
         // pipeline_layout: &Arc<PipelineLayout>,
     ) -> Result<()> {
         if self.uniform_buffer_size == 0 && self.descriptor_resources.is_empty() {
