@@ -121,6 +121,12 @@ pub struct FrameContext {
     pub simulation_elapsed_time_since_last_render: f32,
 }
 
+pub struct RenderPassContext<'pass> {
+    pub gpu_context: &'pass GpuContext,
+    pub pass: wgpu::RenderPass<'pass>,
+    pub globals: &'pass Globals,
+}
+
 pub fn run_app() -> Result<()> {
     // let vulkano_context = Arc::new(VulkanoContext::new(VulkanoConfig {
     //     instance_create_info: InstanceCreateInfo {

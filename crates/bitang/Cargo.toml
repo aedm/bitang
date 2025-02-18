@@ -8,6 +8,7 @@ anyhow = { version = "1.0.79", features = ["backtrace"] }
 itertools = "0.12.1"
 strum = { version = "0.26.1", features = ["derive"] }
 smallvec = "1.11.0"
+bytemuck = "1.21.0"
 
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }

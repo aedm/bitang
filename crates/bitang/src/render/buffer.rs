@@ -1,6 +1,6 @@
 use crate::{render::BufferItem, tool::GpuContext};
 use crate::tool::WindowContext;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 // use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
@@ -20,8 +20,10 @@ pub struct Buffer {
     pub item_count: usize,
     // buffer_pool: SubbufferAllocator,
     // pub buffers: RwLock<Subbuffers>,
-    pub current: RefCell<Rc<wgpu::Buffer>>,
-    pub next: RefCell<Rc<wgpu::Buffer>>,
+    buffers: [wgpu::Buffer; 2],
+    current_index: Cell<usize>,
+    // pub current: RefCell<Rc<wgpu::Buffer>>,
+    // pub next: RefCell<Rc<wgpu::Buffer>>,
 
 }
 
@@ -35,7 +37,7 @@ impl Buffer {
         //     },
         // );
 
-        let size = item_count * item_size_in_vec4 * size_of::<glam::Vec4>();
+        let size = (item_count * item_size_in_vec4 * size_of::<glam::Vec4>()) as u64;
         let current = context.device.create_buffer(&wgpu::BufferDescriptor {
             // TODO: id
             label: None,
@@ -54,8 +56,8 @@ impl Buffer {
         Buffer {
             item_size_in_vec4,
             item_count,
-            current: RefCell::new(Rc::new(current)),
-            next: RefCell::new(Rc::new(next)),
+            buffers: [current, next],
+            current_index: Cell::new(0),
         }
     }
 

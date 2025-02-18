@@ -269,6 +269,7 @@ dependencies = [
  "ahash",
  "anyhow",
  "build-time",
+ "bytemuck",
  "codespan-reporting",
  "dashmap",
  "dunce",

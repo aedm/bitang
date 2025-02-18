@@ -68,6 +68,55 @@ impl MaterialPass {
         pass: &Pass,
         // vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<MaterialPass> {
+
+        let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Uniform Buffer"),
+            size: size_of::<Uniforms>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+    
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Bind Group Layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some(&self._id),
+            layout: Some(&pipeline_layout),
+            vertex: vertex_state,
+            fragment: Some(fragment_state),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
+        });            
+
+        Ok(MaterialPass {
+            _id: props.id,
+            vertex_shader: props.vertex_shader,
+            fragment_shader: props.fragment_shader,
+            _depth_test: props.depth_test,
+            _depth_write: props.depth_write,
+            _blend_mode: props.blend_mode,
+            pipeline,
+        })
         // Unwrap is safe: every pass has exactly one subpass
         // let subpass = Subpass::from(vulkan_render_pass, 0).unwrap();
 
@@ -165,33 +214,7 @@ impl MaterialPass {
 
 
 
-        let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
-        });
 
-        let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some(&self._id),
-            layout: Some(&pipeline_layout),
-            vertex: vertex_state,
-            fragment: Some(fragment_state),
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-            cache: None,
-        });            
-
-        Ok(MaterialPass {
-            _id: props.id,
-            vertex_shader: props.vertex_shader,
-            fragment_shader: props.fragment_shader,
-            _depth_test: props.depth_test,
-            _depth_write: props.depth_write,
-            _blend_mode: props.blend_mode,
-            pipeline,
-        })
     }
 
     pub fn render(&self, context: &mut FrameContext, mesh: &Mesh) -> Result<()> {
