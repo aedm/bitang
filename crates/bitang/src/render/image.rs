@@ -90,7 +90,7 @@ pub struct BitangImage {
 impl BitangImage {
     pub fn new_attachment(
         id: &str,
-        format: PixelFormat,
+        pixel_format: PixelFormat,
         size_rule: ImageSizeRule,
         has_mipmaps: bool,
     ) -> Arc<Self> {
@@ -99,26 +99,26 @@ impl BitangImage {
             inner: ImageInner::Attachment(RwLock::new(None)),
             size_rule,
             size: RwLock::new(None),
-            wgpu_format: format.wgpu_format(),
+            pixel_format,
             has_mipmaps,
         })
     }
 
-    pub fn new_swapchain(id: &str, format: PixelFormat) -> Arc<Self> {
+    pub fn new_swapchain(id: &str, pixel_format: PixelFormat) -> Arc<Self> {
         Arc::new(Self {
             id: id.to_owned(),
             inner: ImageInner::Swapchain(RwLock::new(None)),
             size_rule: ImageSizeRule::CanvasRelative(1.0),
             size: RwLock::new(None),
-            wgpu_format: format.wgpu_format(),
+            pixel_format,
             has_mipmaps: false,
         })
     }
 
-    pub fn immutable_from_srgb(
+    pub fn immutable_from_pixel_data(
         id: &str,
         context: &GpuContext,
-        format: PixelFormat,
+        pixel_format: PixelFormat,
         dimensions: [u32; 3],
         data: &[u8],
     ) -> Result<Arc<Self>> {
@@ -132,7 +132,7 @@ impl BitangImage {
             mip_level_count: 1,
             sample_count: 1,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            format: format.wgpu_format(),
+            format: pixel_format.wgpu_format(),
             dimension: wgpu::TextureDimension::D2,
             view_formats: &[
                 PixelFormat::Rgba8Srgb.wgpu_format(),
@@ -150,7 +150,7 @@ impl BitangImage {
 
         Ok(Arc::new(Self {
             id: id.to_owned(),
-            wgpu_format: image.format(),
+            pixel_format,
             inner: ImageInner::Immutable(Arc::new(image)),
             size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
             size: RwLock::new(Some((dimensions[0], dimensions[1]))),

@@ -11,7 +11,7 @@ use crate::render::chart::Chart;
 use crate::render::image::{BitangImage, PixelFormat};
 use crate::render::mesh::Mesh;
 use crate::render::project::Project;
-use crate::tool::WindowContext;
+use crate::tool::{GpuContext, WindowContext};
 use anyhow::{anyhow, ensure, Context, Result};
 use image::GenericImageView;
 use jxl_oxide::JxlImage;
@@ -79,7 +79,7 @@ impl ResourceRepository {
     #[instrument(skip(self, context))]
     pub fn get_texture(
         self: &Rc<Self>,
-        context: &Arc<WindowContext>,
+        context: &Arc<GpuContext>,
         path: &ResourcePath,
     ) -> LoadFuture<BitangImage> {
         self.texture_cache.get_future(context, path)
@@ -90,7 +90,7 @@ impl ResourceRepository {
     #[instrument(skip(self, context))]
     pub fn get_mesh(
         self: &Rc<Self>,
-        context: &Arc<WindowContext>,
+        context: &Arc<GpuContext>,
         path: &ResourcePath,
         selector: &str,
     ) -> LoadFuture<Mesh> {
@@ -113,7 +113,7 @@ impl ResourceRepository {
     pub async fn load_chart(
         self: &Rc<Self>,
         id: &str,
-        context: &Arc<WindowContext>,
+        context: &Arc<GpuContext>,
     ) -> Result<Rc<Chart>> {
         let subdirectory = [CHARTS_FOLDER, id].iter().collect::<PathBuf>();
         let path = ResourcePath::new(&self.root_path, subdirectory, CHART_FILE_NAME);
@@ -124,7 +124,7 @@ impl ResourceRepository {
             .with_context(|| anyhow!("Failed to load chart '{id}'"))
     }
 
-    pub async fn load_project(self: &Rc<Self>, context: &Arc<WindowContext>) -> Result<Project> {
+    pub async fn load_project(self: &Rc<Self>, context: &Arc<GpuContext>) -> Result<Project> {
         let path = ResourcePath::new(&self.root_path, PathBuf::new(), PROJECT_FILE_NAME);
         let project = self.project_file_cache.load(context, &path).await?;
         project.load(context, self).await
@@ -133,7 +133,7 @@ impl ResourceRepository {
 
 #[instrument(skip(context, content))]
 fn load_texture(
-    context: &Arc<WindowContext>,
+    context: &Arc<GpuContext>,
     content: &[u8],
     resource_name: &str,
 ) -> Result<Arc<BitangImage>> {
@@ -171,20 +171,20 @@ fn load_texture(
         let image = image::load_from_memory(content)?;
         let dimensions = [image.dimensions().0, image.dimensions().1, 1];
         if resource_name.ends_with(".hdr") || resource_name.ends_with(".exr") {
-            BitangImage::immutable_from_iter(
+            BitangImage::immutable_from_pixel_data(
                 resource_name,
                 context,
                 PixelFormat::Rgba32F,
                 dimensions,
-                image.into_rgba32f().into_raw(),
+                bytemuck::cast_slice(&image.into_rgba32f().into_raw()),
             )
         } else {
-            BitangImage::immutable_from_iter(
+            BitangImage::immutable_from_pixel_data(
                 resource_name,
                 context,
                 PixelFormat::Rgba8Srgb,
                 dimensions,
-                image.into_rgba8().into_raw(),
+                &image.into_rgba8().into_raw(),
             )
         }
     };
@@ -202,7 +202,7 @@ fn ron_loader() -> ron::Options {
 
 #[instrument(skip_all)]
 pub fn load_chart_file(
-    _context: &Arc<WindowContext>,
+    _context: &Arc<GpuContext>,
     content: &[u8],
     _resource_name: &str,
 ) -> Result<Arc<chart_file::Chart>> {
@@ -212,7 +212,7 @@ pub fn load_chart_file(
 
 #[instrument(skip_all)]
 pub fn load_project_file(
-    _context: &Arc<WindowContext>,
+    _context: &Arc<GpuContext>,
     content: &[u8],
     _resource_name: &str,
 ) -> Result<Arc<project_file::Project>> {

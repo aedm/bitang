@@ -1,7 +1,7 @@
 use crate::loader::file_cache::{FileCache, FileChangeHandler};
 use crate::loader::resource_repository::ResourceRepository;
 use crate::render::project::Project;
-use crate::tool::WindowContext;
+use crate::tool::{GpuContext, WindowContext};
 use anyhow::{ensure, Result};
 use dunce::canonicalize;
 use std::path::PathBuf;
@@ -43,7 +43,7 @@ impl ProjectLoader {
         })
     }
 
-    fn run_project_loader(&mut self, context: &Arc<WindowContext>) -> Result<Project> {
+    fn run_project_loader(&mut self, context: &Arc<GpuContext>) -> Result<Project> {
         self.async_runtime.block_on(async {
             let result = self.resource_repository.load_project(context).await;
             self.file_change_handler.update_watchers().await;
@@ -52,7 +52,7 @@ impl ProjectLoader {
     }
 
     #[instrument(skip_all, name = "load")]
-    pub fn get_or_load_project(&mut self, context: &Arc<WindowContext>) -> Option<Rc<Project>> {
+    pub fn get_or_load_project(&mut self, context: &Arc<GpuContext>) -> Option<Rc<Project>> {
         let changed_files = self.file_change_handler.handle_file_changes();
         let needs_retry = self.cached_root.is_none()
             && self.file_change_handler.has_missing_files()

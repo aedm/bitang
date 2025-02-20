@@ -9,6 +9,8 @@ use anyhow::{bail, Result};
 use std::rc::Rc;
 use std::sync::Arc;
 use tracing::error;
+
+use super::GpuContext;
 // use vulkano::command_buffer::{
 //     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 // };
@@ -24,7 +26,7 @@ pub struct ContentRenderer {
 }
 
 impl ContentRenderer {
-    pub fn new(context: &Arc<WindowContext>) -> Result<ContentRenderer> {
+    pub fn new(context: &Arc<GpuContext>) -> Result<ContentRenderer> {
         let mut music_player = MusicPlayer::new();
 
         let app_config = AppConfig::load()?;

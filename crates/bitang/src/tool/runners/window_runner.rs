@@ -36,8 +36,8 @@ pub enum PaintResult {
 }
 
 impl WindowRunner {
-    pub fn run() -> Result<()> {
-        let wgpu_init_context = GpuContext::new()?;
+    pub async fn run() -> Result<()> {
+        let wgpu_init_context = GpuContext::new().await?;
 
         // let final_render_target =
         //     BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);

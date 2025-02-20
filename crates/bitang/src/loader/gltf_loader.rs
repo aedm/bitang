@@ -17,7 +17,7 @@ fn gltf_to_left_handed_y_up(v: &[f32; 3]) -> [f32; 3] {
 
 #[instrument(skip(context, content))]
 pub fn load_mesh_collection(
-    context: &Arc<WindowContext>,
+    context: &Arc<GpuContext>,
     content: &[u8],
     path: &str,
 ) -> Result<Arc<SceneFile>> {
