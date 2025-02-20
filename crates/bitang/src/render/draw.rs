@@ -90,20 +90,20 @@ impl Draw {
         globals.update_compound_matrices();
     }
 
-    pub fn render(&self, context: &mut FrameContext, camera: &Camera) -> Result<()> {
+    pub fn render(&self, frame_context: &mut FrameContext, camera: &Camera) -> Result<()> {
         ensure!(!self.passes.is_empty(), "Draw '{}' has no passes", self.id);
 
         for (pass_index, pass) in self.passes.iter().enumerate() {
-            let viewport = pass.get_viewport(context)?;
+            let viewport = pass.get_viewport(frame_context)?;
 
             // Set globals unspecific to pass
-            self.set_common_globals(&mut context.globals);
+            self.set_common_globals(&mut frame_context.globals);
 
             // Set pass-specific globals
             if pass.id == "shadow" {
-                self.set_globals_for_shadow_map_rendering(&mut context.globals);
+                self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
             } else {
-                camera.set_globals(&mut context.globals, viewport.extent);
+                camera.set_globals(&mut frame_context.globals, viewport.extent);
             }
 
             // Begin render pass
@@ -117,12 +117,16 @@ impl Draw {
             //     .command_builder
             //     .begin_render_pass(render_pass_begin_info, subpass_begin_info)?
             //     .set_viewport(0, [viewport].into_iter().collect())?;
-            let render_pass_descriptor = pass.make_render_pass_descriptor()?;
-            context.command_encoder.begin_render_pass(&render_pass_descriptor);
+            
+            // let render_pass_descriptor = pass.make_render_pass_descriptor()?;
+            // context.command_encoder.begin_render_pass(&render_pass_descriptor);
+
+            let render_pass_context = pass.make_render_pass_context(frame_context)?;
+
             warn!("draw.rs render set_viewport");
 
             // Don't fail early if there's a rendering error. We must end the render pass.
-            let render_result = self.render_items(context, pass_index);
+            let render_result = self.render_items(frame_context, pass_index);
 
             // End render pass
             // context

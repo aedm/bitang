@@ -62,16 +62,22 @@ pub enum ImageSizeRule {
     At4k(u32, u32),
 }
 
-enum ImageInner {
+struct AttachmentImage {
+    texture: wgpu::Texture,
+
+    // View of the texture that is used as a render target.
+    render_target_view: wgpu::TextureView,
+}
+
+enum ImageType {
     // Immutable image that is loaded from an external source, e.g. a jpg file.
-    Immutable(Arc<wgpu::Texture>),
+    Immutable,
 
     // Attachment image used both as a render target and a sampler source.
-    // TODO: might not need Arc or Rc
-    Attachment(RwLock<Option<Arc<wgpu::Texture>>>),
+    Attachment,
 
     // The final render target. In windowed mode, this is displayed on the screen
-    Swapchain(RwLock<Option<wgpu::TextureView>>),
+    Swapchain,
 }
 
 pub struct BitangImage {
@@ -82,8 +88,10 @@ pub struct BitangImage {
     // pub wgpu_format: wgpu::TextureFormat,
     pub pixel_format: PixelFormat,
     // pub mip_levels: MipLevels,
-    inner: ImageInner,
-    size: RwLock<Option<(u32, u32)>>,
+    ty: ImageType,
+    texture: Option<wgpu::Texture>,
+    render_target_view: Option<wgpu::TextureView>,
+    size: Option<wgpu::Extent3d>,
     has_mipmaps: bool,
 }
 
@@ -96,22 +104,26 @@ impl BitangImage {
     ) -> Arc<Self> {
         Arc::new(Self {
             id: id.to_owned(),
-            inner: ImageInner::Attachment(RwLock::new(None)),
+            ty: ImageType::Attachment,
             size_rule,
-            size: RwLock::new(None),
+            size: None,
             pixel_format,
             has_mipmaps,
+            texture: None,
+            render_target_view: None,
         })
     }
 
     pub fn new_swapchain(id: &str, pixel_format: PixelFormat) -> Arc<Self> {
         Arc::new(Self {
             id: id.to_owned(),
-            inner: ImageInner::Swapchain(RwLock::new(None)),
+            ty: ImageType::Swapchain,
             size_rule: ImageSizeRule::CanvasRelative(1.0),
-            size: RwLock::new(None),
+            size: None,
             pixel_format,
             has_mipmaps: false,
+            texture: None,
+            render_target_view: None,
         })
     }
 
@@ -151,10 +163,12 @@ impl BitangImage {
         Ok(Arc::new(Self {
             id: id.to_owned(),
             pixel_format,
-            inner: ImageInner::Immutable(Arc::new(image)),
+            ty: ImageType::Immutable,
             size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
-            size: RwLock::new(Some((dimensions[0], dimensions[1]))),
+            size: Some((dimensions[0], dimensions[1])),
             has_mipmaps: true,
+            texture: Some(image),
+            render_target_view: None,
         }))
     }
 
@@ -226,60 +240,69 @@ impl BitangImage {
     // }
 
     // Returns an image view that only has one mip level.
-    pub fn get_view_for_render_target(&self) -> Result<wgpu::TextureView> {
-        let view: wgpu::TextureView = match &self.inner {
-            ImageInner::Immutable(_) => {
-                bail!("Immutable image can't be used as a render target");
-            }
-            ImageInner::Attachment(image) => {
-                let image = image.read().unwrap();
-                if let Some(image) = image.as_ref() {
-                    image.create_view(&wgpu::TextureViewDescriptor::default())
+    pub fn get_view_for_render_target(&self) -> Result<&wgpu::TextureView> {
+        self.render_target_view
+            .as_ref()
+            .context("Attachment image not initialized")
+        // let view: wgpu::TextureView = match &self.ty {
+        //     ImageType::Immutable(_) => {
+        //         bail!("Immutable image can't be used as a render target");
+        //     }
+        //     ImageType::Attachment(image) => {
+        //         let image = image.read().unwrap();
+        //         if let Some(image) = image.as_ref() {
+        //             unimplemented!("not default");
+        //             image.create_view(&wgpu::TextureViewDescriptor::default())
 
-                    // let i = ImageViewCreateInfo::from_image(&image);
-                    // let vci = ImageViewCreateInfo {
-                    //     subresource_range: ImageSubresourceRange {
-                    //         mip_levels: 0..1,
-                    //         ..i.subresource_range
-                    //     },
-                    //     ..i
-                    // };
-                    // ImageView::new(image.clone(), vci)?
-                } else {
-                    bail!("Attachment image not initialized");
-                }
-            }
-            ImageInner::Swapchain(image) => {
-                let image = image.read().unwrap();
-                if let Some(image) = image.as_ref() {
-                    image.clone()
-                } else {
-                    bail!("Swapchain image not initialized");
-                }
-            }
-        };
-        Ok(view)
+        //             // let i = ImageViewCreateInfo::from_image(&image);
+        //             // let vci = ImageViewCreateInfo {
+        //             //     subresource_range: ImageSubresourceRange {
+        //             //         mip_levels: 0..1,
+        //             //         ..i.subresource_range
+        //             //     },
+        //             //     ..i
+        //             // };
+        //             // ImageView::new(image.clone(), vci)?
+        //         } else {
+        //             bail!("Attachment image not initialized");
+        //         }
+        //     }
+        //     ImageType::Swapchain(image) => {
+        //         let image = image.read().unwrap();
+        //         if let Some(image) = image.as_ref() {
+        //             image.clone()
+        //         } else {
+        //             bail!("Swapchain image not initialized");
+        //         }
+        //     }
+        // };
+        // Ok(view)
     }
 
     // Returns an image view for sampling purposes. It includes all mip levels.
-    pub fn get_view_for_sampler(&self) -> Result<wgpu::TextureView> {
-        let view: wgpu::TextureView = match &self.inner {
-            ImageInner::Immutable(image) => {
-                image.create_view(&wgpu::TextureViewDescriptor::default())
-            }
-            ImageInner::Attachment(image) => {
-                let image = image.read().unwrap();
-                // TODO: .context()
-                let Some(image) = image.as_ref() else {
-                    bail!("Attachment image not initialized");
-                };
-                image.create_view(&wgpu::TextureViewDescriptor::default())
-            }
-            ImageInner::Swapchain(_) => {
-                bail!("Swapchain image can't be used in a sampler");
-            }
+    pub fn make_texture_view_for_sampler(&self) -> Result<wgpu::TextureView> {
+        let Some(texture) = &self.texture else {
+            bail!("Image not initialized");
         };
-        Ok(view)
+        Ok(texture.create_view(&wgpu::TextureViewDescriptor::default()))
+
+        // let view: wgpu::TextureView = match &self.ty {
+        //     ImageType::Immutable => {
+        //         texture.create_view(&wgpu::TextureViewDescriptor::default())
+        //     }
+        //     ImageType::Attachment(image) => {
+        //         let image = image.read().unwrap();
+        //         // TODO: .context()
+        //         let Some(image) = image.as_ref() else {
+        //             bail!("Attachment image not initialized");
+        //         };
+        //         image.create_view(&wgpu::TextureViewDescriptor::default())
+        //     }
+        //     ImageType::Swapchain(_) => {
+        //         bail!("Swapchain image can't be used in a sampler");
+        //     }
+        // };
+        // Ok(view)
     }
 
     // pub fn get_image(&self) -> Arc<Image> {
@@ -299,26 +322,26 @@ impl BitangImage {
     //     }
     // }
 
-    pub fn make_attachment_description(
-        &self,
-        layout: ImageLayout,
-        load_op: AttachmentLoadOp,
-    ) -> AttachmentDescription {
-        AttachmentDescription {
-            format: self.vulkan_format,
-            samples: SampleCount::Sample1,
-            load_op,
-            store_op: AttachmentStoreOp::Store,
-            initial_layout: layout,
-            final_layout: layout,
-            ..Default::default()
-        }
-    }
+    // pub fn make_attachment_description(
+    //     &self,
+    //     layout: ImageLayout,
+    //     load_op: AttachmentLoadOp,
+    // ) -> AttachmentDescription {
+    //     AttachmentDescription {
+    //         format: self.vulkan_format,
+    //         samples: SampleCount::Sample1,
+    //         load_op,
+    //         store_op: AttachmentStoreOp::Store,
+    //         initial_layout: layout,
+    //         final_layout: layout,
+    //         ..Default::default()
+    //     }
+    // }
 
     /// Enforce the size rule.
-    pub fn enforce_size_rule(&self, context: &GpuContext, viewport_size: [f32; 2]) -> Result<()> {
+    pub fn enforce_size_rule(&mut self, context: &GpuContext, viewport_size: [f32; 2]) -> Result<()> {
         // Only attachments need to be resized.
-        let ImageInner::Attachment(attachment) = &self.inner else {
+        let ImageType::Attachment = self.ty else {
             return Ok(());
         };
 
@@ -340,12 +363,11 @@ impl BitangImage {
         };
 
         // Check if the image is already the correct size.
-        let mut attachment = attachment.write().unwrap();
-        if let Some(attachment) = attachment.as_ref() {
-            if attachment.size() == size {
+        if let Some(texture) = &self.texture {
+            if texture.size() == size {
                 return Ok(());
             }
-        }
+        };
 
         // let usage = if self.vulkan_format == vulkano::format::Format::D32_SFLOAT {
         //     ImageUsage::SAMPLED | ImageUsage::DEPTH_STENCIL_ATTACHMENT
@@ -380,7 +402,7 @@ impl BitangImage {
             mip_level_count: mip_levels,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: self.wgpu_format,
+            format: self.pixel_format.wgpu_format(),
             usage,
             view_formats: &[
                 PixelFormat::Rgba8Srgb.wgpu_format(),
@@ -388,8 +410,9 @@ impl BitangImage {
             ],
         });
 
-        *attachment = Some(Arc::new(image));
-        *self.size.write().unwrap() = Some((size.width, size.height));
+        self.texture = Some(image);
+        self.render_target_view = Some(image.create_view(&wgpu::TextureViewDescriptor::default()));
+        self.size = Some(size);
         Ok(())
     }
 
@@ -399,14 +422,15 @@ impl BitangImage {
     }
 
     pub fn is_swapchain(&self) -> bool {
-        matches!(&self.inner, ImageInner::Swapchain(_))
+        matches!(&self.ty, ImageType::Swapchain)
     }
 
-    pub fn set_swapchain_image_view(&self, image: wgpu::TextureView, size: [u32; 2]) {
-        match &self.inner {
-            ImageInner::Swapchain(swapchain_image) => {
-                *self.size.write().unwrap() = Some((size[0], size[1]));
-                *swapchain_image.write().unwrap() = Some(image);
+    pub fn set_swapchain_image_view(&mut self, view: wgpu::TextureView, size: [u32; 2]) {
+        match self.ty {
+            ImageType::Swapchain => {
+                self.texture = None;
+                self.render_target_view = Some(view);
+                self.size = Some((size[0], size[1]));
             }
             _ => panic!("Not a swapchain image"),
         }

@@ -1,7 +1,9 @@
 use crate::render::image::BitangImage;
-use crate::tool::{FrameContext, WindowContext};
+use crate::tool::{FrameContext, RenderPassContext, WindowContext};
 use anyhow::{bail, ensure, Result};
 use std::sync::Arc;
+
+use super::Viewport;
 // use vulkano::command_buffer::RenderPassBeginInfo;
 // use vulkano::image::ImageLayout;
 // use vulkano::pipeline::graphics::viewport::Viewport;
@@ -86,6 +88,87 @@ impl Pass {
     //     Ok(render_pass)
     // }
 
+    fn make_render_pass_context(
+        &self,
+        frame_context: &mut FrameContext,
+    ) -> Result<RenderPassContext> {
+ 
+
+        let color_attachments = self
+            .color_buffers
+            .iter()
+            .map(|selector| {
+                let texture_view = selector.get_view_for_render_target()?;
+                Some(self.make_color_attachment(&texture_view))
+            })
+            .collect::<Vec<_>>();
+        let depth_stencil_attachment = depth_buffer.as_ref().map(|selector| {
+            Self::make_attachment_reference(
+                selector,
+                &mut attachments,
+                ImageLayout::DepthStencilAttachmentOptimal,
+                load_op,
+            )
+        });
+
+        let mut render_pass =
+            frame_context
+                .encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    // TODO: label
+                    label: None,
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.depth_view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+
+        Ok(RenderPassContext {
+            gpu_context: &frame_context.gpu_context,
+            pass: self,
+            globals: &frame_context.globals,
+        })
+    }
+
+    fn make_color_attachment(
+        &self,
+        texture_view: &wgpu::TextureView,
+    ) -> wgpu::RenderPassColorAttachment {
+        let load = if let Some(clear_color) = &self.clear_color {
+            wgpu::LoadOp::Clear(wgpu::Color {
+                r: clear_color[0] as f64,
+                g: clear_color[1] as f64,
+                b: clear_color[2] as f64,
+                a: clear_color[3] as f64,
+            })
+        } else {
+            wgpu::LoadOp::Load
+        };
+
+        wgpu::RenderPassColorAttachment {
+            view: texture_view,
+            resolve_target: None,
+            ops: wgpu::Operations {
+                load,
+                store: wgpu::StoreOp::Store,
+            },
+        }
+    }
+
     fn make_attachment_reference(
         image: &Arc<BitangImage>,
         attachments: &mut Vec<AttachmentDescription>,
@@ -133,15 +216,13 @@ impl Pass {
             Viewport {
                 offset: [0.0, 0.0],
                 extent: [size.0 as f32, size.1 as f32],
-                depth_range: 0.0..=1.0,
+                depth_range: [0.0, 1.0],
             }
         };
         Ok(viewport)
     }
 
-    pub fn make_render_pass_descriptor(
-        &self,
-    ) -> Result<wgpu::RenderPassDescriptor> {
+    pub fn make_render_pass_descriptor(&self) -> Result<wgpu::RenderPassDescriptor> {
         // Collect color attachment images...
         let mut attachments = vec![];
         let mut clear_values = vec![];

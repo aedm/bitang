@@ -36,34 +36,36 @@ pub enum PaintResult {
 }
 
 impl WindowRunner {
-    pub async fn run() -> Result<()> {
-        let wgpu_init_context = GpuContext::new().await?;
+    pub fn run() -> Result<()> {
+        let gpu_context = GpuContext::new()?;
 
         // let final_render_target =
         //     BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
         // let vulkano_context = init_context.vulkano_context.clone();
         // let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
-        let mut app = ContentRenderer::new(&vulkan_context)?;
+        let mut app = ContentRenderer::new(&gpu_context)?;
         info!("Init DOOM refresh daemon...");
-        app.reset_simulation(&vulkan_context)?;
+        app.reset_simulation(&gpu_context)?;
 
         let event_loop = EventLoop::new();
-        let mut windows = VulkanoWindows::default();
-        let window_descriptor = WindowDescriptor {
-            title: "Bitang".to_string(),
-            width: 1280.,
-            height: 1000.,
-            ..WindowDescriptor::default()
-        };
+        // let mut windows = VulkanoWindows::default();
+        // let window_descriptor = WindowDescriptor {
+        //     title: "Bitang".to_string(),
+        //     width: 1280.,
+        //     height: 1000.,
+        //     ..WindowDescriptor::default()
+        // };
 
-        windows.create_window(&event_loop, &vulkano_context, &window_descriptor, |ci| {
-            ci.image_format = SCREEN_COLOR_FORMAT.vulkan_format();
-            ci.min_image_count = ci.min_image_count.max(3);
-        });
+        // windows.create_window(&event_loop, &vulkano_context, &window_descriptor, |ci| {
+        //     ci.image_format = SCREEN_COLOR_FORMAT.vulkan_format();
+        //     ci.min_image_count = ci.min_image_count.max(3);
+        // });
+
+        
 
         let ui = Ui::new(
-            &vulkan_context,
+            &gpu_context,
             &event_loop,
             &windows.get_primary_renderer().unwrap().surface(),
         )?;

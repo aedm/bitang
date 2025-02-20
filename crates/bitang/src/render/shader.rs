@@ -121,7 +121,7 @@ impl Shader {
                 },
                 count: None,
             });
-        }   
+        }
 
         for descriptor_resource in &descriptor_resources {
             // TODO: just the resource instead of BindGroupEntry
@@ -145,17 +145,13 @@ impl Shader {
                     wgpu::BindingType::Sampler(filtering)
                     // WriteDescriptorSet::sampler(descriptor_resource.binding, sampler)
                 }
-                DescriptorSource::BufferCurrent(buffer) => wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage {
-                        read_only: true,
-                    },
+                DescriptorSource::BufferCurrent(_) => wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
-                DescriptorSource::BufferNext(buffer) => wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage {
-                        read_only: false,
-                    },
+                DescriptorSource::BufferNext(_) => wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
@@ -166,12 +162,15 @@ impl Shader {
                 ty,
                 count: None,
             });
-        }     
+        }
 
-        let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &entries,
-        });
+        let bind_group_layout =
+            context
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &entries,
+                });
 
         Shader {
             shader_module,
@@ -195,7 +194,6 @@ impl Shader {
         }
 
         let mut entries = SmallVec::<[_; 64]>::new();
-
 
         if self.uniform_buffer_size > 0 {
             // Fill uniform array
@@ -230,10 +228,10 @@ impl Shader {
             // TODO: just the resource instead of BindGroupEntry
             let write_descriptor_set = match &descriptor_resource.source {
                 DescriptorSource::Image(image_descriptor) => {
-                    let image_view = image_descriptor.image.get_view_for_sampler()?;
+                    let texture_view = &image_descriptor.texture_view;
                     wgpu::BindGroupEntry {
                         binding: descriptor_resource.binding,
-                        resource: wgpu::BindingResource::TextureView(&image_view),
+                        resource: wgpu::BindingResource::TextureView(texture_view),
                     }
                 }
                 DescriptorSource::Sampler(sampler_descriptor) => {
@@ -248,7 +246,7 @@ impl Shader {
                     // )?;
                     wgpu::BindGroupEntry {
                         binding: descriptor_resource.binding,
-                        resource: wgpu::BindingResource::Sampler(sampler_descriptor.sampler()),
+                        resource: wgpu::BindingResource::Sampler(&sampler_descriptor.sampler),
                     }
                     // WriteDescriptorSet::sampler(descriptor_resource.binding, sampler)
                 }
@@ -282,8 +280,9 @@ impl Shader {
                 entries: &entries,
             });
 
-
-        context.pass.set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
+        context
+            .pass
+            .set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
 
         // let pipeline_bind_point = match self.kind {
         //     ShaderKind::Vertex => PipelineBindPoint::Graphics,
@@ -481,6 +480,7 @@ impl SamplerMode {
     }
 }
 
+// TODO: rename TextureResource or TextureShaderResource
 #[derive(Clone)]
 pub struct ImageDescriptor {
     pub image: Arc<BitangImage>,
@@ -488,13 +488,14 @@ pub struct ImageDescriptor {
 }
 
 impl ImageDescriptor {
-    pub fn new(context: &GpuContext, image: Arc<BitangImage>) -> Self {
-        unimplemented!();
-        let texture_view = image.get_view_for_sampler();
-        Self { image, texture_view }
+    pub fn new(image: Arc<BitangImage>) -> Result<Self> {
+        let texture_view = image.make_texture_view_for_sampler()?;
+        Ok(Self {
+            image,
+            texture_view,
+        })
     }
 }
-
 
 #[derive(Clone)]
 pub struct SamplerDescriptor {
@@ -517,10 +518,6 @@ impl SamplerDescriptor {
             ..wgpu::SamplerDescriptor::default()
         });
         Self { mode, sampler }
-    }
-
-    pub fn sampler(&self) -> &wgpu::Sampler {
-        &self.sampler
     }
 }
 

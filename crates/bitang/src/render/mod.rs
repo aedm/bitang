@@ -41,3 +41,11 @@ type BufferItem = [f32; 4];
 /// Weird number on purpose.
 const SIMULATION_FREQUENCY_HZ: f32 = 60.0;
 pub const SIMULATION_STEP_SECONDS: f32 = 1.0 / SIMULATION_FREQUENCY_HZ;
+
+
+#[derive(Debug, Clone, Copy)]
+pub struct Viewport {
+    pub offset: [f32; 2],
+    pub extent: [f32; 2],
+    pub depth_range: [f32; 2],
+}

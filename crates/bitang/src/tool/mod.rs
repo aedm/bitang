@@ -45,22 +45,24 @@ pub struct GpuContext {
 }
 
 impl GpuContext {
-    async fn new() -> Result<Arc<Self>> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .context("No suitable adapter found")?;
+    fn new() -> Result<Arc<Self>> {
+        tokio::runtime::Runtime::new()?.block_on(async {
+            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+            let adapter = instance
+                .request_adapter(&wgpu::RequestAdapterOptions::default())
+                .await
+                .context("No suitable adapter found")?;
 
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default(), None)
-            .await?;
+            let (device, queue) = adapter
+                .request_device(&wgpu::DeviceDescriptor::default(), None)
+                .await?;
 
-        Ok(Arc::new(Self {
-            adapter,
-            queue,
-            device,
-        }))
+            Ok(Arc::new(Self {
+                adapter,
+                queue,
+                device,
+            }))
+        })
     }
 
     // fn into_wgpu_context(self, surface: wgpu::Surface<'_>) -> RenderContext {
@@ -101,6 +103,20 @@ impl<'window> WindowContext<'window> {
             surface,
         }
     }
+
+    fn start_new_frame(&self, globals: Globals) -> FrameContext {
+        FrameContext {
+            gpu_context: self.gpu_context.clone(),
+            globals,
+            screen_viewport: unimplemented!(),
+            final_render_target: unimplemented!(),
+            command_encoder: self
+                .gpu_context
+                .device
+                .create_command_encoder(&Default::default()),
+            simulation_elapsed_time_since_last_render: unimplemented!(),
+        }
+    }
 }
 
 struct Viewport {
@@ -124,6 +140,12 @@ pub struct FrameContext {
 pub struct RenderPassContext<'pass> {
     pub gpu_context: &'pass GpuContext,
     pub pass: wgpu::RenderPass<'pass>,
+    pub globals: &'pass Globals,
+}
+
+pub struct ComputePassContext<'pass> {
+    pub gpu_context: &'pass GpuContext,
+    pub pass: wgpu::ComputePass<'pass>,
     pub globals: &'pass Globals,
 }
 
