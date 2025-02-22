@@ -9,10 +9,10 @@ use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::FrameContext;
 use anyhow::Result;
-use tracing::warn;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
+use tracing::warn;
 
 pub enum ChartStep {
     Draw(Draw),
@@ -56,7 +56,7 @@ impl Chart {
             .iter()
             .map(|step| match step {
                 ChartStep::Draw(draw) => draw.id.clone(),
-                ChartStep::Compute(compute) => compute.id.clone(),
+                // ChartStep::Compute(compute) => compute.id.clone(),
                 ChartStep::GenerateMipLevels(genmips) => genmips._id.clone(),
             })
             .collect::<Vec<String>>();
@@ -179,19 +179,22 @@ impl Chart {
         // Render step
         self.evaluate_splines(context.globals.chart_time);
         for image in &self.images {
-            image.enforce_size_rule(&context.vulkan_context, context.screen_viewport.extent)?;
+            image.enforce_size_rule(
+                &context.gpu_context,
+                &context.screen_viewport,
+            )?;
         }
-        for buffer_generator in &self.buffer_generators {
-            buffer_generator.generate()?;
-        }
+        // for buffer_generator in &self.buffer_generators {
+        //     buffer_generator.generate()?;
+        // }
         for step in &self.steps {
             match step {
                 ChartStep::Draw(draw) => {
                     draw.render(context, &self.camera)?;
                 }
-                ChartStep::Compute(_) => {
-                    // Compute only runs simulation or init, ignore for now
-                }
+                // ChartStep::Compute(_) => {
+                //     // Compute only runs simulation or init, ignore for now
+                // }
                 ChartStep::GenerateMipLevels(genmips) => {
                     genmips.execute(context)?;
                 }

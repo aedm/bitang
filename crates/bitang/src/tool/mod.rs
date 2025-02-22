@@ -119,7 +119,8 @@ impl<'window> WindowContext<'window> {
     }
 }
 
-struct Viewport {
+#[derive(Clone, Copy)]
+pub struct Viewport {
     pub x: u32,
     pub y: u32,
     pub width: u32,

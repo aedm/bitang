@@ -1,9 +1,9 @@
 use crate::render::image::BitangImage;
-use crate::tool::{FrameContext, RenderPassContext, WindowContext};
+use crate::tool::{FrameContext, RenderPassContext, Viewport, WindowContext};
 use anyhow::{bail, ensure, Result};
+use smallvec::SmallVec;
 use std::sync::Arc;
 
-use super::Viewport;
 // use vulkano::command_buffer::RenderPassBeginInfo;
 // use vulkano::image::ImageLayout;
 // use vulkano::pipeline::graphics::viewport::Viewport;
@@ -88,75 +88,63 @@ impl Pass {
     //     Ok(render_pass)
     // }
 
-    fn make_render_pass_context(
-        &self,
-        frame_context: &mut FrameContext,
-    ) -> Result<RenderPassContext> {
- 
-
-        let color_attachments = self
+    fn make_render_pass_context<'pass, 'frame>(
+        &'pass self,
+        frame_context: &'pass mut FrameContext,
+    ) -> Result<RenderPassContext<'pass>> {
+        // Collect attachment texture views
+        let color_attachment_views: SmallVec<[_; 64]> = self
             .color_buffers
             .iter()
-            .map(|selector| {
-                let texture_view = selector.get_view_for_render_target()?;
-                Some(self.make_color_attachment(&texture_view))
-            })
-            .collect::<Vec<_>>();
-        let depth_stencil_attachment = depth_buffer.as_ref().map(|selector| {
-            Self::make_attachment_reference(
-                selector,
-                &mut attachments,
-                ImageLayout::DepthStencilAttachmentOptimal,
-                load_op,
-            )
-        });
+            .map(|image| image.get_view_for_render_target())
+            .collect::<Result<_>>()?;
 
-        let mut render_pass =
+        let depth_buffer_view = self
+            .depth_buffer
+            .as_ref()
+            .map(|depth_image| depth_image.get_view_for_render_target())
+            .transpose()?;
+
+        // Collect attachments
+        let mut color_attachments = SmallVec::<[_; 64]>::new();
+        for i in 0..color_attachment_views.len() {
+            color_attachments.push(Some(self.make_color_attachment(&color_attachment_views[i])));
+        }
+        let depth_stencil_attachment = depth_buffer_view
+            .as_ref()
+            .map(|view| self.make_depth_attachment(view));
+
+        let mut pass =
             frame_context
-                .encoder
+                .command_encoder
                 .begin_render_pass(&wgpu::RenderPassDescriptor {
                     // TODO: label
                     label: None,
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &self.depth_view,
-                        depth_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(1.0),
-                            store: wgpu::StoreOp::Store,
-                        }),
-                        stencil_ops: None,
-                    }),
+                    color_attachments: &color_attachments,
+                    depth_stencil_attachment,
                     timestamp_writes: None,
                     occlusion_query_set: None,
                 });
 
         Ok(RenderPassContext {
             gpu_context: &frame_context.gpu_context,
-            pass: self,
+            pass,
             globals: &frame_context.globals,
         })
     }
 
-    fn make_color_attachment(
+    fn make_color_attachment<'a>(
         &self,
-        texture_view: &wgpu::TextureView,
-    ) -> wgpu::RenderPassColorAttachment {
-        let load = if let Some(clear_color) = &self.clear_color {
-            wgpu::LoadOp::Clear(wgpu::Color {
+        texture_view: &'a wgpu::TextureView,
+    ) -> wgpu::RenderPassColorAttachment<'a> {
+        let load = match &self.clear_color {
+            Some(clear_color) => wgpu::LoadOp::Clear(wgpu::Color {
                 r: clear_color[0] as f64,
                 g: clear_color[1] as f64,
                 b: clear_color[2] as f64,
                 a: clear_color[3] as f64,
-            })
-        } else {
-            wgpu::LoadOp::Load
+            }),
+            None => wgpu::LoadOp::Load,
         };
 
         wgpu::RenderPassColorAttachment {
@@ -169,26 +157,45 @@ impl Pass {
         }
     }
 
-    fn make_attachment_reference(
-        image: &Arc<BitangImage>,
-        attachments: &mut Vec<AttachmentDescription>,
-        layout: ImageLayout,
-        load_op: AttachmentLoadOp,
-    ) -> AttachmentReference {
-        let reference = AttachmentReference {
-            attachment: attachments.len() as u32,
-            layout,
-            ..Default::default()
+    fn make_depth_attachment<'a>(
+        &self,
+        texture_view: &'a wgpu::TextureView,
+    ) -> wgpu::RenderPassDepthStencilAttachment<'a> {
+        let load = match &self.clear_color {
+            Some(_) => wgpu::LoadOp::Clear(1.0),
+            None => wgpu::LoadOp::Load,
         };
 
-        let attachment_description = image.make_attachment_description(layout, load_op);
-        // let attachment_description = match selector {
-        //     ImageSelector::Image(image) => image.make_attachment_description(layout, load_op),
-        // };
-
-        attachments.push(attachment_description);
-        reference
+        wgpu::RenderPassDepthStencilAttachment {
+            view: texture_view,
+            depth_ops: Some(wgpu::Operations {
+                load,
+                store: wgpu::StoreOp::Store,
+            }),
+            stencil_ops: None,
+        }
     }
+
+    // fn make_attachment_reference(
+    //     image: &Arc<BitangImage>,
+    //     attachments: &mut Vec<AttachmentDescription>,
+    //     layout: ImageLayout,
+    //     load_op: AttachmentLoadOp,
+    // ) -> AttachmentReference {
+    //     let reference = AttachmentReference {
+    //         attachment: attachments.len() as u32,
+    //         layout,
+    //         ..Default::default()
+    //     };
+
+    //     let attachment_description = image.make_attachment_description(layout, load_op);
+    //     // let attachment_description = match selector {
+    //     //     ImageSelector::Image(image) => image.make_attachment_description(layout, load_op),
+    //     // };
+
+    //     attachments.push(attachment_description);
+    //     reference
+    // }
 
     pub fn get_viewport(&self, context: &mut FrameContext) -> Result<Viewport> {
         let first_image = if let Some(img) = self.color_buffers.first() {
@@ -214,41 +221,42 @@ impl Pass {
             context.screen_viewport.clone()
         } else {
             Viewport {
-                offset: [0.0, 0.0],
-                extent: [size.0 as f32, size.1 as f32],
-                depth_range: [0.0, 1.0],
+                x: 0,
+                y: 0,
+                width: size.0,
+                height: size.1,
             }
         };
         Ok(viewport)
     }
 
-    pub fn make_render_pass_descriptor(&self) -> Result<wgpu::RenderPassDescriptor> {
-        // Collect color attachment images...
-        let mut attachments = vec![];
-        let mut clear_values = vec![];
-        for image in &self.color_buffers {
-            attachments.push(image.get_view_for_render_target()?);
-            clear_values.push(self.clear_color.map(|c| c.into()));
-        }
+    // pub fn make_render_pass_descriptor(&self) -> Result<wgpu::RenderPassDescriptor> {
+    //     // Collect color attachment images...
+    //     let mut attachments = vec![];
+    //     let mut clear_values = vec![];
+    //     for image in &self.color_buffers {
+    //         attachments.push(image.get_view_for_render_target()?);
+    //         clear_values.push(self.clear_color.map(|c| c.into()));
+    //     }
 
-        // ...and the depth attachment image
-        if let Some(depth) = &self.depth_buffer {
-            attachments.push(depth.get_view_for_render_target()?);
-            clear_values.push(self.clear_color.map(|_| 1f32.into()));
-        }
+    //     // ...and the depth attachment image
+    //     if let Some(depth) = &self.depth_buffer {
+    //         attachments.push(depth.get_view_for_render_target()?);
+    //         clear_values.push(self.clear_color.map(|_| 1f32.into()));
+    //     }
 
-        // Create the framebuffer
-        let framebuffer = Framebuffer::new(
-            self.vulkan_render_pass.clone(),
-            FramebufferCreateInfo {
-                attachments,
-                ..Default::default()
-            },
-        )?;
+    //     // Create the framebuffer
+    //     let framebuffer = Framebuffer::new(
+    //         self.vulkan_render_pass.clone(),
+    //         FramebufferCreateInfo {
+    //             attachments,
+    //             ..Default::default()
+    //         },
+    //     )?;
 
-        Ok(RenderPassBeginInfo {
-            clear_values,
-            ..RenderPassBeginInfo::framebuffer(framebuffer)
-        })
-    }
+    //     Ok(RenderPassBeginInfo {
+    //         clear_values,
+    //         ..RenderPassBeginInfo::framebuffer(framebuffer)
+    //     })
+    // }
 }
