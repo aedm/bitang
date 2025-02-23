@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use tracing::error;
 
-use super::GpuContext;
+use super::{ComputePassContext, GpuContext, Viewport};
 // use vulkano::command_buffer::{
 //     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
 // };
@@ -104,8 +104,8 @@ impl ContentRenderer {
     }
 
     /// Returns true if the project changed.
-    pub fn reload_project(&mut self, vulkan_context: &Arc<WindowContext>) -> bool {
-        let project = self.project_loader.get_or_load_project(vulkan_context);
+    pub fn reload_project(&mut self, context: &Arc<GpuContext>) -> bool {
+        let project = self.project_loader.get_or_load_project(context);
 
         // Compare references to see if it's the same cached value that we tried rendering last time
         if project.as_ref().map(Rc::as_ptr) != self.app_state.project.as_ref().map(Rc::as_ptr) {
@@ -135,67 +135,77 @@ impl ContentRenderer {
         self.app_state.pause();
     }
 
-    fn reset_chart_simulation(vulkan_context: &Arc<WindowContext>, chart: &Chart) -> Result<()> {
-        let mut first_iteration = true;
-        let mut is_simulation_done = false;
-        while !is_simulation_done {
-            // Make command buffer
-            let mut command_builder = AutoCommandBufferBuilder::primary(
-                &vulkan_context.command_buffer_allocator,
-                vulkan_context.gfx_queue.queue_family_index(),
-                CommandBufferUsage::OneTimeSubmit,
-            )?;
+    fn reset_chart_simulation(gpu_context: &Arc<GpuContext>, chart: &Chart) -> Result<()> {
+        todo!();
+        // let mut first_iteration = true;
+        // let mut is_simulation_done = false;
+        // while !is_simulation_done {
+        //     // Make command buffer
+        //     // let mut command_builder = AutoCommandBufferBuilder::primary(
+        //     //     &vulkan_context.command_buffer_allocator,
+        //     //     vulkan_context.gfx_queue.queue_family_index(),
+        //     //     CommandBufferUsage::OneTimeSubmit,
+        //     // )?;
 
-            // Make render context to run simulation
-            let mut context = FrameContext {
-                vulkan_context: vulkan_context.clone(),
-                screen_viewport: Viewport {
-                    offset: [0.0, 0.0],
-                    extent: [1.0, 1.0],
-                    depth_range: 0.0..=1.0,
-                },
-                command_builder: &mut command_builder,
-                globals: Default::default(),
-                simulation_elapsed_time_since_last_render: 0.0,
-            };
-            context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
+        //     // Make render context to run simulation
+        //     let compute_pass = 
+        //     let mut context = ComputePassContext {
+        //         gpu_context: &gpu_context,
+        //         pass: todo!(),
+        //         globals: Default::default(),
+        //     };
+        //     // let mut context = FrameContext {
+        //     //     screen_viewport: Viewport {
+        //     //         x: 0,
+        //     //         y: 0,
+        //     //         width: 1,
+        //     //         height: 1,
+        //     //     },
+        //     //     globals: Default::default(),
+        //     //     simulation_elapsed_time_since_last_render: 0.0,
+        //     //     gpu_context: todo!(),
+        //     //     final_render_target: todo!(),
+        //     //     command_encoder: todo!(),
+        //     // };
+        //     context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
 
-            is_simulation_done = chart.reset_simulation(&mut context, first_iteration, true)?;
-            first_iteration = false;
+        //     is_simulation_done = chart.reset_simulation(&mut context, first_iteration, true)?;
+        //     first_iteration = false;
 
-            // Execute simulation and wait for it to finish
-            command_builder
-                .build()?
-                .execute(vulkan_context.gfx_queue.clone())?
-                .then_signal_fence_and_flush()?
-                .wait(None)?;
-        }
-        Ok(())
+        //     // Execute simulation and wait for it to finish
+        //     command_builder
+        //         .build()?
+        //         .execute(vulkan_context.gfx_queue.clone())?
+        //         .then_signal_fence_and_flush()?
+        //         .wait(None)?;
+        // }
+        // Ok(())
     }
 
-    pub fn reset_simulation(&mut self, vulkan_context: &Arc<WindowContext>) -> Result<()> {
-        match self.app_state.get_chart() {
-            // Reset only the selected chart
-            Some(chart) => Self::reset_chart_simulation(vulkan_context, &chart)?,
+    pub fn reset_simulation(&mut self, context: &GpuContext) -> Result<()> {
+        todo!();
+        // match self.app_state.get_chart() {
+        //     // Reset only the selected chart
+        //     Some(chart) => Self::reset_chart_simulation(vulkan_context, &chart)?,
 
-            // No chart selected, reset all of them
-            None => {
-                if let Some(project) = &self.app_state.project {
-                    for cut in &project.cuts {
-                        Self::reset_chart_simulation(vulkan_context, &cut.chart)?;
-                    }
-                }
-            }
-        };
+        //     // No chart selected, reset all of them
+        //     None => {
+        //         if let Some(project) = &self.app_state.project {
+        //             for cut in &project.cuts {
+        //                 Self::reset_chart_simulation(vulkan_context, &cut.chart)?;
+        //             }
+        //         }
+        //     }
+        // };
 
-        // Update state
-        self.app_state.tick();
-        if self.app_state.is_playing() {
-            self.app_state.reset();
-            self.music_player
-                .play_from(self.app_state.get_project_relative_time());
-        }
-        Ok(())
+        // // Update state
+        // self.app_state.tick();
+        // if self.app_state.is_playing() {
+        //     self.app_state.reset();
+        //     self.music_player
+        //         .play_from(self.app_state.get_project_relative_time());
+        // }
+        // Ok(())
     }
 
     pub fn set_last_render_time(&mut self, last_render_time: f32) {

@@ -114,7 +114,7 @@ impl Pass {
             .as_ref()
             .map(|view| self.make_depth_attachment(view));
 
-        let mut pass =
+        let pass =
             frame_context
                 .command_encoder
                 .begin_render_pass(&wgpu::RenderPassDescriptor {

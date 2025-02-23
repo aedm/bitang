@@ -143,7 +143,7 @@ fn load_texture(
         let image = JxlImage::builder()
             .read(content)
             .map_err(|e| anyhow!("Can't load image {e}"))?;
-        let dimensions = [image.width(), image.height(), 1];
+        let size = [image.width(), image.height(), 1];
         let render = image
             .render_frame(0)
             .map_err(|e| anyhow!("Can't render image {e}"))?;
@@ -154,28 +154,28 @@ fn load_texture(
             "Only RGB images are supported"
         );
         // Map RGB to RGBA
-        let mut raw = vec![0.0f32; (dimensions[0] * dimensions[1] * 4) as usize];
-        for i in 0..((dimensions[0] * dimensions[1]) as usize) {
+        let mut raw = vec![0.0f32; (size[0] * size[1] * 4) as usize];
+        for i in 0..((size[0] * size[1]) as usize) {
             for o in 0..3 {
                 raw[i * 4 + o] = buf[i * 3 + o];
             }
         }
-        BitangImage::immutable_from_iter(
+        BitangImage::immutable_from_pixel_data(
             resource_name,
             context,
             PixelFormat::Rgba32F,
-            dimensions,
-            raw,
+            size,
+            bytemuck::cast_slice(&raw),
         )
     } else {
         let image = image::load_from_memory(content)?;
-        let dimensions = [image.dimensions().0, image.dimensions().1, 1];
+        let size = [image.dimensions().0, image.dimensions().1];
         if resource_name.ends_with(".hdr") || resource_name.ends_with(".exr") {
             BitangImage::immutable_from_pixel_data(
                 resource_name,
                 context,
                 PixelFormat::Rgba32F,
-                dimensions,
+                size,
                 bytemuck::cast_slice(&image.into_rgba32f().into_raw()),
             )
         } else {
@@ -183,7 +183,7 @@ fn load_texture(
                 resource_name,
                 context,
                 PixelFormat::Rgba8Srgb,
-                dimensions,
+                size,
                 &image.into_rgba8().into_raw(),
             )
         }

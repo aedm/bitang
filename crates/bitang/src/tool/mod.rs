@@ -11,8 +11,9 @@ use crate::control::controls::Globals;
 use crate::render::image::BitangImage;
 use crate::render::SCREEN_COLOR_FORMAT;
 use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
-use crate::tool::runners::window_runner::WindowRunner;
+use crate::tool::runners::window_runner::EframeApp;
 use anyhow::{Context, Result};
+use runners::window_runner::WindowRunner;
 use std::default::Default;
 use std::sync::Arc;
 // use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
@@ -146,6 +147,7 @@ pub struct RenderPassContext<'pass> {
 
 pub struct ComputePassContext<'pass> {
     pub gpu_context: &'pass GpuContext,
+    pub command_encoder: wgpu::CommandEncoder,
     pub pass: wgpu::ComputePass<'pass>,
     pub globals: &'pass Globals,
 }

@@ -2,7 +2,7 @@ use crate::control::controls::GlobalType;
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::render::shader::{GlobalUniformMapping, ShaderKind};
-use crate::tool::WindowContext;
+use crate::tool::{GpuContext, WindowContext};
 use ahash::AHashSet;
 use anyhow::{bail, ensure, Context, Result};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -187,7 +187,7 @@ pub struct ShaderArtifact {
 
 impl ShaderArtifact {
     fn from_spirv_binary(
-        context: &Arc<WindowContext>,
+        context: &GpuContext,
         kind: ShaderKind,
         spirv_binary: &[u8],
     ) -> Result<Self> {
@@ -208,13 +208,18 @@ impl ShaderArtifact {
             .find(|ep| ep.name == main_function)
             .context("Failed to find entry point 'main'")?;
 
-        let module = unsafe {
-            let shader_words = shader::spirv::bytes_to_words(spirv_binary)?;
-            ShaderModule::new(
-                context.device.clone(),
-                ShaderModuleCreateInfo::new(&shader_words),
-            )
-        }?;
+        // let module = unsafe {
+        //     let shader_words = shader::spirv::bytes_to_words(spirv_binary)?;
+        //     ShaderModule::new(
+        //         context.device.clone(),
+        //         ShaderModuleCreateInfo::new(&shader_words),
+        //     )
+        // }?;
+        let module = context.device.create_shader_module(ShaderModuleCreateInfo {
+            label: Some("Shader"),
+            // source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        });
+
 
         let descriptor_set_index = match kind {
             ShaderKind::Vertex => 0,

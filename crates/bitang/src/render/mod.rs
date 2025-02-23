@@ -19,13 +19,17 @@ use crate::render::image::PixelFormat;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex3 {
+pub struct Vertex3 {
     pub a_position: [f32; 3],
     pub a_normal: [f32; 3],
     pub a_tangent: [f32; 3],
     pub a_uv: [f32; 2],
     pub a_padding: f32,
 }
+
+pub type MeshIndex = u32;
+
+pub type Size2D = [u32; 2];
 
 // #[derive(BufferContents, Vertex, Default, Clone, Copy, Debug)]
 // #[repr(C)]

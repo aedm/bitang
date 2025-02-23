@@ -6,6 +6,8 @@ use std::sync::{Arc, RwLock};
 use tracing::warn;
 use wgpu::util::DeviceExt;
 
+use super::Size2D;
+
 // use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage};
 // use vulkano::command_buffer::{
 //     AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
@@ -127,7 +129,7 @@ impl BitangImage {
         id: &str,
         context: &GpuContext,
         pixel_format: PixelFormat,
-        size: [u32; 2],
+        size: Size2D,
         data: &[u8],
     ) -> Result<Arc<Self>> {
         let texture_descriptor = wgpu::TextureDescriptor {
@@ -135,7 +137,7 @@ impl BitangImage {
             size: wgpu::Extent3d {
                 width: size[0],
                 height: size[1],
-                depth_or_array_layers: size[2],
+                depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count: 1,

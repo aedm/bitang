@@ -15,11 +15,11 @@ tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 nu-ansi-term = "*"
 codespan-reporting = "0.11.1"
 
-egui-winit = "0.31"
+eframe = { version = "0.31", features = ["wgpu"] }
 egui_plot = "0.31"
 winit = "*"
 egui = "*"
-wgpu = { version = "24", default-features = false, features = ["wgsl"] }
+wgpu = { version = "*", features = ["spirv"] }
 
 # egui_winit_vulkano = "0.27"
 # egui = "0.24"
@@ -30,7 +30,7 @@ wgpu = { version = "24", default-features = false, features = ["wgsl"] }
 # vulkano-util = "0.34"
 # vulkano-win = "0.34"
 
-naga = { version = "22.1.0", features = ["spv-out", "wgsl-in"] }
+naga = { version = "*", features = ["spv-out", "wgsl-in"] }
 spirq = "1.2.2"
 glam = "0.25"
 

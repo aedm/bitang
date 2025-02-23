@@ -7,7 +7,7 @@ use crate::render::draw::Draw;
 use crate::render::generate_mip_levels::GenerateMipLevels;
 use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
-use crate::tool::FrameContext;
+use crate::tool::{ComputePassContext, FrameContext};
 use anyhow::Result;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -74,11 +74,12 @@ impl Chart {
         }
     }
 
-    /// Returns true if the simulation is done, false if the simulation needs more iteration to
-    /// catch up with the current time.
+    /// Reruns the initialization step and runs the simulation for the precalculation time.
+    /// 
+    /// Returns true if the computation is done, false if the precalculation needs more iterations.
     pub fn reset_simulation(
         &self,
-        context: &mut FrameContext,
+        context: &mut ComputePassContext,
         run_init: bool,
         run_precalc: bool,
     ) -> Result<bool> {
@@ -120,9 +121,8 @@ impl Chart {
     /// Also sets the ratio between two sim steps (`simulation_frame_ratio`) that should be used
     /// to blend buffer values during rendering.
     ///
-    /// Returns true if the simulation is done, false if the simulation needs more iteration to
-    /// catch up with the current time.
-    fn simulate(&self, context: &mut FrameContext, is_precalculation: bool) -> Result<bool> {
+    /// Returns true if the simulation is done, false if the simulation needs more iteration.
+    fn simulate(&self, context: &mut ComputePassContext, is_precalculation: bool) -> Result<bool> {
         // Save the app time and restore it after the simulation step.
         // The simulation sees the simulation time as the current time.
         let app_time = context.globals.app_time;
