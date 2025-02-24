@@ -40,6 +40,7 @@ pub struct GpuContext {
     // pub vulkano_context: Arc<VulkanoContext>,
     // pub command_buffer_allocator: StandardCommandBufferAllocator,
     // pub descriptor_set_allocator: StandardDescriptorSetAllocator,
+    pub instance: wgpu::Instance,
     pub adapter: wgpu::Adapter,
     pub queue: wgpu::Queue,
     pub device: wgpu::Device,
@@ -59,6 +60,7 @@ impl GpuContext {
                 .await?;
 
             Ok(Arc::new(Self {
+                instance,
                 adapter,
                 queue,
                 device,

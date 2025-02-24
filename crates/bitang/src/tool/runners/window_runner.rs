@@ -3,7 +3,7 @@ use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{
-    GpuContext, FrameContext, WindowContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
+    FrameContext, GpuContext, WindowContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
     START_IN_DEMO_MODE,
 };
 use anyhow::{Context, Result};
@@ -11,22 +11,29 @@ use std::cmp::max;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{error, info};
+use winit::keyboard::{Key, NamedKey};
 // use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 // use vulkano::pipeline::graphics::viewport::Viewport;
 // use vulkano::sync::GpuFuture;
 // use vulkano_util::renderer::VulkanoWindowRenderer;
 // use vulkano_util::window::{VulkanoWindows, WindowDescriptor};
-use winit::dpi::PhysicalSize;
+use winit::dpi::{LogicalSize, PhysicalSize, Size};
 use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::{Fullscreen, Window};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::window::{Fullscreen, Window, WindowAttributes};
 
-pub struct WindowRunner {
-
-}
+pub struct WindowRunner {}
 
 impl WindowRunner {
     pub fn run() -> Result<()> {
+        let event_loop = EventLoop::new().unwrap();
+
+        // TODO: review if this is needed
+        event_loop.set_control_flow(ControlFlow::Poll);
+
+        let mut app = App::default();
+        event_loop.run_app(&mut app);
+
         let options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default().with_inner_size([350.0, 380.0]),
             multisampling: 1,
@@ -36,23 +43,61 @@ impl WindowRunner {
         eframe::run_native(
             "Custom 3D painting in eframe using glow",
             options,
-            Box::new(|creation_context| {
-                EframeApp::new(creation_context)
-            }),
+            Box::new(|creation_context| App::new(creation_context)),
         );
 
         Ok(())
     }
 }
 
-struct EframeApp {
+struct WinitAppWrapper {
+    app: Option<App>,
+}
+
+impl WinitAppWrapper {
+    fn new() -> Self {
+        Self { app: None }
+    }
+}
+
+impl winit::application::ApplicationHandler for WinitAppWrapper {
+    /// The `resumed` event here is considered to be equivalent to context creation.
+    /// That assumption might not be true on mobile, but works fine on desktop.
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        assert!(!self.app.is_some());
+
+        let Ok(app) = App::new(event_loop) else {
+            panic!("Failed to create app");
+        };
+        self.app = Some(app);
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: WindowEvent,
+    ) {
+        if let Some(app) = &mut self.app {
+            app.handle_window_event(&event_loop, &event);
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        event_loop.request_redraw();
+    }
+}
+
+struct App {
     // pub vulkan_context: Arc<WindowContext>,
     gpu_context: Arc<GpuContext>,
     is_fullscreen: bool,
     ui: Ui,
     // windows: VulkanoWindows,
-    app: ContentRenderer,
+    content_renderer: ContentRenderer,
     app_start_time: Instant,
+    final_render_target: Arc<BitangImage>,
+    demo_mode: bool,
 }
 
 pub enum PaintResult {
@@ -60,31 +105,33 @@ pub enum PaintResult {
     EndReached,
 }
 
-impl eframe::App for EframeApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        self.render_frame_to_screen(ctx, frame);
+impl App {
+    const SAVE_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
+    const FULLSCREEN_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::F11);
+    const RESET_SIMULATION_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::F1);
+    const TOGGLE_SIMULATION_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::F2);
 
-    }
-}
+    fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Result<Self> {
+        let gpu_context = GpuContext::new()?;
+        let window = event_loop.create_window(WindowAttributes {
+            inner_size: Some(Size::Logical(LogicalSize::new(1280.0, 1000.0))),
+            title: "Bitang".to_string(),
+            ..WindowAttributes::default()
+        })?;
+        let size = window.inner_size();
 
-impl EframeApp {
-    const SAVE_SHORTCUT: egui::KeyboardShortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
-    const FULLSCREEN_SHORTCUT: egui::KeyboardShortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::F11);
-    const RESET_SIMULATION_SHORTCUT: egui::KeyboardShortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::F1);
-    const TOGGLE_SIMULATION_SHORTCUT: egui::KeyboardShortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::F2);
+        let surface = gpu_context.instance.create_surface(&window)?;
+        let mut surface_config = surface
+            .get_default_config(&gpu_context.adapter, size.width, size.height)
+            .context("No default config found")?;
+        surface.configure(&gpu_context.device, &surface_config);
 
-
-    fn new(creation_context: &eframe::CreationContext<'_>) -> Result<Box<dyn eframe::App>> {
-        let wgpu_render_state = creation_context.wgpu_render_state.as_ref().context("wgpu not supported")?;
-        let gpu_context = Arc::new(GpuContext {
-            adapter: wgpu_render_state.adapter.clone(),
-            queue: wgpu_render_state.queue.clone(),
-            device: wgpu_render_state.device.clone(),
-        });
-
-
-        // let final_render_target =
-        //     BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
+        let final_render_target =
+            BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
         // let vulkano_context = init_context.vulkano_context.clone();
         // let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
@@ -92,7 +139,7 @@ impl EframeApp {
         info!("Init DOOM refresh daemon...");
         app.reset_simulation(&gpu_context)?;
 
-        let event_loop = EventLoop::new();
+        // let event_loop = EventLoop::new();
         // let mut windows = VulkanoWindows::default();
         // let window_descriptor = WindowDescriptor {
         //     title: "Bitang".to_string(),
@@ -112,111 +159,114 @@ impl EframeApp {
             // &windows.get_primary_renderer().unwrap().surface(),
         )?;
 
-        Ok(Box::new(Self {
+        let mut app = Self {
             is_fullscreen: false,
             ui,
-            app,
+            content_renderer: app,
             app_start_time: Instant::now(),
             gpu_context,
-        }))
+            final_render_target,
+            demo_mode: START_IN_DEMO_MODE,
+        };
+
+        if app.demo_mode {
+            // Start demo in fullscreen
+            info!("Starting demo.");
+            app.toggle_fullscreen();
+            app.content_renderer.play();
+        }
+
+        Ok(app)
     }
 
     fn handle_hotkeys(&self, ctx: egui::Context) {
-        // Save
-        if ctx.input_mut(|i| i.consume_shortcut(&Self::SAVE_SHORTCUT)) {
-            if let Some(project) = &self.ui_state.project {
-                if let Err(err) = self.ui_state.control_repository.save_control_files(project) {
-                    error!("Failed to save controls: {err}");
+        todo!();
+        // // Save
+        // if ctx.input_mut(|i| i.consume_shortcut(&Self::SAVE_SHORTCUT)) {
+        //     if let Some(project) = &self.ui_state.project {
+        //         if let Err(err) = self.ui_state.control_repository.save_control_files(project) {
+        //             error!("Failed to save controls: {err}");
+        //         }
+        //     }
+        // }
+    }
+
+    fn handle_window_event(mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
+        self.ui.handle_window_event(&event);
+        match event {
+            WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                self.get_renderer().resize();
+            }
+            WindowEvent::CloseRequested => {
+                info!("App closed.");
+                event_loop.exit();
+            }
+            WindowEvent::KeyboardInput {
+                event: key_event, ..
+            } => {
+                if key_event.state == winit::event::ElementState::Pressed {
+                    match key_event.logical_key {
+                        Key::Named(NamedKey::F11) => {
+                            self.toggle_fullscreen();
+                            self.demo_mode = false;
+                        }
+                        Key::Named(NamedKey::Escape) => {
+                            if self.demo_mode {
+                                info!("Exiting on user request.");
+                                event_loop.exit();
+                            } else if self.is_fullscreen {
+                                self.toggle_fullscreen();
+                                self.content_renderer.app_state.pause();
+                            }
+                        }
+                        Key::Named(NamedKey::Space) => {
+                            self.content_renderer.toggle_play();
+                        }
+                        Key::Named(NamedKey::F1) => {
+                            if let Err(err) =
+                                self.content_renderer.reset_simulation(&self.gpu_context)
+                            {
+                                error!("Failed to reset simulation: {:?}", err);
+                            }
+                            // Skip the time spent resetting the simulation
+                            self.content_renderer
+                                .set_last_render_time(self.app_start_time.elapsed().as_secs_f32());
+                        }
+                        Key::Named(NamedKey::F2) => {
+                            self.content_renderer.app_state.is_simulation_enabled =
+                                !self.content_renderer.app_state.is_simulation_enabled;
+                        }
+                        _ => (),
+                    }
                 }
             }
+            WindowEvent::RedrawRequested => {
+                let result = self.render_frame_to_screen();
+                match result {
+                    PaintResult::None => {}
+                    PaintResult::EndReached => {
+                        if self.demo_mode {
+                            info!("Everything that has a beginning must have an end.");
+                            event_loop.exit();
+                        } else if self.is_fullscreen {
+                            self.toggle_fullscreen();
+                        }
+                        self.app.stop();
+                    }
+                }
+            }
+            WindowEvent::MainEventsCleared => {
+                self.get_window().request_redraw();
+            }
+            _ => (),
         }
     }
 
-    // fn run_inner(mut self, event_loop: EventLoop<()>) {
-    //     let mut demo_mode = START_IN_DEMO_MODE;
-    //     if demo_mode {
-    //         info!("Starting demo.");
-    //         self.toggle_fullscreen();
-    //         self.app.play();
-    //     }
-
-    //     event_loop.run(move |event, _, control_flow| {
-    //         match event {
-    //             Event::WindowEvent { event, window_id } if window_id == self.get_window().id() => {
-    //                 self.ui.handle_window_event(&event);
-    //                 match event {
-    //                     WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-    //                         self.get_renderer().resize();
-    //                     }
-    //                     WindowEvent::CloseRequested => {
-    //                         *control_flow = ControlFlow::Exit;
-    //                         info!("App closed.");
-    //                     }
-    //                     WindowEvent::KeyboardInput { input, .. } => {
-    //                         if input.state == winit::event::ElementState::Pressed {
-    //                             match input.virtual_keycode {
-    //                                 Some(winit::event::VirtualKeyCode::F11) => {
-    //                                     self.toggle_fullscreen();
-    //                                     demo_mode = false;
-    //                                 }
-    //                                 Some(winit::event::VirtualKeyCode::Escape) => {
-    //                                     if demo_mode {
-    //                                         *control_flow = ControlFlow::Exit;
-    //                                         info!("Exiting on user request.");
-    //                                     } else if self.is_fullscreen {
-    //                                         self.toggle_fullscreen();
-    //                                         self.app.app_state.pause();
-    //                                     }
-    //                                 }
-    //                                 Some(winit::event::VirtualKeyCode::Space) => {
-    //                                     self.app.toggle_play();
-    //                                 }
-    //                                 Some(winit::event::VirtualKeyCode::F1) => {
-    //                                     if let Err(err) =
-    //                                         self.app.reset_simulation(&self.vulkan_context)
-    //                                     {
-    //                                         error!("Failed to reset simulation: {:?}", err);
-    //                                     }
-    //                                     // Skip the time spent resetting the simulation
-    //                                     self.app.set_last_render_time(
-    //                                         self.app_start_time.elapsed().as_secs_f32(),
-    //                                     );
-    //                                 }
-    //                                 Some(winit::event::VirtualKeyCode::F2) => {
-    //                                     self.app.app_state.is_simulation_enabled =
-    //                                         !self.app.app_state.is_simulation_enabled;
-    //                                 }
-    //                                 _ => (),
-    //                             }
-    //                         }
-    //                     }
-    //                     _ => (),
-    //                 }
-    //             }
-    //             Event::RedrawRequested(_) => {
-    //                 let result = self.render_frame_to_screen();
-    //                 match result {
-    //                     PaintResult::None => {}
-    //                     PaintResult::EndReached => {
-    //                         if demo_mode {
-    //                             *control_flow = ControlFlow::Exit;
-    //                             info!("Everything that has a beginning must have an end.");
-    //                         } else if self.is_fullscreen {
-    //                             self.toggle_fullscreen();
-    //                         }
-    //                         self.app.stop();
-    //                     }
-    //                 }
-    //             }
-    //             Event::MainEventsCleared => {
-    //                 self.get_window().request_redraw();
-    //             }
-    //             _ => (),
-    //         };
-    //     });
-    // }
-
-    fn render_frame_to_screen(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) -> PaintResult {
+    fn render_frame_to_screen(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+    ) -> PaintResult {
         let Some(wgpu_render_state) = frame.wgpu_render_state() else {
             return PaintResult::None;
         };
@@ -294,17 +344,18 @@ impl EframeApp {
             simulation_elapsed_time_since_last_render: 0.0,
         };
         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
-        
 
-        if self.app.reload_project(&self.vulkan_context) {
-            self.app.reset_simulation(&self.vulkan_context).unwrap();
+        if self.content_renderer.reload_project(&self.vulkan_context) {
+            self.content_renderer
+                .reset_simulation(&self.vulkan_context)
+                .unwrap();
             render_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
-            self.app
+            self.content_renderer
                 .set_last_render_time(render_context.globals.app_time);
         }
 
         // Render content
-        self.app.draw(&mut render_context);
+        self.content_renderer.draw(&mut render_context);
 
         // Render UI
         if !self.is_fullscreen && ui_height > 0.0 {
@@ -312,7 +363,7 @@ impl EframeApp {
                 &mut render_context,
                 ui_height,
                 scale_factor,
-                &mut self.app.app_state,
+                &mut self.content_renderer.app_state,
             );
         }
 
@@ -325,8 +376,8 @@ impl EframeApp {
         // TODO: check if we really need to wait for the future
         self.get_renderer().present(after_future, true);
 
-        if let Some(project) = &self.app.app_state.project {
-            if self.app.app_state.cursor_time >= project.length {
+        if let Some(project) = &self.content_renderer.app_state.project {
+            if self.content_renderer.app_state.cursor_time >= project.length {
                 return PaintResult::EndReached;
             }
         }
