@@ -11,7 +11,7 @@ use std::cmp::max;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{error, info};
-use wgpu::Surface;
+use wgpu::{Surface, SurfaceConfiguration};
 use winit::keyboard::{Key, NamedKey};
 // use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 // use vulkano::pipeline::graphics::viewport::Viewport;
@@ -91,7 +91,8 @@ struct App {
     demo_mode: bool,
     window: Arc<Window>,
     surface: Surface<'static>,
-    surface_config: wgpu::SurfaceConfig,
+    surface_config: SurfaceConfiguration,
+    egui_context: egui::Context,
 }
 
 pub enum PaintResult {
@@ -148,6 +149,8 @@ impl App {
         //     ci.min_image_count = ci.min_image_count.max(3);
         // });
 
+        let mut egui_context = egui::Context::default();
+
         let ui = Ui::new(
             // &gpu_context,
             // &event_loop,
@@ -165,6 +168,7 @@ impl App {
             window,
             surface,
             surface_config,
+            egui_context,
         };
 
         if app.demo_mode {
