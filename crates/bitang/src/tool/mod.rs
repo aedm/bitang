@@ -135,7 +135,7 @@ pub struct FrameContext {
     pub gpu_context: Arc<GpuContext>,
     pub screen_viewport: Viewport,
     // pub command_builder: &'frame mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
-    pub final_render_target: Arc<BitangImage>,
+    // pub final_render_target: Arc<BitangImage>,
     pub command_encoder: wgpu::CommandEncoder,
     pub globals: Globals,
     pub simulation_elapsed_time_since_last_render: f32,

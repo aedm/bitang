@@ -3,7 +3,7 @@ use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{
-    FrameContext, GpuContext, WindowContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
+    FrameContext, GpuContext, Viewport, WindowContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
     START_IN_DEMO_MODE,
 };
 use anyhow::{Context, Result};
@@ -11,6 +11,7 @@ use std::cmp::max;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{error, info};
+use wgpu::Surface;
 use winit::keyboard::{Key, NamedKey};
 // use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 // use vulkano::pipeline::graphics::viewport::Viewport;
@@ -31,20 +32,8 @@ impl WindowRunner {
         // TODO: review if this is needed
         event_loop.set_control_flow(ControlFlow::Poll);
 
-        let mut app = App::default();
+        let mut app = WinitAppWrapper::new();
         event_loop.run_app(&mut app);
-
-        let options = eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default().with_inner_size([350.0, 380.0]),
-            multisampling: 1,
-            renderer: eframe::Renderer::Wgpu,
-            ..Default::default()
-        };
-        eframe::run_native(
-            "Custom 3D painting in eframe using glow",
-            options,
-            Box::new(|creation_context| App::new(creation_context)),
-        );
 
         Ok(())
     }
@@ -64,7 +53,7 @@ impl winit::application::ApplicationHandler for WinitAppWrapper {
     /// The `resumed` event here is considered to be equivalent to context creation.
     /// That assumption might not be true on mobile, but works fine on desktop.
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        assert!(!self.app.is_some());
+        assert!(self.app.is_none());
 
         let Ok(app) = App::new(event_loop) else {
             panic!("Failed to create app");
@@ -75,16 +64,18 @@ impl winit::application::ApplicationHandler for WinitAppWrapper {
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
+        _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
         if let Some(app) = &mut self.app {
-            app.handle_window_event(&event_loop, &event);
+            app.handle_window_event(event_loop, event);
         }
     }
 
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        event_loop.request_redraw();
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(app) = &mut self.app {
+            app.request_redraw();
+        }
     }
 }
 
@@ -98,6 +89,9 @@ struct App {
     app_start_time: Instant,
     final_render_target: Arc<BitangImage>,
     demo_mode: bool,
+    window: Arc<Window>,
+    surface: Surface<'static>,
+    surface_config: wgpu::SurfaceConfig,
 }
 
 pub enum PaintResult {
@@ -117,14 +111,15 @@ impl App {
 
     fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Result<Self> {
         let gpu_context = GpuContext::new()?;
-        let window = event_loop.create_window(WindowAttributes {
+
+        let window = Arc::new(event_loop.create_window(WindowAttributes {
             inner_size: Some(Size::Logical(LogicalSize::new(1280.0, 1000.0))),
             title: "Bitang".to_string(),
             ..WindowAttributes::default()
-        })?;
+        })?);
         let size = window.inner_size();
 
-        let surface = gpu_context.instance.create_surface(&window)?;
+        let surface = gpu_context.instance.create_surface(window.clone())?;
         let mut surface_config = surface
             .get_default_config(&gpu_context.adapter, size.width, size.height)
             .context("No default config found")?;
@@ -167,6 +162,9 @@ impl App {
             gpu_context,
             final_render_target,
             demo_mode: START_IN_DEMO_MODE,
+            window,
+            surface,
+            surface_config,
         };
 
         if app.demo_mode {
@@ -191,11 +189,17 @@ impl App {
         // }
     }
 
-    fn handle_window_event(mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
+    fn handle_window_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
         self.ui.handle_window_event(&event);
         match event {
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                self.get_renderer().resize();
+                let new_size = self.window.inner_size();
+                if new_size.width > 0 && new_size.height > 0 {
+                    self.surface_config.width = new_size.width;
+                    self.surface_config.height = new_size.height;
+                    self.surface
+                        .configure(&self.gpu_context.device, &self.surface_config);
+                }
             }
             WindowEvent::CloseRequested => {
                 info!("App closed.");
@@ -241,82 +245,75 @@ impl App {
                 }
             }
             WindowEvent::RedrawRequested => {
-                let result = self.render_frame_to_screen();
-                match result {
-                    PaintResult::None => {}
-                    PaintResult::EndReached => {
-                        if self.demo_mode {
-                            info!("Everything that has a beginning must have an end.");
-                            event_loop.exit();
-                        } else if self.is_fullscreen {
-                            self.toggle_fullscreen();
-                        }
-                        self.app.stop();
+                if let Err(err) = self.render_frame_to_screen() {
+                    error!("Failed to render frame: {err}");
+                } else if self.has_timeline_ended() {
+                    if self.demo_mode {
+                        info!("Everything that has a beginning must have an end.");
+                        event_loop.exit();
+                    } else if self.is_fullscreen {
+                        self.toggle_fullscreen();
                     }
+                    self.content_renderer.stop();
                 }
-            }
-            WindowEvent::MainEventsCleared => {
-                self.get_window().request_redraw();
             }
             _ => (),
         }
     }
 
-    fn render_frame_to_screen(
-        &mut self,
-        ctx: &egui::Context,
-        frame: &mut eframe::Frame,
-    ) -> PaintResult {
-        let Some(wgpu_render_state) = frame.wgpu_render_state() else {
-            return PaintResult::None;
-        };
-        let surface_texture = wgpu_render_state..get_current_texture();
-
+    fn render_frame_to_screen(&mut self) -> Result<()> {
         // Don't render anything if the window is minimized
-        let window_size = self.get_window().inner_size();
+        let window_size = self.window.inner_size();
         if window_size.width == 0 || window_size.height == 0 {
-            return PaintResult::None;
+            return Ok(());
         }
 
-        let before_future = self.get_renderer().acquire().unwrap();
+        let swapchain_texture = self.surface.get_current_texture()?;
+
+        // let before_future = self.get_renderer().acquire().unwrap();
 
         // Update swapchain target
-        let target_image = self.get_renderer().swapchain_image_view();
-        self.vulkan_context
-            .final_render_target
-            .set_swapchain_image(target_image.clone());
+        let swapchain_view = swapchain_texture.texture.create_view(&Default::default());
+        self.final_render_target
+            .set_swapchain_image_view(swapchain_view);
+        // let target_image = self.get_renderer().swapchain_image_view();
+        // self.vulkan_context
+        //     .final_render_target
+        //     .set_swapchain_image(target_image.clone());
 
         // Calculate viewport
-        let window_size = target_image.image().extent();
-        let scale_factor = self.get_window().scale_factor() as f32;
+        let scale_factor = self.window.scale_factor() as f32;
         let (width, height, top, left) = if self.is_fullscreen {
-            if window_size[0] * SCREEN_RATIO.1 > window_size[1] * SCREEN_RATIO.0 {
+            if window_size.width * SCREEN_RATIO.1 > window_size.height * SCREEN_RATIO.0 {
                 // Screen is too wide
-                let height = window_size[1];
+                let height = window_size.height;
                 let width = height * SCREEN_RATIO.0 / SCREEN_RATIO.1;
-                let left = (window_size[0] - width) / 2;
+                let left = (window_size.width - width) / 2;
                 let top = 0;
                 (width, height, top, left)
             } else {
                 // Screen is too tall
-                let width = window_size[0];
+                let width = window_size.width;
                 let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
                 let left = 0;
-                let top = (window_size[1] - height) / 2;
+                let top = (window_size.height - height) / 2;
                 (width, height, top, left)
             }
         } else {
-            let width = window_size[0];
+            let width = window_size.width;
             let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
             let left = 0;
             let top = 0;
             (width, height, top, left)
         };
-        let ui_height = max(window_size[1] as i32 - height as i32, 0) as f32;
+        let ui_height = max(window_size.height as i32 - height as i32, 0) as f32;
         let screen_viewport = Viewport {
-            offset: [left as f32, top as f32],
-            extent: [width as f32, height as f32],
-            depth_range: 0.0..=1.0,
+            // offset: [left as f32, top as f32],
+            // extent: [width as f32, height as f32],
+            x: left as f32,
+            y: top as f32,
+            width: width as f32,
+            height: height as f32,
         };
 
         // // Make command buffer
@@ -336,31 +333,36 @@ impl App {
         //     // simulation_elapsed_time_since_last_render: 0.0,
         // };
         // render_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
+        let mut encoder = self
+            .gpu_context
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
         let mut frame_context = FrameContext {
-            gpu_context: self.vulkan_context.clone(),
-            command_encoder: self.vulkan_context.command_encoder.clone(),
+            gpu_context: self.gpu_context.clone(),
+            command_encoder: encoder,
             globals: Default::default(),
             simulation_elapsed_time_since_last_render: 0.0,
+            screen_viewport,
         };
         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
 
-        if self.content_renderer.reload_project(&self.vulkan_context) {
+        if self.content_renderer.reload_project(&self.gpu_context) {
             self.content_renderer
-                .reset_simulation(&self.vulkan_context)
+                .reset_simulation(&self.gpu_context)
                 .unwrap();
-            render_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
+            frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
             self.content_renderer
-                .set_last_render_time(render_context.globals.app_time);
+                .set_last_render_time(frame_context.globals.app_time);
         }
 
         // Render content
-        self.content_renderer.draw(&mut render_context);
+        self.content_renderer.draw(&mut frame_context);
 
         // Render UI
         if !self.is_fullscreen && ui_height > 0.0 {
             self.ui.draw(
-                &mut render_context,
+                &mut frame_context,
                 ui_height,
                 scale_factor,
                 &mut self.content_renderer.app_state,
@@ -368,37 +370,42 @@ impl App {
         }
 
         // Execute commands and display the result
-        let command_buffer = command_builder.build().unwrap();
-        let after_future = before_future
-            .then_execute(self.vulkan_context.gfx_queue.clone(), command_buffer)
-            .unwrap()
-            .boxed();
-        // TODO: check if we really need to wait for the future
-        self.get_renderer().present(after_future, true);
+        self.gpu_context.queue.submit(Some(encoder.finish()));
+        swapchain_texture.present();
 
-        if let Some(project) = &self.content_renderer.app_state.project {
-            if self.content_renderer.app_state.cursor_time >= project.length {
-                return PaintResult::EndReached;
-            }
-        }
-        PaintResult::None
+        // let command_buffer = command_builder.build().unwrap();
+        // let after_future = before_future
+        //     .then_execute(self.vulkan_context.gfx_queue.clone(), command_buffer)
+        //     .unwrap()
+        //     .boxed();
+        // // TODO: check if we really need to wait for the future
+        // self.get_renderer().present(after_future, true);
+        Ok(())
+    }
+
+    fn has_timeline_ended(&self) -> bool {
+        let Some(project) = &self.content_renderer.app_state.project else {
+            return false;
+        };
+        self.content_renderer.app_state.cursor_time >= project.length
     }
 
     fn toggle_fullscreen(&mut self) {
-        let renderer = self.windows.get_primary_renderer_mut().unwrap();
-        let window = renderer.window();
+        // let renderer = self.windows.get_primary_renderer_mut().unwrap();
         self.is_fullscreen = !self.is_fullscreen;
         if self.is_fullscreen {
             if BORDERLESS_FULL_SCREEN {
-                window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-                window.set_cursor_visible(false);
-            } else if let Some(monitor) = window.current_monitor() {
+                self.window
+                    .set_fullscreen(Some(Fullscreen::Borderless(None)));
+                self.window.set_cursor_visible(false);
+            } else if let Some(monitor) = self.window.current_monitor() {
                 let video_mode = monitor
                     .video_modes()
                     .find(|mode| mode.size() == PhysicalSize::new(1920, 1080));
                 if let Some(video_mode) = video_mode {
-                    window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
-                    window.set_cursor_visible(false);
+                    self.window
+                        .set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+                    self.window.set_cursor_visible(false);
                 } else {
                     error!("Could not find 1920x1080 video mode");
                 }
@@ -406,17 +413,21 @@ impl App {
                 error!("Could not find current monitor");
             }
         } else {
-            window.set_fullscreen(None);
-            window.set_cursor_visible(true);
-            window.focus_window();
+            self.window.set_fullscreen(None);
+            self.window.set_cursor_visible(true);
+            self.window.focus_window();
         }
     }
 
-    fn get_renderer(&mut self) -> &mut VulkanoWindowRenderer {
-        self.windows.get_primary_renderer_mut().unwrap()
-    }
+    // fn get_renderer(&mut self) -> &mut VulkanoWindowRenderer {
+    //     self.windows.get_primary_renderer_mut().unwrap()
+    // }
 
-    fn get_window(&self) -> &Window {
-        self.windows.get_primary_window().unwrap()
+    // fn get_window(&self) -> &Window {
+    //     self.windows.get_primary_window().unwrap()
+    // }
+
+    fn request_redraw(&self) {
+        self.window.request_redraw();
     }
 }
