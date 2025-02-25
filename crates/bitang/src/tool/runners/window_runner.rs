@@ -93,6 +93,7 @@ struct App {
     surface: Surface<'static>,
     surface_config: SurfaceConfiguration,
     egui_context: egui::Context,
+    egui_wgpu_renderer: egui_wgpu::Renderer,
 }
 
 pub enum PaintResult {
@@ -157,6 +158,15 @@ impl App {
             // &windows.get_primary_renderer().unwrap().surface(),
         )?;
 
+        let egui_wgpu_renderer = egui_wgpu::Renderer::new(
+            &gpu_context.device,
+            SCREEN_COLOR_FORMAT.wgpu_format(),
+            None,
+            1,
+            // TODO: dithering?
+            false,
+        );
+
         let mut app = Self {
             is_fullscreen: false,
             ui,
@@ -169,6 +179,7 @@ impl App {
             surface,
             surface_config,
             egui_context,
+            egui_wgpu_renderer,
         };
 
         if app.demo_mode {
@@ -194,7 +205,7 @@ impl App {
     }
 
     fn handle_window_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
-        self.ui.handle_window_event(&event);
+        // self.ui.handle_window_event(&event);
         match event {
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                 let new_size = self.window.inner_size();
@@ -314,10 +325,10 @@ impl App {
         let screen_viewport = Viewport {
             // offset: [left as f32, top as f32],
             // extent: [width as f32, height as f32],
-            x: left as f32,
-            y: top as f32,
-            width: width as f32,
-            height: height as f32,
+            x: left,
+            y: top,
+            width: width,
+            height: height,
         };
 
         // // Make command buffer
@@ -363,18 +374,50 @@ impl App {
         // Render content
         self.content_renderer.draw(&mut frame_context);
 
-        // Render UI
-        if !self.is_fullscreen && ui_height > 0.0 {
-            self.ui.draw(
-                &mut frame_context,
-                ui_height,
-                scale_factor,
-                &mut self.content_renderer.app_state,
-            );
-        }
+        // TODO: gui
+        // // Render UI
+        // if !self.is_fullscreen && ui_height > 0.0 {
+        //     let pixels_per_point =
+        //         if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
+        //     let bottom_panel_height = ui_height / pixels_per_point;
+
+        //     let full_outout = self.egui_context.run(new_input, |ctx| {
+        //         ctx.set_pixels_per_point(pixels_per_point);
+        //         self.ui.draw(
+        //             ctx,
+        //             &mut self.content_renderer.app_state,
+        //             bottom_panel_height,
+        //         );
+        //     });
+
+        //     let clipped_primitives = self.egui_context.tessellate(shapes, pixels_per_point);
+
+            
+        //     let user_cmd_bufs = {
+        //         let renderer = &mut self.egui_wgpu_renderer;
+        //         for (id, image_delta) in &textures_delta.set {
+        //             renderer.update_texture(
+        //                 &self.gpu_context.device,
+        //                 &self.gpu_context.queue,
+        //                 *id,
+        //                 image_delta,
+        //             );
+        //         }
+    
+        //         renderer.update_buffers(
+        //             &self.gpu_context.device,
+        //             &self.gpu_context.queue,
+        //             &mut encoder,
+        //             clipped_primitives,
+        //             &screen_descriptor,
+        //         )
+        //     };
+
+            
+        // }
 
         // Execute commands and display the result
-        self.gpu_context.queue.submit(Some(encoder.finish()));
+        self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
         swapchain_texture.present();
 
         // let command_buffer = command_builder.build().unwrap();

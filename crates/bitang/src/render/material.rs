@@ -1,12 +1,14 @@
 use crate::render::mesh::Mesh;
 use crate::render::shader::Shader;
 use crate::render::Vertex3;
-use crate::tool::{FrameContext, GpuContext, WindowContext};
+use crate::tool::{FrameContext, GpuContext, RenderPassContext};
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use smallvec::SmallVec;
 use std::sync::Arc;
 
 use super::pass::Pass;
+use super::VERTEX_FORMAT;
 // use vulkano::pipeline::graphics::color_blend::{
 //     AttachmentBlend, BlendFactor, BlendOp, ColorBlendAttachmentState, ColorBlendState,
 // };
@@ -48,7 +50,7 @@ pub struct MaterialPass {
     pub _depth_test: bool,
     pub _depth_write: bool,
     pub _blend_mode: BlendMode,
-    pipeline: Arc<wgpu::RenderPipeline>,
+    pipeline: wgpu::RenderPipeline,
     // pipeline: Arc<GraphicsPipeline>,
 }
 
@@ -69,14 +71,14 @@ impl MaterialPass {
         // vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<MaterialPass> {
 
-        let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Uniform Buffer"),
-            size: size_of::<Uniforms>() as u64,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-    
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        // let uniform_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
+        //     label: Some("Uniform Buffer"),
+        //     size: size_of::<Uniforms>() as u64,
+        //     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        //     mapped_at_creation: false,
+        // });
+
+        let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Bind Group Layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -96,11 +98,53 @@ impl MaterialPass {
             push_constant_ranges: &[],
         });
 
+        let vertex_buffer_layout = wgpu::VertexBufferLayout {
+            array_stride: size_of::<Vertex3>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &VERTEX_FORMAT,
+        };
+
+        let blend_state = match props.blend_mode {
+            BlendMode::None => wgpu::BlendState::REPLACE,
+            BlendMode::Alpha => wgpu::BlendState::ALPHA_BLENDING,
+            BlendMode::Additive => wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Max,
+                },
+            },
+        };
+
+        let mut fragment_targets = SmallVec::<[_; 8]>::new();
+        for color_buffer in &pass.color_buffers {
+            fragment_targets.push(Some(wgpu::ColorTargetState {
+                format: color_buffer.pixel_format.wgpu_format(),
+                blend: Some(blend_state),
+                write_mask: wgpu::ColorWrites::ALL,
+            }));
+        }
+
         let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some(&self._id),
+            label: None,
             layout: Some(&pipeline_layout),
-            vertex: vertex_state,
-            fragment: Some(fragment_state),
+            vertex: wgpu::VertexState {
+                module: &props.vertex_shader.shader_module,
+                entry_point: Some("vs_main"),
+                buffers: &[vertex_buffer_layout],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &props.fragment_shader.shader_module,
+                entry_point: Some("fs_main"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                targets: &fragment_targets,
+            }),
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
@@ -217,29 +261,37 @@ impl MaterialPass {
 
     }
 
-    pub fn render(&self, context: &mut FrameContext, mesh: &Mesh) -> Result<()> {
-        let pipeline_layout = self.pipeline.layout();
+    pub fn render(&self, context: &mut RenderPassContext, mesh: &Mesh) -> Result<()> {
+        context.pass.set_pipeline(&self.pipeline);
+        context.pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+
+
+        // let pipeline_layout = self.pipeline.layout();
         let instance_count = context.globals.instance_count as u32;
-        context
-            .command_builder
-            .bind_pipeline_graphics(self.pipeline.clone())?
-            .bind_vertex_buffers(0, mesh.vertex_buffer.clone())?;
-        self.vertex_shader.bind(context, pipeline_layout)?;
-        self.fragment_shader.bind(context, pipeline_layout)?;
+        // context
+        //     .command_builder
+        //     .bind_pipeline_graphics(self.pipeline.clone())?
+        //     .bind_vertex_buffers(0, mesh.vertex_buffer.clone())?;
+        self.vertex_shader.bind(context)?;
+        self.fragment_shader.bind(context)?;
+
         match &mesh.index_buffer {
             None => {
-                context.command_builder.draw(
-                    mesh.vertex_buffer.len() as u32,
-                    instance_count,
-                    0,
-                    0,
-                )?;
+                context.pass.draw(0..mesh.vertex_count, 0..instance_count);
+                // context.command_builder.draw(
+                //     mesh.vertex_buffer.len() as u32,
+                //     instance_count,
+                //     0,
+                //     0,
+                // )?;
             }
             Some(index_buffer) => {
-                context
-                    .command_builder
-                    .bind_index_buffer(index_buffer.clone())?
-                    .draw_indexed(index_buffer.len() as u32, instance_count, 0, 0, 0)?;
+                context.pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                context.pass.draw_indexed(0..mesh.index_count, 0, 0..instance_count);
+                // context
+                //     .command_builder
+                //     .bind_index_buffer(index_buffer.clone())?
+                //     .draw_indexed(index_buffer.len() as u32, instance_count, 0, 0, 0)?;
             }
         }
         Ok(())

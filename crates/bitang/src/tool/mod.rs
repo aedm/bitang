@@ -87,40 +87,26 @@ impl GpuContext {
     // }
 }
 
-pub struct WindowContext<'window> {
-    // pub device: Arc<Device>,
-    // pub command_buffer_allocator: StandardCommandBufferAllocator,
-    // pub descriptor_set_allocator: StandardDescriptorSetAllocator,
-    // pub memory_allocator: Arc<StandardMemoryAllocator>,
-    // pub gfx_queue: Arc<Queue>,
-    // pub swapchain_format: Format,
-    // pub final_render_target: Arc<BitangImage>,
-    pub gpu_context: Arc<GpuContext>,
-    pub surface: wgpu::Surface<'window>,
-}
+// pub struct WindowContext<'window> {
+//     // pub device: Arc<Device>,
+//     // pub command_buffer_allocator: StandardCommandBufferAllocator,
+//     // pub descriptor_set_allocator: StandardDescriptorSetAllocator,
+//     // pub memory_allocator: Arc<StandardMemoryAllocator>,
+//     // pub gfx_queue: Arc<Queue>,
+//     // pub swapchain_format: Format,
+//     // pub final_render_target: Arc<BitangImage>,
+//     pub gpu_context: Arc<GpuContext>,
+//     pub surface: wgpu::Surface<'window>,
+// }
 
-impl<'window> WindowContext<'window> {
-    fn new(gpu_context: Arc<GpuContext>, surface: wgpu::Surface<'window>) -> Self {
-        Self {
-            gpu_context,
-            surface,
-        }
-    }
-
-    fn start_new_frame(&self, globals: Globals) -> FrameContext {
-        FrameContext {
-            gpu_context: self.gpu_context.clone(),
-            globals,
-            screen_viewport: unimplemented!(),
-            final_render_target: unimplemented!(),
-            command_encoder: self
-                .gpu_context
-                .device
-                .create_command_encoder(&Default::default()),
-            simulation_elapsed_time_since_last_render: unimplemented!(),
-        }
-    }
-}
+// impl<'window> WindowContext<'window> {
+//     fn new(gpu_context: Arc<GpuContext>, surface: wgpu::Surface<'window>) -> Self {
+//         Self {
+//             gpu_context,
+//             surface,
+//         }
+//     }
+// }
 
 #[derive(Clone, Copy)]
 pub struct Viewport {
@@ -144,7 +130,7 @@ pub struct FrameContext {
 pub struct RenderPassContext<'pass> {
     pub gpu_context: &'pass GpuContext,
     pub pass: wgpu::RenderPass<'pass>,
-    pub globals: &'pass Globals,
+    pub globals: &'pass mut Globals,
 }
 
 pub struct ComputePassContext<'pass> {

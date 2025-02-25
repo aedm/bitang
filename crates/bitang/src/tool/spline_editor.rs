@@ -274,7 +274,7 @@ impl SplineEditor {
         pointer_coordinate: Option<PlotPoint>,
         app_state: &mut AppState,
     ) {
-        let scroll_delta = ui.input(|i| i.scroll_delta);
+        let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
         let zoom_delta = ui.input(|i| i.zoom_delta());
         let secondary_clicked = ui.input(|i| i.pointer.secondary_clicked());
         let primary_clicked = ui.input(|i| i.pointer.primary_clicked());

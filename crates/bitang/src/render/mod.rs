@@ -27,6 +27,14 @@ pub struct Vertex3 {
     pub a_padding: f32,
 }
 
+const VERTEX_FORMAT: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
+    0 => Float32x3,
+    1 => Float32x3,
+    2 => Float32x3,
+    3 => Float32x2,
+    4 => Float32,
+];
+
 pub type MeshIndex = u32;
 
 pub type Size2D = [u32; 2];

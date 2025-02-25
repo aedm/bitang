@@ -4,6 +4,7 @@ use crate::tool::app_state::AppState;
 use crate::tool::spline_editor::SplineEditor;
 use crate::tool::{FrameContext, WindowContext};
 use anyhow::Result;
+use egui::SliderClamping;
 // use egui_winit_vulkano::{Gui, GuiConfig};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -64,49 +65,28 @@ impl Ui {
 
     pub fn draw(
         &mut self,
-        context: &mut FrameContext,
-        bottom_panel_height: f32,
-        scale_factor: f32,
-        ui_state: &mut AppState,
         ctx: &egui::Context,
+        app_state: &mut AppState,
+        bottom_panel_height: f32,
     ) {
-        let pixels_per_point =
-            if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
-        let bottom_panel_height = bottom_panel_height / pixels_per_point;
         let spline_editor = &mut self.spline_editor;
-        ctx.set_pixels_per_point(pixels_per_point);
         egui::TopBottomPanel::bottom("ui_root")
             .height_range(bottom_panel_height..=bottom_panel_height)
             .show(&ctx, |ui| {
                 ui.add_space(5.0);
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                    Self::draw_control_tree(ui, ui_state);
+                    Self::draw_control_tree(ui, app_state);
                     ui.separator();
-                    if let Some(controls) = ui_state.get_current_chart_control_set() {
+                    if let Some(controls) = app_state.get_current_chart_control_set() {
                         if let Some((control, component_index)) =
-                            Self::draw_control_sliders(ui, ui_state, &controls)
+                            Self::draw_control_sliders(ui, app_state, &controls)
                         {
                             spline_editor.set_control(control, component_index);
                         }
                     }
-                    spline_editor.draw(ui, ui_state);
+                    spline_editor.draw(ui, app_state);
                 });
             });
-        Self::handle_hotkeys(ctx, ui_state);
-        self.render_to_swapchain(context);
-    }
-
-    fn handle_hotkeys(ctx: egui::Context, ui_state: &mut AppState) {
-        // Save
-        unimplemented!("move to windowrunner");
-        // let save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
-        // if ctx.input_mut(|i| i.consume_shortcut(&save_shortcut)) {
-        //     if let Some(project) = &ui_state.project {
-        //         if let Err(err) = ui_state.control_repository.save_control_files(project) {
-        //             error!("Failed to save controls: {err}");
-        //         }
-        //     }
-        // }
     }
 
     fn draw_control_tree(ui: &mut egui::Ui, ui_state: &mut AppState) {
@@ -227,7 +207,7 @@ impl Ui {
                             ui.add_sized(
                                 [350.0, 0.0],
                                 egui::Slider::new(&mut component.value, 0.0..=1.0)
-                                    .clamp_to_range(false)
+                                    .clamping(SliderClamping::Never)
                                     .max_decimals(3),
                             );
 
@@ -246,49 +226,49 @@ impl Ui {
         })
     }
 
-    fn render_to_swapchain(&mut self, context: &mut FrameContext) {
-        let target_image = context
-            .vulkan_context
-            .final_render_target
-            .get_view_for_render_target()
-            .unwrap();
-        let [width, height, _] = target_image.image().extent();
-        let framebuffer = Framebuffer::new(
-            self.subpass.render_pass().clone(),
-            FramebufferCreateInfo {
-                attachments: vec![target_image],
-                ..Default::default()
-            },
-        )
-        .unwrap();
+    // fn render_to_swapchain(&mut self, context: &mut FrameContext) {
+    //     let target_image = context
+    //         .vulkan_context
+    //         .final_render_target
+    //         .get_view_for_render_target()
+    //         .unwrap();
+    //     let [width, height, _] = target_image.image().extent();
+    //     let framebuffer = Framebuffer::new(
+    //         self.subpass.render_pass().clone(),
+    //         FramebufferCreateInfo {
+    //             attachments: vec![target_image],
+    //             ..Default::default()
+    //         },
+    //     )
+    //     .unwrap();
 
-        context
-            .command_builder
-            .begin_render_pass(
-                RenderPassBeginInfo {
-                    clear_values: vec![None],
-                    ..RenderPassBeginInfo::framebuffer(framebuffer)
-                },
-                SubpassBeginInfo {
-                    contents: SubpassContents::SecondaryCommandBuffers,
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+    //     context
+    //         .command_builder
+    //         .begin_render_pass(
+    //             RenderPassBeginInfo {
+    //                 clear_values: vec![None],
+    //                 ..RenderPassBeginInfo::framebuffer(framebuffer)
+    //             },
+    //             SubpassBeginInfo {
+    //                 contents: SubpassContents::SecondaryCommandBuffers,
+    //                 ..Default::default()
+    //             },
+    //         )
+    //         .unwrap();
 
-        let gui_commands = self.gui.draw_on_subpass_image([width, height]);
-        context
-            .command_builder
-            .execute_commands(gui_commands)
-            .unwrap();
+    //     let gui_commands = self.gui.draw_on_subpass_image([width, height]);
+    //     context
+    //         .command_builder
+    //         .execute_commands(gui_commands)
+    //         .unwrap();
 
-        context
-            .command_builder
-            .end_render_pass(SubpassEndInfo::default())
-            .unwrap();
-    }
+    //     context
+    //         .command_builder
+    //         .end_render_pass(SubpassEndInfo::default())
+    //         .unwrap();
+    // }
 
-    pub fn handle_window_event(&mut self, event: &WindowEvent) {
-        let _pass_events_to_game = !self.gui.update(event);
-    }
+    // pub fn handle_window_event(&mut self, event: &WindowEvent) {
+    //     let _pass_events_to_game = !self.gui.update(event);
+    // }
 }

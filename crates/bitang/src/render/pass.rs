@@ -129,7 +129,7 @@ impl Pass {
         Ok(RenderPassContext {
             gpu_context: &frame_context.gpu_context,
             pass,
-            globals: &frame_context.globals,
+            globals: &mut frame_context.globals,
         })
     }
 
