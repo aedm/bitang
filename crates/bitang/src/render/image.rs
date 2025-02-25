@@ -1,10 +1,10 @@
 // use crate::render::generate_mip_levels::generate_mip_levels;
-use crate::tool::{GpuContext, Viewport, WindowContext};
+use crate::tool::{GpuContext, Viewport};
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
 use tracing::warn;
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, Extent3d};
 
 use super::Size2D;
 
@@ -242,7 +242,6 @@ impl BitangImage {
             ImageInner::Attachment(attachment) => {
                 let attachment = attachment.read().unwrap();
                 if let Some(texture) = &attachment.texture {
-                    unimplemented!("not default");
                     texture.create_view(&wgpu::TextureViewDescriptor::default())
 
                     // let i = ImageViewCreateInfo::from_image(&image);
@@ -336,21 +335,17 @@ impl BitangImage {
         let size = match attachment.size_rule {
             ImageSizeRule::Fixed(w, h) => [w, h],
             ImageSizeRule::CanvasRelative(r) => [
-                (viewport.width as f32 * r) as u32,
-                (viewport.height as f32 * r) as u32,
+                (viewport.size[0] as f32 * r) as u32,
+                (viewport.size[1] as f32 * r) as u32,
             ],
             ImageSizeRule::At4k(w, h) => {
                 // TODO: 4k is not 4096.
-                let scale = 4096.0 / viewport.width as f32;
+                let scale = 4096.0 / viewport.size[0] as f32;
                 [(w as f32 * scale) as u32, (h as f32 * scale) as u32]
             }
         };
-        let extent = wgpu::Extent3d {
-            width: size[0],
-            height: size[1],
-            depth_or_array_layers: 1,
-        };
 
+        let extent = Extent3d { width: size[0], height: size[1], depth_or_array_layers: 1 };
         // Check if the image is already the correct size.
         if let Some(texture) = &attachment.texture {
             if texture.size() == extent {

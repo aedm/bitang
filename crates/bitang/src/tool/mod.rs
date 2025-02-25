@@ -9,7 +9,7 @@ mod ui;
 
 use crate::control::controls::Globals;
 use crate::render::image::BitangImage;
-use crate::render::SCREEN_COLOR_FORMAT;
+use crate::render::{Size2D, SCREEN_COLOR_FORMAT};
 use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
 use crate::tool::runners::window_runner::EframeApp;
 use anyhow::{Context, Result};
@@ -112,8 +112,7 @@ impl GpuContext {
 pub struct Viewport {
     pub x: u32,
     pub y: u32,
-    pub width: u32,
-    pub height: u32,
+    pub size: Size2D,
 }
 
 pub struct FrameContext {

@@ -2,7 +2,7 @@ use crate::control::controls::GlobalType;
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::render::shader::{GlobalUniformMapping, ShaderKind};
-use crate::tool::{GpuContext, WindowContext};
+use crate::tool::{GpuContext};
 use ahash::AHashSet;
 use anyhow::{bail, ensure, Context, Result};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -17,6 +17,7 @@ use spirq::ty::ScalarType::Float;
 use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
 use spirq::ReflectConfig;
+use wgpu::{ShaderModule, ShaderModuleDescriptor};
 use std::cell::RefCell;
 use std::error::Error;
 use std::mem::size_of;
@@ -25,8 +26,8 @@ use std::sync::Arc;
 use std::thread;
 use tokio::task;
 use tracing::{debug, info, instrument, trace};
-use vulkano::shader;
-use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
+// use vulkano::shader;
+// use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
 
@@ -44,7 +45,7 @@ pub struct ShaderCompilation {
 impl ShaderCompilation {
     #[instrument(skip(context, kind, file_hash_cache))]
     pub fn compile_shader(
-        context: &Arc<WindowContext>,
+        context: &Arc<GpuContext>,
         path: &ResourcePath,
         kind: ShaderKind,
         file_hash_cache: Arc<FileCache>,
@@ -215,8 +216,10 @@ impl ShaderArtifact {
         //         ShaderModuleCreateInfo::new(&shader_words),
         //     )
         // }?;
-        let module = context.device.create_shader_module(ShaderModuleCreateInfo {
+        let source = wgpu::util::make_spirv(spirv_binary);
+        let module = context.device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Shader"),
+            source: source,
             // source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
@@ -227,16 +230,16 @@ impl ShaderArtifact {
             ShaderKind::Compute => 0,
         };
 
-        // Collect the actually used bindings. Spirq doesn't always get us the same results
-        // as Vulkano's pipeline layout, so we need to filter out the unused bindings.
-        let used_bindings = &module
-            .entry_point(main_function)
-            .context("Failed to get entry point")?
-            .info()
-            .descriptor_binding_requirements
-            .keys()
-            .map(|(_set, binding)| *binding)
-            .collect::<AHashSet<_>>();
+        // // Collect the actually used bindings. Spirq doesn't always get us the same results
+        // // as Vulkano's pipeline layout, so we need to filter out the unused bindings.
+        // let used_bindings = &module
+        //     .entry_point(main_function)
+        //     .context("Failed to get entry point")?
+        //     .info()
+        //     .descriptor_binding_requirements
+        //     .keys()
+        //     .map(|(_set, binding)| *binding)
+        //     .collect::<AHashSet<_>>();
 
         let mut samplers = Vec::new();
         let mut textures = Vec::new();
@@ -266,10 +269,10 @@ impl ShaderArtifact {
                         )
                     );
                     let binding = desc_bind.bind();
-                    if !used_bindings.contains(&binding) {
-                        debug!("Skipping binding {} not in requirements", binding);
-                        continue;
-                    }
+                    // if !used_bindings.contains(&binding) {
+                    //     debug!("Skipping binding {} not in requirements", binding);
+                    //     continue;
+                    // }
                     match desc_ty {
                         DescriptorType::Sampler() => {
                             samplers.push(NamedResourceBinding {

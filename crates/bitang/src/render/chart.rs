@@ -123,53 +123,56 @@ impl Chart {
     ///
     /// Returns true if the simulation is done, false if the simulation needs more iteration.
     fn simulate(&self, context: &mut ComputePassContext, is_precalculation: bool) -> Result<bool> {
-        // Save the app time and restore it after the simulation step.
-        // The simulation sees the simulation time as the current time.
-        let app_time = context.globals.app_time;
-        let chart_time = context.globals.chart_time;
+        
+        // TODO: implement
 
-        let time =
-            self.simulation_elapsed_time.get() + context.simulation_elapsed_time_since_last_render;
-        let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
+        // // Save the app time and restore it after the simulation step.
+        // // The simulation sees the simulation time as the current time.
+        // let app_time = context.globals.app_time;
+        // let chart_time = context.globals.chart_time;
 
-        // Failsafe: limit the number steps per frame to avoid overloading the GPU.
-        let maximum_steps = if is_precalculation { 10 } else { 3 };
-        for _ in 0..maximum_steps {
-            if simulation_next_buffer_time > time {
-                break;
-            }
+        // let time =
+        //     self.simulation_elapsed_time.get() + context.simulation_elapsed_time_since_last_render;
+        // let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
 
-            // Calculate chart time
-            if is_precalculation {
-                context.globals.app_time = simulation_next_buffer_time;
-                context.globals.chart_time = simulation_next_buffer_time;
-                self.evaluate_splines(simulation_next_buffer_time);
-            }
+        // // Failsafe: limit the number steps per frame to avoid overloading the GPU.
+        // let maximum_steps = if is_precalculation { 10 } else { 3 };
+        // for _ in 0..maximum_steps {
+        //     if simulation_next_buffer_time > time {
+        //         break;
+        //     }
 
-            warn!("simulate() unimplemented");
-            // for step in &self.steps {
-            //     if let ChartStep::Compute(compute) = step {
-            //         if let Run::Simulate(_) = compute.run {
-            //             compute.execute(context)?;
-            //         }
-            //     }
-            // }
-            simulation_next_buffer_time += SIMULATION_STEP_SECONDS;
-        }
+        //     // Calculate chart time
+        //     if is_precalculation {
+        //         context.globals.app_time = simulation_next_buffer_time;
+        //         context.globals.chart_time = simulation_next_buffer_time;
+        //         self.evaluate_splines(simulation_next_buffer_time);
+        //     }
 
-        self.simulation_next_buffer_time
-            .set(simulation_next_buffer_time);
-        self.simulation_elapsed_time.set(time);
+        //     warn!("simulate() unimplemented");
+        //     // for step in &self.steps {
+        //     //     if let ChartStep::Compute(compute) = step {
+        //     //         if let Run::Simulate(_) = compute.run {
+        //     //             compute.execute(context)?;
+        //     //         }
+        //     //     }
+        //     // }
+        //     simulation_next_buffer_time += SIMULATION_STEP_SECONDS;
+        // }
 
-        let ratio = 1.0 - (simulation_next_buffer_time - time) / SIMULATION_STEP_SECONDS;
-        context.globals.simulation_frame_ratio = ratio.min(1.0).max(0.0);
+        // self.simulation_next_buffer_time
+        //     .set(simulation_next_buffer_time);
+        // self.simulation_elapsed_time.set(time);
 
-        // Restore globals
-        context.globals.app_time = app_time;
-        context.globals.chart_time = chart_time;
+        // let ratio = 1.0 - (simulation_next_buffer_time - time) / SIMULATION_STEP_SECONDS;
+        // context.globals.simulation_frame_ratio = ratio.min(1.0).max(0.0);
 
-        // Simulation is done if next time is greater than current time
-        Ok(simulation_next_buffer_time >= time)
+        // // Restore globals
+        // context.globals.app_time = app_time;
+        // context.globals.chart_time = chart_time;
+
+        // // Simulation is done if next time is greater than current time
+        // Ok(simulation_next_buffer_time >= time)
     }
 
     pub fn render(&self, context: &mut FrameContext) -> Result<()> {

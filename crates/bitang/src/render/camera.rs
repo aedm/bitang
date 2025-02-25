@@ -4,6 +4,8 @@ use glam::{Mat3, Mat4, Vec2, Vec3};
 use std::f32::consts::PI;
 use std::rc::Rc;
 
+use super::Size2D;
+
 pub struct Camera {
     target: Rc<Control>,
     orientation: Rc<Control>,
@@ -35,7 +37,8 @@ impl Camera {
         }
     }
 
-    pub fn set_globals(&self, globals: &mut Globals, viewport_size: [f32; 2]) {
+    pub fn set_globals(&self, globals: &mut Globals, viewport_size: Size2D) {
+        let viewport_size = [viewport_size[0] as f32, viewport_size[1] as f32];
         globals.pixel_size = Vec2::new(1.0 / viewport_size[0], 1.0 / viewport_size[1]);
         globals.aspect_ratio = viewport_size[0] / viewport_size[1];
         globals.field_of_view = self.field_of_view.as_float();

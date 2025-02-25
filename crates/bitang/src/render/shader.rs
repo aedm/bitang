@@ -51,7 +51,7 @@ impl ShaderKind {
 /// Shader stage, either vertex or fragment.
 pub struct Shader {
     /// The compiled shader module.
-    pub shader_module: Arc<wgpu::ShaderModule>,
+    pub shader_module: wgpu::ShaderModule,
 
     /// The kind of shader, either vertex or fragment.
     pub kind: ShaderKind,
@@ -79,7 +79,7 @@ pub struct Shader {
 impl Shader {
     pub fn new(
         context: &GpuContext,
-        shader_module: Arc<wgpu::ShaderModule>,
+        shader_module: wgpu::ShaderModule,
         kind: ShaderKind,
         global_uniform_bindings: Vec<GlobalUniformMapping>,
         local_uniform_bindings: Vec<LocalUniformMapping>,

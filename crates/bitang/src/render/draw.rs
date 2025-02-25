@@ -42,7 +42,7 @@ impl Draw {
         })
     }
 
-    fn render_items(&self, context: &mut FrameContext, pass_index: usize) -> Result<()> {
+    fn render_items(&self, context: &mut RenderPassContext, pass_index: usize) -> Result<()> {
         for object in &self.items {
             match object {
                 DrawItem::Object(object) => object.render(context, pass_index)?,
@@ -121,7 +121,7 @@ impl Draw {
             // let render_pass_descriptor = pass.make_render_pass_descriptor()?;
             // context.command_encoder.begin_render_pass(&render_pass_descriptor);
 
-            let render_pass_context = pass.make_render_pass_context(frame_context)?;
+            let mut render_pass_context = pass.make_render_pass_context(frame_context)?;
 
             warn!("draw.rs render set_viewport");
 

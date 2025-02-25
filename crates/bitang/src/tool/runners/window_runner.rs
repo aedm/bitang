@@ -327,8 +327,7 @@ impl App {
             // extent: [width as f32, height as f32],
             x: left,
             y: top,
-            width: width,
-            height: height,
+            size: [width, height],
         };
 
         // // Make command buffer

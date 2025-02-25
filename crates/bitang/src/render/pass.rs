@@ -1,5 +1,5 @@
 use crate::render::image::BitangImage;
-use crate::tool::{FrameContext, RenderPassContext, Viewport, WindowContext};
+use crate::tool::{FrameContext, RenderPassContext, Viewport};
 use anyhow::{bail, ensure, Result};
 use smallvec::SmallVec;
 use std::sync::Arc;
@@ -23,7 +23,6 @@ pub struct Pass {
 impl Pass {
     pub fn new(
         id: &str,
-        context: &Arc<WindowContext>,
         color_buffers: Vec<Arc<BitangImage>>,
         depth_buffer: Option<Arc<BitangImage>>,
         clear_color: Option<[f32; 4]>,
@@ -88,7 +87,7 @@ impl Pass {
     //     Ok(render_pass)
     // }
 
-    fn make_render_pass_context<'pass, 'frame>(
+    pub fn make_render_pass_context<'pass, 'frame>(
         &'pass self,
         frame_context: &'pass mut FrameContext,
     ) -> Result<RenderPassContext<'pass>> {
@@ -223,8 +222,7 @@ impl Pass {
             Viewport {
                 x: 0,
                 y: 0,
-                width: size.0,
-                height: size.1,
+                size: [size.0, size.1],
             }
         };
         Ok(viewport)
