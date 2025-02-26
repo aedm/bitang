@@ -26,7 +26,7 @@ impl Object {
     ) -> Result<Rc<render::render_object::RenderObject>> {
         let object_cid = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
-            &chart_context.vulkan_context,
+            &chart_context.gpu_context,
             &chart_context.path.relative_path(&self.mesh_file)?,
             &self.mesh_name,
         );

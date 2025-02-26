@@ -2,7 +2,7 @@ use crate::control::controls::{Control, Globals};
 use crate::render::camera::Camera;
 use crate::render::pass::Pass;
 use crate::render::render_object::RenderObject;
-use crate::tool::FrameContext;
+use crate::tool::{FrameContext, RenderPassContext};
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use tracing::warn;
@@ -103,7 +103,7 @@ impl Draw {
             if pass.id == "shadow" {
                 self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
             } else {
-                camera.set_globals(&mut frame_context.globals, viewport.extent);
+                camera.set_globals(&mut frame_context.globals, viewport.size);
             }
 
             // Begin render pass
@@ -126,7 +126,7 @@ impl Draw {
             warn!("draw.rs render set_viewport");
 
             // Don't fail early if there's a rendering error. We must end the render pass.
-            let render_result = self.render_items(frame_context, pass_index);
+            let render_result = self.render_items(&mut render_pass_context, pass_index);
 
             // End render pass
             // context

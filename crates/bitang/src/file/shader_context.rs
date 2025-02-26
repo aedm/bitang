@@ -80,7 +80,7 @@ impl ShaderContext {
                 let image: LoadFuture<BitangImage> = {
                     match &texture.bind {
                         ImageSource::File(texture_path) => resource_repository.get_texture(
-                            &chart_context.vulkan_context,
+                            &chart_context.gpu_context,
                             &chart_context.path.relative_path(texture_path)?,
                         ),
                         ImageSource::Image(id) => chart_context
@@ -100,12 +100,13 @@ impl ShaderContext {
             .map(|(name, buffer)| {
                 let buffer_generator = match buffer {
                     BufferSource::BufferGenerator(id) => {
-                        let generator = chart_context
-                            .buffer_generators_by_id
-                            .get(id)
-                            .with_context(|| anyhow!("Buffer generator '{id}' not found"))?
-                            .clone();
-                        DescriptorSource::BufferGenerator(generator)
+                        // let generator = chart_context
+                        //     .buffer_generators_by_id
+                        //     .get(id)
+                        //     .with_context(|| anyhow!("Buffer generator '{id}' not found"))?
+                        //     .clone();
+                        // DescriptorSource::BufferGenerator(generator)
+                        todo!()
                     }
                     BufferSource::Current(id) => {
                         let buffer = chart_context
@@ -192,7 +193,7 @@ impl ShaderContext {
             .resource_repository
             .shader_cache
             .get(
-                chart_context.vulkan_context.clone(),
+                &chart_context.gpu_context,
                 chart_context.path.relative_path(source_path)?,
                 kind,
                 macros,
@@ -251,7 +252,7 @@ impl ShaderContext {
             let sampler_descriptor = DescriptorResource {
                 id: texture.name.clone(),
                 binding: texture.binding,
-                source: DescriptorSource::Image(ImageDescriptor { image }),
+                source: DescriptorSource::Image(ImageDescriptor::new(image)?),
             };
             descriptor_resources.push(sampler_descriptor);
         }
@@ -265,15 +266,13 @@ impl ShaderContext {
             let sampler_descriptor = DescriptorResource {
                 id: sampler.name.clone(),
                 binding: sampler.binding,
-                source: DescriptorSource::Sampler(SamplerDescriptor {
-                    mode: source.mode.load(),
-                }),
+                source: DescriptorSource::Sampler(SamplerDescriptor::new(&chart_context.gpu_context, source.mode.load())),
             };
             descriptor_resources.push(sampler_descriptor);
         }
 
         let shader = Shader::new(
-            &chart_context.vulkan_context,
+            &chart_context.gpu_context,
             shader_artifact.module.clone(),
             kind,
             shader_artifact.global_uniform_bindings.clone(),

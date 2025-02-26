@@ -6,8 +6,9 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use smallvec::SmallVec;
 use std::sync::Arc;
+use wgpu::CompareFunction;
 
-use super::pass::Pass;
+use super::pass::{FramebufferInfo, Pass};
 use super::VERTEX_FORMAT;
 // use vulkano::pipeline::graphics::color_blend::{
 //     AttachmentBlend, BlendFactor, BlendOp, ColorBlendAttachmentState, ColorBlendState,
@@ -67,10 +68,9 @@ impl MaterialPass {
     pub fn new(
         context: &GpuContext,
         props: MaterialPassProps,
-        pass: &Pass,
+        framebuffer_info: &FramebufferInfo,
         // vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
     ) -> Result<MaterialPass> {
-
         // let uniform_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
         //     label: Some("Uniform Buffer"),
         //     size: size_of::<Uniforms>() as u64,
@@ -78,25 +78,31 @@ impl MaterialPass {
         //     mapped_at_creation: false,
         // });
 
-        let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Bind Group Layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
+        let bind_group_layout =
+            context
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Bind Group Layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
 
-        let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
-        });
+        let pipeline_layout =
+            context
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: None,
+                    bind_group_layouts: &[&bind_group_layout],
+                    push_constant_ranges: &[],
+                });
 
         let vertex_buffer_layout = wgpu::VertexBufferLayout {
             array_stride: size_of::<Vertex3>() as wgpu::BufferAddress,
@@ -122,35 +128,49 @@ impl MaterialPass {
         };
 
         let mut fragment_targets = SmallVec::<[_; 8]>::new();
-        for color_buffer in &pass.color_buffers {
+        for color_buffer_format in &framebuffer_info.color_buffer_formats {
             fragment_targets.push(Some(wgpu::ColorTargetState {
-                format: color_buffer.pixel_format.wgpu_format(),
+                format: color_buffer_format.wgpu_format(),
                 blend: Some(blend_state),
                 write_mask: wgpu::ColorWrites::ALL,
             }));
         }
 
-        let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &props.vertex_shader.shader_module,
-                entry_point: Some("vs_main"),
-                buffers: &[vertex_buffer_layout],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &props.fragment_shader.shader_module,
-                entry_point: Some("fs_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                targets: &fragment_targets,
-            }),
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-            cache: None,
-        });            
+        let depth_stencil = framebuffer_info.depth_buffer_format.map(|format| {
+            let depth_compare =
+                if props.depth_test { CompareFunction::LessEqual } else { CompareFunction::Always };
+            wgpu::DepthStencilState {
+                format: format.wgpu_format(),
+                depth_write_enabled: props.depth_write,
+                depth_compare,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }
+        });
+
+        let pipeline = context
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: None,
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &props.vertex_shader.shader_module,
+                    entry_point: Some("vs_main"),
+                    buffers: &[vertex_buffer_layout],
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &props.fragment_shader.shader_module,
+                    entry_point: Some("fs_main"),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    targets: &fragment_targets,
+                }),
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil,
+                multisample: wgpu::MultisampleState::default(),
+                multiview: None,
+                cache: None,
+            });
 
         Ok(MaterialPass {
             _id: props.id,
@@ -255,16 +275,13 @@ impl MaterialPass {
         //             )
         //         })?
         // };
-
-
-
-
     }
 
     pub fn render(&self, context: &mut RenderPassContext, mesh: &Mesh) -> Result<()> {
         context.pass.set_pipeline(&self.pipeline);
-        context.pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-
+        context
+            .pass
+            .set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
 
         // let pipeline_layout = self.pipeline.layout();
         let instance_count = context.globals.instance_count as u32;
@@ -286,8 +303,12 @@ impl MaterialPass {
                 // )?;
             }
             Some(index_buffer) => {
-                context.pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                context.pass.draw_indexed(0..mesh.index_count, 0, 0..instance_count);
+                context
+                    .pass
+                    .set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                context
+                    .pass
+                    .draw_indexed(0..mesh.index_count, 0, 0..instance_count);
                 // context
                 //     .command_builder
                 //     .bind_index_buffer(index_buffer.clone())?

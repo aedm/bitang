@@ -1,7 +1,7 @@
 use crate::loader::file_cache::{FileCache, FileChangeHandler};
 use crate::loader::resource_repository::ResourceRepository;
 use crate::render::project::Project;
-use crate::tool::{GpuContext, WindowContext};
+use crate::tool::{GpuContext};
 use anyhow::{ensure, Result};
 use dunce::canonicalize;
 use std::path::PathBuf;

@@ -11,7 +11,7 @@ use crate::render::chart::Chart;
 use crate::render::image::{BitangImage, PixelFormat};
 use crate::render::mesh::Mesh;
 use crate::render::project::Project;
-use crate::tool::{GpuContext, WindowContext};
+use crate::tool::{GpuContext};
 use anyhow::{anyhow, ensure, Context, Result};
 use image::GenericImageView;
 use jxl_oxide::JxlImage;
@@ -143,7 +143,7 @@ fn load_texture(
         let image = JxlImage::builder()
             .read(content)
             .map_err(|e| anyhow!("Can't load image {e}"))?;
-        let size = [image.width(), image.height(), 1];
+        let size = [image.width(), image.height()];
         let render = image
             .render_frame(0)
             .map_err(|e| anyhow!("Can't render image {e}"))?;

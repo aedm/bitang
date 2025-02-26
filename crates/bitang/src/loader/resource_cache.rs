@@ -1,7 +1,7 @@
 use crate::loader::async_cache::{AsyncCache, LoadFuture};
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::loader::resource_path::ResourcePath;
-use crate::tool::{GpuContext, WindowContext};
+use crate::tool::{GpuContext};
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;

@@ -175,7 +175,7 @@ pub struct ShaderCompilationLocalUniform {
 /// The compiled shader module and metadata.
 #[derive(Debug)]
 pub struct ShaderArtifact {
-    pub module: Arc<ShaderModule>,
+    pub module: ShaderModule,
     pub samplers: Vec<NamedResourceBinding>,
     pub textures: Vec<NamedResourceBinding>,
     pub buffers: Vec<NamedResourceBinding>,

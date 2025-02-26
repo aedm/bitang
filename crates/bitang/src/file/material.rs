@@ -45,7 +45,7 @@ impl Material {
                         &pass.id,
                         &shader_context,
                         chart_context,
-                        &pass,
+                        &pass.framebuffer_info,
                     )
                     .await?;
                 Ok(Some(pass))
@@ -86,8 +86,7 @@ impl MaterialPass {
         id: &str,
         shader_context: &ShaderContext,
         chart_context: &ChartContext,
-        pass: &render::pass::Pass
-        // vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
+        framebuffer_info: &render::pass::FramebufferInfo,
     ) -> Result<render::material::MaterialPass> {
         let vertex_shader_future =
             shader_context.make_shader(chart_context, ShaderKind::Vertex, &self.vertex_shader);
@@ -111,9 +110,9 @@ impl MaterialPass {
         };
 
         render::material::MaterialPass::new(
-            &chart_context.vulkan_context,
+            &chart_context.gpu_context,
             material_props,
-            pass,
+            framebuffer_info,
         )
     }
 }

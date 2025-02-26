@@ -8,10 +8,10 @@ mod timer;
 mod ui;
 
 use crate::control::controls::Globals;
-use crate::render::image::BitangImage;
-use crate::render::{Size2D, SCREEN_COLOR_FORMAT};
-use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
-use crate::tool::runners::window_runner::EframeApp;
+use crate::render::image::{BitangImage, PixelFormat};
+use crate::render::{Size2D, SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
+// use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
+// use crate::tool::runners::window_runner::EframeApp;
 use anyhow::{Context, Result};
 use runners::window_runner::WindowRunner;
 use std::default::Default;
@@ -44,10 +44,13 @@ pub struct GpuContext {
     pub adapter: wgpu::Adapter,
     pub queue: wgpu::Queue,
     pub device: wgpu::Device,
+
+    // TODO: rename to swapchain something
+    pub final_render_target: Arc<BitangImage>,
 }
 
 impl GpuContext {
-    fn new() -> Result<Arc<Self>> {
+    fn new(swapchain_pixel_format: PixelFormat) -> Result<Arc<Self>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
             let adapter = instance
@@ -59,11 +62,15 @@ impl GpuContext {
                 .request_device(&wgpu::DeviceDescriptor::default(), None)
                 .await?;
 
+            let final_render_target =
+                BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, swapchain_pixel_format);
+
             Ok(Arc::new(Self {
                 instance,
                 adapter,
                 queue,
                 device,
+                final_render_target,
             }))
         })
     }
@@ -134,9 +141,9 @@ pub struct RenderPassContext<'pass> {
 
 pub struct ComputePassContext<'pass> {
     pub gpu_context: &'pass GpuContext,
-    pub command_encoder: wgpu::CommandEncoder,
+    pub command_encoder: &'pass mut wgpu::CommandEncoder,
     pub pass: wgpu::ComputePass<'pass>,
-    pub globals: &'pass Globals,
+    pub globals: &'pass mut Globals,
 }
 
 pub fn run_app() -> Result<()> {
@@ -165,7 +172,8 @@ pub fn run_app() -> Result<()> {
     // };
 
     if FRAMEDUMP_MODE {
-        FrameDumpRunner::run()
+        todo!()
+        // FrameDumpRunner::run()
     } else {
         WindowRunner::run()
     }

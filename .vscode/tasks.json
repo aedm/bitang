@@ -7,7 +7,10 @@
 			"problemMatcher": [
 				"$rustc"
 			],
-			"args": ["--profile", "dev-nowarn"],
+			"args": [
+				"--profile",
+				"dev-nowarn"
+			],
 			"group": {
 				"kind": "build",
 				"isDefault": true
@@ -16,6 +19,25 @@
 			"options": {
 				"env": {
 					"RUSTFLAGS": "-A dead_code -A unused_variables -A unused_mut -A unused_imports"
+				}
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"args": [
+				"--profile",
+				"dev-nowarn"
+			],
+			"group": "test",
+			"label": "default-run",
+			"options": {
+				"env": {
+					"RUSTFLAGS": "-A dead_code -A unused_variables -A unused_mut -A unused_imports",
+					"RUST_BACKTRACE": "1"
 				}
 			}
 		}

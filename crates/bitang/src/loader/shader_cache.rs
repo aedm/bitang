@@ -3,7 +3,7 @@ use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
 use crate::render::shader::ShaderKind;
-use crate::tool::{GpuContext, WindowContext};
+use crate::tool::{GpuContext};
 use anyhow::{Context, Result};
 use dashmap::DashMap;
 use std::fmt::Debug;

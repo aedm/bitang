@@ -1,5 +1,5 @@
 use crate::render::Vertex3;
-use crate::tool::{GpuContext, WindowContext};
+use crate::tool::{GpuContext};
 use anyhow::Result;
 use std::sync::Arc;
 use wgpu::util::DeviceExt;

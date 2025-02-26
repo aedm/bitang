@@ -4,7 +4,7 @@ use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
-use crate::tool::{FrameContext, WindowContext};
+use crate::tool::{FrameContext};
 use anyhow::{bail, Result};
 use std::rc::Rc;
 use std::sync::Arc;

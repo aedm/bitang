@@ -3,8 +3,7 @@ use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{
-    FrameContext, GpuContext, Viewport, WindowContext, BORDERLESS_FULL_SCREEN, SCREEN_RATIO,
-    START_IN_DEMO_MODE,
+    FrameContext, GpuContext, Viewport, BORDERLESS_FULL_SCREEN, SCREEN_RATIO, START_IN_DEMO_MODE,
 };
 use anyhow::{Context, Result};
 use std::cmp::max;
@@ -33,7 +32,7 @@ impl WindowRunner {
         event_loop.set_control_flow(ControlFlow::Poll);
 
         let mut app = WinitAppWrapper::new();
-        event_loop.run_app(&mut app);
+        event_loop.run_app(&mut app)?;
 
         Ok(())
     }
@@ -87,7 +86,6 @@ struct App {
     // windows: VulkanoWindows,
     content_renderer: ContentRenderer,
     app_start_time: Instant,
-    final_render_target: Arc<BitangImage>,
     demo_mode: bool,
     window: Arc<Window>,
     surface: Surface<'static>,
@@ -112,23 +110,20 @@ impl App {
         egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::F2);
 
     fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Result<Self> {
-        let gpu_context = GpuContext::new()?;
+        let gpu_context = GpuContext::new(SCREEN_COLOR_FORMAT)?;
 
-        let window = Arc::new(event_loop.create_window(WindowAttributes {
-            inner_size: Some(Size::Logical(LogicalSize::new(1280.0, 1000.0))),
-            title: "Bitang".to_string(),
-            ..WindowAttributes::default()
-        })?);
+        let window_attributes = Window::default_attributes()
+            .with_title("Bitang".to_string())
+            .with_inner_size(Size::Logical(LogicalSize::new(1280.0, 1000.0)));
+        let window = Arc::new(event_loop.create_window(window_attributes)?);
         let size = window.inner_size();
 
         let surface = gpu_context.instance.create_surface(window.clone())?;
-        let mut surface_config = surface
+        let surface_config = surface
             .get_default_config(&gpu_context.adapter, size.width, size.height)
             .context("No default config found")?;
         surface.configure(&gpu_context.device, &surface_config);
 
-        let final_render_target =
-            BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, SCREEN_COLOR_FORMAT);
         // let vulkano_context = init_context.vulkano_context.clone();
         // let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
@@ -173,7 +168,6 @@ impl App {
             content_renderer: app,
             app_start_time: Instant::now(),
             gpu_context,
-            final_render_target,
             demo_mode: START_IN_DEMO_MODE,
             window,
             surface,
@@ -289,7 +283,8 @@ impl App {
 
         // Update swapchain target
         let swapchain_view = swapchain_texture.texture.create_view(&Default::default());
-        self.final_render_target
+        self.gpu_context
+            .final_render_target
             .set_swapchain_image_view(swapchain_view);
         // let target_image = self.get_renderer().swapchain_image_view();
         // self.vulkan_context
@@ -391,7 +386,6 @@ impl App {
 
         //     let clipped_primitives = self.egui_context.tessellate(shapes, pixels_per_point);
 
-            
         //     let user_cmd_bufs = {
         //         let renderer = &mut self.egui_wgpu_renderer;
         //         for (id, image_delta) in &textures_delta.set {
@@ -402,7 +396,7 @@ impl App {
         //                 image_delta,
         //             );
         //         }
-    
+
         //         renderer.update_buffers(
         //             &self.gpu_context.device,
         //             &self.gpu_context.queue,
@@ -412,11 +406,12 @@ impl App {
         //         )
         //     };
 
-            
         // }
 
         // Execute commands and display the result
-        self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
+        self.gpu_context
+            .queue
+            .submit(Some(frame_context.command_encoder.finish()));
         swapchain_texture.present();
 
         // let command_buffer = command_builder.build().unwrap();

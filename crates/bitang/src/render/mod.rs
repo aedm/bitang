@@ -1,5 +1,4 @@
 pub mod buffer;
-pub mod buffer_generator;
 pub mod camera;
 pub mod chart;
 pub mod compute;
@@ -18,7 +17,7 @@ use crate::render::image::PixelFormat;
 // use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex};
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex3 {
     pub a_position: [f32; 3],
     pub a_normal: [f32; 3],

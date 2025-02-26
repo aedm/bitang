@@ -4,6 +4,8 @@ use anyhow::{bail, ensure, Result};
 use smallvec::SmallVec;
 use std::sync::Arc;
 
+use super::image::PixelFormat;
+
 // use vulkano::command_buffer::RenderPassBeginInfo;
 // use vulkano::image::ImageLayout;
 // use vulkano::pipeline::graphics::viewport::Viewport;
@@ -12,11 +14,18 @@ use std::sync::Arc;
 //     FramebufferCreateInfo, RenderPassCreateInfo, SubpassDescription,
 // };
 
+#[derive(Clone, Debug)]
+pub struct FramebufferInfo {
+    pub color_buffer_formats: Vec<PixelFormat>,
+    pub depth_buffer_format: Option<PixelFormat>,
+}
+
 pub struct Pass {
     pub id: String,
     pub color_buffers: Vec<Arc<BitangImage>>,
     pub depth_buffer: Option<Arc<BitangImage>>,
     pub clear_color: Option<[f32; 4]>,
+    pub framebuffer_info: FramebufferInfo,
     // pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
 }
 
@@ -33,12 +42,23 @@ impl Pass {
         //     &depth_buffer,
         //     clear_color.is_some(),
         // )?;
+
+        let color_buffer_formats = color_buffers
+            .iter()
+            .map(|image| image.pixel_format)
+            .collect::<Vec<_>>();
+        let depth_buffer_format = depth_buffer.as_ref().map(|image| image.pixel_format);
+        let framebuffer_info = FramebufferInfo {
+            color_buffer_formats,
+            depth_buffer_format,
+        };
+
         Ok(Pass {
             id: id.to_string(),
             depth_buffer,
             color_buffers,
             clear_color,
-            // vulkan_render_pass,
+            framebuffer_info,
         })
     }
 
@@ -113,17 +133,16 @@ impl Pass {
             .as_ref()
             .map(|view| self.make_depth_attachment(view));
 
-        let pass =
-            frame_context
-                .command_encoder
-                .begin_render_pass(&wgpu::RenderPassDescriptor {
-                    // TODO: label
-                    label: None,
-                    color_attachments: &color_attachments,
-                    depth_stencil_attachment,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                });
+        let pass = frame_context
+            .command_encoder
+            .begin_render_pass(&wgpu::RenderPassDescriptor {
+                // TODO: label
+                label: None,
+                color_attachments: &color_attachments,
+                depth_stencil_attachment,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
 
         Ok(RenderPassContext {
             gpu_context: &frame_context.gpu_context,

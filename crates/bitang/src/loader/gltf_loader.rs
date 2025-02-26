@@ -1,7 +1,7 @@
 use crate::loader::resource_repository::{SceneFile, SceneNode};
 use crate::render::mesh::Mesh;
 use crate::render::Vertex3;
-use crate::tool::WindowContext;
+use crate::tool::GpuContext;
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use log::warn;

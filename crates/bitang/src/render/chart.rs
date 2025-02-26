@@ -86,20 +86,20 @@ impl Chart {
         warn!("reset_simulation unimplemented");
         return Ok(true);
 
-        if run_init {
-            self.initialize(context)?;
+        // if run_init {
+        //     self.initialize(context)?;
 
-            // Chart is started at negative time during precalculation
-            context.simulation_elapsed_time_since_last_render = self.simulation_precalculation_time;
-            self.simulation_elapsed_time
-                .set(-self.simulation_precalculation_time);
-            self.simulation_next_buffer_time
-                .set(-self.simulation_precalculation_time);
-        }
-        if run_precalc {
-            return self.simulate(context, true);
-        }
-        Ok(true)
+        //     // Chart is started at negative time during precalculation
+        //     context.simulation_elapsed_time_since_last_render = self.simulation_precalculation_time;
+        //     self.simulation_elapsed_time
+        //         .set(-self.simulation_precalculation_time);
+        //     self.simulation_next_buffer_time
+        //         .set(-self.simulation_precalculation_time);
+        // }
+        // if run_precalc {
+        //     return self.simulate(context, true);
+        // }
+        // Ok(true)
     }
 
     fn initialize(&self, context: &mut FrameContext) -> Result<()> {
@@ -122,9 +122,22 @@ impl Chart {
     /// to blend buffer values during rendering.
     ///
     /// Returns true if the simulation is done, false if the simulation needs more iteration.
-    fn simulate(&self, context: &mut ComputePassContext, is_precalculation: bool) -> Result<bool> {
-        
+    fn simulate(&self, context: &mut FrameContext, is_precalculation: bool) -> Result<bool> {
+        return Ok(true);
+
         // TODO: implement
+
+        // let compute_pass = context.command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+        //     label: None,
+        //     timestamp_writes: None,
+        // });
+
+        // let mut compute_pass_context = ComputePassContext {
+        //     gpu_context: &context.gpu_context,
+        //     pass: compute_pass,
+        //     globals: &mut context.globals,
+        //     command_encoder: &mut context.command_encoder,
+        // };
 
         // // Save the app time and restore it after the simulation step.
         // // The simulation sees the simulation time as the current time.
