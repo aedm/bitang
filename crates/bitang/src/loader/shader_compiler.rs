@@ -183,7 +183,7 @@ pub struct ShaderArtifact {
     pub local_uniform_bindings: Vec<ShaderCompilationLocalUniform>,
 
     /// The size of the uniform buffer in 32-bit floats
-    pub uniform_buffer_size: usize,
+    pub uniform_buffer_byte_size: usize,
 }
 
 impl ShaderArtifact {
@@ -246,7 +246,7 @@ impl ShaderArtifact {
         let mut buffers = Vec::new();
         let mut global_uniform_bindings = Vec::new();
         let mut local_uniform_bindings = Vec::new();
-        let mut uniform_buffer_size = 0;
+        let mut uniform_buffer_byte_size = 0;
 
         for var in &entry_point.vars {
             match var {
@@ -351,10 +351,12 @@ impl ShaderArtifact {
                                         }
                                     }
                                 }
-                                let byte_size = struct_type.nbyte().with_context(|| {
+                                uniform_buffer_byte_size = struct_type.nbyte().with_context(|| {
                                     format!("Failed to get byte size of uniform struct {name:?}")
                                 })?;
-                                uniform_buffer_size = byte_size / size_of::<f32>();
+
+                                // TODO: figure out why there's an extra f32
+                                uniform_buffer_byte_size += 4;
                             }
                             _ => {
                                 bail!("Unsupported uniform buffer type {:?}", desc_ty);
@@ -386,7 +388,7 @@ impl ShaderArtifact {
             buffers,
             local_uniform_bindings,
             global_uniform_bindings,
-            uniform_buffer_size,
+            uniform_buffer_byte_size,
         };
 
         trace!(

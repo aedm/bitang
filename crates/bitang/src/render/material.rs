@@ -78,29 +78,15 @@ impl MaterialPass {
         //     mapped_at_creation: false,
         // });
 
-        let bind_group_layout =
-            context
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Bind Group Layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-
         let pipeline_layout =
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: None,
-                    bind_group_layouts: &[&bind_group_layout],
+                    bind_group_layouts: &[
+                        &props.vertex_shader.bind_group_layout,
+                        &props.fragment_shader.bind_group_layout,
+                    ],
                     push_constant_ranges: &[],
                 });
 

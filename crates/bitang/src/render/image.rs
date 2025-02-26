@@ -144,10 +144,7 @@ impl BitangImage {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             format: pixel_format.wgpu_format(),
             dimension: wgpu::TextureDimension::D2,
-            view_formats: &[
-                PixelFormat::Rgba8Srgb.wgpu_format(),
-                PixelFormat::Rgba8U.wgpu_format(),
-            ],
+            view_formats: &[],
         };
         let image = context.device.create_texture_with_data(
             &context.queue,
@@ -241,29 +238,18 @@ impl BitangImage {
             }
             ImageInner::Attachment(attachment) => {
                 let attachment = attachment.read().unwrap();
-                if let Some(texture) = &attachment.texture {
-                    texture.create_view(&wgpu::TextureViewDescriptor::default())
-
-                    // let i = ImageViewCreateInfo::from_image(&image);
-                    // let vci = ImageViewCreateInfo {
-                    //     subresource_range: ImageSubresourceRange {
-                    //         mip_levels: 0..1,
-                    //         ..i.subresource_range
-                    //     },
-                    //     ..i
-                    // };
-                    // ImageView::new(image.clone(), vci)?
-                } else {
+                let Some(texture) = &attachment.texture else {
                     bail!("Attachment image not initialized");
-                }
+                };
+                texture.create_view(&wgpu::TextureViewDescriptor::default())
             }
             ImageInner::Swapchain(texture_view) => {
                 let texture_view = texture_view.read().unwrap();
-                if let Some(texture_view) = &*texture_view {
-                    texture_view.clone()
-                } else {
+                let Some(texture_view) = &*texture_view else {
                     bail!("Swapchain image not initialized");
-                }
+                };
+                texture_view.clone()
+
             }
         };
         Ok(view)
@@ -272,12 +258,11 @@ impl BitangImage {
     // Returns an image view for sampling purposes. It includes all mip levels.
     pub fn make_texture_view_for_sampler(&self) -> Result<wgpu::TextureView> {
         let view: wgpu::TextureView = match &self.inner {
-            ImageInner::Immutable(_) => {
-                bail!("Immutable image can't be used in a sampler");
+            ImageInner::Immutable(texture) => {
+                texture.create_view(&wgpu::TextureViewDescriptor::default())
             }
             ImageInner::Attachment(attachment) => {
                 let attachment = attachment.read().unwrap();
-                // TODO: .context()
                 let Some(texture) = &attachment.texture else {
                     bail!("Attachment image not initialized");
                 };
@@ -389,8 +374,6 @@ impl BitangImage {
             format: self.pixel_format.wgpu_format(),
             usage,
             view_formats: &[
-                PixelFormat::Rgba8Srgb.wgpu_format(),
-                PixelFormat::Rgba8U.wgpu_format(),
             ],
         });
 

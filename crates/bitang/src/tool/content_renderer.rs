@@ -183,7 +183,8 @@ impl ContentRenderer {
     }
 
     pub fn reset_simulation(&mut self, context: &GpuContext) -> Result<()> {
-        todo!();
+        // TODO: implement
+        return Ok(());
         // match self.app_state.get_chart() {
         //     // Reset only the selected chart
         //     Some(chart) => Self::reset_chart_simulation(vulkan_context, &chart)?,

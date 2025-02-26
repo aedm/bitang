@@ -277,7 +277,7 @@ impl ShaderContext {
             kind,
             shader_artifact.global_uniform_bindings.clone(),
             local_uniform_bindings,
-            shader_artifact.uniform_buffer_size,
+            shader_artifact.uniform_buffer_byte_size,
             descriptor_resources,
         );
 

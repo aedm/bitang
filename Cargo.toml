@@ -5,9 +5,9 @@ members = [
 resolver = "2"
 
 [profile.dev.package."*"]
-opt-level = "s"
-overflow-checks = false
-debug = false
+# opt-level = "s"
+# overflow-checks = false
+# debug = false
 
 [profile.dev.package.bitang]
 opt-level = 0

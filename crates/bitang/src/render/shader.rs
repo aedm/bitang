@@ -73,7 +73,7 @@ pub struct Shader {
     uniform_buffer: wgpu::Buffer,
 
     ///
-    bind_group_layout: wgpu::BindGroupLayout,
+    pub bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl Shader {
@@ -157,7 +157,7 @@ impl Shader {
                 },
             };
             entries.push(wgpu::BindGroupLayoutEntry {
-                binding: 0,
+                binding: descriptor_resource.binding,
                 visibility,
                 ty,
                 count: None,
@@ -189,10 +189,11 @@ impl Shader {
         context: &mut RenderPassContext<'_>,
         // pipeline_layout: &Arc<PipelineLayout>,
     ) -> Result<()> {
-        if self.uniform_buffer_size == 0 && self.descriptor_resources.is_empty() {
-            return Ok(());
-        }
+        // if self.uniform_buffer_size == 0 && self.descriptor_resources.is_empty() {
+        //     return Ok(());
+        // }
 
+        let mut texture_views = SmallVec::<[_; 64]>::new();
         let mut entries = SmallVec::<[_; 64]>::new();
 
         if self.uniform_buffer_size > 0 {
@@ -211,11 +212,11 @@ impl Shader {
                     uniform_values[local_mapping.f32_offset + i] = components[i].value;
                 }
             }
-            let value_count = self.uniform_buffer_size / size_of::<f32>();
+            let f32_count = self.uniform_buffer_size / size_of::<f32>();
             context.gpu_context.queue.write_buffer(
                 &self.uniform_buffer,
                 0,
-                bytemuck::cast_slice(&uniform_values[..value_count]),
+                bytemuck::cast_slice(&uniform_values[..f32_count]),
             );
             // Uniforms are always at binding 0
             entries.push(wgpu::BindGroupEntry {
@@ -224,15 +225,17 @@ impl Shader {
             });
         }
 
+
         for descriptor_resource in &self.descriptor_resources {
             // TODO: just the resource instead of BindGroupEntry
             let write_descriptor_set = match &descriptor_resource.source {
                 DescriptorSource::Image(image_descriptor) => {
-                    let texture_view = &image_descriptor.texture_view;
-                    wgpu::BindGroupEntry {
-                        binding: descriptor_resource.binding,
-                        resource: wgpu::BindingResource::TextureView(texture_view),
-                    }
+                    // Just store texture view in an array.
+                    // This is needed because we create texture views per frame. 
+                    // TODO: cache texture views
+                    let texture_view = image_descriptor.image.make_texture_view_for_sampler()?;
+                    texture_views.push((descriptor_resource.binding, texture_view));
+                    continue;
                 }
                 DescriptorSource::Sampler(sampler_descriptor) => {
                     // let sampler = Sampler::new(
@@ -271,6 +274,13 @@ impl Shader {
             entries.push(write_descriptor_set);
         }
 
+        for texture_view in &texture_views {
+            entries.push(wgpu::BindGroupEntry {
+                binding: texture_view.0,
+                resource: wgpu::BindingResource::TextureView(&texture_view.1),
+            });
+        }
+
         let bind_group = context
             .gpu_context
             .device
@@ -284,7 +294,7 @@ impl Shader {
             .pass
             .set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
 
-        // let pipeline_bind_point = match self.kind {
+            // let pipeline_bind_point = match self.kind {
         //     ShaderKind::Vertex => PipelineBindPoint::Graphics,
         //     ShaderKind::Fragment => PipelineBindPoint::Graphics,
         //     ShaderKind::Compute => PipelineBindPoint::Compute,
@@ -472,8 +482,12 @@ impl SamplerMode {
                 wgpu::AddressMode::ClampToEdge,
             ],
             SamplerMode::Shadow => [
-                wgpu::AddressMode::ClampToBorder,
-                wgpu::AddressMode::ClampToBorder,
+                // TODO: ClampToBorder
+                // wgpu::AddressMode::ClampToBorder,
+                // wgpu::AddressMode::ClampToBorder,
+                // wgpu::AddressMode::ClampToEdge,
+                wgpu::AddressMode::ClampToEdge,
+                wgpu::AddressMode::ClampToEdge,
                 wgpu::AddressMode::ClampToEdge,
             ],
         }
@@ -481,19 +495,15 @@ impl SamplerMode {
 }
 
 // TODO: rename TextureResource or TextureShaderResource
+// TODO: cache image view?
 #[derive(Clone)]
 pub struct ImageDescriptor {
     pub image: Arc<BitangImage>,
-    texture_view: wgpu::TextureView,
 }
 
 impl ImageDescriptor {
     pub fn new(image: Arc<BitangImage>) -> Result<Self> {
-        let texture_view = image.make_texture_view_for_sampler()?;
-        Ok(Self {
-            image,
-            texture_view,
-        })
+        Ok(Self { image })
     }
 }
 
