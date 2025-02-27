@@ -197,7 +197,7 @@ impl Chart {
         for image in &self.images {
             image.enforce_size_rule(
                 &context.gpu_context,
-                &context.screen_viewport,
+                &context.canvas_size,
             )?;
         }
         // for buffer_generator in &self.buffer_generators {

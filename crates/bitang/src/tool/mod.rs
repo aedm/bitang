@@ -129,6 +129,7 @@ pub struct FrameContext {
     // pub vulkan_context: Arc<WgpuContext<'window>>,
     pub gpu_context: Arc<GpuContext>,
     pub screen_viewport: Viewport,
+    pub canvas_size: Size2D,
     // pub command_builder: &'frame mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
     // pub final_render_target: Arc<BitangImage>,
     pub command_encoder: wgpu::CommandEncoder,

@@ -309,7 +309,7 @@ impl BitangImage {
     // }
 
     /// Enforce the size rule.
-    pub fn enforce_size_rule(&self, context: &GpuContext, viewport: &Viewport) -> Result<()> {
+    pub fn enforce_size_rule(&self, context: &GpuContext, canvas_size: &Size2D) -> Result<()> {
         // Only attachments need to be resized.
         let ImageInner::Attachment(attachment) = &self.inner else {
             return Ok(());
@@ -320,12 +320,12 @@ impl BitangImage {
         let size = match attachment.size_rule {
             ImageSizeRule::Fixed(w, h) => [w, h],
             ImageSizeRule::CanvasRelative(r) => [
-                (viewport.size[0] as f32 * r) as u32,
-                (viewport.size[1] as f32 * r) as u32,
+                (canvas_size[0] as f32 * r) as u32,
+                (canvas_size[1] as f32 * r) as u32,
             ],
             ImageSizeRule::At4k(w, h) => {
                 // TODO: 4k is not 4096.
-                let scale = 4096.0 / viewport.size[0] as f32;
+                let scale = 4096.0 / canvas_size[0] as f32;
                 [(w as f32 * scale) as u32, (h as f32 * scale) as u32]
             }
         };

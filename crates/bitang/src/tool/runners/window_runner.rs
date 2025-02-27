@@ -355,6 +355,7 @@ impl App {
             globals: Default::default(),
             simulation_elapsed_time_since_last_render: 0.0,
             screen_viewport,
+            canvas_size: swapchain_size,
         };
         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
 
