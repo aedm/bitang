@@ -70,9 +70,11 @@ struct AttachmentImage {
 
     // The underlying texture..
     texture: Option<wgpu::Texture>,
+}
 
-    // As a render target.
-    render_target_view: Option<wgpu::TextureView>,
+struct SwapchainImage {
+    pub texture_view: wgpu::TextureView,
+    pub size: Size2D,
 }
 
 enum ImageInner {
@@ -83,7 +85,7 @@ enum ImageInner {
     Attachment(RwLock<AttachmentImage>),
 
     // The final render target. In windowed mode, this is displayed on the screen
-    Swapchain(RwLock<Option<wgpu::TextureView>>),
+    Swapchain(RwLock<Option<SwapchainImage>>),
 }
 
 pub struct BitangImage {
@@ -109,7 +111,6 @@ impl BitangImage {
             inner: ImageInner::Attachment(RwLock::new(AttachmentImage {
                 size_rule,
                 texture: None,
-                render_target_view: None,
             })),
             pixel_format,
             has_mipmaps,
@@ -248,8 +249,7 @@ impl BitangImage {
                 let Some(texture_view) = &*texture_view else {
                     bail!("Swapchain image not initialized");
                 };
-                texture_view.clone()
-
+                texture_view.texture_view.clone()
             }
         };
         Ok(view)
@@ -381,7 +381,7 @@ impl BitangImage {
         Ok(())
     }
 
-    pub fn get_size(&self) -> Result<(u32, u32)> {
+    pub fn get_size(&self) -> Result<Size2D> {
         match &self.inner {
             ImageInner::Attachment(attachment) => {
                 let attachment = attachment.read().unwrap();
@@ -389,14 +389,18 @@ impl BitangImage {
                     bail!("Image '{}' has no texture", self.id);
                 };
                 let size = texture.size();
-                Ok((size.width, size.height))
+                Ok([size.width, size.height])
             }
             ImageInner::Immutable(texture) => {
                 let size = texture.size();
-                Ok((size.width, size.height))
+                Ok([size.width, size.height])
             }
-            ImageInner::Swapchain(_) => {
-                bail!("Swapchain image size can't be retrieved");
+            ImageInner::Swapchain(swapchain) => {
+                let swapchain = swapchain.read().unwrap();
+                let Some(swapchain) = swapchain.as_ref() else {
+                    bail!("Swapchain image not initialized");
+                };
+                Ok(swapchain.size)
             }
         }
     }
@@ -405,11 +409,14 @@ impl BitangImage {
         matches!(&self.inner, ImageInner::Swapchain(_))
     }
 
-    pub fn set_swapchain_image_view(&self, view: wgpu::TextureView) {
+    pub fn set_swapchain_image_view(&self, view: wgpu::TextureView, size: Size2D) {
         match &self.inner {
             ImageInner::Swapchain(rw_lock) => {
                 let mut swapchain_view = rw_lock.write().unwrap();
-                *swapchain_view = Some(view);
+                *swapchain_view = Some(SwapchainImage {
+                    texture_view: view,
+                    size,
+                });
             }
             _ => panic!("Not a swapchain image"),
         }

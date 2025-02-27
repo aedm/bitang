@@ -2,11 +2,11 @@ use crate::control::controls::{Control, Globals};
 use crate::render::camera::Camera;
 use crate::render::pass::Pass;
 use crate::render::render_object::RenderObject;
-use crate::tool::{FrameContext, RenderPassContext};
+use crate::tool::{FrameContext, RenderPassContext, Viewport};
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
-use tracing::warn;
 use std::rc::Rc;
+use tracing::warn;
 
 use crate::render::scene::Scene;
 // use vulkano::command_buffer::{SubpassBeginInfo, SubpassContents};
@@ -117,13 +117,13 @@ impl Draw {
             //     .command_builder
             //     .begin_render_pass(render_pass_begin_info, subpass_begin_info)?
             //     .set_viewport(0, [viewport].into_iter().collect())?;
-            
+
             // let render_pass_descriptor = pass.make_render_pass_descriptor()?;
             // context.command_encoder.begin_render_pass(&render_pass_descriptor);
 
             let mut render_pass_context = pass.make_render_pass_context(frame_context)?;
-
-            warn!("draw.rs render set_viewport");
+            let Viewport { x, y, size } = viewport;
+            render_pass_context.pass.set_viewport(x as f32, y as f32, size[0] as f32, size[1] as f32, 0.0, 1.0);
 
             // Don't fail early if there's a rendering error. We must end the render pass.
             let render_result = self.render_items(&mut render_pass_context, pass_index);

@@ -241,7 +241,7 @@ impl Pass {
             Viewport {
                 x: 0,
                 y: 0,
-                size: [size.0, size.1],
+                size,
             }
         };
         Ok(viewport)

@@ -1,5 +1,5 @@
 use crate::render::image::BitangImage;
-use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
+use crate::render::{Size2D, SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{
@@ -278,6 +278,8 @@ impl App {
         }
 
         let swapchain_texture = self.surface.get_current_texture()?;
+        let swapchain_size = swapchain_texture.texture.size();
+        let swapchain_size = [swapchain_size.width, swapchain_size.height];
 
         // let before_future = self.get_renderer().acquire().unwrap();
 
@@ -285,7 +287,7 @@ impl App {
         let swapchain_view = swapchain_texture.texture.create_view(&Default::default());
         self.gpu_context
             .final_render_target
-            .set_swapchain_image_view(swapchain_view);
+            .set_swapchain_image_view(swapchain_view, swapchain_size);
         // let target_image = self.get_renderer().swapchain_image_view();
         // self.vulkan_context
         //     .final_render_target

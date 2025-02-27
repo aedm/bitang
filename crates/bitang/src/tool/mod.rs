@@ -59,7 +59,10 @@ impl GpuContext {
                 .context("No suitable adapter found")?;
 
             let (device, queue) = adapter
-                .request_device(&wgpu::DeviceDescriptor::default(), None)
+                .request_device(&wgpu::DeviceDescriptor {
+                    required_features: wgpu::Features::FLOAT32_FILTERABLE,
+                    ..wgpu::DeviceDescriptor::default()
+                }, None)
                 .await?;
 
             let final_render_target =
