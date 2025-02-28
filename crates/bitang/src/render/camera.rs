@@ -51,10 +51,6 @@ impl Camera {
             globals.z_near,
         );
 
-        // We use a left-handed, y-up coordinate system. But Vulkan screen space is right-handed, y-down.
-        // So we need to flip the y-axis in the projection matrix.
-        globals.projection_from_camera.y_axis *= -1.;
-
         // Shake
         let shake = {
             let s = self.shake.as_vec4();
