@@ -6,6 +6,8 @@ use crate::tool::{
     FrameContext, GpuContext, Viewport, BORDERLESS_FULL_SCREEN, SCREEN_RATIO, START_IN_DEMO_MODE,
 };
 use anyhow::{Context, Result};
+use egui::ViewportId;
+use egui_wgpu::{WgpuSetup, WgpuSetupExisting};
 use std::cmp::max;
 use std::sync::Arc;
 use std::time::Instant;
@@ -91,7 +93,7 @@ struct App {
     surface: Surface<'static>,
     surface_config: SurfaceConfiguration,
     egui_context: egui::Context,
-    egui_wgpu_renderer: egui_wgpu::Renderer,
+    egui_wgpu_painter: egui_wgpu::winit::Painter,
 }
 
 pub enum PaintResult {
@@ -145,22 +147,47 @@ impl App {
         //     ci.min_image_count = ci.min_image_count.max(3);
         // });
 
-        let mut egui_context = egui::Context::default();
-
         let ui = Ui::new(
             // &gpu_context,
             // &event_loop,
             // &windows.get_primary_renderer().unwrap().surface(),
         )?;
 
-        let egui_wgpu_renderer = egui_wgpu::Renderer::new(
-            &gpu_context.device,
-            SCREEN_COLOR_FORMAT.wgpu_format(),
-            None,
-            1,
-            // TODO: dithering?
-            false,
-        );
+        let mut egui_context = egui::Context::default();
+
+        let wgpu_configuration = egui_wgpu::WgpuConfiguration {
+            wgpu_setup: WgpuSetup::Existing(WgpuSetupExisting {
+                instance: gpu_context.instance.clone(),
+                adapter: gpu_context.adapter.clone(),
+                device: gpu_context.device.clone(),
+                queue: gpu_context.queue.clone(),
+            }),
+            ..Default::default()
+        };
+
+        let mut egui_wgpu_painter = tokio::runtime::Runtime::new()?.block_on(async {
+            let mut painter = egui_wgpu::winit::Painter::new(
+                egui_context.clone(),
+                wgpu_configuration,
+                1,
+                None,
+                false,
+                // TODO: dithering?
+                false,
+            )
+            .await;
+
+            painter
+                .set_window(
+                    ViewportId(egui::Id::from("main_window")),
+                    Some(window.clone()),
+                )
+                .await?;
+
+            Ok::<_,egui_wgpu::WgpuError>(painter)
+        })?;
+
+        println!("BLOOOO {:?}", egui_wgpu_painter.render_state().is_some());
 
         let mut app = Self {
             is_fullscreen: false,
@@ -173,7 +200,7 @@ impl App {
             surface,
             surface_config,
             egui_context,
-            egui_wgpu_renderer,
+            egui_wgpu_painter,
         };
 
         if app.demo_mode {
