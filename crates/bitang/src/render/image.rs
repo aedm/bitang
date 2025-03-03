@@ -55,6 +55,18 @@ impl PixelFormat {
             PixelFormat::Bgra8Srgb => wgpu::TextureFormat::Bgra8UnormSrgb,
         }
     }
+
+    pub fn from_wgpu_format(format: wgpu::TextureFormat) -> Result<PixelFormat> {
+        match format {
+            wgpu::TextureFormat::Rgba16Float => Ok(PixelFormat::Rgba16F),
+            wgpu::TextureFormat::Rgba32Float => Ok(PixelFormat::Rgba32F),
+            wgpu::TextureFormat::Depth32Float => Ok(PixelFormat::Depth32F),
+            wgpu::TextureFormat::Rgba8Unorm => Ok(PixelFormat::Rgba8U),
+            wgpu::TextureFormat::Rgba8UnormSrgb => Ok(PixelFormat::Rgba8Srgb),
+            wgpu::TextureFormat::Bgra8UnormSrgb => Ok(PixelFormat::Bgra8Srgb),
+            _ => bail!("Unsupported format: {:?}", format),
+        }
+    }
 }
 
 // TODO: add Size2D type.

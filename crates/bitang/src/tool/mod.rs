@@ -40,7 +40,7 @@ pub struct GpuContext {
     // pub vulkano_context: Arc<VulkanoContext>,
     // pub command_buffer_allocator: StandardCommandBufferAllocator,
     // pub descriptor_set_allocator: StandardDescriptorSetAllocator,
-    pub instance: wgpu::Instance,
+    // pub instance: wgpu::Instance,
     pub adapter: wgpu::Adapter,
     pub queue: wgpu::Queue,
     pub device: wgpu::Device,
@@ -52,7 +52,7 @@ pub struct GpuContext {
 impl GpuContext {
     fn new(swapchain_pixel_format: PixelFormat) -> Result<Arc<Self>> {
         tokio::runtime::Runtime::new()?.block_on(async {
-            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+            // let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
             let adapter = instance
                 .request_adapter(&wgpu::RequestAdapterOptions::default())
                 .await
@@ -69,7 +69,7 @@ impl GpuContext {
                 BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, swapchain_pixel_format);
 
             Ok(Arc::new(Self {
-                instance,
+                // instance,
                 adapter,
                 queue,
                 device,
