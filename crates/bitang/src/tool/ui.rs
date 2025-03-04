@@ -14,7 +14,6 @@ use tracing::error;
 // };
 // use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
 // use vulkano::swapchain::Surface;
-use winit::{event::WindowEvent, event_loop::EventLoop};
 
 pub struct Ui {
     // pub gui: Gui,

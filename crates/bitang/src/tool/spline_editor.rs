@@ -4,6 +4,7 @@ use crate::tool::app_state::AppState;
 use egui::Color32;
 use egui_plot::{Line, Plot, PlotBounds, PlotPoint, PlotUi};
 use glam::Vec2;
+use tracing::debug;
 use std::rc::Rc;
 
 enum SplineEditorState {
@@ -276,8 +277,8 @@ impl SplineEditor {
     ) {
         let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
         let zoom_delta = ui.input(|i| i.zoom_delta());
-        let secondary_clicked = ui.input(|i| i.pointer.secondary_clicked());
-        let primary_clicked = ui.input(|i| i.pointer.primary_clicked());
+        let secondary_clicked = ui.input(|i| i.pointer.secondary_pressed());
+        let primary_clicked = ui.input(|i| i.pointer.primary_pressed());
         let primary_down = ui.input(|i| i.pointer.primary_down());
         let secondary_down = ui.input(|i| i.pointer.secondary_down());
         let pointer_delta = ui.input(|i| i.pointer.delta());

@@ -16,10 +16,9 @@ nu-ansi-term = "*"
 codespan-reporting = "0.11.1"
 
 eframe = { version = "0.31", features = ["wgpu"] }
-egui-wgpu = { version = "0.31", features = ["winit"] }
+egui-wgpu = { version = "0.31" }
 egui_plot = "0.31"
 egui = "*"
-winit = "*"
 wgpu = { version = "*", features = ["spirv"] }
 
 naga = { version = "*", features = ["spv-out", "wgsl-in"] }
