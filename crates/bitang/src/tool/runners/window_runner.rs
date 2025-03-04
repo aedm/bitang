@@ -13,7 +13,7 @@ use std::num::NonZeroU32;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tracing::{error, info};
-use wgpu::{Surface, SurfaceConfiguration};
+use wgpu::{Backends, Surface, SurfaceConfiguration};
 // use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 // use vulkano::pipeline::graphics::viewport::Viewport;
 // use vulkano::sync::GpuFuture;
@@ -25,16 +25,35 @@ pub struct WindowRunner {}
 
 impl WindowRunner {
     pub fn run() -> Result<()> {
-        let native_options = eframe::NativeOptions::default();
+        let wgpu_configuration = egui_wgpu::WgpuConfiguration {
+            present_mode: wgpu::PresentMode::AutoVsync,
+            desired_maximum_frame_latency: Some(1),
+            wgpu_setup: WgpuSetup::CreateNew(WgpuSetupCreateNew {
+                instance_descriptor: wgpu::InstanceDescriptor {
+                    backends: Backends::DX12,
+                    ..Default::default()
+                },
+                device_descriptor: Arc::new(|_adapter| wgpu::DeviceDescriptor {
+                    required_features: wgpu::Features::FLOAT32_FILTERABLE,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let native_options = eframe::NativeOptions {
+            wgpu_options: wgpu_configuration,
+            ..eframe::NativeOptions::default()
+        };
+        // TODO: no unwrap
         eframe::run_native(
-            "My egui App",
+            "Bitang",
             native_options,
             Box::new(|cc| {
                 // TODO: unwrap
                 Ok(App::new(cc).unwrap())
             })
-        );
-
+        ).unwrap();
         Ok(())
     }
 }
@@ -46,6 +65,7 @@ struct AppInner {
     content_renderer: ContentRenderer,
     app_start_time: Instant,
     demo_mode: bool,
+    
 }
 
 struct BackgroundRenderProps {
@@ -215,12 +235,12 @@ impl AppInner {
     }
 
     fn render_ui(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let scale_factor = 1.0f32;
+        let scale_factor = ctx.pixels_per_point();
         let rect = ctx.input(|i: &egui::InputState| i.screen_rect());
         let ui_height = rect.height();
         let pixels_per_point =
             if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
-        let bottom_panel_height = ui_height / pixels_per_point;
+        let bottom_panel_height = ui_height;
 
         ctx.set_pixels_per_point(pixels_per_point);
         self.ui.draw(
@@ -266,48 +286,10 @@ impl App {
         egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::F2);
 
     fn new(cc: &eframe::CreationContext<'_>) -> Result<Box<dyn eframe::App>> {
-        // let window_attributes = Window::default_attributes()
-        //     .with_title("Bitang".to_string())
-        //     .with_inner_size(Size::Logical(LogicalSize::new(1280.0, 1000.0)));
-        // let window = Arc::new(event_loop.create_window(window_attributes)?);
-        // let size = window.inner_size();
-
-        let mut egui_context = egui::Context::default();
-
-        let wgpu_configuration = egui_wgpu::WgpuConfiguration {
-            wgpu_setup: WgpuSetup::CreateNew(WgpuSetupCreateNew {
-                device_descriptor: Arc::new(|adapter| wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::FLOAT32_FILTERABLE,
-                    ..Default::default()
-                }),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-
-        // let mut egui_wgpu_painter = tokio::runtime::Runtime::new()?.block_on(async {
-        //     let mut painter = egui_wgpu::winit::Painter::new(
-        //         egui_context.clone(),
-        //         wgpu_configuration,
-        //         1,
-        //         None,
-        //         false,
-        //         // TODO: dithering?
-        //         false,
-        //     )
-        //     .await;
-
-        //     painter
-        //         .set_window(
-        //             viewport_id,
-        //             Some(window.clone()),
-        //         )
-        //         .await?;
-
-        //     Ok::<_, egui_wgpu::WgpuError>(painter)
-        // })?;
-
         let render_state = cc.wgpu_render_state.as_ref().context("No WGPU render state")?;
+
+        let adapter_info = render_state.adapter.get_info();
+        info!("WGPU adapter: {:?} on {}", adapter_info.backend, adapter_info.name);
 
         let swapchain_pixel_format = PixelFormat::from_wgpu_format(render_state.target_format)?;
         let final_render_target =
@@ -319,15 +301,6 @@ impl App {
             device: render_state.device.clone(),
             final_render_target,
         });
-
-        // let surface = gpu_context.instance.create_surface(window.clone())?;
-        // let surface_config = surface
-        //     .get_default_config(&gpu_context.adapter, size.width, size.height)
-        //     .context("No default config found")?;
-        // surface.configure(&gpu_context.device, &surface_config);
-
-        // let vulkano_context = init_context.vulkano_context.clone();
-        // let vulkan_context = init_context.into_vulkan_context(final_render_target);
 
         let mut content_renderer = ContentRenderer::new(&gpu_context)?;
         info!("Init DOOM refresh daemon...");
