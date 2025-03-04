@@ -57,8 +57,12 @@ impl winit::application::ApplicationHandler for WinitAppWrapper {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         assert!(self.app.is_none());
 
-        let Ok(app) = App::new(event_loop) else {
-            panic!("Failed to create app");
+        let app = match App::new(event_loop) {
+            Ok(app) => app,
+            Err(err) => {
+                error!("Failed to create app: {err:?}");
+                return;
+            }
         };
         self.app = Some(app);
     }
@@ -491,43 +495,45 @@ impl App {
     fn render_frame_to_screen(&mut self) -> Result<()> {
         // TODO: gui
         // Render UI
-        if !self.is_fullscreen && ui_height > 0.0 {
-            let pixels_per_point =
-                if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
-            let bottom_panel_height = ui_height / pixels_per_point;
+        // if self.window.fullscreen().is_none() {}
 
-            let full_outout = self.egui_context.run(new_input, |ctx| {
-                ctx.set_pixels_per_point(pixels_per_point);
-                self.ui.draw(
-                    ctx,
-                    &mut self.content_renderer.app_state,
-                    bottom_panel_height,
-                );
-            });
+        // if !self.is_fullscreen && ui_height > 0.0 {
+        //     let pixels_per_point =
+        //         if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
+        //     let bottom_panel_height = ui_height / pixels_per_point;
 
-            let clipped_primitives = self.egui_context.tessellate(shapes, pixels_per_point);
+        //     let full_outout = self.egui_context.run(new_input, |ctx| {
+        //         ctx.set_pixels_per_point(pixels_per_point);
+        //         self.ui.draw(
+        //             ctx,
+        //             &mut self.content_renderer.app_state,
+        //             bottom_panel_height,
+        //         );
+        //     });
 
-            let user_cmd_bufs = {
-                let renderer = &mut self.egui_wgpu_renderer;
-                for (id, image_delta) in &textures_delta.set {
-                    renderer.update_texture(
-                        &self.gpu_context.device,
-                        &self.gpu_context.queue,
-                        *id,
-                        image_delta,
-                    );
-                }
+        //     let clipped_primitives = self.egui_context.tessellate(shapes, pixels_per_point);
 
-                renderer.update_buffers(
-                    &self.gpu_context.device,
-                    &self.gpu_context.queue,
-                    &mut encoder,
-                    clipped_primitives,
-                    &screen_descriptor,
-                )
-            };
+        //     let user_cmd_bufs = {
+        //         let renderer = &mut self.egui_wgpu_renderer;
+        //         for (id, image_delta) in &textures_delta.set {
+        //             renderer.update_texture(
+        //                 &self.gpu_context.device,
+        //                 &self.gpu_context.queue,
+        //                 *id,
+        //                 image_delta,
+        //             );
+        //         }
 
-        }
+        //         renderer.update_buffers(
+        //             &self.gpu_context.device,
+        //             &self.gpu_context.queue,
+        //             &mut encoder,
+        //             clipped_primitives,
+        //             &screen_descriptor,
+        //         )
+        //     };
+
+        // }
 
         Ok(())
     }   

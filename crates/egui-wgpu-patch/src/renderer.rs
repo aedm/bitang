@@ -108,17 +108,6 @@ pub trait CallbackTrait: Send + Sync {
         Vec::new()
     }
 
-    /// Called after all [`CallbackTrait::prepare`] calls are done.
-    fn draw_background(
-        &self,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
-        _egui_encoder: &mut wgpu::CommandEncoder,
-        _callback_resources: &mut CallbackResources,
-    ) -> Vec<wgpu::CommandBuffer> {
-        Vec::new()
-    }
-
     /// Called after all [`CallbackTrait::finish_prepare`] calls are done.
     ///
     /// It is given access to the [`wgpu::RenderPass`] so that it can issue draw commands

@@ -31,6 +31,7 @@ pub enum PixelFormat {
 
     // Intel only apparently supports this surface format, no RGBA_SRGB.
     Bgra8Srgb,
+    Bgra8Unorm,
 }
 
 impl PixelFormat {
@@ -53,6 +54,7 @@ impl PixelFormat {
             PixelFormat::Rgba8U => wgpu::TextureFormat::Rgba8Unorm,
             PixelFormat::Rgba8Srgb => wgpu::TextureFormat::Rgba8UnormSrgb,
             PixelFormat::Bgra8Srgb => wgpu::TextureFormat::Bgra8UnormSrgb,
+            PixelFormat::Bgra8Unorm => wgpu::TextureFormat::Bgra8Unorm,
         }
     }
 
@@ -64,6 +66,7 @@ impl PixelFormat {
             wgpu::TextureFormat::Rgba8Unorm => Ok(PixelFormat::Rgba8U),
             wgpu::TextureFormat::Rgba8UnormSrgb => Ok(PixelFormat::Rgba8Srgb),
             wgpu::TextureFormat::Bgra8UnormSrgb => Ok(PixelFormat::Bgra8Srgb),
+            wgpu::TextureFormat::Bgra8Unorm => Ok(PixelFormat::Bgra8Unorm),
             _ => bail!("Unsupported format: {:?}", format),
         }
     }

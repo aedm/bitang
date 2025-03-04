@@ -52,7 +52,7 @@ pub struct GpuContext {
 impl GpuContext {
     fn new(swapchain_pixel_format: PixelFormat) -> Result<Arc<Self>> {
         tokio::runtime::Runtime::new()?.block_on(async {
-            // let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
             let adapter = instance
                 .request_adapter(&wgpu::RequestAdapterOptions::default())
                 .await
