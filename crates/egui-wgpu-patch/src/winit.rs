@@ -2,7 +2,7 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use crate::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
-use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
+use crate::{renderer, BackgroundRenderProps, RenderState, SurfaceErrorAction, WgpuConfiguration};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -77,7 +77,6 @@ impl Painter {
             depth_texture_view: Default::default(),
             surfaces: Default::default(),
             msaa_texture_view: Default::default(),
-
             capture_tx,
             capture_rx,
         }
@@ -116,9 +115,7 @@ impl Painter {
             surf_config.desired_maximum_frame_latency = desired_maximum_frame_latency;
         }
 
-        surface_state
-            .surface
-            .configure(&render_state.device, &surf_config);
+        surface_state.surface.configure(&render_state.device, &surf_config);
     }
 
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
@@ -253,9 +250,7 @@ impl Painter {
     /// at least once, since the underlying device and render state are initialized lazily
     /// once we have a window (that may determine the choice of adapter/device).
     pub fn max_texture_side(&self) -> Option<usize> {
-        self.render_state
-            .as_ref()
-            .map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
+        self.render_state.as_ref().map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
     }
 
     fn resize_and_generate_depth_texture_view_and_msaa_view(
@@ -301,9 +296,8 @@ impl Painter {
             );
         }
 
-        if let Some(render_state) = (self.msaa_samples > 1)
-            .then_some(self.render_state.as_ref())
-            .flatten()
+        if let Some(render_state) =
+            (self.msaa_samples > 1).then_some(self.render_state.as_ref()).flatten()
         {
             let texture_format = render_state.target_format;
             self.msaa_texture_view.insert(
@@ -376,11 +370,9 @@ impl Painter {
         };
 
         let mut encoder =
-            render_state
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("encoder"),
-                });
+            render_state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("encoder"),
+            });
 
         // Upload all resources for the GPU.
         let screen_descriptor = renderer::ScreenDescriptor {
@@ -453,18 +445,33 @@ impl Painter {
                     (texture_view, Some(&target_view))
                 });
 
+            // Call the optional background painter callback
+            let (clear_color, clear_depth) = match &self.configuration.on_draw_background {
+                Some(on_draw_background) => {
+                    on_draw_background(BackgroundRenderProps {
+                        surface_size: [surface_state.width, surface_state.height],
+                        surface_view: view.clone(),
+                    });
+                    (wgpu::LoadOp::Load, wgpu::LoadOp::Load)
+                }
+                None => (
+                    wgpu::LoadOp::Clear(wgpu::Color {
+                        r: clear_color[0] as f64,
+                        g: clear_color[1] as f64,
+                        b: clear_color[2] as f64,
+                        a: clear_color[3] as f64,
+                    }),
+                    wgpu::LoadOp::Clear(1.0),
+                ),
+            };
+
             let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("egui_render"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
                     resolve_target,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: clear_color[0] as f64,
-                            g: clear_color[1] as f64,
-                            b: clear_color[2] as f64,
-                            a: clear_color[3] as f64,
-                        }),
+                        load: clear_color,
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -472,7 +479,7 @@ impl Painter {
                     wgpu::RenderPassDepthStencilAttachment {
                         view,
                         depth_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(1.0),
+                            load: clear_depth,
                             // It is very unlikely that the depth buffer is needed after egui finished rendering
                             // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
                             store: wgpu::StoreOp::Discard,
@@ -514,9 +521,7 @@ impl Painter {
             profiling::scope!("Queue::submit");
             // wgpu doesn't document where vsync can happen. Maybe here?
             let start = web_time::Instant::now();
-            render_state
-                .queue
-                .submit(user_cmd_bufs.into_iter().chain([encoded]));
+            render_state.queue.submit(user_cmd_bufs.into_iter().chain([encoded]));
             vsync_sec += start.elapsed().as_secs_f32();
         };
 
@@ -569,10 +574,8 @@ impl Painter {
 
     pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {
         self.surfaces.retain(|id, _| active_viewports.contains(id));
-        self.depth_texture_view
-            .retain(|id, _| active_viewports.contains(id));
-        self.msaa_texture_view
-            .retain(|id, _| active_viewports.contains(id));
+        self.depth_texture_view.retain(|id, _| active_viewports.contains(id));
+        self.msaa_texture_view.retain(|id, _| active_viewports.contains(id));
     }
 
     #[allow(clippy::needless_pass_by_ref_mut, clippy::unused_self)]

@@ -1,5 +1,6 @@
 [package]
 name = "egui-wgpu"
+version = "0.31.0"
 description = "Bindings for using egui natively using the wgpu library"
 authors = [
   "Nils Hasenbanck <nils@hasenbanck.de>",

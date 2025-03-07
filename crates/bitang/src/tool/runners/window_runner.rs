@@ -10,6 +10,7 @@ use egui::ViewportId;
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
 use std::cmp::max;
 use std::num::NonZeroU32;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tracing::{error, info};
@@ -20,17 +21,21 @@ use wgpu::{Backends, Surface, SurfaceConfiguration};
 // use vulkano_util::renderer::VulkanoWindowRenderer;
 // use vulkano_util::window::{VulkanoWindows, WindowDescriptor};
 use eframe::egui;
+use egui_wgpu::BackgroundRenderProps;
 
 pub struct WindowRunner {}
 
 impl WindowRunner {
     pub fn run() -> Result<()> {
+        let inner = Arc::new(Mutex::new(None::<AppInner>));
+        let inner_clone = inner.clone();
+
         let wgpu_configuration = egui_wgpu::WgpuConfiguration {
-            present_mode: wgpu::PresentMode::AutoVsync,
+            // present_mode: wgpu::PresentMode::Mailbox,
             desired_maximum_frame_latency: Some(1),
             wgpu_setup: WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: wgpu::InstanceDescriptor {
-                    backends: Backends::DX12,
+                    backends: Backends::VULKAN,
                     ..Default::default()
                 },
                 device_descriptor: Arc::new(|_adapter| wgpu::DeviceDescriptor {
@@ -39,19 +44,29 @@ impl WindowRunner {
                 }),
                 ..Default::default()
             }),
+            on_draw_background: Some(Rc::new(move |props| {
+                let mut inner = inner_clone.lock().unwrap();
+                let Some(app_inner) = inner.as_mut() else {
+                    error!("Failed to get app inner");
+                    return;
+                };
+                app_inner.render_frame_to_screen(props).unwrap();
+            })),
             ..Default::default()
         };
         let native_options = eframe::NativeOptions {
             wgpu_options: wgpu_configuration,
             ..eframe::NativeOptions::default()
         };
+
+
         // TODO: no unwrap
         eframe::run_native(
             "Bitang",
             native_options,
             Box::new(|cc| {
                 // TODO: unwrap
-                Ok(App::new(cc).unwrap())
+                Ok(App::new(cc, inner).unwrap())
             })
         ).unwrap();
         Ok(())
@@ -66,40 +81,13 @@ struct AppInner {
     app_start_time: Instant,
     demo_mode: bool,
     
-}
-
-struct BackgroundRenderProps {
-    surface_view: wgpu::TextureView,
-    surface_size: [u32; 2],
-    scale_factor: f32,
+    viewport: Viewport,
+    ui_height: f32,
 }
 
 impl AppInner {
-    fn render_frame_to_screen(&mut self, props: BackgroundRenderProps) -> Result<()> {
-        // Don't render anything if the window is minimized
-        // let window_size = self.window.inner_size();
-        if props.surface_size[0] == 0 || props.surface_size[1] == 0 {
-            return Ok(());
-        }
-
-        // let swapchain_texture = self.surface.get_current_texture()?;
-        // let swapchain_size = swapchain_texture.texture.size();
-        let swapchain_size = props.surface_size;
-
-        // let before_future = self.get_renderer().acquire().unwrap();
-
-        // Update swapchain target
-        let swapchain_view = props.surface_view;
-        self.gpu_context
-            .final_render_target
-            .set_swapchain_image_view(swapchain_view, swapchain_size);
-        // let target_image = self.get_renderer().swapchain_image_view();
-        // self.vulkan_context
-        //     .final_render_target
-        //     .set_swapchain_image(target_image.clone());
-
+    fn compute_viewport(&mut self, swapchain_size: Size2D) {
         // Calculate viewport
-        let scale_factor = props.scale_factor;
         let (width, height, top, left) = if self.is_fullscreen {
             if swapchain_size[0] * SCREEN_RATIO.1 > swapchain_size[1] * SCREEN_RATIO.0 {
                 // Screen is too wide
@@ -123,22 +111,42 @@ impl AppInner {
             let top = 0;
             (width, height, top, left)
         };
-        let ui_height = max(swapchain_size[1] as i32 - height as i32, 0) as f32;
-        let screen_viewport = Viewport {
+        self.ui_height = max(swapchain_size[1] as i32 - height as i32, 0) as f32;
+        self.viewport = Viewport {
             // offset: [left as f32, top as f32],
             // extent: [width as f32, height as f32],
             x: left,
             y: top,
             size: [width, height],
         };
+    }
 
-        // // Make command buffer
-        // let mut command_builder = AutoCommandBufferBuilder::primary(
-        //     &self.vulkan_context.command_buffer_allocator,
-        //     self.vulkan_context.gfx_queue.queue_family_index(),
-        //     CommandBufferUsage::OneTimeSubmit,
-        // )
-        // .unwrap();
+
+    fn render_frame_to_screen(&mut self, props: egui_wgpu::BackgroundRenderProps) -> Result<()> {
+        // Don't render anything if the window is minimized
+        // let window_size = self.window.inner_size();
+        if props.surface_size[0] == 0 || props.surface_size[1] == 0 {
+            return Ok(());
+        }
+
+        // let swapchain_texture = self.surface.get_current_texture()?;
+        // let swapchain_size = swapchain_texture.texture.size();
+        let swapchain_size = props.surface_size;
+
+        // let before_future = self.get_renderer().acquire().unwrap();
+
+        // Update swapchain target
+        let swapchain_view = props.surface_view;
+        self.gpu_context
+            .final_render_target
+            .set_swapchain_image_view(swapchain_view, swapchain_size);
+        // let target_image = self.get_renderer().swapchain_image_view();
+        // self.vulkan_context
+        //     .final_render_target
+        //     .set_swapchain_image(target_image.clone());
+
+
+
 
         // // Make render context
         // let mut render_context = FrameContext {
@@ -149,7 +157,7 @@ impl AppInner {
         //     // simulation_elapsed_time_since_last_render: 0.0,
         // };
         // render_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
-        let mut encoder = self
+        let encoder = self
             .gpu_context
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -159,7 +167,7 @@ impl AppInner {
             command_encoder: encoder,
             globals: Default::default(),
             simulation_elapsed_time_since_last_render: 0.0,
-            screen_viewport,
+            screen_viewport: self.viewport,
             canvas_size: swapchain_size,
         };
         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
@@ -189,28 +197,6 @@ impl AppInner {
         //         );
         //     });
 
-        //     let clipped_primitives = self.egui_context.tessellate(shapes, pixels_per_point);
-
-        //     let user_cmd_bufs = {
-        //         let renderer = &mut self.egui_wgpu_renderer;
-        //         for (id, image_delta) in &textures_delta.set {
-        //             renderer.update_texture(
-        //                 &self.gpu_context.device,
-        //                 &self.gpu_context.queue,
-        //                 *id,
-        //                 image_delta,
-        //             );
-        //         }
-
-        //         renderer.update_buffers(
-        //             &self.gpu_context.device,
-        //             &self.gpu_context.queue,
-        //             &mut encoder,
-        //             clipped_primitives,
-        //             &screen_descriptor,
-        //         )
-        //     };
-
         // }
 
         // Execute commands and display the result
@@ -236,11 +222,11 @@ impl AppInner {
 
     fn render_ui(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         let scale_factor = ctx.pixels_per_point();
-        let rect = ctx.input(|i: &egui::InputState| i.screen_rect());
-        let ui_height = rect.height();
+        let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size();
+        self.compute_viewport([size.x as u32, size.y as u32]);
         let pixels_per_point =
             if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
-        let bottom_panel_height = ui_height;
+        let bottom_panel_height = self.ui_height;
 
         ctx.set_pixels_per_point(pixels_per_point);
         self.ui.draw(
@@ -252,7 +238,7 @@ impl AppInner {
 }
 
 struct App {
-    inner: Arc<Mutex<AppInner>>,
+    inner: Arc<Mutex<Option<AppInner>>>,
     // pub vulkan_context: Arc<WindowContext>,
     // windows: VulkanoWindows,
     // window: Arc<Window>,
@@ -266,7 +252,9 @@ struct App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         let mut inner = self.inner.lock().unwrap();
-        inner.render_ui(ctx, frame);
+        if let Some(inner) = &mut *inner {
+            inner.render_ui(ctx, frame);
+        }
     }
 }
 
@@ -285,7 +273,7 @@ impl App {
     const TOGGLE_SIMULATION_SHORTCUT: egui::KeyboardShortcut =
         egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::F2);
 
-    fn new(cc: &eframe::CreationContext<'_>) -> Result<Box<dyn eframe::App>> {
+    fn new(cc: &eframe::CreationContext<'_>, inner: Arc<Mutex<Option<AppInner>>>) -> Result<Box<dyn eframe::App>> {
         let render_state = cc.wgpu_render_state.as_ref().context("No WGPU render state")?;
 
         let adapter_info = render_state.adapter.get_info();
@@ -308,25 +296,21 @@ impl App {
 
         let ui = Ui::new()?;
 
-        let inner = AppInner {
+        let app_inner = AppInner {
             gpu_context,
             is_fullscreen: false,
             ui,
             content_renderer,
             app_start_time: Instant::now(),
             demo_mode: START_IN_DEMO_MODE,
+            viewport: Viewport::default(),
+            ui_height: 0.0,
         };
 
-        let inner = Arc::new(Mutex::new(inner));
+        *inner.lock().unwrap() = Some(app_inner);
 
         let mut app = Self {
-            inner: inner.clone(),
-            // window,
-            // surface,
-            // surface_config,
-            // egui_context,
-            // egui_wgpu_painter,
-            // viewport_id,
+            inner,
         };
 
         if START_IN_DEMO_MODE {
@@ -335,7 +319,7 @@ impl App {
             app.toggle_fullscreen();
             // TODO: fugly
             let mut lock = app.inner.lock().unwrap();
-            lock.content_renderer.play();
+            lock.as_mut().unwrap().content_renderer.play();
         }
 
         Ok(Box::new(app))

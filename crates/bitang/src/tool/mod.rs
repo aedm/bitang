@@ -118,7 +118,7 @@ impl GpuContext {
 //     }
 // }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Viewport {
     pub x: u32,
     pub y: u32,

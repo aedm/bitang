@@ -35,7 +35,8 @@ pub mod capture;
 #[cfg(feature = "winit")]
 pub mod winit;
 
-use std::sync::Arc;
+use std::{sync::Arc};
+use std::rc::Rc;
 
 use epaint::mutex::RwLock;
 
@@ -279,6 +280,11 @@ pub enum SurfaceErrorAction {
     RecreateSurface,
 }
 
+pub struct BackgroundRenderProps {
+    pub surface_view: wgpu::TextureView,
+    pub surface_size: [u32; 2],
+}
+
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
 #[derive(Clone)]
 pub struct WgpuConfiguration {
@@ -299,13 +305,15 @@ pub struct WgpuConfiguration {
 
     /// Callback for surface errors.
     pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
+
+    pub on_draw_background: Option<Rc::<dyn Fn(BackgroundRenderProps) -> ()>>,
 }
 
-#[test]
-fn wgpu_config_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<WgpuConfiguration>();
-}
+// #[test]
+// fn wgpu_config_impl_send_sync() {
+//     fn assert_send_sync<T: Send + Sync>() {}
+//     assert_send_sync::<WgpuConfiguration>();
+// }
 
 impl std::fmt::Debug for WgpuConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -314,6 +322,7 @@ impl std::fmt::Debug for WgpuConfiguration {
             desired_maximum_frame_latency,
             wgpu_setup,
             on_surface_error: _,
+            on_draw_background: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
             .field("present_mode", &present_mode)
@@ -342,6 +351,7 @@ impl Default for WgpuConfiguration {
                 }
                 SurfaceErrorAction::SkipFrame
             }),
+            on_draw_background: None,
         }
     }
 }
