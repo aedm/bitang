@@ -436,6 +436,7 @@ impl Painter {
             } else {
                 &output_frame.texture
             };
+            let texture_size = target_texture.size();
             let target_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
             let (view, resolve_target) = (self.msaa_samples > 1)
@@ -449,7 +450,8 @@ impl Painter {
             let (clear_color, clear_depth) = match &self.configuration.on_draw_background {
                 Some(on_draw_background) => {
                     on_draw_background(BackgroundRenderProps {
-                        surface_size: [surface_state.width, surface_state.height],
+                        // surface_size: [surface_state.width, surface_state.height],
+                        surface_size: [texture_size.width, texture_size.height],
                         surface_view: view.clone(),
                     });
                     (wgpu::LoadOp::Load, wgpu::LoadOp::Load)

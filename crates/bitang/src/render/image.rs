@@ -274,7 +274,10 @@ impl BitangImage {
     pub fn make_texture_view_for_sampler(&self) -> Result<wgpu::TextureView> {
         let view: wgpu::TextureView = match &self.inner {
             ImageInner::Immutable(texture) => {
-                texture.create_view(&wgpu::TextureViewDescriptor::default())
+                texture.create_view(&wgpu::TextureViewDescriptor {
+                    usage: Some(wgpu::TextureUsages::TEXTURE_BINDING),
+                    ..wgpu::TextureViewDescriptor::default()
+                })
             }
             ImageInner::Attachment(attachment) => {
                 let attachment = attachment.read().unwrap();
@@ -335,17 +338,24 @@ impl BitangImage {
         let size = match attachment.size_rule {
             ImageSizeRule::Fixed(w, h) => [w, h],
             ImageSizeRule::CanvasRelative(r) => [
-                (canvas_size[0] as f32 * r) as u32,
-                (canvas_size[1] as f32 * r) as u32,
+                ((canvas_size[0] as f32 * r) as u32).max(1),
+                ((canvas_size[1] as f32 * r) as u32).max(1),
             ],
             ImageSizeRule::At4k(w, h) => {
                 // TODO: 4k is not 4096.
-                let scale = 4096.0 / canvas_size[0] as f32;
-                [(w as f32 * scale) as u32, (h as f32 * scale) as u32]
+                let scale = 3840.0 / canvas_size[0] as f32;
+                [
+                    ((w as f32 * scale) as u32).max(1),
+                    ((h as f32 * scale) as u32).max(1),
+                ]
             }
         };
 
-        let extent = Extent3d { width: size[0], height: size[1], depth_or_array_layers: 1 };
+        let extent = Extent3d {
+            width: size[0],
+            height: size[1],
+            depth_or_array_layers: 1,
+        };
         // Check if the image is already the correct size.
         if let Some(texture) = &attachment.texture {
             if texture.size() == extent {
@@ -388,8 +398,7 @@ impl BitangImage {
             dimension: wgpu::TextureDimension::D2,
             format: self.pixel_format.wgpu_format(),
             usage,
-            view_formats: &[
-            ],
+            view_formats: &[],
         });
 
         attachment.texture = Some(image);

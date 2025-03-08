@@ -208,7 +208,7 @@ fn adjust(value: f32, factor: f32) -> f32 {
 
 fn sample_shadow_map(world_pos: vec3<f32>) -> f32 {
     var lightspace_pos = (u.g_light_projection_from_world * vec4<f32>(world_pos, 1.0)).xyz;
-    lightspace_pos = lightspace_pos * vec3f(0.5, 0.5, 1) + vec3f(0.5, 0.5, u.shadow_bias * -0.001);
+    lightspace_pos = lightspace_pos * vec3f(0.5, -0.5, 1) + vec3f(0.5, 0.5, u.shadow_bias * -0.001);
     return textureSampleCompare(shadow, sampler_shadow, lightspace_pos.xy, lightspace_pos.z);
 }
 

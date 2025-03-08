@@ -32,10 +32,11 @@ impl WindowRunner {
 
         let wgpu_configuration = egui_wgpu::WgpuConfiguration {
             // present_mode: wgpu::PresentMode::Mailbox,
-            desired_maximum_frame_latency: Some(1),
+            desired_maximum_frame_latency: Some(2),
             wgpu_setup: WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: wgpu::InstanceDescriptor {
                     backends: Backends::VULKAN,
+                    // backends: Backends::DX12,
                     ..Default::default()
                 },
                 device_descriptor: Arc::new(|_adapter| wgpu::DeviceDescriptor {
@@ -105,11 +106,21 @@ impl AppInner {
                 (width, height, top, left)
             }
         } else {
-            let width = swapchain_size[0];
-            let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
-            let left = 0;
-            let top = 0;
-            (width, height, top, left)
+            if swapchain_size[0] * SCREEN_RATIO.1 > swapchain_size[1] * SCREEN_RATIO.0 {
+                // Screen is too wide
+                let height = swapchain_size[1];
+                let width = height * SCREEN_RATIO.0 / SCREEN_RATIO.1;
+                let left = (swapchain_size[0] - width) / 2;
+                let top = 0;
+                (width, height, top, left)
+            } else {
+                // Screen is too tall
+                let width = swapchain_size[0];
+                let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
+                let left = 0;
+                let top = 0;
+                (width, height, top, left)
+            }
         };
         self.ui_height = max(swapchain_size[1] as i32 - height as i32, 0) as f32;
         self.viewport = Viewport {
@@ -222,11 +233,13 @@ impl AppInner {
 
     fn render_ui(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         let scale_factor = ctx.pixels_per_point();
-        let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size();
+        let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size() * scale_factor;
         self.compute_viewport([size.x as u32, size.y as u32]);
         let pixels_per_point =
             if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
-        let bottom_panel_height = self.ui_height;
+        let bottom_panel_height = self.ui_height / pixels_per_point;
+
+        if bottom_panel_height <= 0.0 { return; }
 
         ctx.set_pixels_per_point(pixels_per_point);
         self.ui.draw(
