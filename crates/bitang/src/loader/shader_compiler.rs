@@ -9,7 +9,6 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use itertools::Itertools;
-use log::{error, warn};
 use naga::front::wgsl::ParseError;
 use naga::valid::Capabilities;
 use naga::{Module, ShaderStage};
@@ -25,7 +24,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
 use tokio::task;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace};
 // use vulkano::shader;
 // use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
 

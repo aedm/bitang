@@ -42,5 +42,6 @@ fn set_up_tracing() -> Result<()> {
         .with(fmt_layer)
         .with(crate_filter)
         .init();
+
     Ok(())
 }

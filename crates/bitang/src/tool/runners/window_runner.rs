@@ -1,4 +1,4 @@
-use crate::render::image::{BitangImage, PixelFormat};
+use crate::render::image::{BitangImage, PixelFormat, SwapchainImage};
 use crate::render::{Size2D, SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
@@ -35,8 +35,8 @@ impl WindowRunner {
             desired_maximum_frame_latency: Some(2),
             wgpu_setup: WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: wgpu::InstanceDescriptor {
-                    backends: Backends::VULKAN,
-                    // backends: Backends::DX12,
+                    // backends: Backends::VULKAN,
+                    backends: Backends::DX12,
                     ..Default::default()
                 },
                 device_descriptor: Arc::new(|_adapter| wgpu::DeviceDescriptor {
@@ -148,9 +148,13 @@ impl AppInner {
 
         // Update swapchain target
         let swapchain_view = props.surface_view;
+        let swapchain_image = Some(SwapchainImage {
+            texture_view: swapchain_view,
+            size: swapchain_size,
+        });
         self.gpu_context
             .final_render_target
-            .set_swapchain_image_view(swapchain_view, swapchain_size);
+            .set_swapchain_image_view(swapchain_image);
         // let target_image = self.get_renderer().swapchain_image_view();
         // self.vulkan_context
         //     .final_render_target
@@ -221,6 +225,11 @@ impl AppInner {
         //     .boxed();
         // // TODO: check if we really need to wait for the future
         // self.get_renderer().present(after_future, true);
+
+        self.gpu_context
+        .final_render_target
+        .set_swapchain_image_view(None);
+
         Ok(())
     }
 

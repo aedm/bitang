@@ -87,7 +87,7 @@ struct AttachmentImage {
     texture: Option<wgpu::Texture>,
 }
 
-struct SwapchainImage {
+pub struct SwapchainImage {
     pub texture_view: wgpu::TextureView,
     pub size: Size2D,
 }
@@ -433,14 +433,11 @@ impl BitangImage {
         matches!(&self.inner, ImageInner::Swapchain(_))
     }
 
-    pub fn set_swapchain_image_view(&self, view: wgpu::TextureView, size: Size2D) {
+    pub fn set_swapchain_image_view(&self, view: Option<SwapchainImage>) {
         match &self.inner {
             ImageInner::Swapchain(rw_lock) => {
                 let mut swapchain_view = rw_lock.write().unwrap();
-                *swapchain_view = Some(SwapchainImage {
-                    texture_view: view,
-                    size,
-                });
+                *swapchain_view = view;
             }
             _ => panic!("Not a swapchain image"),
         }
