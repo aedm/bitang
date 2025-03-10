@@ -15,11 +15,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tracing::{error, info};
 use wgpu::{Backends, Surface, SurfaceConfiguration};
-// use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
-// use vulkano::pipeline::graphics::viewport::Viewport;
-// use vulkano::sync::GpuFuture;
-// use vulkano_util::renderer::VulkanoWindowRenderer;
-// use vulkano_util::window::{VulkanoWindows, WindowDescriptor};
 use eframe::egui;
 use egui_wgpu::BackgroundRenderProps;
 
@@ -31,12 +26,14 @@ impl WindowRunner {
         let inner_clone = inner.clone();
 
         let wgpu_configuration = egui_wgpu::WgpuConfiguration {
+            // present_mode: wgpu::PresentMode::FifoRelaxed,
             present_mode: wgpu::PresentMode::Mailbox,
             desired_maximum_frame_latency: Some(2),
             wgpu_setup: WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: wgpu::InstanceDescriptor {
-                    // backends: Backends::VULKAN,
+                    // TODO: DX12 then Vulkan then Metal
                     backends: Backends::DX12,
+                    // backends: Backends::VULKAN,
                     ..Default::default()
                 },
                 device_descriptor: Arc::new(|_adapter| wgpu::DeviceDescriptor {
@@ -94,6 +91,7 @@ struct AppInner {
 impl AppInner {
     fn compute_viewport(&mut self, swapchain_size: Size2D) {
         // Calculate viewport
+        // TODO: simplify, the is_fullscreen flag is probably not used
         let (width, height, top, left) = if self.is_fullscreen {
             if swapchain_size[0] * SCREEN_RATIO.1 > swapchain_size[1] * SCREEN_RATIO.0 {
                 // Screen is too wide
@@ -129,8 +127,6 @@ impl AppInner {
         };
         self.ui_height = max(swapchain_size[1] as i32 - height as i32, 0) as f32;
         self.viewport = Viewport {
-            // offset: [left as f32, top as f32],
-            // extent: [width as f32, height as f32],
             x: left,
             y: top,
             size: [width, height],
@@ -139,55 +135,37 @@ impl AppInner {
 
     fn render_frame_to_screen(&mut self, props: egui_wgpu::BackgroundRenderProps) -> Result<()> {
         // Don't render anything if the window is minimized
-        // let window_size = self.window.inner_size();
-        self.compute_viewport(props.surface_size);
-
         if props.surface_size[0] == 0 || props.surface_size[1] == 0 {
             return Ok(());
         }
 
-        // let swapchain_texture = self.surface.get_current_texture()?;
-        // let swapchain_size = swapchain_texture.texture.size();
-        let swapchain_size = props.surface_size;
-
-        // let before_future = self.get_renderer().acquire().unwrap();
+        self.compute_viewport(props.surface_size);
 
         // Update swapchain target
         let swapchain_view = props.surface_view;
         let swapchain_image = Some(SwapchainImage {
             texture_view: swapchain_view,
-            size: swapchain_size,
+            size: props.surface_size,
         });
         self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
-        // let target_image = self.get_renderer().swapchain_image_view();
-        // self.vulkan_context
-        //     .final_render_target
-        //     .set_swapchain_image(target_image.clone());
-
-        // // Make render context
-        // let mut render_context = FrameContext {
-        //     vulkan_context: self.vulkan_context.clone(),
-        //     screen_viewport,
-        //     command_builder: &mut command_builder,
-        //     globals: Default::default(),
-        //     // simulation_elapsed_time_since_last_render: 0.0,
-        // };
-        // render_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
-        let encoder = self
+        
+        // Create frame context
+        let command_encoder = self
             .gpu_context
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-
         let mut frame_context = FrameContext {
             gpu_context: self.gpu_context.clone(),
-            command_encoder: encoder,
+            command_encoder,
             globals: Default::default(),
             simulation_elapsed_time_since_last_render: 0.0,
             screen_viewport: self.viewport,
-            canvas_size: swapchain_size,
+            canvas_size: props.surface_size,
         };
         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
 
+        // Reload project
+        // TODO: start render function with this block
         if self.content_renderer.reload_project(&self.gpu_context) {
             self.content_renderer.reset_simulation(&self.gpu_context).unwrap();
             frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
@@ -318,7 +296,7 @@ impl AppInner {
     //     //     self.window.set_cursor_visible(true);
     //     //     self.window.focus_window();
     //     // }
-    // }    
+    // }
 }
 
 struct App {
@@ -330,7 +308,7 @@ impl eframe::App for App {
         let mut inner = self.inner.lock().unwrap();
         if let Some(inner) = &mut *inner {
             inner.render_ui(ctx, frame);
-            ctx.request_repaint();
+            // ctx.request_repaint();
         }
     }
 }
