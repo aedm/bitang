@@ -62,7 +62,6 @@ pub enum ControlIdPartType {
     Scene,
     Compute,
     Value,
-    BufferGenerator,
     ChartStep,
 }
 

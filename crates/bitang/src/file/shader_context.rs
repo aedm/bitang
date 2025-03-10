@@ -14,7 +14,6 @@ use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 pub enum BufferSource {
-    BufferGenerator(String),
     Current(String),
     Next(String),
 }
@@ -98,16 +97,7 @@ impl ShaderContext {
         let buffers_by_binding = buffers
             .iter()
             .map(|(name, buffer)| {
-                let buffer_generator = match buffer {
-                    BufferSource::BufferGenerator(id) => {
-                        // let generator = chart_context
-                        //     .buffer_generators_by_id
-                        //     .get(id)
-                        //     .with_context(|| anyhow!("Buffer generator '{id}' not found"))?
-                        //     .clone();
-                        // DescriptorSource::BufferGenerator(generator)
-                        todo!()
-                    }
+                let buffer_source = match buffer {
                     BufferSource::Current(id) => {
                         let buffer = chart_context
                             .buffers_by_id
@@ -125,7 +115,7 @@ impl ShaderContext {
                         DescriptorSource::BufferNext(buffer)
                     }
                 };
-                Ok((name.clone(), buffer_generator))
+                Ok((name.clone(), buffer_source))
             })
             .collect::<Result<HashMap<_, _>>>()?;
 

@@ -1,6 +1,5 @@
 use crate::control::controls::{ControlSet, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
-// use crate::render::buffer_generator::BufferGenerator;
 use crate::render::camera::Camera;
 // use crate::render::compute::{Compute, Run};
 use crate::render::draw::Draw;
@@ -25,7 +24,6 @@ pub struct Chart {
     pub controls: Rc<ControlSet>,
     camera: Camera,
     images: Vec<Arc<BitangImage>>,
-    // buffer_generators: Vec<Rc<BufferGenerator>>,
     pub steps: Vec<ChartStep>,
 
     /// The time representing the `Next` step

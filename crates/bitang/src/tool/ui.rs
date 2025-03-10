@@ -109,7 +109,6 @@ impl Ui {
                 ControlIdPartType::Object => '🏠',
                 ControlIdPartType::Scene => '🏰',
                 ControlIdPartType::Value => '📊',
-                ControlIdPartType::BufferGenerator => '🔮',
                 ControlIdPartType::Compute => '🧮',
             };
             ui.toggle_value(

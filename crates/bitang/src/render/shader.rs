@@ -1,6 +1,5 @@
 use crate::control::controls::{Control, GlobalType};
 use crate::render::buffer::Buffer;
-// use crate::render::buffer_generator::BufferGenerator;
 use crate::render::image::BitangImage;
 use crate::tool::{FrameContext, GpuContext, RenderPassContext};
 use anyhow::{Context, Result};
