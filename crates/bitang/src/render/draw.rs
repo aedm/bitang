@@ -9,7 +9,6 @@ use std::rc::Rc;
 use tracing::warn;
 
 use crate::render::scene::Scene;
-// use vulkano::command_buffer::{SubpassBeginInfo, SubpassContents};
 
 pub(crate) enum DrawItem {
     Object(Rc<RenderObject>),
@@ -93,6 +92,7 @@ impl Draw {
     pub fn render(&self, frame_context: &mut FrameContext, camera: &Camera) -> Result<()> {
         ensure!(!self.passes.is_empty(), "Draw '{}' has no passes", self.id);
 
+        // Render each pass
         for (pass_index, pass) in self.passes.iter().enumerate() {
             let viewport = pass.get_viewport(frame_context)?;
 
@@ -106,40 +106,11 @@ impl Draw {
                 camera.set_globals(&mut frame_context.globals, viewport.size);
             }
 
-            // Begin render pass
-            // let render_pass_begin_info = pass.make_render_pass_begin_info(context)?;
-            // let subpass_begin_info = SubpassBeginInfo {
-            //     contents: SubpassContents::Inline,
-            //     ..Default::default()
-            // };
-
-            // context
-            //     .command_builder
-            //     .begin_render_pass(render_pass_begin_info, subpass_begin_info)?
-            //     .set_viewport(0, [viewport].into_iter().collect())?;
-
-            // let render_pass_descriptor = pass.make_render_pass_descriptor()?;
-            // context.command_encoder.begin_render_pass(&render_pass_descriptor);
-
             let mut render_pass_context = pass.make_render_pass_context(frame_context)?;
             let Viewport { x, y, size } = viewport;
             render_pass_context.pass.set_viewport(x as f32, y as f32, size[0] as f32, size[1] as f32, 0.0, 1.0);
 
-            // Don't fail early if there's a rendering error. We must end the render pass.
-            let render_result = self.render_items(&mut render_pass_context, pass_index);
-
-            // End render pass
-            // context
-            //     .command_builder
-            //     .end_render_pass(Default::default())?;
-
-            // TODO: implement debug flag
-            // unsafe {
-            //     context.command_builder.end_debug_utils_label()?;
-            // }
-
-            // Propagate error
-            render_result?;
+            self.render_items(&mut render_pass_context, pass_index)?;
         }
 
         Ok(())

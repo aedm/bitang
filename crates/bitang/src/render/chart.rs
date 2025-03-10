@@ -44,7 +44,6 @@ impl Chart {
         control_id: &ControlId,
         control_set_builder: ControlSetBuilder,
         images: Vec<Arc<BitangImage>>,
-        // buffer_generators: Vec<Rc<BufferGenerator>>,
         steps: Vec<ChartStep>,
         simulation_precalculation_time: f32,
     ) -> Self {
@@ -65,7 +64,6 @@ impl Chart {
             id: id.to_string(),
             camera: _camera,
             images,
-            // buffer_generators,
             steps,
             controls,
             simulation_next_buffer_time: Cell::new(0.0),
@@ -200,9 +198,6 @@ impl Chart {
                 &context.canvas_size,
             )?;
         }
-        // for buffer_generator in &self.buffer_generators {
-        //     buffer_generator.generate()?;
-        // }
         for step in &self.steps {
             match step {
                 ChartStep::Draw(draw) => {

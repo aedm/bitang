@@ -5,10 +5,6 @@ use std::sync::Arc;
 use wgpu::util::DeviceExt;
 
 use super::MeshIndex;
-// use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, IndexBuffer, Subbuffer};
-// use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
-
-// pub type VertexBuffer = Subbuffer<[Vertex3]>;
 
 #[derive(Clone)]
 pub struct Mesh {
@@ -24,20 +20,6 @@ impl Mesh {
         vertices: Vec<Vertex3>,
         indices: Option<Vec<MeshIndex>>,
     ) -> Result<Mesh> {
-        // let vertex_buffer = Buffer::from_iter(
-        //     context.memory_allocator.clone(),
-        //     BufferCreateInfo {
-        //         usage: BufferUsage::VERTEX_BUFFER,
-        //         ..Default::default()
-        //     },
-        //     AllocationCreateInfo {
-        //         memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-        //             | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-        //         ..Default::default()
-        //     },
-        //     vertices,
-        // )?;
-
         let vertex_buffer = context
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -58,19 +40,6 @@ impl Mesh {
             (None, 0)
         };
 
-        // let index_buffer = if let Some(indices) = indices {
-        //     Some(
-        //         context
-        //             .device
-        //             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //                 label: None,
-        //                 contents: bytemuck::cast_slice(&indices),
-        //                 usage: wgpu::BufferUsages::INDEX,
-        //             })
-        //     )
-        // } else {
-        //     None
-        // };
         Ok(Mesh {
             vertex_buffer,
             vertex_count: vertices.len() as u32,

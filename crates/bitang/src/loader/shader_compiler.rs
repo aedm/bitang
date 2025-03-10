@@ -25,8 +25,6 @@ use std::sync::Arc;
 use std::thread;
 use tokio::task;
 use tracing::{debug, error, info, instrument, trace};
-// use vulkano::shader;
-// use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
 
@@ -208,18 +206,10 @@ impl ShaderArtifact {
             .find(|ep| ep.name == main_function)
             .context("Failed to find entry point 'main'")?;
 
-        // let module = unsafe {
-        //     let shader_words = shader::spirv::bytes_to_words(spirv_binary)?;
-        //     ShaderModule::new(
-        //         context.device.clone(),
-        //         ShaderModuleCreateInfo::new(&shader_words),
-        //     )
-        // }?;
         let source = wgpu::util::make_spirv(spirv_binary);
         let module = context.device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Shader"),
             source: source,
-            // source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
 
@@ -228,17 +218,6 @@ impl ShaderArtifact {
             ShaderKind::Fragment => 1,
             ShaderKind::Compute => 0,
         };
-
-        // // Collect the actually used bindings. Spirq doesn't always get us the same results
-        // // as Vulkano's pipeline layout, so we need to filter out the unused bindings.
-        // let used_bindings = &module
-        //     .entry_point(main_function)
-        //     .context("Failed to get entry point")?
-        //     .info()
-        //     .descriptor_binding_requirements
-        //     .keys()
-        //     .map(|(_set, binding)| *binding)
-        //     .collect::<AHashSet<_>>();
 
         let mut samplers = Vec::new();
         let mut textures = Vec::new();
@@ -268,10 +247,6 @@ impl ShaderArtifact {
                         )
                     );
                     let binding = desc_bind.bind();
-                    // if !used_bindings.contains(&binding) {
-                    //     debug!("Skipping binding {} not in requirements", binding);
-                    //     continue;
-                    // }
                     match desc_ty {
                         DescriptorType::Sampler() => {
                             samplers.push(NamedResourceBinding {

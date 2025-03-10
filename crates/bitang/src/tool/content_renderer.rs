@@ -11,11 +11,6 @@ use std::sync::Arc;
 use tracing::error;
 
 use super::{ComputePassContext, GpuContext, Viewport};
-// use vulkano::command_buffer::{
-//     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
-// };
-// use vulkano::pipeline::graphics::viewport::Viewport;
-// use vulkano::sync::GpuFuture;
 
 pub struct ContentRenderer {
     pub app_state: AppState,

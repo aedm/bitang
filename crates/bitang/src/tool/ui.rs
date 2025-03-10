@@ -5,59 +5,20 @@ use crate::tool::spline_editor::SplineEditor;
 use crate::tool::{FrameContext};
 use anyhow::Result;
 use egui::SliderClamping;
-// use egui_winit_vulkano::{Gui, GuiConfig};
 use std::rc::Rc;
 use std::sync::Arc;
 use tracing::error;
-// use vulkano::command_buffer::{
-//     RenderPassBeginInfo, SubpassBeginInfo, SubpassContents, SubpassEndInfo,
-// };
-// use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
-// use vulkano::swapchain::Surface;
 
 pub struct Ui {
-    // pub gui: Gui,
-    // pub subpass: Subpass,
     spline_editor: SplineEditor,
 }
 
 impl Ui {
-    pub fn new(// context: &Arc<WindowContext>,
-        // event_loop: &EventLoop<()>,
-        // surface: &Arc<Surface>,
+    pub fn new(
     ) -> Result<Ui> {
-        // let render_pass = vulkano::single_pass_renderpass!(
-        //     context.device.clone(),
-        //     attachments: {
-        //         color: {
-        //             format: context.swapchain_format,
-        //             samples: 1,
-        //             load_op: DontCare,
-        //             store_op: Store,
-        //         }
-        //     },
-        //     pass:
-        //         { color: [color], depth_stencil: {} }
-        // )?;
-        // let subpass = Subpass::from(render_pass, 0).unwrap(); // unwrap is okay here
-
-        // let gui = Gui::new_with_subpass(
-        //     event_loop,
-        //     surface.clone(),
-        //     context.gfx_queue.clone(),
-        //     subpass.clone(),
-        //     vulkano::format::Format::B8G8R8A8_SRGB,
-        //     // TODO: use UNORM instead of SRGB
-        //     GuiConfig {
-        //         allow_srgb_render_target: true,
-        //         ..Default::default()
-        //     },
-        // );
         let spline_editor = SplineEditor::new();
 
         Ok(Ui {
-            // gui,
-            // subpass,
             spline_editor,
         })
     }
@@ -224,50 +185,4 @@ impl Ui {
             (&controls.used_controls[control_index], component_index)
         })
     }
-
-    // fn render_to_swapchain(&mut self, context: &mut FrameContext) {
-    //     let target_image = context
-    //         .vulkan_context
-    //         .final_render_target
-    //         .get_view_for_render_target()
-    //         .unwrap();
-    //     let [width, height, _] = target_image.image().extent();
-    //     let framebuffer = Framebuffer::new(
-    //         self.subpass.render_pass().clone(),
-    //         FramebufferCreateInfo {
-    //             attachments: vec![target_image],
-    //             ..Default::default()
-    //         },
-    //     )
-    //     .unwrap();
-
-    //     context
-    //         .command_builder
-    //         .begin_render_pass(
-    //             RenderPassBeginInfo {
-    //                 clear_values: vec![None],
-    //                 ..RenderPassBeginInfo::framebuffer(framebuffer)
-    //             },
-    //             SubpassBeginInfo {
-    //                 contents: SubpassContents::SecondaryCommandBuffers,
-    //                 ..Default::default()
-    //             },
-    //         )
-    //         .unwrap();
-
-    //     let gui_commands = self.gui.draw_on_subpass_image([width, height]);
-    //     context
-    //         .command_builder
-    //         .execute_commands(gui_commands)
-    //         .unwrap();
-
-    //     context
-    //         .command_builder
-    //         .end_render_pass(SubpassEndInfo::default())
-    //         .unwrap();
-    // }
-
-    // pub fn handle_window_event(&mut self, event: &WindowEvent) {
-    //     let _pass_events_to_game = !self.gui.update(event);
-    // }
 }

@@ -6,7 +6,9 @@ use crate::tool::{
     FrameContext, GpuContext, Viewport, BORDERLESS_FULL_SCREEN, SCREEN_RATIO, START_IN_DEMO_MODE,
 };
 use anyhow::{Context, Result};
+use eframe::egui;
 use egui::ViewportId;
+use egui_wgpu::BackgroundRenderProps;
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
 use std::cmp::max;
 use std::num::NonZeroU32;
@@ -15,8 +17,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tracing::{error, info};
 use wgpu::{Backends, Surface, SurfaceConfiguration};
-use eframe::egui;
-use egui_wgpu::BackgroundRenderProps;
 
 pub struct WindowRunner {}
 
@@ -37,7 +37,8 @@ impl WindowRunner {
                     ..Default::default()
                 },
                 device_descriptor: Arc::new(|_adapter| wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::FLOAT32_FILTERABLE,
+                    required_features: wgpu::Features::FLOAT32_FILTERABLE
+                        | wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER,
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -148,7 +149,7 @@ impl AppInner {
             size: props.surface_size,
         });
         self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
-        
+
         // Create frame context
         let command_encoder = self
             .gpu_context

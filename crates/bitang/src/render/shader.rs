@@ -8,17 +8,9 @@ use smallvec::SmallVec;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
-use tracing::warn;
 
 use super::image::PixelFormat;
-// use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
-// use vulkano::buffer::BufferUsage;
-// use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
-// use vulkano::image::sampler::{BorderColor, Sampler, SamplerCreateInfo};
-// use vulkano::memory::allocator::MemoryTypeFilter;
-// use vulkano::pipeline::graphics::depth_stencil::CompareOp;
-// use vulkano::pipeline::{PipelineBindPoint, PipelineLayout};
-// use vulkano::shader::ShaderModule;
+
 
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 
@@ -86,15 +78,6 @@ impl Shader {
         uniform_buffer_size: usize,
         descriptor_resources: Vec<DescriptorResource>,
     ) -> Shader {
-        // let uniform_buffer_pool = SubbufferAllocator::new(
-        //     context.memory_allocator.clone(),
-        //     SubbufferAllocatorCreateInfo {
-        //         buffer_usage: BufferUsage::UNIFORM_BUFFER,
-        //         memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-        //             | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-        //         ..Default::default()
-        //     },
-        // );
         let uniform_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: uniform_buffer_size as u64,
@@ -143,7 +126,6 @@ impl Shader {
                         _ => wgpu::SamplerBindingType::Comparison,
                     };
                     wgpu::BindingType::Sampler(filtering)
-                    // WriteDescriptorSet::sampler(descriptor_resource.binding, sampler)
                 }
                 DescriptorSource::BufferCurrent(_) => wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -187,11 +169,7 @@ impl Shader {
     pub fn bind(
         &self,
         context: &mut RenderPassContext<'_>,
-        // pipeline_layout: &Arc<PipelineLayout>,
     ) -> Result<()> {
-        // if self.uniform_buffer_size == 0 && self.descriptor_resources.is_empty() {
-        //     return Ok(());
-        // }
 
         let mut texture_views = SmallVec::<[_; 64]>::new();
         let mut entries = SmallVec::<[_; 64]>::new();
@@ -238,30 +216,11 @@ impl Shader {
                     continue;
                 }
                 DescriptorSource::Sampler(sampler_descriptor) => {
-                    // let sampler = Sampler::new(
-                    //     context.vulkan_context.device.clone(),
-                    //     SamplerCreateInfo {
-                    //         address_mode: sampler_descriptor.mode.to_vulkano_address_mode(),
-                    //         compare: sampler_descriptor.mode.to_vulkano_compare_op(),
-                    //         border_color: BorderColor::FloatOpaqueWhite,
-                    //         ..SamplerCreateInfo::simple_repeat_linear()
-                    //     },
-                    // )?;
                     wgpu::BindGroupEntry {
                         binding: descriptor_resource.binding,
                         resource: wgpu::BindingResource::Sampler(&sampler_descriptor.sampler),
                     }
-                    // WriteDescriptorSet::sampler(descriptor_resource.binding, sampler)
                 }
-                // DescriptorSource::BufferGenerator(buffer_generator) => {
-                //     let buffer = buffer_generator.get_buffer().with_context(|| {
-                //         format!(
-                //             "Failed to get buffer for buffer generator for binding {}",
-                //             descriptor_resource.id
-                //         )
-                //     })?;
-                //     WriteDescriptorSet::buffer(descriptor_resource.binding, buffer.clone())
-                // }
                 DescriptorSource::BufferCurrent(buffer) => wgpu::BindGroupEntry {
                     binding: descriptor_resource.binding,
                     resource: buffer.get_current_buffer().as_entire_binding(),
@@ -293,115 +252,7 @@ impl Shader {
         context
             .pass
             .set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
-
-            // let pipeline_bind_point = match self.kind {
-        //     ShaderKind::Vertex => PipelineBindPoint::Graphics,
-        //     ShaderKind::Fragment => PipelineBindPoint::Graphics,
-        //     ShaderKind::Compute => PipelineBindPoint::Compute,
-        // };
-
-        // context.command_builder.bind_descriptor_sets(
-        //     pipeline_bind_point,
-        //     pipeline_layout.clone(),
-        //     self.kind.get_descriptor_set_index(),
-        //     persistent_descriptor_set,
-        // )?;
-
         Ok(())
-
-        // let descriptor_set_layout = pipeline_layout
-        //     .set_layouts()
-        //     .get(self.kind.get_descriptor_set_index() as usize)
-        //     .context("Failed to get descriptor set layout")?;
-
-        // let mut descriptors = SmallVec::<[_; 64]>::new();
-
-        // if self.uniform_buffer_size > 0 {
-        //     // Fill uniform array
-        //     let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
-        //     for global_mapping in &self.global_uniform_bindings {
-        //         let values = context.globals.get(global_mapping.global_type);
-        //         let start_index = global_mapping.f32_offset;
-        //         for (i, value) in values.iter().enumerate() {
-        //             uniform_values[start_index + i] = *value;
-        //         }
-        //     }
-        //     for local_mapping in &self.local_uniform_bindings {
-        //         let components = local_mapping.control.components.borrow();
-        //         for i in 0..local_mapping.f32_count {
-        //             uniform_values[local_mapping.f32_offset + i] = components[i].value;
-        //         }
-        //     }
-        //     let _value_count = self.uniform_buffer_size / size_of::<f32>();
-        //     // Unwrap is okay: we want to panic if we can't allocate
-        //     let uniform_buffer_subbuffer = self.uniform_buffer_pool.allocate_sized().unwrap();
-        //     *uniform_buffer_subbuffer.write().unwrap() = uniform_values;
-
-        //     // Uniforms are always at binding 0
-        //     descriptors.push(WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer));
-        // }
-
-        // for descriptor_resource in &self.descriptor_resources {
-        //     let write_descriptor_set = match &descriptor_resource.source {
-        //         DescriptorSource::Image(image_descriptor) => {
-        //             let image_view = image_descriptor.image.get_view_for_sampler()?;
-        //             WriteDescriptorSet::image_view(descriptor_resource.binding, image_view)
-        //         }
-        //         DescriptorSource::Sampler(sampler_descriptor) => {
-        //             let sampler = Sampler::new(
-        //                 context.vulkan_context.device.clone(),
-        //                 SamplerCreateInfo {
-        //                     address_mode: sampler_descriptor.mode.to_vulkano_address_mode(),
-        //                     compare: sampler_descriptor.mode.to_vulkano_compare_op(),
-        //                     border_color: BorderColor::FloatOpaqueWhite,
-        //                     ..SamplerCreateInfo::simple_repeat_linear()
-        //                 },
-        //             )?;
-
-        //             WriteDescriptorSet::sampler(descriptor_resource.binding, sampler)
-        //         }
-        //         DescriptorSource::BufferGenerator(buffer_generator) => {
-        //             let buffer = buffer_generator.get_buffer().with_context(|| {
-        //                 format!(
-        //                     "Failed to get buffer for buffer generator for binding {}",
-        //                     descriptor_resource.id
-        //                 )
-        //             })?;
-        //             WriteDescriptorSet::buffer(descriptor_resource.binding, buffer.clone())
-        //         }
-        //         DescriptorSource::BufferCurrent(buffer) => WriteDescriptorSet::buffer(
-        //             descriptor_resource.binding,
-        //             buffer.get_current_buffer(),
-        //         ),
-        //         DescriptorSource::BufferNext(buffer) => WriteDescriptorSet::buffer(
-        //             descriptor_resource.binding,
-        //             buffer.get_next_buffer(),
-        //         ),
-        //     };
-        //     descriptors.push(write_descriptor_set);
-        // }
-
-        // let persistent_descriptor_set = PersistentDescriptorSet::new(
-        //     &context.vulkan_context.descriptor_set_allocator,
-        //     descriptor_set_layout.clone(),
-        //     descriptors,
-        //     [],
-        // )?;
-
-        // let pipeline_bind_point = match self.kind {
-        //     ShaderKind::Vertex => PipelineBindPoint::Graphics,
-        //     ShaderKind::Fragment => PipelineBindPoint::Graphics,
-        //     ShaderKind::Compute => PipelineBindPoint::Compute,
-        // };
-
-        // context.command_builder.bind_descriptor_sets(
-        //     pipeline_bind_point,
-        //     pipeline_layout.clone(),
-        //     self.kind.get_descriptor_set_index(),
-        //     persistent_descriptor_set,
-        // )?;
-
-        // Ok(())
     }
 }
 
@@ -415,49 +266,12 @@ pub enum SamplerMode {
 }
 
 impl SamplerMode {
-    // pub fn to_vulkano_compare_op(&self) -> Option<CompareOp> {
-    //     match self {
-    //         SamplerMode::Shadow => Some(CompareOp::Less),
-    //         _ => None,
-    //     }
-    // }
-
     pub fn to_wgpu_compare_op(&self) -> Option<wgpu::CompareFunction> {
         match self {
             SamplerMode::Shadow => Some(wgpu::CompareFunction::Less),
             _ => None,
         }
     }
-
-    // pub fn to_vulkano_address_mode(&self) -> [vulkano::image::sampler::SamplerAddressMode; 3] {
-    //     match self {
-    //         SamplerMode::Repeat => [
-    //             vulkano::image::sampler::SamplerAddressMode::Repeat,
-    //             vulkano::image::sampler::SamplerAddressMode::Repeat,
-    //             vulkano::image::sampler::SamplerAddressMode::Repeat,
-    //         ],
-    //         SamplerMode::MirroredRepeat => [
-    //             vulkano::image::sampler::SamplerAddressMode::MirroredRepeat,
-    //             vulkano::image::sampler::SamplerAddressMode::MirroredRepeat,
-    //             vulkano::image::sampler::SamplerAddressMode::MirroredRepeat,
-    //         ],
-    //         SamplerMode::ClampToEdge => [
-    //             vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
-    //             vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
-    //             vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
-    //         ],
-    //         SamplerMode::Envmap => [
-    //             vulkano::image::sampler::SamplerAddressMode::Repeat,
-    //             vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
-    //             vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
-    //         ],
-    //         SamplerMode::Shadow => [
-    //             vulkano::image::sampler::SamplerAddressMode::ClampToBorder,
-    //             vulkano::image::sampler::SamplerAddressMode::ClampToBorder,
-    //             vulkano::image::sampler::SamplerAddressMode::ClampToEdge,
-    //         ],
-    //     }
-    // }
 
     pub fn to_wgpu_address_mode(&self) -> [wgpu::AddressMode; 3] {
         match self {
@@ -482,12 +296,8 @@ impl SamplerMode {
                 wgpu::AddressMode::ClampToEdge,
             ],
             SamplerMode::Shadow => [
-                // TODO: ClampToBorder
-                // wgpu::AddressMode::ClampToBorder,
-                // wgpu::AddressMode::ClampToBorder,
-                // wgpu::AddressMode::ClampToEdge,
-                wgpu::AddressMode::ClampToEdge,
-                wgpu::AddressMode::ClampToEdge,
+                wgpu::AddressMode::ClampToBorder,
+                wgpu::AddressMode::ClampToBorder,
                 wgpu::AddressMode::ClampToEdge,
             ],
         }
@@ -495,7 +305,6 @@ impl SamplerMode {
 }
 
 // TODO: rename TextureResource or TextureShaderResource
-// TODO: cache image view?
 #[derive(Clone)]
 pub struct ImageDescriptor {
     pub image: Arc<BitangImage>,
@@ -535,7 +344,6 @@ impl SamplerDescriptor {
 pub enum DescriptorSource {
     Image(ImageDescriptor),
     Sampler(SamplerDescriptor),
-    // BufferGenerator(Rc<BufferGenerator>),
     BufferCurrent(Rc<Buffer>),
     BufferNext(Rc<Buffer>),
 }

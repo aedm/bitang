@@ -6,14 +6,6 @@ use std::sync::Arc;
 
 use super::image::PixelFormat;
 
-// use vulkano::command_buffer::RenderPassBeginInfo;
-// use vulkano::image::ImageLayout;
-// use vulkano::pipeline::graphics::viewport::Viewport;
-// use vulkano::render_pass::{
-//     AttachmentDescription, AttachmentLoadOp, AttachmentReference, Framebuffer,
-//     FramebufferCreateInfo, RenderPassCreateInfo, SubpassDescription,
-// };
-
 #[derive(Clone, Debug)]
 pub struct FramebufferInfo {
     pub color_buffer_formats: Vec<PixelFormat>,
@@ -26,7 +18,6 @@ pub struct Pass {
     pub depth_buffer: Option<Arc<BitangImage>>,
     pub clear_color: Option<[f32; 4]>,
     pub framebuffer_info: FramebufferInfo,
-    // pub vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
 }
 
 impl Pass {
@@ -36,13 +27,6 @@ impl Pass {
         depth_buffer: Option<Arc<BitangImage>>,
         clear_color: Option<[f32; 4]>,
     ) -> Result<Self> {
-        // let vulkan_render_pass = Self::make_vulkan_render_pass(
-        //     context,
-        //     &color_buffers,
-        //     &depth_buffer,
-        //     clear_color.is_some(),
-        // )?;
-
         let color_buffer_formats = color_buffers
             .iter()
             .map(|image| image.pixel_format)
@@ -61,51 +45,6 @@ impl Pass {
             framebuffer_info,
         })
     }
-
-    // fn make_vulkan_render_pass(
-    //     context: &Arc<WindowContext>,
-    //     color_buffers: &[Arc<BitangImage>],
-    //     depth_buffer: &Option<Arc<BitangImage>>,
-    //     clear_buffers: bool,
-    // ) -> Result<Arc<vulkano::render_pass::RenderPass>> {
-    //     let mut attachments = vec![];
-    //     let load_op = if clear_buffers { AttachmentLoadOp::Clear } else { AttachmentLoadOp::Load };
-
-    //     let color_attachments = color_buffers
-    //         .iter()
-    //         .map(|selector| {
-    //             Some(Self::make_attachment_reference(
-    //                 selector,
-    //                 &mut attachments,
-    //                 ImageLayout::ColorAttachmentOptimal,
-    //                 load_op,
-    //             ))
-    //         })
-    //         .collect::<Vec<_>>();
-    //     let depth_stencil_attachment = depth_buffer.as_ref().map(|selector| {
-    //         Self::make_attachment_reference(
-    //             selector,
-    //             &mut attachments,
-    //             ImageLayout::DepthStencilAttachmentOptimal,
-    //             load_op,
-    //         )
-    //     });
-
-    //     let subpasses = vec![SubpassDescription {
-    //         color_attachments,
-    //         depth_stencil_attachment,
-    //         ..Default::default()
-    //     }];
-
-    //     let create_info = RenderPassCreateInfo {
-    //         attachments,
-    //         subpasses,
-    //         ..Default::default()
-    //     };
-    //     let render_pass =
-    //         vulkano::render_pass::RenderPass::new(context.device.clone(), create_info)?;
-    //     Ok(render_pass)
-    // }
 
     pub fn make_render_pass_context<'pass, 'frame>(
         &'pass self,
@@ -194,27 +133,6 @@ impl Pass {
         }
     }
 
-    // fn make_attachment_reference(
-    //     image: &Arc<BitangImage>,
-    //     attachments: &mut Vec<AttachmentDescription>,
-    //     layout: ImageLayout,
-    //     load_op: AttachmentLoadOp,
-    // ) -> AttachmentReference {
-    //     let reference = AttachmentReference {
-    //         attachment: attachments.len() as u32,
-    //         layout,
-    //         ..Default::default()
-    //     };
-
-    //     let attachment_description = image.make_attachment_description(layout, load_op);
-    //     // let attachment_description = match selector {
-    //     //     ImageSelector::Image(image) => image.make_attachment_description(layout, load_op),
-    //     // };
-
-    //     attachments.push(attachment_description);
-    //     reference
-    // }
-
     pub fn get_viewport(&self, context: &mut FrameContext) -> Result<Viewport> {
         let first_image = if let Some(img) = self.color_buffers.first() {
             img
@@ -246,34 +164,4 @@ impl Pass {
         };
         Ok(viewport)
     }
-
-    // pub fn make_render_pass_descriptor(&self) -> Result<wgpu::RenderPassDescriptor> {
-    //     // Collect color attachment images...
-    //     let mut attachments = vec![];
-    //     let mut clear_values = vec![];
-    //     for image in &self.color_buffers {
-    //         attachments.push(image.get_view_for_render_target()?);
-    //         clear_values.push(self.clear_color.map(|c| c.into()));
-    //     }
-
-    //     // ...and the depth attachment image
-    //     if let Some(depth) = &self.depth_buffer {
-    //         attachments.push(depth.get_view_for_render_target()?);
-    //         clear_values.push(self.clear_color.map(|_| 1f32.into()));
-    //     }
-
-    //     // Create the framebuffer
-    //     let framebuffer = Framebuffer::new(
-    //         self.vulkan_render_pass.clone(),
-    //         FramebufferCreateInfo {
-    //             attachments,
-    //             ..Default::default()
-    //         },
-    //     )?;
-
-    //     Ok(RenderPassBeginInfo {
-    //         clear_values,
-    //         ..RenderPassBeginInfo::framebuffer(framebuffer)
-    //     })
-    // }
 }
