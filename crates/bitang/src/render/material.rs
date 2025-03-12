@@ -148,8 +148,8 @@ impl MaterialPass {
         context.pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
 
         let instance_count = context.globals.instance_count as u32;
-        self.vertex_shader.bind(context)?;
-        self.fragment_shader.bind(context)?;
+        self.vertex_shader.bind_to_render_pass(context)?;
+        self.fragment_shader.bind_to_render_pass(context)?;
 
         match &mesh.index_buffer {
             None => {

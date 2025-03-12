@@ -1,7 +1,7 @@
 use crate::control::controls::{ControlSet, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::render::camera::Camera;
-// use crate::render::compute::{Compute, Run};
+use crate::render::compute::{Compute, Run};
 use crate::render::draw::Draw;
 use crate::render::generate_mip_levels::GenerateMipLevels;
 use crate::render::image::BitangImage;
@@ -15,7 +15,7 @@ use tracing::warn;
 
 pub enum ChartStep {
     Draw(Draw),
-    // Compute(Compute),
+    Compute(Compute),
     GenerateMipLevels(GenerateMipLevels),
 }
 
@@ -53,7 +53,7 @@ impl Chart {
             .iter()
             .map(|step| match step {
                 ChartStep::Draw(draw) => draw.id.clone(),
-                // ChartStep::Compute(compute) => compute.id.clone(),
+                ChartStep::Compute(compute) => compute.id.clone(),
                 ChartStep::GenerateMipLevels(genmips) => genmips._id.clone(),
             })
             .collect::<Vec<String>>();
@@ -119,69 +119,65 @@ impl Chart {
     ///
     /// Returns true if the simulation is done, false if the simulation needs more iteration.
     fn simulate(&self, context: &mut FrameContext, is_precalculation: bool) -> Result<bool> {
-        return Ok(true);
+        let compute_pass = context.command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: None,
+            timestamp_writes: None,
+        });
 
-        // TODO: implement
+        let mut compute_pass_context = ComputePassContext {
+            gpu_context: &context.gpu_context,
+            pass: compute_pass,
+            globals: &mut context.globals,
+            command_encoder: &mut context.command_encoder,
+        };
 
-        // let compute_pass = context.command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-        //     label: None,
-        //     timestamp_writes: None,
-        // });
+        // Save the app time and restore it after the simulation step.
+        // The simulation sees the simulation time as the current time.
+        let app_time = context.globals.app_time;
+        let chart_time = context.globals.chart_time;
 
-        // let mut compute_pass_context = ComputePassContext {
-        //     gpu_context: &context.gpu_context,
-        //     pass: compute_pass,
-        //     globals: &mut context.globals,
-        //     command_encoder: &mut context.command_encoder,
-        // };
+        let time =
+            self.simulation_elapsed_time.get() + context.simulation_elapsed_time_since_last_render;
+        let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
 
-        // // Save the app time and restore it after the simulation step.
-        // // The simulation sees the simulation time as the current time.
-        // let app_time = context.globals.app_time;
-        // let chart_time = context.globals.chart_time;
+        // Failsafe: limit the number steps per frame to avoid overloading the GPU.
+        let maximum_steps = if is_precalculation { 10 } else { 3 };
+        for _ in 0..maximum_steps {
+            if simulation_next_buffer_time > time {
+                break;
+            }
 
-        // let time =
-        //     self.simulation_elapsed_time.get() + context.simulation_elapsed_time_since_last_render;
-        // let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
+            // Calculate chart time
+            if is_precalculation {
+                context.globals.app_time = simulation_next_buffer_time;
+                context.globals.chart_time = simulation_next_buffer_time;
+                self.evaluate_splines(simulation_next_buffer_time);
+            }
 
-        // // Failsafe: limit the number steps per frame to avoid overloading the GPU.
-        // let maximum_steps = if is_precalculation { 10 } else { 3 };
-        // for _ in 0..maximum_steps {
-        //     if simulation_next_buffer_time > time {
-        //         break;
-        //     }
+            warn!("simulate() unimplemented");
+            // for step in &self.steps {
+            //     if let ChartStep::Compute(compute) = step {
+            //         if let Run::Simulate(_) = compute.run {
+            //             compute.execute(context)?;
+            //         }
+            //     }
+            // }
+            simulation_next_buffer_time += SIMULATION_STEP_SECONDS;
+        }
 
-        //     // Calculate chart time
-        //     if is_precalculation {
-        //         context.globals.app_time = simulation_next_buffer_time;
-        //         context.globals.chart_time = simulation_next_buffer_time;
-        //         self.evaluate_splines(simulation_next_buffer_time);
-        //     }
+        self.simulation_next_buffer_time
+            .set(simulation_next_buffer_time);
+        self.simulation_elapsed_time.set(time);
 
-        //     warn!("simulate() unimplemented");
-        //     // for step in &self.steps {
-        //     //     if let ChartStep::Compute(compute) = step {
-        //     //         if let Run::Simulate(_) = compute.run {
-        //     //             compute.execute(context)?;
-        //     //         }
-        //     //     }
-        //     // }
-        //     simulation_next_buffer_time += SIMULATION_STEP_SECONDS;
-        // }
+        let ratio = 1.0 - (simulation_next_buffer_time - time) / SIMULATION_STEP_SECONDS;
+        context.globals.simulation_frame_ratio = ratio.min(1.0).max(0.0);
 
-        // self.simulation_next_buffer_time
-        //     .set(simulation_next_buffer_time);
-        // self.simulation_elapsed_time.set(time);
+        // Restore globals
+        context.globals.app_time = app_time;
+        context.globals.chart_time = chart_time;
 
-        // let ratio = 1.0 - (simulation_next_buffer_time - time) / SIMULATION_STEP_SECONDS;
-        // context.globals.simulation_frame_ratio = ratio.min(1.0).max(0.0);
-
-        // // Restore globals
-        // context.globals.app_time = app_time;
-        // context.globals.chart_time = chart_time;
-
-        // // Simulation is done if next time is greater than current time
-        // Ok(simulation_next_buffer_time >= time)
+        // Simulation is done if next time is greater than current time
+        Ok(simulation_next_buffer_time >= time)
     }
 
     pub fn render(&self, context: &mut FrameContext) -> Result<()> {
@@ -201,9 +197,9 @@ impl Chart {
                 ChartStep::Draw(draw) => {
                     draw.render(context, &self.camera)?;
                 }
-                // ChartStep::Compute(_) => {
-                //     // Compute only runs simulation or init, ignore for now
-                // }
+                ChartStep::Compute(_) => {
+                    // Compute only runs simulation or init, ignore for now
+                }
                 ChartStep::GenerateMipLevels(genmips) => {
                     genmips.execute(context)?;
                 }

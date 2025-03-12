@@ -1,4 +1,4 @@
-use crate::control::controls::{Control, GlobalType};
+use crate::control::controls::{Control, GlobalType, Globals};
 use crate::render::buffer::Buffer;
 use crate::render::image::BitangImage;
 use crate::tool::{FrameContext, GpuContext, RenderPassContext};
@@ -165,10 +165,24 @@ impl Shader {
         }
     }
 
-    pub fn bind(
+    pub fn bind_to_render_pass(&self, context: &mut RenderPassContext<'_>) -> Result<()> {
+        let bind_group = self.make_bind_group(&context.gpu_context, &context.globals)?;        
+        context.pass.set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
+        Ok(())
+    }
+
+    pub fn bind_to_compute_pass(&self, context: &GpuContext, pass: &mut wgpu::ComputePass<'_>, globals: &Globals) -> Result<()> {
+        let bind_group = self.make_bind_group(&context, globals)?;        
+        pass.set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
+        Ok(())
+    }
+
+    fn make_bind_group(
         &self,
-        context: &mut RenderPassContext<'_>,
-    ) -> Result<()> {
+        context: &GpuContext,
+        globals: &Globals,
+        // TODO: no result
+    ) -> Result<wgpu::BindGroup> {
 
         let mut texture_views = SmallVec::<[_; 64]>::new();
         let mut entries = SmallVec::<[_; 64]>::new();
@@ -177,7 +191,7 @@ impl Shader {
             // Fill uniform array
             let mut uniform_values = [0.0f32; MAX_UNIFORMS_F32_COUNT];
             for global_mapping in &self.global_uniform_bindings {
-                let values = context.globals.get(global_mapping.global_type);
+                let values = globals.get(global_mapping.global_type);
                 let start_index = global_mapping.f32_offset;
                 for (i, value) in values.iter().enumerate() {
                     uniform_values[start_index + i] = *value;
@@ -190,7 +204,7 @@ impl Shader {
                 }
             }
             let f32_count = self.uniform_buffer_size / size_of::<f32>();
-            context.gpu_context.queue.write_buffer(
+            context.queue.write_buffer(
                 &self.uniform_buffer,
                 0,
                 bytemuck::cast_slice(&uniform_values[..f32_count]),
@@ -240,18 +254,13 @@ impl Shader {
         }
 
         let bind_group = context
-            .gpu_context
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("Bind Group"),
                 layout: &self.bind_group_layout,
                 entries: &entries,
             });
-
-        context
-            .pass
-            .set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
-        Ok(())
+        Ok(bind_group)
     }
 }
 
