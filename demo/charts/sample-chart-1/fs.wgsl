@@ -52,9 +52,9 @@ fn direction_wn_to_spherical_envmap_uv(direction_wn: vec3<f32>) -> vec2<f32> {
 }
 
 fn sample_environment_map(direction_wn: vec3<f32>, bias: f32, envmap: texture_2d<f32>) -> vec4<f32> {
-    let levels = 14.0; // textureNumLevels(envmap);
+    let levels = textureNumLevels(envmap);
     let adjust = pow(1.0 - bias, 4.0);
-    let mipLevel = 10.0; // max(f32(levels) - 3.5 - adjust * 7.0, 0.0);
+    let mipLevel = max(f32(levels) - 3.5 - adjust * 7.0, 0.0);
 
     let uv = direction_wn_to_spherical_envmap_uv(direction_wn);
     return textureSampleLevel(envmap, sampler_envmap, uv, mipLevel);
@@ -156,7 +156,6 @@ fn cook_torrance_brdf_ibl(V: vec3<f32>, N: vec3<f32>, baseColor: vec3<f32>, meta
 
     // Sample environment map and irradiance map
     var irradiance = light_color * sample_environment_map(N, 1.0, envmap).rgb;
-    irradiance.x = 0.0;
     let envSample = light_color * sample_environment_map(reflect(-V, N), roughness, envmap).rgb;
 
     // Calculate specular and diffuse terms
@@ -220,6 +219,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var base_color = textureSample(base_color_map, sampler_repeat, uv).rgb;
     var roughness = textureSample(roughness_map, sampler_repeat, uv).r;
     var metallic = textureSample(metallic_map, sampler_repeat, uv).r;
+
+    roughness = adjust(roughness, u.roughness);
+    metallic = adjust(metallic, u.metallic);
 
     let light = sample_shadow_map(in.v_pos_worldspace);
 

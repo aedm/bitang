@@ -33,7 +33,6 @@ impl WindowRunner {
                 instance_descriptor: wgpu::InstanceDescriptor {
                     // TODO: DX12 then Vulkan then Metal
                     backends: Backends::DX12,
-                    // backends: Backends::VULKAN,
                     ..Default::default()
                 },
                 device_descriptor: Arc::new(|_adapter| wgpu::DeviceDescriptor {
@@ -309,7 +308,7 @@ impl eframe::App for App {
         let mut inner = self.inner.lock().unwrap();
         if let Some(inner) = &mut *inner {
             inner.render_ui(ctx, frame);
-            // ctx.request_repaint();
+            ctx.request_repaint();
         }
     }
 }

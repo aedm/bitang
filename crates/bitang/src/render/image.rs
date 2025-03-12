@@ -1,4 +1,4 @@
-use crate::tool::{GpuContext, Viewport};
+use crate::tool::{FrameContext, GpuContext, Viewport};
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
@@ -119,34 +119,60 @@ impl BitangImage {
         size: Size2D,
         data: &[u8],
     ) -> Result<Arc<Self>> {
+        let extent = wgpu::Extent3d {
+            width: size[0],
+            height: size[1],
+            depth_or_array_layers: 1,
+        };
+        let mip_level_count = extent.max_mips(wgpu::TextureDimension::D2);
         let texture_descriptor = wgpu::TextureDescriptor {
             label: Some(id),
-            size: wgpu::Extent3d {
-                width: size[0],
-                height: size[1],
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
+            size: extent,
+            mip_level_count,
             sample_count: 1,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: pixel_format.wgpu_format(),
             dimension: wgpu::TextureDimension::D2,
             view_formats: &[],
         };
-        let image = context.device.create_texture_with_data(
-            &context.queue,
-            &texture_descriptor,
-            wgpu::util::TextureDataOrder::default(),
+        let texture = context.device.create_texture(&texture_descriptor);
+
+        
+        let bytes_per_pixel = pixel_format.wgpu_format().block_copy_size(None).unwrap_or(4);
+        let bytes_per_row = bytes_per_pixel * size[0];
+
+        context.queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
             data,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(bytes_per_row),
+                rows_per_image: Some(size[1]),
+            },
+            extent,
         );
 
-        warn!("immutable_from_srgb(): no mipmaps");
+        if mip_level_count > 1 {
+            let mut command_encoder =
+                context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+            generate_mipmaps(&mut command_encoder, &context.device, &texture);
+            context.queue.submit(Some(command_encoder.finish()));
+        }
 
         Ok(Arc::new(Self {
             id: id.to_owned(),
             pixel_format,
-            inner: ImageInner::Immutable(image),
-            has_mipmaps: false,
+            inner: ImageInner::Immutable(texture),
+            has_mipmaps: true,
         }))
     }
 
@@ -177,14 +203,12 @@ impl BitangImage {
     // Returns an image view for sampling purposes. It includes all mip levels.
     pub fn make_texture_view_for_sampler(&self) -> Result<wgpu::TextureView> {
         let view: wgpu::TextureView = match &self.inner {
-            ImageInner::Immutable(texture) => {
-                texture.create_view(&wgpu::TextureViewDescriptor {
-                    usage: Some(wgpu::TextureUsages::TEXTURE_BINDING),
-                    base_mip_level: 0,
-                    mip_level_count: Some(texture.mip_level_count()),
-                    ..wgpu::TextureViewDescriptor::default()
-                })
-            }
+            ImageInner::Immutable(texture) => texture.create_view(&wgpu::TextureViewDescriptor {
+                usage: Some(wgpu::TextureUsages::TEXTURE_BINDING),
+                base_mip_level: 0,
+                mip_level_count: Some(texture.mip_level_count()),
+                ..wgpu::TextureViewDescriptor::default()
+            }),
             ImageInner::Attachment(attachment) => {
                 let attachment = attachment.read().unwrap();
                 let Some(texture) = &attachment.texture else {
@@ -291,5 +315,135 @@ impl BitangImage {
             }
             _ => panic!("Not a swapchain image"),
         }
+    }
+
+    pub fn generate_mipmaps(&self, context: &mut FrameContext) -> Result<()> {
+        match &self.inner {
+            ImageInner::Attachment(attachment) => {
+                let attachment = attachment.read().unwrap();
+                let Some(texture) = &attachment.texture else {
+                    bail!("Image '{}' has no texture", self.id);
+                };
+                generate_mipmaps(
+                    &mut context.command_encoder,
+                    &context.gpu_context.device,
+                    texture,
+                );
+                Ok(())
+            }
+            ImageInner::Immutable(texture) => {
+                generate_mipmaps(
+                    &mut context.command_encoder,
+                    &context.gpu_context.device,
+                    texture,
+                );
+                Ok(())
+            }
+            ImageInner::Swapchain(_) => {
+                bail!("Can't generate mipmaps for swapchain image");
+            }
+        }
+    }
+}
+
+fn generate_mipmaps(
+    encoder: &mut wgpu::CommandEncoder,
+    device: &wgpu::Device,
+    texture: &wgpu::Texture,
+) {
+    let mip_count = texture.mip_level_count();
+
+    // TODO: use OnceLock instead of loading this shader each time
+    let shader = device.create_shader_module(wgpu::include_wgsl!("blit.wgsl"));
+    let texture_format = texture.format();
+
+    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("blit"),
+        layout: None,
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: Some("vs_main"),
+            compilation_options: Default::default(),
+            buffers: &[],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: Some("fs_main"),
+            compilation_options: Default::default(),
+            targets: &[Some(texture_format.into())],
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            ..Default::default()
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview: None,
+        cache: None,
+    });
+
+    let bind_group_layout = pipeline.get_bind_group_layout(0);
+
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("mip"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        ..Default::default()
+    });
+
+    let views = (0..mip_count)
+        .map(|mip| {
+            texture.create_view(&wgpu::TextureViewDescriptor {
+                label: Some("mip"),
+                format: None,
+                dimension: None,
+                usage: None,
+                aspect: wgpu::TextureAspect::All,
+                base_mip_level: mip,
+                mip_level_count: Some(1),
+                base_array_layer: 0,
+                array_layer_count: None,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    for target_mip in 1..mip_count as usize {
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&views[target_mip - 1]),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+            label: None,
+        });
+
+        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &views[target_mip],
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        rpass.set_pipeline(&pipeline);
+        rpass.set_bind_group(0, &bind_group, &[]);
+        rpass.draw(0..3, 0..1);
     }
 }
