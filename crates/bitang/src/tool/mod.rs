@@ -71,13 +71,23 @@ pub struct Viewport {
     pub size: Size2D,
 }
 
+impl Viewport {
+    pub fn zero() -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            size: [0, 0],
+        }
+    }
+}
+
 pub struct FrameContext {
+    // TODO: remove Arc
     pub gpu_context: Arc<GpuContext>,
     pub screen_viewport: Viewport,
     pub canvas_size: Size2D,
     pub command_encoder: wgpu::CommandEncoder,
     pub globals: Globals,
-    pub simulation_elapsed_time_since_last_render: f32,
 }
 
 pub struct RenderPassContext<'pass> {
@@ -90,7 +100,6 @@ pub struct ComputePassContext<'pass> {
     pub gpu_context: &'pass GpuContext,
     pub pass: wgpu::ComputePass<'pass>,
     pub globals: &'pass mut Globals,
-    pub simulation_elapsed_time_since_last_render: &'pass mut f32,
 }
 
 pub fn run_app() -> Result<()> {

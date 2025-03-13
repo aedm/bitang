@@ -418,6 +418,9 @@ pub struct Globals {
     pub shadow_map_size: f32,
     pub simulation_frame_ratio: f32,
     pub simulation_step_seconds: f32,
+
+    // TODO: find a better place for this
+    pub simulation_elapsed_time_since_last_render: f32,
 }
 
 impl Globals {

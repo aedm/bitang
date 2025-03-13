@@ -150,6 +150,7 @@ impl AppInner {
         self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
 
         // Create frame context
+        // TODO: create it content_renderer
         let command_encoder = self
             .gpu_context
             .device
