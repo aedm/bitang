@@ -214,7 +214,13 @@ impl BitangImage {
                 let Some(texture) = &attachment.texture else {
                     bail!("Attachment image not initialized");
                 };
-                texture.create_view(&wgpu::TextureViewDescriptor::default())
+                // texture.create_view(&wgpu::TextureViewDescriptor::default())
+                texture.create_view(&wgpu::TextureViewDescriptor {
+                    usage: Some(wgpu::TextureUsages::TEXTURE_BINDING),
+                    base_mip_level: 0,
+                    mip_level_count: Some(texture.mip_level_count()),
+                    ..wgpu::TextureViewDescriptor::default()
+                })
             }
             ImageInner::Swapchain(_) => {
                 bail!("Swapchain image can't be used in a sampler");

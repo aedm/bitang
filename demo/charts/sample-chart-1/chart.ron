@@ -179,114 +179,45 @@ Chart(
                         },
                     ),
                 ),
-
-
-
-//                Scene(
-//                    id: "sample scene",
-//                    file: "demo-default.glb",
-//                    material: Material(
-//                        passes: {
-//                            "shadow": MaterialPass(
-//                                vertex_shader: "vs.glsl",
-//                                fragment_shader: "fs-noop.glsl",
-//                                depth_test: true,
-//                                depth_write: true,
-//                            ),
-//                            "solid": MaterialPass(
-//                                vertex_shader: "vs.glsl",
-//                                fragment_shader: "fs.glsl",
-//                                depth_test: true,
-//                                depth_write: true,
-//                            ),
-//                        },
-//                        samplers: {
-//                            "shadow": Sampler(
-//                                bind: Image(
-//                                    "shadow",
-//                                ),
-//                                mode: Shadow,
-//                            ),
-//                            "envmap": Sampler(
-//                                bind: File(
-//                                    "medieval_cafe_1k.jxl",
-//                                ),
-//                                mode: Envmap,
-//                            ),
-//                            "base_color_map": Sampler(
-//                                bind: File(
-//                                    "chip-material/Chip001_1K-PNG_Color.jpg",
-//                                ),
-//                                mode: Repeat,
-//                            ),
-//                            "roughness_map": Sampler(
-//                                bind: File(
-//                                    "chip-material/Chip001_1K-PNG_Roughness.jpg",
-//                                ),
-//                                mode: Repeat,
-//                            ),
-//                            "metallic_map": Sampler(
-//                                bind: File(
-//                                    "chip-material/Chip001_1K-PNG_Metalness.jpg",
-//                                ),
-//                                mode: Repeat,
-//                            ),
-//                            "normal_map": Sampler(
-//                                bind: File(
-//                                    "chip-material/Chip001_1K-PNG_NormalDX.jpg",
-//                                ),
-//                                mode: Repeat,
-//                            ),
-//                            "brdf_lut": Sampler(
-//                                bind: File(
-//                                    "ibl_brdf_lut.png",
-//                                ),
-//                                mode: ClampToEdge,
-//                            ),
-//                        },
-//                    ),
-//                ),
             ],
         ),
 
-//        // Depth of field
-//        Draw(
-//            id: "depth-of-field",
-//            passes: [
-//                Pass(
-//                    id: "solid",
-//                    color_images: [Image("dof")],
-//                    clear_color: (0, 0.37, 0, 0),
-//                ),
-//            ],
-//            items: [
-//                Object(
-//                    id: "shader",
-//                    mesh_file: "plane_xz.glb",
-//                    mesh_name: "Plane",
-//                    material: Material(
-//                        passes: {
-//                            "solid": MaterialPass(
-//                                vertex_shader: "/shaders/fullscreen.vs.glsl",
-//                                fragment_shader: "/shaders/post/dof-singlepass.fs.glsl",
-//                                depth_test: false,
-//                                depth_write: false,
-//                            ),
-//                        },
-//                        samplers: {
-//                            "color_texture": Sampler(
-//                                bind: Image("color"),
-//                                mode: ClampToEdge,
-//                            ),
-//                            "depth_texture": Sampler(
-//                                bind: Image("depth"),
-//                                mode: ClampToEdge,
-//                            ),
-//                        },
-//                    ),
-//                ),
-//            ],
-//        ),
+       // Depth of field
+       Draw(
+           id: "depth-of-field",
+           passes: [
+               Pass(
+                   id: "solid",
+                   color_images: [Image("dof")],
+                   clear_color: (0, 0.37, 0, 0),
+               ),
+           ],
+           items: [
+               Object(
+                   id: "shader",
+                   mesh_file: "plane_xz.glb",
+                   mesh_name: "Plane",
+                   material: Material(
+                       passes: {
+                           "solid": MaterialPass(
+                               vertex_shader: "/shaders/fullscreen.vs.wgsl",
+                               fragment_shader: "/shaders/post/dof-singlepass.fs.wgsl",
+                               depth_test: false,
+                               depth_write: false,
+                           ),
+                       },
+                       textures: {
+                           "color_texture": Texture(
+                               bind: Image("color"),
+                           ),
+                           "depth_texture": Texture(
+                               bind: Image("depth"),
+                           ),
+                       },
+                   ),
+               ),
+           ],
+       ),
 //
 //        // Gamma compression
 //        Draw(
