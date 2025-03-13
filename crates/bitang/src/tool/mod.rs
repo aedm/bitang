@@ -88,9 +88,9 @@ pub struct RenderPassContext<'pass> {
 
 pub struct ComputePassContext<'pass> {
     pub gpu_context: &'pass GpuContext,
-    pub command_encoder: &'pass mut wgpu::CommandEncoder,
     pub pass: wgpu::ComputePass<'pass>,
     pub globals: &'pass mut Globals,
+    pub simulation_elapsed_time_since_last_render: &'pass mut f32,
 }
 
 pub fn run_app() -> Result<()> {

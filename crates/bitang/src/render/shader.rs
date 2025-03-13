@@ -1,7 +1,7 @@
 use crate::control::controls::{Control, GlobalType, Globals};
 use crate::render::buffer::Buffer;
 use crate::render::image::BitangImage;
-use crate::tool::{FrameContext, GpuContext, RenderPassContext};
+use crate::tool::{ComputePassContext, FrameContext, GpuContext, RenderPassContext};
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use std::mem::size_of;
@@ -171,9 +171,9 @@ impl Shader {
         Ok(())
     }
 
-    pub fn bind_to_compute_pass(&self, context: &GpuContext, pass: &mut wgpu::ComputePass<'_>, globals: &Globals) -> Result<()> {
-        let bind_group = self.make_bind_group(&context, globals)?;        
-        pass.set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
+    pub fn bind_to_compute_pass(&self, context: &mut ComputePassContext<'_>) -> Result<()> {
+        let bind_group = self.make_bind_group(&context.gpu_context, &context.globals)?;        
+        context.pass.set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
         Ok(())
     }
 

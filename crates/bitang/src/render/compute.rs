@@ -1,6 +1,6 @@
 use crate::render::buffer::Buffer;
 use crate::render::shader::Shader;
-use crate::tool::{FrameContext, GpuContext};
+use crate::tool::{ComputePassContext, FrameContext, GpuContext};
 use anyhow::{Context, Result};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -54,7 +54,7 @@ impl Compute {
         })
     }
 
-    pub fn execute(&self, context: &mut FrameContext) -> Result<()> {
+    pub fn execute(&self, context: &mut ComputePassContext<'_>) -> Result<()> {
         // TODO: document why 64
         let dispatch_count = match &self.run {
             Run::Init(buffer) => buffer.item_size_in_vec4 * buffer.item_count / 64,
@@ -64,15 +64,8 @@ impl Compute {
             }
         };
 
-        let mut pass = context
-            .command_encoder
-            .begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: None,
-                timestamp_writes: None,
-            });
-
-        self.shader.bind_to_compute_pass(&context.gpu_context, &mut pass, &context.globals)?;
-        pass.dispatch_workgroups(dispatch_count as u32, 1, 1);
+        self.shader.bind_to_compute_pass(context)?;
+        context.pass.dispatch_workgroups(dispatch_count as u32, 1, 1);
         
         // context
         //     .command_builder
