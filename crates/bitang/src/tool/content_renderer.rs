@@ -5,7 +5,7 @@ use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
-use crate::tool::{FrameContext};
+use crate::tool::FrameContext;
 use anyhow::{bail, Result};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -34,10 +34,7 @@ impl ContentRenderer {
 
         let app_state = AppState::new(
             project,
-            project_loader
-                .resource_repository
-                .control_repository
-                .clone(),
+            project_loader.resource_repository.control_repository.clone(),
         );
 
         Ok(Self {
@@ -56,7 +53,8 @@ impl ContentRenderer {
         context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
 
         if self.app_state.is_simulation_enabled {
-            context.simulation_elapsed_time_since_last_render = match self.last_render_time {
+            context.globals.simulation_elapsed_time_since_last_render = match self.last_render_time
+            {
                 Some(last_render_time) => context.globals.app_time - last_render_time,
                 None => 0.0,
             };
@@ -121,8 +119,7 @@ impl ContentRenderer {
     }
 
     pub fn play(&mut self) {
-        self.music_player
-            .play_from(self.app_state.get_project_relative_time());
+        self.music_player.play_from(self.app_state.get_project_relative_time());
         self.app_state.start();
     }
 
@@ -178,9 +175,11 @@ impl ContentRenderer {
     }
 
     pub fn reset_simulation(&mut self, context: &GpuContext) -> Result<()> {
-        let mut command_encoder = context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        let mut command_encoder =
+            context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
-        let mut compute_pass = command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+        let mut compute_pass =
+            command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
         let mut globals = Globals::default();
         let mut compute_pass_context = ComputePassContext {
             gpu_context: context,
@@ -209,8 +208,7 @@ impl ContentRenderer {
         self.app_state.tick();
         if self.app_state.is_playing() {
             self.app_state.reset();
-            self.music_player
-                .play_from(self.app_state.get_project_relative_time());
+            self.music_player.play_from(self.app_state.get_project_relative_time());
         }
         Ok(())
     }

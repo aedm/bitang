@@ -33,9 +33,10 @@ impl Compute {
             ],
             push_constant_ranges: &[],
         });
+        // TODO: handle different entry points for init and simulate
         let entry_point = match run {
-            Run::Init(_) => "cs_init",
-            Run::Simulate(_) => "cs_simulate",
+            Run::Init(_) => "cs_main",
+            Run::Simulate(_) => "cs_main",
         };
         let pipeline = context.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: None,
@@ -64,6 +65,7 @@ impl Compute {
             }
         };
 
+        context.pass.set_pipeline(&self.pipeline);
         self.shader.bind_to_compute_pass(context)?;
         context.pass.dispatch_workgroups(dispatch_count as u32, 1, 1);
         

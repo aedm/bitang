@@ -37,7 +37,8 @@ impl WindowRunner {
                 },
                 device_descriptor: Arc::new(|_adapter| wgpu::DeviceDescriptor {
                     required_features: wgpu::Features::FLOAT32_FILTERABLE
-                        | wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER,
+                        | wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER
+                        | wgpu::Features::VERTEX_WRITABLE_STORAGE,
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -159,7 +160,6 @@ impl AppInner {
             gpu_context: self.gpu_context.clone(),
             command_encoder,
             globals: Default::default(),
-            simulation_elapsed_time_since_last_render: 0.0,
             screen_viewport: self.viewport,
             canvas_size: props.surface_size,
         };

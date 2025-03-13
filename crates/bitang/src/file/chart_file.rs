@@ -171,9 +171,8 @@ impl ChartStep {
                 Ok(render::chart::ChartStep::Draw(draw))
             }
             ChartStep::Compute(compute) => {
-                todo!()
-                // let compute = compute.load(context, chart_context).await?;
-                // Ok(render::chart::ChartStep::Compute(compute))
+                let compute = compute.load(context, chart_context).await?;
+                Ok(render::chart::ChartStep::Compute(compute))
             }
             ChartStep::GenerateMipLevels(generate_mip_levels) => {
                 let generate_mip_levels = generate_mip_levels.load(chart_context).await?;
@@ -315,46 +314,46 @@ pub struct Compute {
 }
 
 impl Compute {
-    // async fn load(
-    //     &self,
-    //     context: &Arc<GpuContext>,
-    //     chart_context: &ChartContext,
-    // ) -> Result<render::compute::Compute> {
-    //     let run = match &self.run {
-    //         ComputeRun::Init(buffer_id) => {
-    //             let buffer = chart_context
-    //                 .buffers_by_id
-    //                 .get(buffer_id)
-    //                 .with_context(|| anyhow!("Buffer not found: {buffer_id}"))?;
-    //             render::compute::Run::Init(buffer.clone())
-    //         }
-    //         ComputeRun::Simulation(buffer_id) => {
-    //             let buffer = chart_context
-    //                 .buffers_by_id
-    //                 .get(buffer_id)
-    //                 .with_context(|| anyhow!("Buffer not found: {buffer_id}"))?;
-    //             render::compute::Run::Simulate(buffer.clone())
-    //         }
-    //     };
+    async fn load(
+        &self,
+        context: &Arc<GpuContext>,
+        chart_context: &ChartContext,
+    ) -> Result<render::compute::Compute> {
+        let run = match &self.run {
+            ComputeRun::Init(buffer_id) => {
+                let buffer = chart_context
+                    .buffers_by_id
+                    .get(buffer_id)
+                    .with_context(|| anyhow!("Buffer not found: {buffer_id}"))?;
+                render::compute::Run::Init(buffer.clone())
+            }
+            ComputeRun::Simulation(buffer_id) => {
+                let buffer = chart_context
+                    .buffers_by_id
+                    .get(buffer_id)
+                    .with_context(|| anyhow!("Buffer not found: {buffer_id}"))?;
+                render::compute::Run::Simulate(buffer.clone())
+            }
+        };
 
-    //     let control_id = chart_context
-    //         .chart_control_id
-    //         .add(ControlIdPartType::Compute, &self.id);
+        let control_id = chart_context
+            .chart_control_id
+            .add(ControlIdPartType::Compute, &self.id);
 
-    //     let shader_context = ShaderContext::new(
-    //         chart_context,
-    //         &self.control_map,
-    //         &control_id,
-    //         &self.textures,
-    //         &self.buffers,
-    //     )?;
+        let shader_context = ShaderContext::new(
+            chart_context,
+            &self.control_map,
+            &control_id,
+            &self.textures,
+            &self.buffers,
+        )?;
 
-    //     let shader = shader_context
-    //         .make_shader(chart_context, ShaderKind::Compute, &self.shader)
-    //         .await?;
+        let shader = shader_context
+            .make_shader(chart_context, ShaderKind::Compute, &self.shader)
+            .await?;
 
-    //     render::compute::Compute::new(context, &self.id, shader, run)
-    // }
+        render::compute::Compute::new(context, &self.id, shader, run)
+    }
 }
 
 // TODO: get rid of this, use a plain string id instead

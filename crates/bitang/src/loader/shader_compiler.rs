@@ -199,7 +199,7 @@ impl ShaderArtifact {
         let main_function = match kind {
             ShaderKind::Vertex => "vs_main",
             ShaderKind::Fragment => "fs_main",
-            ShaderKind::Compute => "main",
+            ShaderKind::Compute => "cs_main",
         };
         let entry_point = entry_points
             .iter()

@@ -117,8 +117,8 @@ impl Chart {
         let app_time = context.globals.app_time;
         let chart_time = context.globals.chart_time;
 
-        let time =
-            self.simulation_elapsed_time.get() + context.globals.simulation_elapsed_time_since_last_render;
+        let time = self.simulation_elapsed_time.get()
+            + context.globals.simulation_elapsed_time_since_last_render;
         let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
 
         // Failsafe: limit the number steps per frame to avoid overloading the GPU.
@@ -161,8 +161,18 @@ impl Chart {
     }
 
     pub fn render(&self, context: &mut FrameContext) -> Result<()> {
-        // Simulation step
-        self.simulate(&mut context.compute_pass_context, false)?;
+        {
+            // Simulation step
+            // TODO: check if it's necessary to create a compute pass, if simulation needs to run
+            let compute_pass =
+                context.command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+            let mut compute_pass_context = ComputePassContext {
+                gpu_context: &context.gpu_context,
+                pass: compute_pass,
+                globals: &mut context.globals,
+            };
+            self.simulate(&mut compute_pass_context, false)?;
+        }
 
         // Render step
         self.evaluate_splines(context.globals.chart_time);

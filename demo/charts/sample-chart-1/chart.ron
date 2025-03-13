@@ -45,7 +45,31 @@ Chart(
         ),
     ],
     simulation_precalculation_time: 0,
+    buffers: [
+        Buffer(
+            id: "particles",
+            item_size_in_vec4: 3,
+            item_count: 256,
+        ),
+    ],    
     steps: [
+        Compute(
+            id: "particles-init",
+            shader: "particles-init.cs.wgsl",
+            run: Init("particles"),
+            buffers: {
+                "particles": Next("particles"),
+            },
+        ),
+		Compute(
+			id: "particles-simulate",
+			shader: "particles-simulate.cs.wgsl",
+			run: Simulation("particles"),
+			buffers: {
+				"particles_current": Current("particles"),
+				"particles_next": Next("particles"),
+			},
+		),        
         Draw(
             id: "pass1",
             passes: [
@@ -105,6 +129,12 @@ Chart(
                                 depth_write: true,
                             ),
                         },
+
+                        buffers: {
+                            "particles_current": Current("particles"),
+                            "particles_next": Next("particles"),
+                        },
+
                         textures: {
                             "shadow": Texture(
                                 bind: Image(
