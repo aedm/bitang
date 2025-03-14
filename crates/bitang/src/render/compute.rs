@@ -68,14 +68,6 @@ impl Compute {
         context.pass.set_pipeline(&self.pipeline);
         self.shader.bind_to_compute_pass(context)?;
         context.pass.dispatch_workgroups(dispatch_count as u32, 1, 1);
-        
-        // context
-        //     .command_builder
-        //     .bind_pipeline_compute(self.pipeline.clone())?;
-        // self.shader.bind(context, self.pipeline.layout())?;
-        // context
-        //     .command_builder
-        //     .dispatch([dispatch_count as u32, 1, 1])?;
 
         Ok(())
     }

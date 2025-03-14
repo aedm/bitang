@@ -133,43 +133,8 @@ impl ContentRenderer {
         let mut first_iteration = true;
         let mut is_simulation_done = false;
         while !is_simulation_done {
-            // Make command buffer
-            // let mut command_builder = AutoCommandBufferBuilder::primary(
-            //     &vulkan_context.command_buffer_allocator,
-            //     vulkan_context.gfx_queue.queue_family_index(),
-            //     CommandBufferUsage::OneTimeSubmit,
-            // )?;
-
-            // Make render context to run simulation
-            // let mut compute_pass = context.command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
-            // let mut context = ComputePassContext {
-            //     gpu_context: &context.gpu_context,
-            //     pass: &mut compute_pass,
-            //     globals: &mut context.globals,
-            // };
-            // let mut context = FrameContext {
-            //     screen_viewport: Viewport {
-            //         x: 0,
-            //         y: 0,
-            //         width: 1,
-            //         height: 1,
-            //     },
-            //     globals: Default::default(),
-            //     simulation_elapsed_time_since_last_render: 0.0,
-            //     gpu_context: todo!(),
-            //     final_render_target: todo!(),
-            //     command_encoder: todo!(),
-            // };
-
             is_simulation_done = chart.reset_simulation(context, first_iteration, true)?;
             first_iteration = false;
-
-            // Execute simulation and wait for it to finish
-            // command_builder
-            //     .build()?
-            //     .execute(vulkan_context.gfx_queue.clone())?
-            //     .then_signal_fence_and_flush()?
-            //     .wait(None)?;
         }
         Ok(())
     }

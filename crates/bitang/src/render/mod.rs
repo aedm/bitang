@@ -13,8 +13,6 @@ pub mod render_object;
 pub mod scene;
 pub mod shader;
 
-use crate::render::image::PixelFormat;
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex3 {
@@ -37,10 +35,7 @@ pub type MeshIndex = u32;
 
 pub type Size2D = [u32; 2];
 
-pub const SCREEN_COLOR_FORMAT: PixelFormat = PixelFormat::Bgra8Srgb;
 pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
-
-type BufferItem = [f32; 4];
 
 /// How many times the simulation is updated per second.
 /// Weird number on purpose.

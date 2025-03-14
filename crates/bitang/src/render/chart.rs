@@ -185,7 +185,7 @@ impl Chart {
                     draw.render(context, &self.camera)?;
                 }
                 ChartStep::Compute(_) => {
-                    // Compute only runs simulation or init, ignore for now
+                    // Compute only runs simulation or init, no need to do anything during render.
                 }
                 ChartStep::GenerateMipLevels(genmips) => {
                     genmips.execute(context)?;

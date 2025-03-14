@@ -1,5 +1,5 @@
 use crate::render::image::{BitangImage, PixelFormat, SwapchainImage};
-use crate::render::{Size2D, SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
+use crate::render::{Size2D, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{
@@ -26,12 +26,12 @@ impl WindowRunner {
         let inner_clone = inner.clone();
 
         let wgpu_configuration = egui_wgpu::WgpuConfiguration {
-            // present_mode: wgpu::PresentMode::FifoRelaxed,
+            #[cfg(windows)]
             present_mode: wgpu::PresentMode::Mailbox,
             desired_maximum_frame_latency: Some(2),
             wgpu_setup: WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: wgpu::InstanceDescriptor {
-                    // TODO: DX12 then Vulkan then Metal
+                    #[cfg(windows)]
                     backends: Backends::DX12,
                     ..Default::default()
                 },
@@ -67,7 +67,7 @@ impl WindowRunner {
             "Bitang",
             native_options,
             Box::new(|cc| {
-                // TODO: unwrap
+                // TODO: no unwrap
                 Ok(App::new(cc, inner).unwrap())
             }),
         )
@@ -188,7 +188,7 @@ impl AppInner {
         Ok(())
     }
 
-    fn has_timeline_ended(&self) -> bool {
+    fn _has_timeline_ended(&self) -> bool {
         let Some(project) = &self.content_renderer.app_state.project else {
             return false;
         };
@@ -259,7 +259,6 @@ impl AppInner {
         if ctx.input_mut(|i| i.consume_shortcut(&Self::STOP_SHORTCUT)) {
             if self.demo_mode {
                 info!("Exiting on user request.");
-                // event_loop.exit();
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             } else if self.is_fullscreen {
                 self.toggle_fullscreen();
@@ -270,37 +269,7 @@ impl AppInner {
 
     fn toggle_fullscreen(&mut self) {
         todo!();
-        // self.is_fullscreen = !self.is_fullscreen;
-        // self.window.set_fullscreen(self.is_fullscreen);
     }
-
-    // fn toggle_fullscreen(&mut self) {
-    //     todo!()
-    //     // let renderer = self.windows.get_primary_renderer_mut().unwrap();
-    //     // if self.window.fullscreen().is_none() {
-    //     //     self.inner.lock().unwrap().is_fullscreen = true;
-    //     //     if BORDERLESS_FULL_SCREEN {
-    //     //         self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-    //     //         self.window.set_cursor_visible(false);
-    //     //     } else if let Some(monitor) = self.window.current_monitor() {
-    //     //         let video_mode =
-    //     //             monitor.video_modes().find(|mode| mode.size() == PhysicalSize::new(1920, 1080));
-    //     //         if let Some(video_mode) = video_mode {
-    //     //             self.window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
-    //     //             self.window.set_cursor_visible(false);
-    //     //         } else {
-    //     //             error!("Could not find 1920x1080 video mode");
-    //     //         }
-    //     //     } else {
-    //     //         error!("Could not find current monitor");
-    //     //     }
-    //     // } else {
-    //     //     self.inner.lock().unwrap().is_fullscreen = false;
-    //     //     self.window.set_fullscreen(None);
-    //     //     self.window.set_cursor_visible(true);
-    //     //     self.window.focus_window();
-    //     // }
-    // }
 }
 
 struct App {
@@ -315,11 +284,6 @@ impl eframe::App for App {
             ctx.request_repaint();
         }
     }
-}
-
-pub enum PaintResult {
-    None,
-    EndReached,
 }
 
 impl App {
@@ -365,12 +329,12 @@ impl App {
 
         *inner.lock().unwrap() = Some(app_inner);
 
-        let mut app = Self { inner };
+        let app = Self { inner };
 
         if START_IN_DEMO_MODE {
             // Start demo in fullscreen
             info!("Starting demo.");
-            // TODO: fugly
+            // TODO: this is not pretty
             let mut lock = app.inner.lock().unwrap();
             let inner = lock.as_mut().unwrap();
             inner.toggle_fullscreen();
@@ -378,9 +342,5 @@ impl App {
         }
 
         Ok(Box::new(app))
-    }
-
-    fn has_timeline_ended(&self) -> bool {
-        false // TODO
     }
 }
