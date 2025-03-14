@@ -1,14 +1,13 @@
 use crate::control::controls::ControlSetBuilder;
 use crate::control::{ControlId, ControlIdPartType};
-use crate::file::shader_context::{BufferSource, Sampler, ShaderContext, Texture};
+use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::resource_repository::ResourceRepository;
-use crate::render::buffer_generator::BufferGeneratorType;
 use crate::render::image::ImageSizeRule;
 use crate::render::shader::ShaderKind;
 use crate::render::SCREEN_RENDER_TARGET_ID;
-use crate::tool::VulkanContext;
+use crate::tool::GpuContext;
 use crate::{file, render};
 use ahash::AHashMap;
 use anyhow::{anyhow, Context, Result};
@@ -21,14 +20,13 @@ use tracing::{instrument, trace};
 
 /// A context for loading a chart.
 pub struct ChartContext {
-    pub vulkan_context: Arc<VulkanContext>,
+    pub gpu_context: Arc<GpuContext>,
     pub resource_repository: Rc<ResourceRepository>,
     pub image_futures_by_id: AHashMap<String, LoadFuture<render::image::BitangImage>>,
     pub control_set_builder: ControlSetBuilder,
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
     pub buffers_by_id: HashMap<String, Rc<render::buffer::Buffer>>,
-    pub buffer_generators_by_id: HashMap<String, Rc<render::buffer_generator::BufferGenerator>>,
     pub path: ResourcePath,
 }
 
@@ -36,9 +34,6 @@ pub struct ChartContext {
 pub struct Chart {
     #[serde(default)]
     pub images: Vec<Image>,
-
-    #[serde(default)]
-    pub buffer_generators: Vec<BufferGenerator>,
 
     #[serde(default)]
     pub buffers: Vec<Buffer>,
@@ -55,7 +50,7 @@ impl Chart {
     pub async fn load(
         &self,
         id: &str,
-        context: &Arc<VulkanContext>,
+        context: &Arc<GpuContext>,
         resource_repository: &Rc<ResourceRepository>,
         chart_file_path: &ResourcePath,
     ) -> Result<Rc<render::chart::Chart>> {
@@ -81,16 +76,6 @@ impl Chart {
             LoadFuture::new_from_value("screen_render_target", context.final_render_target.clone()),
         );
 
-        let buffer_generators_by_id = self
-            .buffer_generators
-            .iter()
-            .map(|buffer_generator| {
-                let generator =
-                    buffer_generator.load(context, &chart_control_id, &control_set_builder);
-                (buffer_generator.id.clone(), Rc::new(generator))
-            })
-            .collect::<HashMap<_, _>>();
-
         let buffers_by_id = self
             .buffers
             .iter()
@@ -101,47 +86,33 @@ impl Chart {
             .collect::<HashMap<_, _>>();
 
         let chart_context = ChartContext {
-            vulkan_context: context.clone(),
+            gpu_context: context.clone(),
             resource_repository: resource_repository.clone(),
             image_futures_by_id,
             control_set_builder,
             values_control_id: chart_control_id.add(ControlIdPartType::ChartValues, "Chart Values"),
             chart_control_id,
             buffers_by_id,
-            buffer_generators_by_id,
             path: chart_file_path.clone(),
         };
 
-        let chart_step_futures = self
-            .steps
-            .iter()
-            .map(|pass| async { pass.load(context, &chart_context).await });
+        let chart_step_futures =
+            self.steps.iter().map(|pass| async { pass.load(context, &chart_context).await });
         // Load all passes in parallel.
-        let chart_steps = join_all(chart_step_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let chart_steps =
+            join_all(chart_step_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
         let image_futures = chart_context
             .image_futures_by_id
             .into_values()
             .map(|image_future| async move { image_future.get().await });
-        let images = join_all(image_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
-
-        let buffer_generators = chart_context
-            .buffer_generators_by_id
-            .into_values()
-            .collect::<Vec<_>>();
+        let images = join_all(image_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
         let chart = render::chart::Chart::new(
             id,
             &chart_context.chart_control_id,
             chart_context.control_set_builder,
             images,
-            buffer_generators,
             chart_steps,
             self.simulation_precalculation_time,
         );
@@ -184,7 +155,7 @@ pub enum ChartStep {
 impl ChartStep {
     async fn load(
         &self,
-        context: &Arc<VulkanContext>,
+        context: &Arc<GpuContext>,
         chart_context: &ChartContext,
     ) -> Result<render::chart::ChartStep> {
         match self {
@@ -218,16 +189,13 @@ impl GenerateMipLevels {
         &self,
         chart_context: &ChartContext,
     ) -> Result<render::generate_mip_levels::GenerateMipLevels> {
-        let image = chart_context
-            .image_futures_by_id
-            .get(&self.image_id)
-            .with_context(|| {
-                anyhow!(
-                    "Image id not found: '{}' (mipmap generation step: '{}')",
-                    self.image_id,
-                    self.id
-                )
-            })?;
+        let image = chart_context.image_futures_by_id.get(&self.image_id).with_context(|| {
+            anyhow!(
+                "Image id not found: '{}' (mipmap generation step: '{}')",
+                self.image_id,
+                self.id
+            )
+        })?;
         let image = image.get().await?;
 
         Ok(render::generate_mip_levels::GenerateMipLevels {
@@ -274,33 +242,22 @@ pub struct Draw {
 impl Draw {
     #[allow(clippy::too_many_arguments)]
     pub async fn load(&self, chart_context: &ChartContext) -> Result<render::draw::Draw> {
-        let draw_control_id = chart_context
-            .chart_control_id
-            .add(ControlIdPartType::ChartStep, &self.id);
+        let draw_control_id =
+            chart_context.chart_control_id.add(ControlIdPartType::ChartStep, &self.id);
         let pass_futures = self.passes.iter().map(|pass| pass.load(chart_context));
 
         // Pass render targets rarely need an image to be loaded, no problem resolving it early
-        let passes = join_all(pass_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let passes = join_all(pass_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
-        let draw_item_futures = self
-            .items
-            .iter()
-            .map(|object| object.load(chart_context, &draw_control_id, &passes));
-        let objects = join_all(draw_item_futures)
-            .await
-            .into_iter()
-            .collect::<Result<_>>()?;
+        let draw_item_futures =
+            self.items.iter().map(|object| object.load(chart_context, &draw_control_id, &passes));
+        let objects = join_all(draw_item_futures).await.into_iter().collect::<Result<_>>()?;
 
         let light_dir_id = draw_control_id.add(ControlIdPartType::Value, "light_dir");
         let shadow_map_size_id = draw_control_id.add(ControlIdPartType::Value, "shadow_map_size");
 
         let light_dir = chart_context.control_set_builder.get_vec3(&light_dir_id);
-        let shadow_map_size = chart_context
-            .control_set_builder
-            .get_vec3(&shadow_map_size_id);
+        let shadow_map_size = chart_context.control_set_builder.get_vec3(&shadow_map_size_id);
 
         let draw = render::draw::Draw::new(&self.id, passes, objects, light_dir, shadow_map_size)?;
         Ok(draw)
@@ -338,7 +295,7 @@ pub struct Compute {
 impl Compute {
     async fn load(
         &self,
-        context: &Arc<VulkanContext>,
+        context: &Arc<GpuContext>,
         chart_context: &ChartContext,
     ) -> Result<render::compute::Compute> {
         let run = match &self.run {
@@ -358,9 +315,7 @@ impl Compute {
             }
         };
 
-        let control_id = chart_context
-            .chart_control_id
-            .add(ControlIdPartType::Compute, &self.id);
+        let control_id = chart_context.chart_control_id.add(ControlIdPartType::Compute, &self.id);
 
         let shader_context = ShaderContext::new(
             chart_context,
@@ -370,9 +325,8 @@ impl Compute {
             &self.buffers,
         )?;
 
-        let shader = shader_context
-            .make_shader(chart_context, ShaderKind::Compute, &self.shader)
-            .await?;
+        let shader =
+            shader_context.make_shader(chart_context, ShaderKind::Compute, &self.shader).await?;
 
         render::compute::Compute::new(context, &self.id, shader, run)
     }
@@ -423,44 +377,10 @@ impl Pass {
             .color_images
             .iter()
             .map(|color_buffer| color_buffer.load(&chart_context.image_futures_by_id));
-        let color_buffers = join_all(color_buffer_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let color_buffers =
+            join_all(color_buffer_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
-        render::pass::Pass::new(
-            &self.id,
-            &chart_context.vulkan_context,
-            color_buffers,
-            depth_buffer,
-            self.clear_color,
-        )
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct BufferGenerator {
-    id: String,
-    size: u32,
-    generator: BufferGeneratorType,
-}
-
-impl BufferGenerator {
-    pub fn load(
-        &self,
-        context: &Arc<VulkanContext>,
-        parent_id: &ControlId,
-        control_set_builder: &ControlSetBuilder,
-    ) -> render::buffer_generator::BufferGenerator {
-        let control_id = parent_id.add(ControlIdPartType::BufferGenerator, &self.id);
-
-        render::buffer_generator::BufferGenerator::new(
-            self.size,
-            context,
-            &control_id,
-            control_set_builder,
-            &self.generator,
-        )
+        render::pass::Pass::new(&self.id, color_buffers, depth_buffer, self.clear_color)
     }
 }
 
@@ -472,7 +392,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn load(&self, context: &Arc<VulkanContext>) -> render::buffer::Buffer {
+    pub fn load(&self, context: &Arc<GpuContext>) -> render::buffer::Buffer {
         render::buffer::Buffer::new(context, self.item_size_in_vec4, self.item_count)
     }
 }

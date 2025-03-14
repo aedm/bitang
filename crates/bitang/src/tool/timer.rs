@@ -14,10 +14,7 @@ impl Timer {
     }
 
     pub fn now(&self) -> f32 {
-        self.start
-            + self
-                .instant
-                .map_or(0.0, |instant| instant.elapsed().as_secs_f32())
+        self.start + self.instant.map_or(0.0, |instant| instant.elapsed().as_secs_f32())
     }
 
     pub fn start(&mut self) {

@@ -1,7 +1,7 @@
 use crate::loader::file_cache::{FileCache, FileChangeHandler};
 use crate::loader::resource_repository::ResourceRepository;
 use crate::render::project::Project;
-use crate::tool::VulkanContext;
+use crate::tool::GpuContext;
 use anyhow::{ensure, Result};
 use dunce::canonicalize;
 use std::path::PathBuf;
@@ -43,7 +43,7 @@ impl ProjectLoader {
         })
     }
 
-    fn run_project_loader(&mut self, context: &Arc<VulkanContext>) -> Result<Project> {
+    fn run_project_loader(&mut self, context: &Arc<GpuContext>) -> Result<Project> {
         self.async_runtime.block_on(async {
             let result = self.resource_repository.load_project(context).await;
             self.file_change_handler.update_watchers().await;
@@ -52,15 +52,14 @@ impl ProjectLoader {
     }
 
     #[instrument(skip_all, name = "load")]
-    pub fn get_or_load_project(&mut self, context: &Arc<VulkanContext>) -> Option<Rc<Project>> {
+    pub fn get_or_load_project(&mut self, context: &Arc<GpuContext>) -> Option<Rc<Project>> {
         let changed_files = self.file_change_handler.handle_file_changes();
         let needs_retry = self.cached_root.is_none()
             && self.file_change_handler.has_missing_files()
             && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL;
         if changed_files.is_some() || needs_retry {
             let now = Instant::now();
-            self.resource_repository
-                .start_load_cycle(changed_files.as_ref());
+            self.resource_repository.start_load_cycle(changed_files.as_ref());
             match self.run_project_loader(context) {
                 Ok(project) => {
                     info!("Project length: {} seconds", project.length);

@@ -1,5 +1,4 @@
 pub mod buffer;
-pub mod buffer_generator;
 pub mod camera;
 pub mod chart;
 pub mod compute;
@@ -14,28 +13,29 @@ pub mod render_object;
 pub mod scene;
 pub mod shader;
 
-use crate::render::image::PixelFormat;
-use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex};
-
-#[derive(BufferContents, Vertex, Default, Clone, Copy, Debug)]
 #[repr(C)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex3 {
-    #[format(R32G32B32_SFLOAT)]
     pub a_position: [f32; 3],
-    #[format(R32G32B32_SFLOAT)]
     pub a_normal: [f32; 3],
-    #[format(R32G32B32_SFLOAT)]
     pub a_tangent: [f32; 3],
-    #[format(R32G32_SFLOAT)]
     pub a_uv: [f32; 2],
-    #[format(R32_SFLOAT)]
     pub a_padding: f32,
 }
 
-pub const SCREEN_COLOR_FORMAT: PixelFormat = PixelFormat::Bgra8Srgb;
-pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
+const VERTEX_FORMAT: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
+    0 => Float32x3,
+    1 => Float32x3,
+    2 => Float32x3,
+    3 => Float32x2,
+    4 => Float32,
+];
 
-type BufferItem = [f32; 4];
+pub type MeshIndex = u32;
+
+pub type Size2D = [u32; 2];
+
+pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
 
 /// How many times the simulation is updated per second.
 /// Weird number on purpose.

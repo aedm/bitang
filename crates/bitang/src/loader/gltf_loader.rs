@@ -1,14 +1,13 @@
 use crate::loader::resource_repository::{SceneFile, SceneNode};
 use crate::render::mesh::Mesh;
 use crate::render::Vertex3;
-use crate::tool::VulkanContext;
+use crate::tool::GpuContext;
 use anyhow::{Context, Result};
 use itertools::Itertools;
-use log::warn;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, warn};
 
 // gltf is right-handed, y up
 fn gltf_to_left_handed_y_up(v: &[f32; 3]) -> [f32; 3] {
@@ -17,7 +16,7 @@ fn gltf_to_left_handed_y_up(v: &[f32; 3]) -> [f32; 3] {
 
 #[instrument(skip(context, content))]
 pub fn load_mesh_collection(
-    context: &Arc<VulkanContext>,
+    context: &Arc<GpuContext>,
     content: &[u8],
     path: &str,
 ) -> Result<Arc<SceneFile>> {
@@ -34,10 +33,8 @@ pub fn load_mesh_collection(
 
         let Some(mesh) = node.mesh() else { continue };
 
-        let primitives = mesh
-            .primitives()
-            .filter(|p| p.mode() == gltf::mesh::Mode::Triangles)
-            .collect_vec();
+        let primitives =
+            mesh.primitives().filter(|p| p.mode() == gltf::mesh::Mode::Triangles).collect_vec();
 
         for (pi, primitive) in primitives.into_iter().enumerate() {
             let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
@@ -85,9 +82,8 @@ pub fn load_mesh_collection(
             };
 
             // Read indices
-            let indices = reader
-                .read_indices()
-                .and_then(|indices| Some(indices.into_u32().collect_vec()));
+            let indices =
+                reader.read_indices().and_then(|indices| Some(indices.into_u32().collect_vec()));
 
             debug!("Loaded {} vertices", vertices.len());
 

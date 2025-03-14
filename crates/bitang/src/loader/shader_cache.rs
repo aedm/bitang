@@ -3,7 +3,7 @@ use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
 use crate::render::shader::ShaderKind;
-use crate::tool::VulkanContext;
+use crate::tool::GpuContext;
 use anyhow::{Context, Result};
 use dashmap::DashMap;
 use std::fmt::Debug;
@@ -70,7 +70,7 @@ impl ShaderCache {
 
     pub async fn get(
         &self,
-        context: Arc<VulkanContext>,
+        context: &Arc<GpuContext>,
         source_path: ResourcePath,
         kind: ShaderKind,
         macros: Vec<(String, String)>,
@@ -94,7 +94,7 @@ impl ShaderCache {
             .clone();
 
         let shader_load_func = {
-            let context = Arc::clone(&context);
+            let context = Arc::clone(context);
             let file_hash_cache = Arc::clone(&self.file_hash_cache);
 
             Self::load_shader(
@@ -106,9 +106,7 @@ impl ShaderCache {
                 macros,
             )
         };
-        self.load_cycle_shader_cache
-            .get(format!("shader:{key:?}"), key, shader_load_func)
-            .await
+        self.load_cycle_shader_cache.get(format!("shader:{key:?}"), key, shader_load_func).await
     }
 
     pub fn display_load_errors(&self) {
@@ -120,7 +118,7 @@ impl ShaderCache {
     }
 
     async fn load_shader(
-        context: Arc<VulkanContext>,
+        context: Arc<GpuContext>,
         file_hash_cache: Arc<FileCache>,
         source_path: ResourcePath,
         kind: ShaderKind,

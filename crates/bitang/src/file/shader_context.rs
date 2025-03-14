@@ -14,7 +14,6 @@ use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 pub enum BufferSource {
-    BufferGenerator(String),
     Current(String),
     Next(String),
 }
@@ -80,7 +79,7 @@ impl ShaderContext {
                 let image: LoadFuture<BitangImage> = {
                     match &texture.bind {
                         ImageSource::File(texture_path) => resource_repository.get_texture(
-                            &chart_context.vulkan_context,
+                            &chart_context.gpu_context,
                             &chart_context.path.relative_path(texture_path)?,
                         ),
                         ImageSource::Image(id) => chart_context
@@ -98,15 +97,7 @@ impl ShaderContext {
         let buffers_by_binding = buffers
             .iter()
             .map(|(name, buffer)| {
-                let buffer_generator = match buffer {
-                    BufferSource::BufferGenerator(id) => {
-                        let generator = chart_context
-                            .buffer_generators_by_id
-                            .get(id)
-                            .with_context(|| anyhow!("Buffer generator '{id}' not found"))?
-                            .clone();
-                        DescriptorSource::BufferGenerator(generator)
-                    }
+                let buffer_source = match buffer {
                     BufferSource::Current(id) => {
                         let buffer = chart_context
                             .buffers_by_id
@@ -124,7 +115,7 @@ impl ShaderContext {
                         DescriptorSource::BufferNext(buffer)
                     }
                 };
-                Ok((name.clone(), buffer_generator))
+                Ok((name.clone(), buffer_source))
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
@@ -192,7 +183,7 @@ impl ShaderContext {
             .resource_repository
             .shader_cache
             .get(
-                chart_context.vulkan_context.clone(),
+                &chart_context.gpu_context,
                 chart_context.path.relative_path(source_path)?,
                 kind,
                 macros,
@@ -204,15 +195,12 @@ impl ShaderContext {
             .iter()
             .map(|binding| {
                 let control_id = if let Some(mapped_name) = self.control_map.get(&binding.name) {
-                    chart_context
-                        .values_control_id
-                        .add(ControlIdPartType::Value, mapped_name)
+                    chart_context.values_control_id.add(ControlIdPartType::Value, mapped_name)
                 } else {
                     self.control_id.add(ControlIdPartType::Value, &binding.name)
                 };
-                let control = chart_context
-                    .control_set_builder
-                    .get_vec(&control_id, binding.f32_count);
+                let control =
+                    chart_context.control_set_builder.get_vec(&control_id, binding.f32_count);
                 LocalUniformMapping {
                     control,
                     f32_count: binding.f32_count,
@@ -251,7 +239,7 @@ impl ShaderContext {
             let sampler_descriptor = DescriptorResource {
                 id: texture.name.clone(),
                 binding: texture.binding,
-                source: DescriptorSource::Image(ImageDescriptor { image }),
+                source: DescriptorSource::Image(ImageDescriptor::new(image)?),
             };
             descriptor_resources.push(sampler_descriptor);
         }
@@ -265,20 +253,21 @@ impl ShaderContext {
             let sampler_descriptor = DescriptorResource {
                 id: sampler.name.clone(),
                 binding: sampler.binding,
-                source: DescriptorSource::Sampler(SamplerDescriptor {
-                    mode: source.mode.load(),
-                }),
+                source: DescriptorSource::Sampler(SamplerDescriptor::new(
+                    &chart_context.gpu_context,
+                    source.mode.load(),
+                )),
             };
             descriptor_resources.push(sampler_descriptor);
         }
 
         let shader = Shader::new(
-            &chart_context.vulkan_context,
+            &chart_context.gpu_context,
             shader_artifact.module.clone(),
             kind,
             shader_artifact.global_uniform_bindings.clone(),
             local_uniform_bindings,
-            shader_artifact.uniform_buffer_size,
+            shader_artifact.uniform_buffer_byte_size,
             descriptor_resources,
         );
 

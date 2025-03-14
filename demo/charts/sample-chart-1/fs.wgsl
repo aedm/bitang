@@ -55,6 +55,7 @@ fn sample_environment_map(direction_wn: vec3<f32>, bias: f32, envmap: texture_2d
     let levels = textureNumLevels(envmap);
     let adjust = pow(1.0 - bias, 4.0);
     let mipLevel = max(f32(levels) - 3.5 - adjust * 7.0, 0.0);
+
     let uv = direction_wn_to_spherical_envmap_uv(direction_wn);
     return textureSampleLevel(envmap, sampler_envmap, uv, mipLevel);
 }
@@ -154,14 +155,14 @@ fn cook_torrance_brdf_ibl(V: vec3<f32>, N: vec3<f32>, baseColor: vec3<f32>, meta
     let F = fresnel_schlick_roughness(n_dot_v, F0, roughness);
 
     // Sample environment map and irradiance map
-    let irradiance = light_color * sample_environment_map(N, 1.0, envmap).rgb;
+    var irradiance = light_color * sample_environment_map(N, 1.0, envmap).rgb;
     let envSample = light_color * sample_environment_map(reflect(-V, N), roughness, envmap).rgb;
 
     // Calculate specular and diffuse terms
     let kD = (vec3<f32>(1.0) - F) * (1.0 - metallic);
     let diffuse = kD * irradiance * baseColor;
 
-    let envBRDF = textureSampleLevel(brdf_lut, sampler_envmap, vec2<f32>(n_dot_v, roughness), 0.0).rgb;
+    var envBRDF = textureSampleLevel(brdf_lut, sampler_envmap, vec2<f32>(n_dot_v, roughness), 0.0).rgb;
     let specular = envSample * (F * envBRDF.x + envBRDF.y);
 
     // Combine and ensure energy conservation
@@ -208,7 +209,7 @@ fn adjust(value: f32, factor: f32) -> f32 {
 
 fn sample_shadow_map(world_pos: vec3<f32>) -> f32 {
     var lightspace_pos = (u.g_light_projection_from_world * vec4<f32>(world_pos, 1.0)).xyz;
-    lightspace_pos = lightspace_pos * vec3f(0.5, 0.5, 1) + vec3f(0.5, 0.5, u.shadow_bias * -0.001);
+    lightspace_pos = lightspace_pos * vec3f(0.5, -0.5, 1) + vec3f(0.5, 0.5, u.shadow_bias * -0.001);
     return textureSampleCompare(shadow, sampler_shadow, lightspace_pos.xy, lightspace_pos.z);
 }
 
@@ -218,6 +219,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var base_color = textureSample(base_color_map, sampler_repeat, uv).rgb;
     var roughness = textureSample(roughness_map, sampler_repeat, uv).r;
     var metallic = textureSample(metallic_map, sampler_repeat, uv).r;
+
+    roughness = adjust(roughness, u.roughness);
+    metallic = adjust(metallic, u.metallic);
 
     let light = sample_shadow_map(in.v_pos_worldspace);
 

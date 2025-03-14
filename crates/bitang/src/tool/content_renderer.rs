@@ -1,19 +1,17 @@
+use crate::control::controls::Globals;
 use crate::loader::project_loader::ProjectLoader;
 use crate::render::chart::Chart;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
-use crate::tool::{RenderContext, VulkanContext};
+use crate::tool::FrameContext;
 use anyhow::{bail, Result};
 use std::rc::Rc;
 use std::sync::Arc;
 use tracing::error;
-use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,
-};
-use vulkano::pipeline::graphics::viewport::Viewport;
-use vulkano::sync::GpuFuture;
+
+use super::{ComputePassContext, GpuContext};
 
 pub struct ContentRenderer {
     pub app_state: AppState,
@@ -24,7 +22,7 @@ pub struct ContentRenderer {
 }
 
 impl ContentRenderer {
-    pub fn new(context: &Arc<VulkanContext>) -> Result<ContentRenderer> {
+    pub fn new(context: &Arc<GpuContext>) -> Result<ContentRenderer> {
         let mut music_player = MusicPlayer::new();
 
         let app_config = AppConfig::load()?;
@@ -36,10 +34,7 @@ impl ContentRenderer {
 
         let app_state = AppState::new(
             project,
-            project_loader
-                .resource_repository
-                .control_repository
-                .clone(),
+            project_loader.resource_repository.control_repository.clone(),
         );
 
         Ok(Self {
@@ -51,14 +46,15 @@ impl ContentRenderer {
         })
     }
 
-    pub fn draw(&mut self, context: &mut RenderContext) {
+    pub fn draw(&mut self, context: &mut FrameContext) {
         self.app_state.tick();
 
         // TODO: This value should be set to Globals at its initialization
         context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
 
         if self.app_state.is_simulation_enabled {
-            context.simulation_elapsed_time_since_last_render = match self.last_render_time {
+            context.globals.simulation_elapsed_time_since_last_render = match self.last_render_time
+            {
                 Some(last_render_time) => context.globals.app_time - last_render_time,
                 None => 0.0,
             };
@@ -81,12 +77,12 @@ impl ContentRenderer {
         }
     }
 
-    fn draw_chart(&mut self, chart: &Chart, context: &mut RenderContext) -> Result<()> {
+    fn draw_chart(&mut self, chart: &Chart, context: &mut FrameContext) -> Result<()> {
         context.globals.chart_time = self.app_state.cursor_time;
         chart.render(context)
     }
 
-    fn draw_project(&mut self, context: &mut RenderContext) -> Result<()> {
+    fn draw_project(&mut self, context: &mut FrameContext) -> Result<()> {
         let Some(project) = &self.app_state.project else {
             bail!("Can't load project.");
         };
@@ -102,8 +98,8 @@ impl ContentRenderer {
     }
 
     /// Returns true if the project changed.
-    pub fn reload_project(&mut self, vulkan_context: &Arc<VulkanContext>) -> bool {
-        let project = self.project_loader.get_or_load_project(vulkan_context);
+    pub fn reload_project(&mut self, context: &Arc<GpuContext>) -> bool {
+        let project = self.project_loader.get_or_load_project(context);
 
         // Compare references to see if it's the same cached value that we tried rendering last time
         if project.as_ref().map(Rc::as_ptr) != self.app_state.project.as_ref().map(Rc::as_ptr) {
@@ -123,8 +119,7 @@ impl ContentRenderer {
     }
 
     pub fn play(&mut self) {
-        self.music_player
-            .play_from(self.app_state.get_project_relative_time());
+        self.music_player.play_from(self.app_state.get_project_relative_time());
         self.app_state.start();
     }
 
@@ -133,54 +128,42 @@ impl ContentRenderer {
         self.app_state.pause();
     }
 
-    fn reset_chart_simulation(vulkan_context: &Arc<VulkanContext>, chart: &Chart) -> Result<()> {
+    // TODO: move to Chart
+    fn reset_chart_simulation(context: &mut ComputePassContext, chart: &Chart) -> Result<()> {
         let mut first_iteration = true;
         let mut is_simulation_done = false;
         while !is_simulation_done {
-            // Make command buffer
-            let mut command_builder = AutoCommandBufferBuilder::primary(
-                &vulkan_context.command_buffer_allocator,
-                vulkan_context.gfx_queue.queue_family_index(),
-                CommandBufferUsage::OneTimeSubmit,
-            )?;
-
-            // Make render context to run simulation
-            let mut context = RenderContext {
-                vulkan_context: vulkan_context.clone(),
-                screen_viewport: Viewport {
-                    offset: [0.0, 0.0],
-                    extent: [1.0, 1.0],
-                    depth_range: 0.0..=1.0,
-                },
-                command_builder: &mut command_builder,
-                globals: Default::default(),
-                simulation_elapsed_time_since_last_render: 0.0,
-            };
-            context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
-
-            is_simulation_done = chart.reset_simulation(&mut context, first_iteration, true)?;
+            is_simulation_done = chart.reset_simulation(context, first_iteration, true)?;
             first_iteration = false;
-
-            // Execute simulation and wait for it to finish
-            command_builder
-                .build()?
-                .execute(vulkan_context.gfx_queue.clone())?
-                .then_signal_fence_and_flush()?
-                .wait(None)?;
         }
         Ok(())
     }
 
-    pub fn reset_simulation(&mut self, vulkan_context: &Arc<VulkanContext>) -> Result<()> {
+    pub fn reset_simulation(&mut self, context: &GpuContext) -> Result<()> {
+        let mut command_encoder =
+            context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+
+        let compute_pass =
+            command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+        let mut globals = Globals::default();
+        let mut compute_pass_context = ComputePassContext {
+            gpu_context: context,
+            pass: compute_pass,
+            globals: &mut globals,
+        };
+
+        compute_pass_context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
+        compute_pass_context.globals.simulation_elapsed_time_since_last_render = 0.0;
+
         match self.app_state.get_chart() {
             // Reset only the selected chart
-            Some(chart) => Self::reset_chart_simulation(vulkan_context, &chart)?,
+            Some(chart) => Self::reset_chart_simulation(&mut compute_pass_context, &chart)?,
 
             // No chart selected, reset all of them
             None => {
                 if let Some(project) = &self.app_state.project {
                     for cut in &project.cuts {
-                        Self::reset_chart_simulation(vulkan_context, &cut.chart)?;
+                        Self::reset_chart_simulation(&mut compute_pass_context, &cut.chart)?;
                     }
                 }
             }
@@ -190,8 +173,7 @@ impl ContentRenderer {
         self.app_state.tick();
         if self.app_state.is_playing() {
             self.app_state.reset();
-            self.music_player
-                .play_from(self.app_state.get_project_relative_time());
+            self.music_player.play_from(self.app_state.get_project_relative_time());
         }
         Ok(())
     }

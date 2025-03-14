@@ -26,16 +26,14 @@ impl Object {
     ) -> Result<Rc<render::render_object::RenderObject>> {
         let object_cid = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
-            &chart_context.vulkan_context,
+            &chart_context.gpu_context,
             &chart_context.path.relative_path(&self.mesh_file)?,
             &self.mesh_name,
         );
 
         // Load material
-        let material = self
-            .material
-            .load(chart_context, passes, &self.control_map, &object_cid)
-            .await?;
+        let material =
+            self.material.load(chart_context, passes, &self.control_map, &object_cid).await?;
 
         // Wait for resources to be loaded
         let mesh = mesh_future.get().await?;
@@ -50,9 +48,7 @@ impl Object {
             material,
             position: chart_context.control_set_builder.get_vec3(&position_id),
             rotation: chart_context.control_set_builder.get_vec3(&rotation_id),
-            instances: chart_context
-                .control_set_builder
-                .get_float_with_default(&instances_id, 1.),
+            instances: chart_context.control_set_builder.get_float_with_default(&instances_id, 1.),
         };
         Ok(Rc::new(object))
     }

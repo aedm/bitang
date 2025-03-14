@@ -29,15 +29,8 @@ impl ResourcePath {
 
     pub fn from_pathbuf(root_path: &Arc<PathBuf>, path: &Path) -> anyhow::Result<Self> {
         let relative_path = path.strip_prefix(root_path.as_path())?;
-        let subdirectory = relative_path
-            .parent()
-            .unwrap_or(Path::new(""))
-            .to_path_buf();
-        let file_name = relative_path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
+        let subdirectory = relative_path.parent().unwrap_or(Path::new("")).to_path_buf();
+        let file_name = relative_path.file_name().unwrap_or_default().to_string_lossy().to_string();
         Ok(Self {
             root_path: Arc::clone(root_path),
             subdirectory,
@@ -53,15 +46,11 @@ impl ResourcePath {
 
         // let parts = file_name.split('/').collect::<Vec<_>>();
         let subdirectory = if file_name.starts_with(['/', '\\']) {
-            components[1..components.len() - 1]
-                .iter()
-                .collect::<PathBuf>()
+            components[1..components.len() - 1].iter().collect::<PathBuf>()
         } else {
             self.subdirectory.join(
                 // TODO: there was an underflow crash here once
-                components[0..components.len() - 1]
-                    .iter()
-                    .collect::<PathBuf>(),
+                components[0..components.len() - 1].iter().collect::<PathBuf>(),
             )
         };
 
@@ -97,6 +86,7 @@ impl ResourcePath {
     /// Makes a ResourcePath from path string relative to the present working directory,
     /// eg. "demo/folder/file.txt".
     /// This is the inverse of `to_pwd_relative_path`, so the path is allowed be absolute.
+    #[allow(dead_code)]
     pub fn from_pwd_relative_path(
         root_path: &Arc<PathBuf>,
         path_str: &str,
@@ -109,21 +99,12 @@ impl ResourcePath {
         Ok(Self {
             root_path: Arc::clone(root_path),
             subdirectory: relative.parent().unwrap_or(Path::new("")).to_path_buf(),
-            file_name: relative
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string(),
+            file_name: relative.file_name().unwrap_or_default().to_string_lossy().to_string(),
         })
     }
 
     pub fn absolute_path(&self) -> Result<PathBuf> {
-        canonicalize(
-            self.root_path
-                .join(&self.subdirectory)
-                .join(&self.file_name),
-        )
-        .map_err(|e| {
+        canonicalize(self.root_path.join(&self.subdirectory).join(&self.file_name)).map_err(|e| {
             anyhow!(
                 "Failed to get absolute path for '{:?}/{:?}/{:?}': {}",
                 self.root_path,
@@ -142,10 +123,7 @@ impl fmt::Debug for ResourcePath {
         } else if let Ok(absolute_path) = self.absolute_path() {
             write!(f, "{}", absolute_path.to_string_lossy())
         } else {
-            let path = self
-                .root_path
-                .join(&self.subdirectory)
-                .join(&self.file_name);
+            let path = self.root_path.join(&self.subdirectory).join(&self.file_name);
             write!(f, "{path:?}")
         }
     }

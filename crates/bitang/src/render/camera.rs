@@ -4,6 +4,8 @@ use glam::{Mat3, Mat4, Vec2, Vec3};
 use std::f32::consts::PI;
 use std::rc::Rc;
 
+use super::Size2D;
+
 pub struct Camera {
     target: Rc<Control>,
     orientation: Rc<Control>,
@@ -35,9 +37,10 @@ impl Camera {
         }
     }
 
-    pub fn set_globals(&self, globals: &mut Globals, viewport_size: [f32; 2]) {
-        globals.pixel_size = Vec2::new(1.0 / viewport_size[0], 1.0 / viewport_size[1]);
-        globals.aspect_ratio = viewport_size[0] / viewport_size[1];
+    pub fn set_globals(&self, globals: &mut Globals, canvas_size: Size2D) {
+        let canvas_size = [canvas_size[0] as f32, canvas_size[1] as f32];
+        globals.pixel_size = Vec2::new(1.0 / canvas_size[0], 1.0 / canvas_size[1]);
+        globals.aspect_ratio = canvas_size[0] / canvas_size[1];
         globals.field_of_view = self.field_of_view.as_float();
         globals.z_near = 0.05;
 
@@ -47,10 +50,6 @@ impl Camera {
             globals.aspect_ratio,
             globals.z_near,
         );
-
-        // We use a left-handed, y-up coordinate system. But Vulkan screen space is right-handed, y-down.
-        // So we need to flip the y-axis in the projection matrix.
-        globals.projection_from_camera.y_axis *= -1.;
 
         // Shake
         let shake = {

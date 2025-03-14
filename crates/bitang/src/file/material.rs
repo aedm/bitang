@@ -1,7 +1,7 @@
 use crate::control::ControlId;
 use crate::file::chart_file::ChartContext;
 use crate::file::default_true;
-use crate::file::shader_context::{BufferSource, Sampler, ShaderContext, Texture};
+use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 use crate::render;
 use crate::render::material::{BlendMode, MaterialPassProps};
 use crate::render::shader::ShaderKind;
@@ -45,7 +45,7 @@ impl Material {
                         &pass.id,
                         &shader_context,
                         chart_context,
-                        pass.vulkan_render_pass.clone(),
+                        &pass.framebuffer_info,
                     )
                     .await?;
                 Ok(Some(pass))
@@ -54,10 +54,8 @@ impl Material {
             }
         });
 
-        let material_passes = join_all(material_pass_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let material_passes =
+            join_all(material_pass_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
         Ok(Arc::new(render::material::Material {
             passes: material_passes,
@@ -86,7 +84,7 @@ impl MaterialPass {
         id: &str,
         shader_context: &ShaderContext,
         chart_context: &ChartContext,
-        vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
+        framebuffer_info: &render::pass::FramebufferInfo,
     ) -> Result<render::material::MaterialPass> {
         let vertex_shader_future =
             shader_context.make_shader(chart_context, ShaderKind::Vertex, &self.vertex_shader);
@@ -110,9 +108,9 @@ impl MaterialPass {
         };
 
         render::material::MaterialPass::new(
-            &chart_context.vulkan_context,
+            &chart_context.gpu_context,
             material_props,
-            vulkan_render_pass,
+            framebuffer_info,
         )
     }
 }

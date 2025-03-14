@@ -36,9 +36,7 @@ impl Spline {
         }
 
         // Unwrap is safe: time is always a valid float
-        let res = self
-            .points
-            .binary_search_by(|p| p.time.partial_cmp(&time).unwrap());
+        let res = self.points.binary_search_by(|p| p.time.partial_cmp(&time).unwrap());
 
         let index_after = match res {
             Ok(index) => index,

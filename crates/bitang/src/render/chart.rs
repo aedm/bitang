@@ -1,13 +1,12 @@
 use crate::control::controls::{ControlSet, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::render::buffer_generator::BufferGenerator;
 use crate::render::camera::Camera;
 use crate::render::compute::{Compute, Run};
 use crate::render::draw::Draw;
 use crate::render::generate_mip_levels::GenerateMipLevels;
 use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
-use crate::tool::RenderContext;
+use crate::tool::{ComputePassContext, FrameContext};
 use anyhow::Result;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -24,7 +23,6 @@ pub struct Chart {
     pub controls: Rc<ControlSet>,
     camera: Camera,
     images: Vec<Arc<BitangImage>>,
-    buffer_generators: Vec<Rc<BufferGenerator>>,
     pub steps: Vec<ChartStep>,
 
     /// The time representing the `Next` step
@@ -43,7 +41,6 @@ impl Chart {
         control_id: &ControlId,
         control_set_builder: ControlSetBuilder,
         images: Vec<Arc<BitangImage>>,
-        buffer_generators: Vec<Rc<BufferGenerator>>,
         steps: Vec<ChartStep>,
         simulation_precalculation_time: f32,
     ) -> Self {
@@ -64,7 +61,6 @@ impl Chart {
             id: id.to_string(),
             camera: _camera,
             images,
-            buffer_generators,
             steps,
             controls,
             simulation_next_buffer_time: Cell::new(0.0),
@@ -73,11 +69,12 @@ impl Chart {
         }
     }
 
-    /// Returns true if the simulation is done, false if the simulation needs more iteration to
-    /// catch up with the current time.
+    /// Reruns the initialization step and runs the simulation for the precalculation time.
+    ///
+    /// Returns true if the computation is done, false if the precalculation needs more iterations.
     pub fn reset_simulation(
         &self,
-        context: &mut RenderContext,
+        context: &mut ComputePassContext,
         run_init: bool,
         run_precalc: bool,
     ) -> Result<bool> {
@@ -85,11 +82,8 @@ impl Chart {
             self.initialize(context)?;
 
             // Chart is started at negative time during precalculation
-            context.simulation_elapsed_time_since_last_render = self.simulation_precalculation_time;
-            self.simulation_elapsed_time
-                .set(-self.simulation_precalculation_time);
-            self.simulation_next_buffer_time
-                .set(-self.simulation_precalculation_time);
+            self.simulation_elapsed_time.set(0.0);
+            self.simulation_next_buffer_time.set(-self.simulation_precalculation_time);
         }
         if run_precalc {
             return self.simulate(context, true);
@@ -97,7 +91,7 @@ impl Chart {
         Ok(true)
     }
 
-    fn initialize(&self, context: &mut RenderContext) -> Result<()> {
+    fn initialize(&self, context: &mut ComputePassContext) -> Result<()> {
         self.simulation_next_buffer_time.set(0.0);
         self.simulation_elapsed_time.set(0.0);
         for step in &self.steps {
@@ -115,16 +109,15 @@ impl Chart {
     /// Also sets the ratio between two sim steps (`simulation_frame_ratio`) that should be used
     /// to blend buffer values during rendering.
     ///
-    /// Returns true if the simulation is done, false if the simulation needs more iteration to
-    /// catch up with the current time.
-    fn simulate(&self, context: &mut RenderContext, is_precalculation: bool) -> Result<bool> {
+    /// Returns true if the simulation is done, false if the simulation needs more iteration.
+    fn simulate(&self, context: &mut ComputePassContext, is_precalculation: bool) -> Result<bool> {
         // Save the app time and restore it after the simulation step.
         // The simulation sees the simulation time as the current time.
         let app_time = context.globals.app_time;
         let chart_time = context.globals.chart_time;
 
-        let time =
-            self.simulation_elapsed_time.get() + context.simulation_elapsed_time_since_last_render;
+        let time = self.simulation_elapsed_time.get()
+            + context.globals.simulation_elapsed_time_since_last_render;
         let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
 
         // Failsafe: limit the number steps per frame to avoid overloading the GPU.
@@ -136,6 +129,7 @@ impl Chart {
 
             // Calculate chart time
             if is_precalculation {
+                // TODO: this is incorrect, splines should always be evaluated at chart cursor
                 context.globals.app_time = simulation_next_buffer_time;
                 context.globals.chart_time = simulation_next_buffer_time;
                 self.evaluate_splines(simulation_next_buffer_time);
@@ -151,8 +145,7 @@ impl Chart {
             simulation_next_buffer_time += SIMULATION_STEP_SECONDS;
         }
 
-        self.simulation_next_buffer_time
-            .set(simulation_next_buffer_time);
+        self.simulation_next_buffer_time.set(simulation_next_buffer_time);
         self.simulation_elapsed_time.set(time);
 
         let ratio = 1.0 - (simulation_next_buffer_time - time) / SIMULATION_STEP_SECONDS;
@@ -166,17 +159,24 @@ impl Chart {
         Ok(simulation_next_buffer_time >= time)
     }
 
-    pub fn render(&self, context: &mut RenderContext) -> Result<()> {
-        // Simulation step
-        self.simulate(context, false)?;
+    pub fn render(&self, context: &mut FrameContext) -> Result<()> {
+        {
+            // Simulation step
+            // TODO: check if it's necessary to create a compute pass, if simulation needs to run
+            let compute_pass =
+                context.command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+            let mut compute_pass_context = ComputePassContext {
+                gpu_context: &context.gpu_context,
+                pass: compute_pass,
+                globals: &mut context.globals,
+            };
+            self.simulate(&mut compute_pass_context, false)?;
+        }
 
         // Render step
         self.evaluate_splines(context.globals.chart_time);
         for image in &self.images {
-            image.enforce_size_rule(&context.vulkan_context, context.screen_viewport.extent)?;
-        }
-        for buffer_generator in &self.buffer_generators {
-            buffer_generator.generate()?;
+            image.enforce_size_rule(&context.gpu_context, &context.screen_viewport.size)?;
         }
         for step in &self.steps {
             match step {
@@ -184,7 +184,7 @@ impl Chart {
                     draw.render(context, &self.camera)?;
                 }
                 ChartStep::Compute(_) => {
-                    // Compute only runs simulation or init, ignore for now
+                    // Compute only runs simulation or init, no need to do anything during render.
                 }
                 ChartStep::GenerateMipLevels(genmips) => {
                     genmips.execute(context)?;

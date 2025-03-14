@@ -6,4 +6,4 @@ app_old
 framedump*
 config.ron
 /demo-*
-.vscode
+.vscode/settings.json

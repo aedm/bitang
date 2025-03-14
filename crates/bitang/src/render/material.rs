@@ -1,23 +1,14 @@
 use crate::render::mesh::Mesh;
 use crate::render::shader::Shader;
 use crate::render::Vertex3;
-use crate::tool::{RenderContext, VulkanContext};
-use anyhow::{Context, Result};
+use crate::tool::{GpuContext, RenderPassContext};
+use anyhow::Result;
 use serde::Deserialize;
-use std::sync::Arc;
-use vulkano::pipeline::graphics::color_blend::{
-    AttachmentBlend, BlendFactor, BlendOp, ColorBlendAttachmentState, ColorBlendState,
-};
-use vulkano::pipeline::graphics::depth_stencil::{CompareOp, DepthState, DepthStencilState};
-use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
-use vulkano::pipeline::graphics::rasterization::RasterizationState;
-use vulkano::pipeline::graphics::vertex_input::{Vertex, VertexDefinition};
-use vulkano::pipeline::graphics::viewport::ViewportState;
-use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
-use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
-use vulkano::pipeline::{DynamicState, Pipeline, PipelineLayout};
-use vulkano::pipeline::{GraphicsPipeline, PipelineShaderStageCreateInfo};
-use vulkano::render_pass::Subpass;
+use smallvec::SmallVec;
+use wgpu::CompareFunction;
+
+use super::pass::FramebufferInfo;
+use super::VERTEX_FORMAT;
 
 #[derive(Debug, Deserialize, Default, Clone)]
 pub enum BlendMode {
@@ -46,7 +37,7 @@ pub struct MaterialPass {
     pub _depth_test: bool,
     pub _depth_write: bool,
     pub _blend_mode: BlendMode,
-    pipeline: Arc<GraphicsPipeline>,
+    pipeline: wgpu::RenderPipeline,
 }
 
 pub struct MaterialPassProps {
@@ -60,104 +51,85 @@ pub struct MaterialPassProps {
 
 impl MaterialPass {
     pub fn new(
-        context: &Arc<VulkanContext>,
+        context: &GpuContext,
         props: MaterialPassProps,
-        vulkan_render_pass: Arc<vulkano::render_pass::RenderPass>,
+        framebuffer_info: &FramebufferInfo,
     ) -> Result<MaterialPass> {
-        // Unwrap is safe: every pass has exactly one subpass
-        let subpass = Subpass::from(vulkan_render_pass, 0).unwrap();
+        let pipeline_layout =
+            context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[
+                    &props.vertex_shader.bind_group_layout,
+                    &props.fragment_shader.bind_group_layout,
+                ],
+                push_constant_ranges: &[],
+            });
 
-        let depth_stencil_state = if subpass.subpass_desc().depth_stencil_attachment.is_none() {
-            None
-        } else {
-            let compare_op =
-                if props.depth_test { CompareOp::LessOrEqual } else { CompareOp::Always };
-            Some(DepthStencilState {
-                depth: Some(DepthState {
-                    compare_op,
-                    write_enable: props.depth_write,
-                }),
-                ..Default::default()
-            })
+        let vertex_buffer_layout = wgpu::VertexBufferLayout {
+            array_stride: size_of::<Vertex3>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &VERTEX_FORMAT,
         };
 
-        let color_blend_state = if subpass.num_color_attachments() == 0 {
-            None
-        } else {
-            let blend_state = match props.blend_mode {
-                BlendMode::None => AttachmentBlend {
-                    color_blend_op: BlendOp::Add,
-                    src_color_blend_factor: BlendFactor::SrcAlpha,
-                    dst_color_blend_factor: BlendFactor::Zero,
-                    alpha_blend_op: BlendOp::Max,
-                    src_alpha_blend_factor: BlendFactor::One,
-                    dst_alpha_blend_factor: BlendFactor::One,
+        let blend_state = match props.blend_mode {
+            BlendMode::None => wgpu::BlendState::REPLACE,
+            BlendMode::Alpha => wgpu::BlendState::ALPHA_BLENDING,
+            BlendMode::Additive => wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
                 },
-                BlendMode::Alpha => AttachmentBlend::alpha(),
-                BlendMode::Additive => AttachmentBlend {
-                    color_blend_op: BlendOp::Add,
-                    src_color_blend_factor: BlendFactor::SrcAlpha,
-                    dst_color_blend_factor: BlendFactor::One,
-                    alpha_blend_op: BlendOp::Max,
-                    src_alpha_blend_factor: BlendFactor::One,
-                    dst_alpha_blend_factor: BlendFactor::One,
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Max,
                 },
-            };
-            Some(ColorBlendState::with_attachment_states(
-                subpass.num_color_attachments(),
-                ColorBlendAttachmentState {
-                    blend: Some(blend_state),
-                    ..Default::default()
-                },
-            ))
+            },
         };
 
-        // Create the Vulkan pipeline
-        let pipeline = {
-            // TODO: store the entry point instead of the module
-            let vs = props
-                .vertex_shader
-                .shader_module
-                .entry_point("vs_main")
-                .unwrap();
-            let fs = props
-                .fragment_shader
-                .shader_module
-                .entry_point("fs_main")
-                .unwrap();
+        let mut fragment_targets = SmallVec::<[_; 8]>::new();
+        for color_buffer_format in &framebuffer_info.color_buffer_formats {
+            fragment_targets.push(Some(wgpu::ColorTargetState {
+                format: color_buffer_format.wgpu_format(),
+                blend: Some(blend_state),
+                write_mask: wgpu::ColorWrites::ALL,
+            }));
+        }
 
-            let vertex_input_state =
-                Some(Vertex3::per_vertex().definition(&vs.info().input_interface)?);
-            let stages = [
-                PipelineShaderStageCreateInfo::new(vs),
-                PipelineShaderStageCreateInfo::new(fs),
-            ];
-            let layout = PipelineLayout::new(
-                context.device.clone(),
-                PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
-                    .into_pipeline_layout_create_info(context.device.clone())?,
-            )?;
-            let pipeline_creation_info = GraphicsPipelineCreateInfo {
-                input_assembly_state: Some(InputAssemblyState::default()),
-                vertex_input_state,
-                stages: stages.into_iter().collect(),
-                dynamic_state: [DynamicState::Viewport].into_iter().collect(),
-                color_blend_state,
-                depth_stencil_state,
-                viewport_state: Some(ViewportState::default()),
-                multisample_state: Some(Default::default()),
-                rasterization_state: Some(RasterizationState::default()),
-                subpass: Some(subpass.into()),
-                ..GraphicsPipelineCreateInfo::layout(layout)
-            };
-            GraphicsPipeline::new(context.device.clone(), None, pipeline_creation_info)
-                .with_context(|| {
-                    format!(
-                        "Failed to create graphics pipeline for material pass: {}",
-                        props.id,
-                    )
-                })?
-        };
+        let depth_stencil = framebuffer_info.depth_buffer_format.map(|format| {
+            let depth_compare =
+                if props.depth_test { CompareFunction::LessEqual } else { CompareFunction::Always };
+            wgpu::DepthStencilState {
+                format: format.wgpu_format(),
+                depth_write_enabled: props.depth_write,
+                depth_compare,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }
+        });
+
+        let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: None,
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &props.vertex_shader.shader_module,
+                entry_point: Some("vs_main"),
+                buffers: &[vertex_buffer_layout],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &props.fragment_shader.shader_module,
+                entry_point: Some("fs_main"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                targets: &fragment_targets,
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
+        });
 
         Ok(MaterialPass {
             _id: props.id,
@@ -170,29 +142,21 @@ impl MaterialPass {
         })
     }
 
-    pub fn render(&self, context: &mut RenderContext, mesh: &Mesh) -> Result<()> {
-        let pipeline_layout = self.pipeline.layout();
+    pub fn render(&self, context: &mut RenderPassContext, mesh: &Mesh) -> Result<()> {
+        context.pass.set_pipeline(&self.pipeline);
+        context.pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+
         let instance_count = context.globals.instance_count as u32;
-        context
-            .command_builder
-            .bind_pipeline_graphics(self.pipeline.clone())?
-            .bind_vertex_buffers(0, mesh.vertex_buffer.clone())?;
-        self.vertex_shader.bind(context, pipeline_layout)?;
-        self.fragment_shader.bind(context, pipeline_layout)?;
+        self.vertex_shader.bind_to_render_pass(context)?;
+        self.fragment_shader.bind_to_render_pass(context)?;
+
         match &mesh.index_buffer {
             None => {
-                context.command_builder.draw(
-                    mesh.vertex_buffer.len() as u32,
-                    instance_count,
-                    0,
-                    0,
-                )?;
+                context.pass.draw(0..mesh.vertex_count, 0..instance_count);
             }
             Some(index_buffer) => {
-                context
-                    .command_builder
-                    .bind_index_buffer(index_buffer.clone())?
-                    .draw_indexed(index_buffer.len() as u32, instance_count, 0, 0, 0)?;
+                context.pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                context.pass.draw_indexed(0..mesh.index_count, 0, 0..instance_count);
             }
         }
         Ok(())

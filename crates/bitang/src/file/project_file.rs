@@ -1,6 +1,6 @@
 use crate::loader::resource_repository::ResourceRepository;
 use crate::render;
-use crate::tool::VulkanContext;
+use crate::tool::GpuContext;
 use anyhow::Result;
 use futures::future::join_all;
 use serde::Deserialize;
@@ -26,7 +26,7 @@ pub struct Cut {
 impl Project {
     pub async fn load(
         &self,
-        context: &Arc<VulkanContext>,
+        context: &Arc<GpuContext>,
         resource_repository: &Rc<ResourceRepository>,
     ) -> Result<render::project::Project> {
         let chart_ids: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();
@@ -38,10 +38,8 @@ impl Project {
         });
 
         // Load all charts in parallel.
-        let charts_by_id: HashMap<_, _> = join_all(chart_futures_by_id)
-            .await
-            .into_iter()
-            .collect::<Result<_>>()?;
+        let charts_by_id: HashMap<_, _> =
+            join_all(chart_futures_by_id).await.into_iter().collect::<Result<_>>()?;
 
         let cuts = self
             .cuts

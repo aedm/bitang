@@ -1,20 +1,10 @@
-use crate::render::generate_mip_levels::generate_mip_levels;
-use crate::tool::VulkanContext;
-use anyhow::{bail, Context, Result};
+use crate::tool::{FrameContext, GpuContext};
+use anyhow::{bail, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
-use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage};
-use vulkano::command_buffer::{
-    AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
-    PrimaryCommandBufferAbstract,
-};
-use vulkano::image::view::{ImageView, ImageViewCreateInfo};
-use vulkano::image::{
-    max_mip_levels, Image, ImageCreateInfo, ImageLayout, ImageSubresourceRange, ImageTiling,
-    ImageType, ImageUsage, SampleCount,
-};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
-use vulkano::render_pass::{AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp};
+use wgpu::Extent3d;
+
+use super::Size2D;
 
 #[derive(Debug, Deserialize, Clone, Copy)]
 pub enum PixelFormat {
@@ -26,21 +16,37 @@ pub enum PixelFormat {
 
     // Intel only apparently supports this surface format, no RGBA_SRGB.
     Bgra8Srgb,
+    Bgra8Unorm,
 }
 
 impl PixelFormat {
-    pub fn vulkan_format(&self) -> vulkano::format::Format {
+    pub fn wgpu_format(&self) -> wgpu::TextureFormat {
         match self {
-            PixelFormat::Rgba16F => vulkano::format::Format::R16G16B16A16_SFLOAT,
-            PixelFormat::Rgba32F => vulkano::format::Format::R32G32B32A32_SFLOAT,
-            PixelFormat::Depth32F => vulkano::format::Format::D32_SFLOAT,
-            PixelFormat::Rgba8U => vulkano::format::Format::R8G8B8A8_UNORM,
-            PixelFormat::Rgba8Srgb => vulkano::format::Format::R8G8B8A8_SRGB,
-            PixelFormat::Bgra8Srgb => vulkano::format::Format::B8G8R8A8_SRGB,
+            PixelFormat::Rgba16F => wgpu::TextureFormat::Rgba16Float,
+            PixelFormat::Rgba32F => wgpu::TextureFormat::Rgba32Float,
+            PixelFormat::Depth32F => wgpu::TextureFormat::Depth32Float,
+            PixelFormat::Rgba8U => wgpu::TextureFormat::Rgba8Unorm,
+            PixelFormat::Rgba8Srgb => wgpu::TextureFormat::Rgba8UnormSrgb,
+            PixelFormat::Bgra8Srgb => wgpu::TextureFormat::Bgra8UnormSrgb,
+            PixelFormat::Bgra8Unorm => wgpu::TextureFormat::Bgra8Unorm,
+        }
+    }
+
+    pub fn from_wgpu_format(format: wgpu::TextureFormat) -> Result<PixelFormat> {
+        match format {
+            wgpu::TextureFormat::Rgba16Float => Ok(PixelFormat::Rgba16F),
+            wgpu::TextureFormat::Rgba32Float => Ok(PixelFormat::Rgba32F),
+            wgpu::TextureFormat::Depth32Float => Ok(PixelFormat::Depth32F),
+            wgpu::TextureFormat::Rgba8Unorm => Ok(PixelFormat::Rgba8U),
+            wgpu::TextureFormat::Rgba8UnormSrgb => Ok(PixelFormat::Rgba8Srgb),
+            wgpu::TextureFormat::Bgra8UnormSrgb => Ok(PixelFormat::Bgra8Srgb),
+            wgpu::TextureFormat::Bgra8Unorm => Ok(PixelFormat::Bgra8Unorm),
+            _ => bail!("Unsupported format: {:?}", format),
         }
     }
 }
 
+// TODO: add Size2D type.
 #[derive(Debug, Deserialize, Clone, Copy)]
 pub enum ImageSizeRule {
     Fixed(u32, u32),
@@ -48,166 +54,174 @@ pub enum ImageSizeRule {
     At4k(u32, u32),
 }
 
+struct AttachmentImage {
+    pub size_rule: ImageSizeRule,
+
+    // The underlying texture..
+    texture: Option<wgpu::Texture>,
+}
+
+pub struct SwapchainImage {
+    pub texture_view: wgpu::TextureView,
+    pub size: Size2D,
+}
+
 enum ImageInner {
     // Immutable image that is loaded from an external source, e.g. a jpg file.
-    Immutable(Arc<Image>),
+    Immutable(wgpu::Texture),
 
     // Attachment image used both as a render target and a sampler source.
-    Attachment(RwLock<Option<Arc<Image>>>),
+    Attachment(RwLock<AttachmentImage>),
 
     // The final render target. In windowed mode, this is displayed on the screen
-    Swapchain(RwLock<Option<Arc<ImageView>>>),
+    Swapchain(RwLock<Option<SwapchainImage>>),
 }
 
 pub struct BitangImage {
     pub id: String,
-    pub size_rule: ImageSizeRule,
-    pub vulkan_format: vulkano::format::Format,
-    // pub mip_levels: MipLevels,
+    pub pixel_format: PixelFormat,
     inner: ImageInner,
-    size: RwLock<Option<(u32, u32)>>,
     has_mipmaps: bool,
 }
 
 impl BitangImage {
     pub fn new_attachment(
         id: &str,
-        format: PixelFormat,
+        pixel_format: PixelFormat,
         size_rule: ImageSizeRule,
         has_mipmaps: bool,
     ) -> Arc<Self> {
         Arc::new(Self {
             id: id.to_owned(),
-            inner: ImageInner::Attachment(RwLock::new(None)),
-            size_rule,
-            size: RwLock::new(None),
-            vulkan_format: format.vulkan_format(),
+            inner: ImageInner::Attachment(RwLock::new(AttachmentImage {
+                size_rule,
+                texture: None,
+            })),
+            pixel_format,
             has_mipmaps,
         })
     }
 
-    pub fn new_swapchain(id: &str, format: PixelFormat) -> Arc<Self> {
+    pub fn new_swapchain(id: &str, pixel_format: PixelFormat) -> Arc<Self> {
         Arc::new(Self {
             id: id.to_owned(),
             inner: ImageInner::Swapchain(RwLock::new(None)),
-            size_rule: ImageSizeRule::CanvasRelative(1.0),
-            size: RwLock::new(None),
-            vulkan_format: format.vulkan_format(),
+            pixel_format,
             has_mipmaps: false,
         })
     }
 
-    pub fn immutable_from_iter<I, T>(
+    pub fn immutable_from_pixel_data(
         id: &str,
-        context: &Arc<VulkanContext>,
-        format: PixelFormat,
-        dimensions: [u32; 3],
-        pixel_data: I,
-    ) -> Result<Arc<Self>>
-    where
-        T: BufferContents,
-        I: IntoIterator<Item = T>,
-        I::IntoIter: ExactSizeIterator,
-    {
-        let mut cbb = AutoCommandBufferBuilder::primary(
-            &context.command_buffer_allocator,
-            context.gfx_queue.queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )?;
+        context: &GpuContext,
+        pixel_format: PixelFormat,
+        size: Size2D,
+        data: &[u8],
+    ) -> Result<Arc<Self>> {
+        let extent = wgpu::Extent3d {
+            width: size[0],
+            height: size[1],
+            depth_or_array_layers: 1,
+        };
+        let mip_level_count = extent.max_mips(wgpu::TextureDimension::D2);
+        let texture_descriptor = wgpu::TextureDescriptor {
+            label: Some(id),
+            size: extent,
+            mip_level_count,
+            sample_count: 1,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: pixel_format.wgpu_format(),
+            dimension: wgpu::TextureDimension::D2,
+            view_formats: &[],
+        };
+        let texture = context.device.create_texture(&texture_descriptor);
 
-        let mip_levels = max_mip_levels(dimensions);
+        let bytes_per_pixel = pixel_format.wgpu_format().block_copy_size(None).unwrap_or(4);
+        let bytes_per_row = bytes_per_pixel * size[0];
 
-        let image = Image::new(
-            context.memory_allocator.clone(),
-            vulkano::image::ImageCreateInfo {
-                image_type: ImageType::Dim2d,
-                format: format.vulkan_format(),
-                extent: dimensions,
-                usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC,
-                mip_levels,
-                tiling: ImageTiling::Optimal,
-                ..Default::default()
+        context.queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d { x: 0, y: 0, z: 0 },
+                aspect: wgpu::TextureAspect::All,
             },
-            AllocationCreateInfo::default(),
-        )?;
-
-        let upload_buffer = Buffer::from_iter(
-            context.memory_allocator.clone(),
-            BufferCreateInfo {
-                usage: BufferUsage::TRANSFER_SRC,
-                ..Default::default()
+            data,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(bytes_per_row),
+                rows_per_image: Some(size[1]),
             },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_HOST
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                ..Default::default()
-            },
-            pixel_data,
-        )?;
+            extent,
+        );
 
-        cbb.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
-            upload_buffer,
-            image.clone(),
-        ))?;
-
-        generate_mip_levels(image.clone(), &mut cbb)?;
-
-        let _fut = cbb.build()?.execute(context.gfx_queue.clone())?;
+        if mip_level_count > 1 {
+            let mut command_encoder =
+                context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+            generate_mipmaps(&mut command_encoder, &context.device, &texture);
+            context.queue.submit(Some(command_encoder.finish()));
+        }
 
         Ok(Arc::new(Self {
             id: id.to_owned(),
-            vulkan_format: image.format(),
-            inner: ImageInner::Immutable(image),
-            size_rule: ImageSizeRule::Fixed(dimensions[0], dimensions[1]),
-            size: RwLock::new(Some((dimensions[0], dimensions[1]))),
+            pixel_format,
+            inner: ImageInner::Immutable(texture),
             has_mipmaps: true,
         }))
     }
 
     // Returns an image view that only has one mip level.
-    pub fn get_view_for_render_target(&self) -> Result<Arc<ImageView>> {
-        let view: Arc<ImageView> = match &self.inner {
+    pub fn get_view_for_render_target(&self) -> Result<wgpu::TextureView> {
+        let view: wgpu::TextureView = match &self.inner {
             ImageInner::Immutable(_) => {
                 bail!("Immutable image can't be used as a render target");
             }
-            ImageInner::Attachment(image) => {
-                let image = image.read().unwrap();
-                if let Some(image) = image.as_ref() {
-                    let i = ImageViewCreateInfo::from_image(&image);
-                    let vci = ImageViewCreateInfo {
-                        subresource_range: ImageSubresourceRange {
-                            mip_levels: 0..1,
-                            ..i.subresource_range
-                        },
-                        ..i
-                    };
-                    ImageView::new(image.clone(), vci)?
-                } else {
+            ImageInner::Attachment(attachment) => {
+                let attachment = attachment.read().unwrap();
+                let Some(texture) = &attachment.texture else {
                     bail!("Attachment image not initialized");
-                }
+                };
+                texture.create_view(&wgpu::TextureViewDescriptor {
+                    usage: Some(wgpu::TextureUsages::RENDER_ATTACHMENT),
+                    base_mip_level: 0,
+                    mip_level_count: Some(1),
+                    ..wgpu::TextureViewDescriptor::default()
+                })
             }
-            ImageInner::Swapchain(image) => {
-                let image = image.read().unwrap();
-                if let Some(image) = image.as_ref() {
-                    image.clone()
-                } else {
+            ImageInner::Swapchain(texture_view) => {
+                let texture_view = texture_view.read().unwrap();
+                let Some(texture_view) = &*texture_view else {
                     bail!("Swapchain image not initialized");
-                }
+                };
+                texture_view.texture_view.clone()
             }
         };
         Ok(view)
     }
 
     // Returns an image view for sampling purposes. It includes all mip levels.
-    pub fn get_view_for_sampler(&self) -> Result<Arc<ImageView>> {
-        let view: Arc<ImageView> = match &self.inner {
-            ImageInner::Immutable(image) => ImageView::new_default(image.clone())?,
-            ImageInner::Attachment(image) => {
-                let image = image.read().unwrap();
-                let Some(image) = image.as_ref() else {
+    pub fn make_texture_view_for_sampler(&self) -> Result<wgpu::TextureView> {
+        let view: wgpu::TextureView = match &self.inner {
+            ImageInner::Immutable(texture) => texture.create_view(&wgpu::TextureViewDescriptor {
+                usage: Some(wgpu::TextureUsages::TEXTURE_BINDING),
+                base_mip_level: 0,
+                mip_level_count: Some(texture.mip_level_count()),
+                ..wgpu::TextureViewDescriptor::default()
+            }),
+            ImageInner::Attachment(attachment) => {
+                let attachment = attachment.read().unwrap();
+                let Some(texture) = &attachment.texture else {
                     bail!("Attachment image not initialized");
                 };
-                ImageView::new_default(image.clone())?
+                // texture.create_view(&wgpu::TextureViewDescriptor::default())
+                texture.create_view(&wgpu::TextureViewDescriptor {
+                    usage: Some(wgpu::TextureUsages::TEXTURE_BINDING),
+                    base_mip_level: 0,
+                    mip_level_count: Some(texture.mip_level_count()),
+                    ..wgpu::TextureViewDescriptor::default()
+                })
             }
             ImageInner::Swapchain(_) => {
                 bail!("Swapchain image can't be used in a sampler");
@@ -216,117 +230,226 @@ impl BitangImage {
         Ok(view)
     }
 
-    pub fn get_image(&self) -> Arc<Image> {
-        match &self.inner {
-            ImageInner::Immutable(image) => Arc::clone(image),
-            ImageInner::Attachment(image) => {
-                let image = image.read().unwrap();
-                if let Some(image) = image.as_ref() {
-                    Arc::clone(image)
-                } else {
-                    panic!("Attachment image not initialized");
-                }
-            }
-            ImageInner::Swapchain(_image) => {
-                panic!("Swapchain image can't be accessed");
-            }
-        }
-    }
-
-    pub fn make_attachment_description(
-        &self,
-        layout: ImageLayout,
-        load_op: AttachmentLoadOp,
-    ) -> AttachmentDescription {
-        AttachmentDescription {
-            format: self.vulkan_format,
-            samples: SampleCount::Sample1,
-            load_op,
-            store_op: AttachmentStoreOp::Store,
-            initial_layout: layout,
-            final_layout: layout,
-            ..Default::default()
-        }
-    }
-
     /// Enforce the size rule.
-    pub fn enforce_size_rule(
-        &self,
-        context: &Arc<VulkanContext>,
-        viewport_size: [f32; 2],
-    ) -> Result<()> {
+    pub fn enforce_size_rule(&self, context: &GpuContext, canvas_size: &Size2D) -> Result<()> {
         // Only attachments need to be resized.
         let ImageInner::Attachment(attachment) = &self.inner else {
             return Ok(());
         };
+        let mut attachment = attachment.write().unwrap();
 
         // Calculate the size of the image.
-        let extent = match self.size_rule {
-            ImageSizeRule::Fixed(w, h) => [w, h, 1],
+        let size = match attachment.size_rule {
+            ImageSizeRule::Fixed(w, h) => [w, h],
             ImageSizeRule::CanvasRelative(r) => [
-                (viewport_size[0] * r) as u32,
-                (viewport_size[1] * r) as u32,
-                1,
+                ((canvas_size[0] as f32 * r) as u32).max(1),
+                ((canvas_size[1] as f32 * r) as u32).max(1),
             ],
             ImageSizeRule::At4k(w, h) => {
-                let scale = 4096.0 / viewport_size[0];
-                [(w as f32 * scale) as u32, (h as f32 * scale) as u32, 1]
+                let scale = 3840.0 / canvas_size[0] as f32;
+                [
+                    ((w as f32 * scale) as u32).max(1),
+                    ((h as f32 * scale) as u32).max(1),
+                ]
             }
         };
 
+        let extent = Extent3d {
+            width: size[0],
+            height: size[1],
+            depth_or_array_layers: 1,
+        };
         // Check if the image is already the correct size.
-        let mut attachment = attachment.write().unwrap();
-        if let Some(attachment) = attachment.as_ref() {
-            if attachment.extent() == extent {
+        if let Some(texture) = &attachment.texture {
+            if texture.size() == extent {
                 return Ok(());
             }
-        }
-
-        let usage = if self.vulkan_format == vulkano::format::Format::D32_SFLOAT {
-            ImageUsage::SAMPLED | ImageUsage::DEPTH_STENCIL_ATTACHMENT
-        } else {
-            ImageUsage::SAMPLED
-                | ImageUsage::COLOR_ATTACHMENT
-                | ImageUsage::TRANSFER_DST
-                | ImageUsage::TRANSFER_SRC
         };
 
         // Create a new image with the correct size.
-        let mip_levels = if self.has_mipmaps { max_mip_levels(extent) } else { 1 };
-        let image = Image::new(
-            context.memory_allocator.clone(),
-            ImageCreateInfo {
-                image_type: ImageType::Dim2d,
-                usage,
-                format: self.vulkan_format,
-                extent,
-                mip_levels,
-                ..Default::default()
-            },
-            AllocationCreateInfo::default(),
-        )?;
-        *attachment = Some(image);
-        *self.size.write().unwrap() = Some((extent[0], extent[1]));
+        let mip_levels =
+            if self.has_mipmaps { extent.max_mips(wgpu::TextureDimension::D2) } else { 1 };
+        let usage = wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT;
+        let image = context.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(&self.id),
+            size: extent,
+            mip_level_count: mip_levels,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.pixel_format.wgpu_format(),
+            usage,
+            view_formats: &[],
+        });
+
+        attachment.texture = Some(image);
         Ok(())
     }
 
-    pub fn get_size(&self) -> Result<(u32, u32)> {
-        let lock = self.size.read().unwrap();
-        lock.with_context(|| format!("Image '{}' has no size", self.id))
+    pub fn get_size(&self) -> Result<Size2D> {
+        match &self.inner {
+            ImageInner::Attachment(attachment) => {
+                let attachment = attachment.read().unwrap();
+                let Some(texture) = &attachment.texture else {
+                    bail!("Image '{}' has no texture", self.id);
+                };
+                let size = texture.size();
+                Ok([size.width, size.height])
+            }
+            ImageInner::Immutable(texture) => {
+                let size = texture.size();
+                Ok([size.width, size.height])
+            }
+            ImageInner::Swapchain(swapchain) => {
+                let swapchain = swapchain.read().unwrap();
+                let Some(swapchain) = swapchain.as_ref() else {
+                    bail!("Swapchain image not initialized");
+                };
+                Ok(swapchain.size)
+            }
+        }
     }
 
     pub fn is_swapchain(&self) -> bool {
         matches!(&self.inner, ImageInner::Swapchain(_))
     }
 
-    pub fn set_swapchain_image(&self, image: Arc<ImageView>) {
+    pub fn set_swapchain_image_view(&self, view: Option<SwapchainImage>) {
         match &self.inner {
-            ImageInner::Swapchain(swapchain_image) => {
-                let size = image.image().extent();
-                *self.size.write().unwrap() = Some((size[0], size[1]));
-                *swapchain_image.write().unwrap() = Some(image);
+            ImageInner::Swapchain(rw_lock) => {
+                let mut swapchain_view = rw_lock.write().unwrap();
+                *swapchain_view = view;
             }
             _ => panic!("Not a swapchain image"),
         }
+    }
+
+    pub fn generate_mipmaps(&self, context: &mut FrameContext) -> Result<()> {
+        match &self.inner {
+            ImageInner::Attachment(attachment) => {
+                let attachment = attachment.read().unwrap();
+                let Some(texture) = &attachment.texture else {
+                    bail!("Image '{}' has no texture", self.id);
+                };
+                generate_mipmaps(
+                    &mut context.command_encoder,
+                    &context.gpu_context.device,
+                    texture,
+                );
+                Ok(())
+            }
+            ImageInner::Immutable(texture) => {
+                generate_mipmaps(
+                    &mut context.command_encoder,
+                    &context.gpu_context.device,
+                    texture,
+                );
+                Ok(())
+            }
+            ImageInner::Swapchain(_) => {
+                bail!("Can't generate mipmaps for swapchain image");
+            }
+        }
+    }
+}
+
+fn generate_mipmaps(
+    encoder: &mut wgpu::CommandEncoder,
+    device: &wgpu::Device,
+    texture: &wgpu::Texture,
+) {
+    let mip_count = texture.mip_level_count();
+
+    // TODO: use OnceLock instead of loading this shader each time
+    let shader = device.create_shader_module(wgpu::include_wgsl!("blit.wgsl"));
+    let texture_format = texture.format();
+
+    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("blit"),
+        layout: None,
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: Some("vs_main"),
+            compilation_options: Default::default(),
+            buffers: &[],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: Some("fs_main"),
+            compilation_options: Default::default(),
+            targets: &[Some(texture_format.into())],
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            ..Default::default()
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview: None,
+        cache: None,
+    });
+
+    let bind_group_layout = pipeline.get_bind_group_layout(0);
+
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("mip"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        ..Default::default()
+    });
+
+    let views = (0..mip_count)
+        .map(|mip| {
+            texture.create_view(&wgpu::TextureViewDescriptor {
+                label: Some("mip"),
+                format: None,
+                dimension: None,
+                usage: None,
+                aspect: wgpu::TextureAspect::All,
+                base_mip_level: mip,
+                mip_level_count: Some(1),
+                base_array_layer: 0,
+                array_layer_count: None,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    for target_mip in 1..mip_count as usize {
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&views[target_mip - 1]),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+            label: None,
+        });
+
+        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &views[target_mip],
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        rpass.set_pipeline(&pipeline);
+        rpass.set_bind_group(0, &bind_group, &[]);
+        rpass.draw(0..3, 0..1);
     }
 }

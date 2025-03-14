@@ -2,113 +2,45 @@ use crate::control::controls::{Control, ControlSet, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::tool::app_state::AppState;
 use crate::tool::spline_editor::SplineEditor;
-use crate::tool::{RenderContext, VulkanContext};
 use anyhow::Result;
-use egui_winit_vulkano::{Gui, GuiConfig};
+use egui::SliderClamping;
 use std::rc::Rc;
-use std::sync::Arc;
-use tracing::error;
-use vulkano::command_buffer::{
-    RenderPassBeginInfo, SubpassBeginInfo, SubpassContents, SubpassEndInfo,
-};
-use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, Subpass};
-use vulkano::swapchain::Surface;
-use winit::{event::WindowEvent, event_loop::EventLoop};
 
 pub struct Ui {
-    pub gui: Gui,
-    pub subpass: Subpass,
     spline_editor: SplineEditor,
 }
 
 impl Ui {
-    pub fn new(
-        context: &Arc<VulkanContext>,
-        event_loop: &EventLoop<()>,
-        surface: &Arc<Surface>,
-    ) -> Result<Ui> {
-        let render_pass = vulkano::single_pass_renderpass!(
-            context.device.clone(),
-            attachments: {
-                color: {
-                    format: context.swapchain_format,
-                    samples: 1,
-                    load_op: DontCare,
-                    store_op: Store,
-                }
-            },
-            pass:
-                { color: [color], depth_stencil: {} }
-        )?;
-        let subpass = Subpass::from(render_pass, 0).unwrap(); // unwrap is okay here
-
-        let gui = Gui::new_with_subpass(
-            event_loop,
-            surface.clone(),
-            context.gfx_queue.clone(),
-            subpass.clone(),
-            vulkano::format::Format::B8G8R8A8_SRGB,
-            // TODO: use UNORM instead of SRGB
-            GuiConfig {
-                allow_srgb_render_target: true,
-                ..Default::default()
-            },
-        );
+    pub fn new() -> Result<Ui> {
         let spline_editor = SplineEditor::new();
 
-        Ok(Ui {
-            gui,
-            subpass,
-            spline_editor,
-        })
+        Ok(Ui { spline_editor })
     }
 
     pub fn draw(
         &mut self,
-        context: &mut RenderContext,
+        ctx: &egui::Context,
+        app_state: &mut AppState,
         bottom_panel_height: f32,
-        scale_factor: f32,
-        ui_state: &mut AppState,
     ) {
-        let pixels_per_point =
-            if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
-        let bottom_panel_height = bottom_panel_height / pixels_per_point;
         let spline_editor = &mut self.spline_editor;
-        self.gui.immediate_ui(|gui| {
-            let ctx = gui.context();
-            ctx.set_pixels_per_point(pixels_per_point);
-            egui::TopBottomPanel::bottom("ui_root")
-                .height_range(bottom_panel_height..=bottom_panel_height)
-                .show(&ctx, |ui| {
-                    ui.add_space(5.0);
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                        Self::draw_control_tree(ui, ui_state);
-                        ui.separator();
-                        if let Some(controls) = ui_state.get_current_chart_control_set() {
-                            if let Some((control, component_index)) =
-                                Self::draw_control_sliders(ui, ui_state, &controls)
-                            {
-                                spline_editor.set_control(control, component_index);
-                            }
+        egui::TopBottomPanel::bottom("ui_root")
+            .height_range(bottom_panel_height..=bottom_panel_height)
+            .show(&ctx, |ui| {
+                ui.add_space(5.0);
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                    Self::draw_control_tree(ui, app_state);
+                    ui.separator();
+                    if let Some(controls) = app_state.get_current_chart_control_set() {
+                        if let Some((control, component_index)) =
+                            Self::draw_control_sliders(ui, app_state, &controls)
+                        {
+                            spline_editor.set_control(control, component_index);
                         }
-                        spline_editor.draw(ui, ui_state);
-                    });
+                    }
+                    spline_editor.draw(ui, app_state);
                 });
-            Self::handle_hotkeys(ctx, ui_state);
-        });
-        self.render_to_swapchain(context);
-    }
-
-    fn handle_hotkeys(ctx: egui::Context, ui_state: &mut AppState) {
-        // Save
-        let save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
-        if ctx.input_mut(|i| i.consume_shortcut(&save_shortcut)) {
-            if let Some(project) = &ui_state.project {
-                if let Err(err) = ui_state.control_repository.save_control_files(project) {
-                    error!("Failed to save controls: {err}");
-                }
-            }
-        }
+            });
     }
 
     fn draw_control_tree(ui: &mut egui::Ui, ui_state: &mut AppState) {
@@ -171,7 +103,6 @@ impl Ui {
                 ControlIdPartType::Object => '🏠',
                 ControlIdPartType::Scene => '🏰',
                 ControlIdPartType::Value => '📊',
-                ControlIdPartType::BufferGenerator => '🔮',
                 ControlIdPartType::Compute => '🧮',
             };
             ui.toggle_value(
@@ -229,7 +160,7 @@ impl Ui {
                             ui.add_sized(
                                 [350.0, 0.0],
                                 egui::Slider::new(&mut component.value, 0.0..=1.0)
-                                    .clamp_to_range(false)
+                                    .clamping(SliderClamping::Never)
                                     .max_decimals(3),
                             );
 
@@ -246,51 +177,5 @@ impl Ui {
         selected.map(|(control_index, component_index)| {
             (&controls.used_controls[control_index], component_index)
         })
-    }
-
-    fn render_to_swapchain(&mut self, context: &mut RenderContext) {
-        let target_image = context
-            .vulkan_context
-            .final_render_target
-            .get_view_for_render_target()
-            .unwrap();
-        let [width, height, _] = target_image.image().extent();
-        let framebuffer = Framebuffer::new(
-            self.subpass.render_pass().clone(),
-            FramebufferCreateInfo {
-                attachments: vec![target_image],
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-        context
-            .command_builder
-            .begin_render_pass(
-                RenderPassBeginInfo {
-                    clear_values: vec![None],
-                    ..RenderPassBeginInfo::framebuffer(framebuffer)
-                },
-                SubpassBeginInfo {
-                    contents: SubpassContents::SecondaryCommandBuffers,
-                    ..Default::default()
-                },
-            )
-            .unwrap();
-
-        let gui_commands = self.gui.draw_on_subpass_image([width, height]);
-        context
-            .command_builder
-            .execute_commands(gui_commands)
-            .unwrap();
-
-        context
-            .command_builder
-            .end_render_pass(SubpassEndInfo::default())
-            .unwrap();
-    }
-
-    pub fn handle_window_event(&mut self, event: &WindowEvent) {
-        let _pass_events_to_game = !self.gui.update(event);
     }
 }

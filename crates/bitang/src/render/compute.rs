@@ -1,12 +1,8 @@
 use crate::render::buffer::Buffer;
 use crate::render::shader::Shader;
-use crate::tool::{RenderContext, VulkanContext};
-use anyhow::{Context, Result};
+use crate::tool::{ComputePassContext, GpuContext};
+use anyhow::Result;
 use std::rc::Rc;
-use std::sync::Arc;
-use vulkano::pipeline::compute::ComputePipelineCreateInfo;
-use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
-use vulkano::pipeline::{ComputePipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo};
 
 pub enum Run {
     Init(Rc<Buffer>),
@@ -18,29 +14,30 @@ pub struct Compute {
     pub id: String,
     pub shader: Shader,
     pub run: Run,
-    pipeline: Arc<ComputePipeline>,
+    pipeline: wgpu::ComputePipeline,
 }
 
 impl Compute {
-    pub fn new(
-        context: &Arc<VulkanContext>,
-        id: &str,
-        shader: Shader,
-        run: Run,
-    ) -> Result<Compute> {
-        let cs = shader
-            .shader_module
-            .entry_point("main")
-            .context("Failed to get compute shader entry point")?;
-        let stage = PipelineShaderStageCreateInfo::new(cs);
-        let layout_create_info = PipelineDescriptorSetLayoutCreateInfo::from_stages([&stage])
-            .into_pipeline_layout_create_info(context.device.clone())?;
-        let layout = PipelineLayout::new(context.device.clone(), layout_create_info)?;
-        let pipeline = ComputePipeline::new(
-            context.device.clone(),
-            None,
-            ComputePipelineCreateInfo::stage_layout(stage, layout),
-        )?;
+    pub fn new(context: &GpuContext, id: &str, shader: Shader, run: Run) -> Result<Compute> {
+        let pipeline_layout =
+            context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[&shader.bind_group_layout],
+                push_constant_ranges: &[],
+            });
+        // TODO: handle different entry points for init and simulate
+        let entry_point = match run {
+            Run::Init(_) => "cs_main",
+            Run::Simulate(_) => "cs_main",
+        };
+        let pipeline = context.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: None,
+            layout: Some(&pipeline_layout),
+            module: &shader.shader_module,
+            entry_point: Some(entry_point),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        });
 
         Ok(Compute {
             id: id.to_string(),
@@ -50,7 +47,8 @@ impl Compute {
         })
     }
 
-    pub fn execute(&self, context: &mut RenderContext) -> Result<()> {
+    pub fn execute(&self, context: &mut ComputePassContext<'_>) -> Result<()> {
+        // TODO: document why 64
         let dispatch_count = match &self.run {
             Run::Init(buffer) => buffer.item_size_in_vec4 * buffer.item_count / 64,
             Run::Simulate(buffer) => {
@@ -58,13 +56,10 @@ impl Compute {
                 (buffer.item_size_in_vec4 * buffer.item_count + 63) / 64
             }
         };
-        context
-            .command_builder
-            .bind_pipeline_compute(self.pipeline.clone())?;
-        self.shader.bind(context, self.pipeline.layout())?;
-        context
-            .command_builder
-            .dispatch([dispatch_count as u32, 1, 1])?;
+
+        context.pass.set_pipeline(&self.pipeline);
+        self.shader.bind_to_compute_pass(context)?;
+        context.pass.dispatch_workgroups(dispatch_count as u32, 1, 1);
 
         Ok(())
     }

@@ -2,13 +2,12 @@ use crate::control::controls::{Control, Globals};
 use crate::render::camera::Camera;
 use crate::render::pass::Pass;
 use crate::render::render_object::RenderObject;
-use crate::tool::RenderContext;
+use crate::tool::{FrameContext, RenderPassContext, Viewport};
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
 
 use crate::render::scene::Scene;
-use vulkano::command_buffer::{SubpassBeginInfo, SubpassContents};
 
 pub(crate) enum DrawItem {
     Object(Rc<RenderObject>),
@@ -41,7 +40,7 @@ impl Draw {
         })
     }
 
-    fn render_items(&self, context: &mut RenderContext, pass_index: usize) -> Result<()> {
+    fn render_items(&self, context: &mut RenderPassContext, pass_index: usize) -> Result<()> {
         for object in &self.items {
             match object {
                 DrawItem::Object(object) => object.render(context, pass_index)?,
@@ -89,57 +88,35 @@ impl Draw {
         globals.update_compound_matrices();
     }
 
-    pub fn render(&self, context: &mut RenderContext, camera: &Camera) -> Result<()> {
+    pub fn render(&self, frame_context: &mut FrameContext, camera: &Camera) -> Result<()> {
         ensure!(!self.passes.is_empty(), "Draw '{}' has no passes", self.id);
 
+        // Render each pass
         for (pass_index, pass) in self.passes.iter().enumerate() {
-            let viewport = pass.get_viewport(context)?;
+            let (viewport, canvas_size) = pass.get_viewport_and_canvas_size(frame_context)?;
 
             // Set globals unspecific to pass
-            self.set_common_globals(&mut context.globals);
+            self.set_common_globals(&mut frame_context.globals);
 
             // Set pass-specific globals
             if pass.id == "shadow" {
-                self.set_globals_for_shadow_map_rendering(&mut context.globals);
+                self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
             } else {
-                camera.set_globals(&mut context.globals, viewport.extent);
+                camera.set_globals(&mut frame_context.globals, canvas_size);
             }
 
-            // Begin render pass
-            let render_pass_begin_info = pass.make_render_pass_begin_info(context)?;
-            let subpass_begin_info = SubpassBeginInfo {
-                contents: SubpassContents::Inline,
-                ..Default::default()
-            };
+            let mut render_pass_context = pass.make_render_pass_context(frame_context)?;
+            let Viewport { x, y, size } = viewport;
+            render_pass_context.pass.set_viewport(
+                x as f32,
+                y as f32,
+                size[0] as f32,
+                size[1] as f32,
+                0.0,
+                1.0,
+            );
 
-            // TODO: implement debug flag
-            // context
-            //     .command_builder
-            //     .begin_debug_utils_label(DebugUtilsLabel {
-            //         label_name: self.id.clone(),
-            //         ..Default::default()
-            //     })?;
-
-            context
-                .command_builder
-                .begin_render_pass(render_pass_begin_info, subpass_begin_info)?
-                .set_viewport(0, [viewport].into_iter().collect())?;
-
-            // Don't fail early if there's a rendering error. We must end the render pass.
-            let render_result = self.render_items(context, pass_index);
-
-            // End render pass
-            context
-                .command_builder
-                .end_render_pass(Default::default())?;
-
-            // TODO: implement debug flag
-            // unsafe {
-            //     context.command_builder.end_debug_utils_label()?;
-            // }
-
-            // Propagate error
-            render_result?;
+            self.render_items(&mut render_pass_context, pass_index)?;
         }
 
         Ok(())

@@ -1,70 +1,44 @@
-use crate::render::BufferItem;
-use crate::tool::VulkanContext;
-use std::sync::{Arc, RwLock};
-use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
-use vulkano::buffer::{BufferUsage, Subbuffer};
+use crate::tool::GpuContext;
+use std::array::from_fn;
+use std::cell::Cell;
 
-pub struct Subbuffers {
-    pub current: Subbuffer<[BufferItem]>,
-    pub next: Subbuffer<[BufferItem]>,
-}
-
+// TODO: id
 pub struct Buffer {
     pub item_size_in_vec4: usize,
     pub item_count: usize,
-    buffer_pool: SubbufferAllocator,
-    pub buffers: RwLock<Subbuffers>,
+    buffers: [wgpu::Buffer; 2],
+    current_index: Cell<usize>,
 }
 
 impl Buffer {
-    pub fn new(context: &Arc<VulkanContext>, item_size_in_vec4: usize, item_count: usize) -> Self {
-        let buffer_pool = SubbufferAllocator::new(
-            context.memory_allocator.clone(),
-            SubbufferAllocatorCreateInfo {
-                buffer_usage: BufferUsage::STORAGE_BUFFER,
-                ..Default::default()
-            },
-        );
-
-        let subbuffers = Subbuffers {
-            current: Self::allocate_buffer(&buffer_pool, item_size_in_vec4, item_count),
-            next: Self::allocate_buffer(&buffer_pool, item_size_in_vec4, item_count),
-        };
+    pub fn new(context: &GpuContext, item_size_in_vec4: usize, item_count: usize) -> Self {
+        let size = (item_count * item_size_in_vec4 * size_of::<glam::Vec4>()) as u64;
+        let buffers = from_fn(|_| {
+            context.device.create_buffer(&wgpu::BufferDescriptor {
+                label: None,
+                size,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            })
+        });
 
         Buffer {
             item_size_in_vec4,
             item_count,
-            buffer_pool,
-            buffers: RwLock::new(subbuffers),
+            buffers,
+            current_index: Cell::new(0),
         }
     }
 
-    fn allocate_buffer(
-        buffer_pool: &SubbufferAllocator,
-        item_size_in_vec4: usize,
-        item_count: usize,
-    ) -> Subbuffer<[BufferItem]> {
-        let buffer_size_in_vec4 = item_count * item_size_in_vec4;
-        buffer_pool
-            .allocate_slice(buffer_size_in_vec4 as _)
-            .unwrap()
-    }
-
     pub fn step(&self) {
-        let next =
-            Self::allocate_buffer(&self.buffer_pool, self.item_size_in_vec4, self.item_count);
-        let mut buffers = self.buffers.write().unwrap();
-        *buffers = Subbuffers {
-            current: buffers.next.clone(),
-            next,
-        };
+        self.current_index.set(1 - self.current_index.get());
     }
 
-    pub fn get_current_buffer(&self) -> Subbuffer<[BufferItem]> {
-        self.buffers.read().unwrap().current.clone()
+    pub fn get_current_buffer(&self) -> &wgpu::Buffer {
+        &self.buffers[self.current_index.get()]
     }
 
-    pub fn get_next_buffer(&self) -> Subbuffer<[BufferItem]> {
-        self.buffers.read().unwrap().next.clone()
+    pub fn get_next_buffer(&self) -> &wgpu::Buffer {
+        &self.buffers[1 - self.current_index.get()]
     }
 }
