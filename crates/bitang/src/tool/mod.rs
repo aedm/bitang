@@ -8,25 +8,26 @@ mod timer;
 mod ui;
 
 use crate::control::controls::Globals;
-use crate::render::image::{BitangImage, PixelFormat};
-use crate::render::{Size2D, SCREEN_RENDER_TARGET_ID};
+use crate::render::image::BitangImage;
+use crate::render::Size2D;
 // use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use runners::window_runner::WindowRunner;
 use std::default::Default;
 use std::sync::Arc;
 
 const START_IN_DEMO_MODE: bool = false;
-const BORDERLESS_FULL_SCREEN: bool = true;
+#[allow(dead_code)] const BORDERLESS_FULL_SCREEN: bool = true;
 
 pub const FRAMEDUMP_MODE: bool = false;
-pub const FRAMEDUMP_WIDTH: u32 = 3840;
-pub const FRAMEDUMP_HEIGHT: u32 = 2160;
-pub const FRAMEDUMP_FPS: u32 = 61;
+#[allow(dead_code)] pub const FRAMEDUMP_WIDTH: u32 = 3840;
+#[allow(dead_code)] pub const FRAMEDUMP_HEIGHT: u32 = 2160;
+#[allow(dead_code)] pub const FRAMEDUMP_FPS: u32 = 61;
 
 const SCREEN_RATIO: (u32, u32) = (16, 9);
 
 pub struct GpuContext {
+    #[allow(dead_code)]
     pub adapter: wgpu::Adapter,
     pub queue: wgpu::Queue,
     pub device: wgpu::Device,

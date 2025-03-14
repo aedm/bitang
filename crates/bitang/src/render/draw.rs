@@ -6,7 +6,6 @@ use crate::tool::{FrameContext, RenderPassContext, Viewport};
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
-use tracing::warn;
 
 use crate::render::scene::Scene;
 

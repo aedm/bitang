@@ -1,7 +1,7 @@
 use crate::control::ControlId;
 use crate::file::chart_file::ChartContext;
 use crate::file::default_true;
-use crate::file::shader_context::{BufferSource, Sampler, ShaderContext, Texture};
+use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 use crate::render;
 use crate::render::material::{BlendMode, MaterialPassProps};
 use crate::render::shader::ShaderKind;

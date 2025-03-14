@@ -1,14 +1,13 @@
 use crate::render::mesh::Mesh;
 use crate::render::shader::Shader;
 use crate::render::Vertex3;
-use crate::tool::{FrameContext, GpuContext, RenderPassContext};
-use anyhow::{Context, Result};
+use crate::tool::{GpuContext, RenderPassContext};
+use anyhow::Result;
 use serde::Deserialize;
 use smallvec::SmallVec;
-use std::sync::Arc;
 use wgpu::CompareFunction;
 
-use super::pass::{FramebufferInfo, Pass};
+use super::pass::FramebufferInfo;
 use super::VERTEX_FORMAT;
 
 #[derive(Debug, Deserialize, Default, Clone)]

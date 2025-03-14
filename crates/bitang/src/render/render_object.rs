@@ -1,7 +1,7 @@
 use crate::control::controls::Control;
 use crate::render::material::Material;
 use crate::render::mesh::Mesh;
-use crate::tool::{FrameContext, RenderPassContext};
+use crate::tool::RenderPassContext;
 use anyhow::Result;
 use glam::{EulerRot, Mat4};
 use std::rc::Rc;

@@ -1,8 +1,8 @@
 use crate::control::controls::{Control, GlobalType, Globals};
 use crate::render::buffer::Buffer;
 use crate::render::image::BitangImage;
-use crate::tool::{ComputePassContext, FrameContext, GpuContext, RenderPassContext};
-use anyhow::{Context, Result};
+use crate::tool::{ComputePassContext, GpuContext, RenderPassContext};
+use anyhow::Result;
 use smallvec::SmallVec;
 use std::mem::size_of;
 use std::rc::Rc;
@@ -357,6 +357,7 @@ pub enum DescriptorSource {
 }
 
 pub struct DescriptorResource {
+    #[allow(dead_code)]
     pub id: String,
 
     /// This is value of the `layout(binding = ...)` attribute in the shader.

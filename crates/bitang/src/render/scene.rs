@@ -1,5 +1,5 @@
 use crate::render::render_object::RenderObject;
-use crate::tool::{FrameContext, RenderPassContext};
+use crate::tool::RenderPassContext;
 use anyhow::Result;
 
 pub struct Scene {

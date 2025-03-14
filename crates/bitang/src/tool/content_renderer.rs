@@ -11,7 +11,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use tracing::error;
 
-use super::{ComputePassContext, GpuContext, Viewport};
+use super::{ComputePassContext, GpuContext};
 
 pub struct ContentRenderer {
     pub app_state: AppState,
@@ -143,7 +143,7 @@ impl ContentRenderer {
         let mut command_encoder =
             context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
-        let mut compute_pass =
+        let compute_pass =
             command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
         let mut globals = Globals::default();
         let mut compute_pass_context = ComputePassContext {

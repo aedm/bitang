@@ -1,8 +1,6 @@
 use crate::render::image::BitangImage;
 use crate::tool::FrameContext;
-use crate::tool::GpuContext;
 use std::sync::Arc;
-use std::sync::OnceLock;
 
 pub struct GenerateMipLevels {
     pub _id: String,

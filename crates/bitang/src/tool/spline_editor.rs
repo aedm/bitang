@@ -4,7 +4,6 @@ use crate::tool::app_state::AppState;
 use egui::Color32;
 use egui_plot::{Line, Plot, PlotBounds, PlotPoint, PlotUi};
 use glam::Vec2;
-use tracing::debug;
 use std::rc::Rc;
 
 enum SplineEditorState {

@@ -122,6 +122,7 @@ impl ControlSetBuilder {
         self.get_control(id, component_count, &[0.0; 4])
     }
 
+    #[allow(dead_code)]
     pub fn get_vec2_with_default(&self, id: &ControlId, default: &[f32; 2]) -> Rc<Control> {
         self.get_control(id, 2, &[default[0], default[1], 0.0, 0.0])
     }
@@ -333,6 +334,7 @@ impl Control {
         self.components.borrow()[0].value
     }
 
+    #[allow(dead_code)]
     pub fn as_vec2(&self) -> Vec2 {
         let components = self.components.borrow();
         Vec2::new(components[0].value, components[1].value)

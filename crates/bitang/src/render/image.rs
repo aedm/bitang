@@ -1,9 +1,8 @@
-use crate::tool::{FrameContext, GpuContext, Viewport};
-use anyhow::{bail, Context, Result};
+use crate::tool::{FrameContext, GpuContext};
+use anyhow::{bail, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
-use tracing::warn;
-use wgpu::{util::DeviceExt, Extent3d};
+use wgpu::Extent3d;
 
 use super::Size2D;
 

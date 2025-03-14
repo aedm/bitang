@@ -2,12 +2,9 @@ use crate::control::controls::{Control, ControlSet, UsedControlsNode};
 use crate::control::{ControlId, ControlIdPartType};
 use crate::tool::app_state::AppState;
 use crate::tool::spline_editor::SplineEditor;
-use crate::tool::{FrameContext};
 use anyhow::Result;
 use egui::SliderClamping;
 use std::rc::Rc;
-use std::sync::Arc;
-use tracing::error;
 
 pub struct Ui {
     spline_editor: SplineEditor,

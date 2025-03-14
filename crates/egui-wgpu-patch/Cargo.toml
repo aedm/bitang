@@ -48,8 +48,8 @@ x11 = ["winit?/x11"]
 fragile-send-sync-non-atomic-wasm = ["wgpu/fragile-send-sync-non-atomic-wasm"]
 
 [dependencies]
-egui = { workspace = true, default-features = false }
-epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
+egui = { workspace = true }
+epaint = { workspace = true, features = ["bytemuck"] }
 
 ahash.workspace = true
 bytemuck.workspace = true

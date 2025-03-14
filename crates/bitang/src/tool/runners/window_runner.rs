@@ -3,20 +3,18 @@ use crate::render::{Size2D, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{
-    FrameContext, GpuContext, Viewport, BORDERLESS_FULL_SCREEN, SCREEN_RATIO, START_IN_DEMO_MODE,
+    FrameContext, GpuContext, Viewport, SCREEN_RATIO, START_IN_DEMO_MODE,
 };
 use anyhow::{Context, Result};
 use eframe::egui;
-use egui::{ViewportBuilder, ViewportId};
-use egui_wgpu::BackgroundRenderProps;
-use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
+use egui::ViewportBuilder;
+use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew};
 use std::cmp::max;
-use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tracing::{error, info};
-use wgpu::{Backends, Surface, SurfaceConfiguration};
+use wgpu::Backends;
 
 pub struct WindowRunner {}
 
@@ -195,7 +193,7 @@ impl AppInner {
         self.content_renderer.app_state.cursor_time >= project.length
     }
 
-    fn render_ui(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn render_ui(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let scale_factor = ctx.pixels_per_point();
         let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size() * scale_factor;
         self.compute_viewport([size.x as u32, size.y as u32]);

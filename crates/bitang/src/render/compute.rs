@@ -1,9 +1,8 @@
 use crate::render::buffer::Buffer;
 use crate::render::shader::Shader;
-use crate::tool::{ComputePassContext, FrameContext, GpuContext};
-use anyhow::{Context, Result};
+use crate::tool::{ComputePassContext, GpuContext};
+use anyhow::Result;
 use std::rc::Rc;
-use std::sync::Arc;
 
 pub enum Run {
     Init(Rc<Buffer>),

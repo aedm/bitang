@@ -97,6 +97,7 @@ impl ResourcePath {
     /// Makes a ResourcePath from path string relative to the present working directory,
     /// eg. "demo/folder/file.txt".
     /// This is the inverse of `to_pwd_relative_path`, so the path is allowed be absolute.
+    #[allow(dead_code)]
     pub fn from_pwd_relative_path(
         root_path: &Arc<PathBuf>,
         path_str: &str,
