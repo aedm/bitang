@@ -177,7 +177,7 @@ impl Chart {
         // Render step
         self.evaluate_splines(context.globals.chart_time);
         for image in &self.images {
-            image.enforce_size_rule(&context.gpu_context, &context.canvas_size)?;
+            image.enforce_size_rule(&context.gpu_context, &context.screen_viewport.size)?;
         }
         for step in &self.steps {
             match step {

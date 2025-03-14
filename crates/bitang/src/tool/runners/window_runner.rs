@@ -7,7 +7,7 @@ use crate::tool::{
 };
 use anyhow::{Context, Result};
 use eframe::egui;
-use egui::ViewportId;
+use egui::{ViewportBuilder, ViewportId};
 use egui_wgpu::BackgroundRenderProps;
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
 use std::cmp::max;
@@ -53,8 +53,12 @@ impl WindowRunner {
             })),
             ..Default::default()
         };
+        let viewport_builder = ViewportBuilder::default()
+            .with_title("Bitang")
+            .with_inner_size(egui::vec2(1280.0, 1000.0));
         let native_options = eframe::NativeOptions {
             wgpu_options: wgpu_configuration,
+            viewport: viewport_builder,
             ..eframe::NativeOptions::default()
         };
 
@@ -161,7 +165,6 @@ impl AppInner {
             command_encoder,
             globals: Default::default(),
             screen_viewport: self.viewport,
-            canvas_size: props.surface_size,
         };
         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
 

@@ -85,7 +85,6 @@ pub struct FrameContext {
     // TODO: remove Arc
     pub gpu_context: Arc<GpuContext>,
     pub screen_viewport: Viewport,
-    pub canvas_size: Size2D,
     pub command_encoder: wgpu::CommandEncoder,
     pub globals: Globals,
 }

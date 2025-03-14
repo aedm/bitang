@@ -187,7 +187,12 @@ impl BitangImage {
                 let Some(texture) = &attachment.texture else {
                     bail!("Attachment image not initialized");
                 };
-                texture.create_view(&wgpu::TextureViewDescriptor::default())
+                texture.create_view(&wgpu::TextureViewDescriptor {
+                    usage: Some(wgpu::TextureUsages::RENDER_ATTACHMENT),
+                    base_mip_level: 0,
+                    mip_level_count: Some(1),
+                    ..wgpu::TextureViewDescriptor::default()
+                })
             }
             ImageInner::Swapchain(texture_view) => {
                 let texture_view = texture_view.read().unwrap();
@@ -245,7 +250,6 @@ impl BitangImage {
                 ((canvas_size[1] as f32 * r) as u32).max(1),
             ],
             ImageSizeRule::At4k(w, h) => {
-                // TODO: 4k is not 4096.
                 let scale = 3840.0 / canvas_size[0] as f32;
                 [
                     ((w as f32 * scale) as u32).max(1),

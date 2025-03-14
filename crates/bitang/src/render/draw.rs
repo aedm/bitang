@@ -94,7 +94,7 @@ impl Draw {
 
         // Render each pass
         for (pass_index, pass) in self.passes.iter().enumerate() {
-            let viewport = pass.get_viewport(frame_context)?;
+            let (viewport, canvas_size) = pass.get_viewport_and_canvas_size(frame_context)?;
 
             // Set globals unspecific to pass
             self.set_common_globals(&mut frame_context.globals);
@@ -103,7 +103,7 @@ impl Draw {
             if pass.id == "shadow" {
                 self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
             } else {
-                camera.set_globals(&mut frame_context.globals, viewport.size);
+                camera.set_globals(&mut frame_context.globals, canvas_size);
             }
 
             let mut render_pass_context = pass.make_render_pass_context(frame_context)?;

@@ -5,6 +5,7 @@ use smallvec::SmallVec;
 use std::sync::Arc;
 
 use super::image::PixelFormat;
+use super::Size2D;
 
 #[derive(Clone, Debug)]
 pub struct FramebufferInfo {
@@ -133,7 +134,7 @@ impl Pass {
         }
     }
 
-    pub fn get_viewport(&self, context: &mut FrameContext) -> Result<Viewport> {
+    pub fn get_viewport_and_canvas_size(&self, context: &mut FrameContext) -> Result<(Viewport, Size2D)> {
         let first_image = if let Some(img) = self.color_buffers.first() {
             img
         } else if let Some(img) = &self.depth_buffer {
@@ -162,6 +163,6 @@ impl Pass {
                 size,
             }
         };
-        Ok(viewport)
+        Ok((viewport, size))
     }
 }

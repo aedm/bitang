@@ -37,10 +37,10 @@ impl Camera {
         }
     }
 
-    pub fn set_globals(&self, globals: &mut Globals, viewport_size: Size2D) {
-        let viewport_size = [viewport_size[0] as f32, viewport_size[1] as f32];
-        globals.pixel_size = Vec2::new(1.0 / viewport_size[0], 1.0 / viewport_size[1]);
-        globals.aspect_ratio = viewport_size[0] / viewport_size[1];
+    pub fn set_globals(&self, globals: &mut Globals, canvas_size: Size2D) {
+        let canvas_size = [canvas_size[0] as f32, canvas_size[1] as f32];
+        globals.pixel_size = Vec2::new(1.0 / canvas_size[0], 1.0 / canvas_size[1]);
+        globals.aspect_ratio = canvas_size[0] / canvas_size[1];
         globals.field_of_view = self.field_of_view.as_float();
         globals.z_near = 0.05;
 
