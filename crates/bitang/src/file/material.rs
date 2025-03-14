@@ -54,10 +54,8 @@ impl Material {
             }
         });
 
-        let material_passes = join_all(material_pass_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let material_passes =
+            join_all(material_pass_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
         Ok(Arc::new(render::material::Material {
             passes: material_passes,

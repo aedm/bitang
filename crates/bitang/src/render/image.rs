@@ -129,14 +129,15 @@ impl BitangImage {
             size: extent,
             mip_level_count,
             sample_count: 1,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: pixel_format.wgpu_format(),
             dimension: wgpu::TextureDimension::D2,
             view_formats: &[],
         };
         let texture = context.device.create_texture(&texture_descriptor);
 
-        
         let bytes_per_pixel = pixel_format.wgpu_format().block_copy_size(None).unwrap_or(4);
         let bytes_per_row = bytes_per_pixel * size[0];
 
@@ -144,11 +145,7 @@ impl BitangImage {
             wgpu::TexelCopyTextureInfo {
                 texture: &texture,
                 mip_level: 0,
-                origin: wgpu::Origin3d {
-                    x: 0,
-                    y: 0,
-                    z: 0,
-                },
+                origin: wgpu::Origin3d { x: 0, y: 0, z: 0 },
                 aspect: wgpu::TextureAspect::All,
             },
             data,

@@ -1,5 +1,5 @@
 use crate::render::Vertex3;
-use crate::tool::{GpuContext};
+use crate::tool::GpuContext;
 use anyhow::Result;
 use wgpu::util::DeviceExt;
 
@@ -19,17 +19,13 @@ impl Mesh {
         vertices: Vec<Vertex3>,
         indices: Option<Vec<MeshIndex>>,
     ) -> Result<Mesh> {
-        let vertex_buffer = context
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-        let (index_buffer, index_count) = if let Some(indices) = &indices{
-            let buffer = context
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let vertex_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let (index_buffer, index_count) = if let Some(indices) = &indices {
+            let buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
                 contents: bytemuck::cast_slice(&indices),
                 usage: wgpu::BufferUsages::INDEX,

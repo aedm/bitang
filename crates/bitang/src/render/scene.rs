@@ -8,7 +8,11 @@ pub struct Scene {
 }
 
 impl Scene {
-    pub fn render(&self, context: &mut RenderPassContext, material_pass_index: usize) -> Result<()> {
+    pub fn render(
+        &self,
+        context: &mut RenderPassContext,
+        material_pass_index: usize,
+    ) -> Result<()> {
         for object in &self.objects {
             object.render(context, material_pass_index)?;
         }

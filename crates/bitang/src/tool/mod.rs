@@ -17,12 +17,16 @@ use std::default::Default;
 use std::sync::Arc;
 
 const START_IN_DEMO_MODE: bool = false;
-#[allow(dead_code)] const BORDERLESS_FULL_SCREEN: bool = true;
+#[allow(dead_code)]
+const BORDERLESS_FULL_SCREEN: bool = true;
 
 pub const FRAMEDUMP_MODE: bool = false;
-#[allow(dead_code)] pub const FRAMEDUMP_WIDTH: u32 = 3840;
-#[allow(dead_code)] pub const FRAMEDUMP_HEIGHT: u32 = 2160;
-#[allow(dead_code)] pub const FRAMEDUMP_FPS: u32 = 61;
+#[allow(dead_code)]
+pub const FRAMEDUMP_WIDTH: u32 = 3840;
+#[allow(dead_code)]
+pub const FRAMEDUMP_HEIGHT: u32 = 2160;
+#[allow(dead_code)]
+pub const FRAMEDUMP_FPS: u32 = 61;
 
 const SCREEN_RATIO: (u32, u32) = (16, 9);
 

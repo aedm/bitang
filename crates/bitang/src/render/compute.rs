@@ -18,20 +18,13 @@ pub struct Compute {
 }
 
 impl Compute {
-    pub fn new(
-        context: &GpuContext,
-        id: &str,
-        shader: Shader,
-        run: Run,
-    ) -> Result<Compute> {
+    pub fn new(context: &GpuContext, id: &str, shader: Shader, run: Run) -> Result<Compute> {
         let pipeline_layout =
-        context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[
-                &shader.bind_group_layout,
-            ],
-            push_constant_ranges: &[],
-        });
+            context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[&shader.bind_group_layout],
+                push_constant_ranges: &[],
+            });
         // TODO: handle different entry points for init and simulate
         let entry_point = match run {
             Run::Init(_) => "cs_main",

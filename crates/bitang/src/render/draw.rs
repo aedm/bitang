@@ -107,7 +107,14 @@ impl Draw {
 
             let mut render_pass_context = pass.make_render_pass_context(frame_context)?;
             let Viewport { x, y, size } = viewport;
-            render_pass_context.pass.set_viewport(x as f32, y as f32, size[0] as f32, size[1] as f32, 0.0, 1.0);
+            render_pass_context.pass.set_viewport(
+                x as f32,
+                y as f32,
+                size[0] as f32,
+                size[1] as f32,
+                0.0,
+                1.0,
+            );
 
             self.render_items(&mut render_pass_context, pass_index)?;
         }

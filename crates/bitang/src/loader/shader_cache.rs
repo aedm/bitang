@@ -3,7 +3,7 @@ use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
 use crate::render::shader::ShaderKind;
-use crate::tool::{GpuContext};
+use crate::tool::GpuContext;
 use anyhow::{Context, Result};
 use dashmap::DashMap;
 use std::fmt::Debug;
@@ -106,9 +106,7 @@ impl ShaderCache {
                 macros,
             )
         };
-        self.load_cycle_shader_cache
-            .get(format!("shader:{key:?}"), key, shader_load_func)
-            .await
+        self.load_cycle_shader_cache.get(format!("shader:{key:?}"), key, shader_load_func).await
     }
 
     pub fn display_load_errors(&self) {

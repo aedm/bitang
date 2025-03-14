@@ -92,7 +92,7 @@ impl<T: Send + Sync + 'static> LoadFuture<T> {
             Err(err) => {
                 error!("label:'{}' {err:?}", inner.label);
                 Err(anyhow!("{err:?}"))
-            },
+            }
         }
     }
 

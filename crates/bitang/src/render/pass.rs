@@ -28,10 +28,8 @@ impl Pass {
         depth_buffer: Option<Arc<BitangImage>>,
         clear_color: Option<[f32; 4]>,
     ) -> Result<Self> {
-        let color_buffer_formats = color_buffers
-            .iter()
-            .map(|image| image.pixel_format)
-            .collect::<Vec<_>>();
+        let color_buffer_formats =
+            color_buffers.iter().map(|image| image.pixel_format).collect::<Vec<_>>();
         let depth_buffer_format = depth_buffer.as_ref().map(|image| image.pixel_format);
         let framebuffer_info = FramebufferInfo {
             color_buffer_formats,
@@ -69,20 +67,17 @@ impl Pass {
         for i in 0..color_attachment_views.len() {
             color_attachments.push(Some(self.make_color_attachment(&color_attachment_views[i])));
         }
-        let depth_stencil_attachment = depth_buffer_view
-            .as_ref()
-            .map(|view| self.make_depth_attachment(view));
+        let depth_stencil_attachment =
+            depth_buffer_view.as_ref().map(|view| self.make_depth_attachment(view));
 
-        let pass = frame_context
-            .command_encoder
-            .begin_render_pass(&wgpu::RenderPassDescriptor {
-                // TODO: label
-                label: None,
-                color_attachments: &color_attachments,
-                depth_stencil_attachment,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+        let pass = frame_context.command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            // TODO: label
+            label: None,
+            color_attachments: &color_attachments,
+            depth_stencil_attachment,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
 
         Ok(RenderPassContext {
             gpu_context: &frame_context.gpu_context,
@@ -134,7 +129,10 @@ impl Pass {
         }
     }
 
-    pub fn get_viewport_and_canvas_size(&self, context: &mut FrameContext) -> Result<(Viewport, Size2D)> {
+    pub fn get_viewport_and_canvas_size(
+        &self,
+        context: &mut FrameContext,
+    ) -> Result<(Viewport, Size2D)> {
         let first_image = if let Some(img) = self.color_buffers.first() {
             img
         } else if let Some(img) = &self.depth_buffer {
@@ -157,11 +155,7 @@ impl Pass {
         let viewport = if first_image.is_swapchain() {
             context.screen_viewport.clone()
         } else {
-            Viewport {
-                x: 0,
-                y: 0,
-                size,
-            }
+            Viewport { x: 0, y: 0, size }
         };
         Ok((viewport, size))
     }

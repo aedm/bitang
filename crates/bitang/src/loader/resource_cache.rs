@@ -1,7 +1,7 @@
 use crate::loader::async_cache::{AsyncCache, LoadFuture};
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::loader::resource_path::ResourcePath;
-use crate::tool::{GpuContext};
+use crate::tool::GpuContext;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
@@ -44,9 +44,7 @@ impl<T: Send + Sync> ResourceCache<T> {
             // Run the loader function in a blocking thread pool.
             spawn_blocking(sync_loader).await?
         };
-        self.resource_cache
-            .get(format!("path:{path:?}"), hash, async_loader)
-            .await
+        self.resource_cache.get(format!("path:{path:?}"), hash, async_loader).await
     }
 
     pub fn get_future(

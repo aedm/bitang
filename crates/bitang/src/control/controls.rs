@@ -39,11 +39,7 @@ impl UsedControlsNode {
         }
 
         let child_prefix = control.id.prefix(self.id_prefix.parts.len() + 1);
-        if let Some(child) = self
-            .children
-            .iter_mut()
-            .find(|x| x.id_prefix == child_prefix)
-        {
+        if let Some(child) = self.children.iter_mut().find(|x| x.id_prefix == child_prefix) {
             child.insert(control, chart_step_ids);
         } else {
             let mut new_node = UsedControlsNode {
@@ -150,14 +146,8 @@ impl ControlSetBuilder {
         default: &[f32; 4],
     ) -> Rc<Control> {
         let control = self.control_repository.get_control(id, default);
-        control
-            .used_component_count
-            .set(max(control.used_component_count.get(), component_count));
-        if self
-            .used_controls
-            .borrow_mut()
-            .insert(RcHashRef(control.clone()))
-        {
+        control.used_component_count.set(max(control.used_component_count.get(), component_count));
+        if self.used_controls.borrow_mut().insert(RcHashRef(control.clone())) {
             self.used_control_list.borrow_mut().push(control.clone());
         }
         control
@@ -193,11 +183,8 @@ impl ControlRepository {
 
     pub fn save_control_files(&self, project: &Project) -> Result<()> {
         for chart in project.charts_by_id.values() {
-            let path = project
-                .root_path
-                .join(CHARTS_FOLDER)
-                .join(&chart.id)
-                .join(CONTROLS_FILE_NAME);
+            let path =
+                project.root_path.join(CHARTS_FOLDER).join(&chart.id).join(CONTROLS_FILE_NAME);
             let controls = self
                 .by_id
                 .iter()
@@ -222,10 +209,8 @@ impl ControlRepository {
             let path = entry.path();
             if path.is_dir() {
                 let chart_id = path.file_name().unwrap().to_str().unwrap();
-                let controls_path = root_path
-                    .join(CHARTS_FOLDER)
-                    .join(chart_id)
-                    .join(CONTROLS_FILE_NAME);
+                let controls_path =
+                    root_path.join(CHARTS_FOLDER).join(chart_id).join(CONTROLS_FILE_NAME);
                 if let Ok(ron) = std::fs::read_to_string(&controls_path) {
                     info!("Loading {controls_path:?}.");
                     let deserialized: DeserializedControls = ron::de::from_str(&ron)?;
@@ -287,10 +272,8 @@ where
 {
     let text = String::deserialize(d)?;
     let parts: Vec<(ControlIdPartType, String)> = ron::de::from_str(&text).unwrap();
-    let parts = parts
-        .into_iter()
-        .map(|(part_type, name)| ControlIdPart { part_type, name })
-        .collect();
+    let parts =
+        parts.into_iter().map(|(part_type, name)| ControlIdPart { part_type, name }).collect();
     Ok(ControlId { parts })
 }
 

@@ -96,24 +96,17 @@ impl Chart {
             path: chart_file_path.clone(),
         };
 
-        let chart_step_futures = self
-            .steps
-            .iter()
-            .map(|pass| async { pass.load(context, &chart_context).await });
+        let chart_step_futures =
+            self.steps.iter().map(|pass| async { pass.load(context, &chart_context).await });
         // Load all passes in parallel.
-        let chart_steps = join_all(chart_step_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let chart_steps =
+            join_all(chart_step_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
         let image_futures = chart_context
             .image_futures_by_id
             .into_values()
             .map(|image_future| async move { image_future.get().await });
-        let images = join_all(image_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let images = join_all(image_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
         let chart = render::chart::Chart::new(
             id,
@@ -196,16 +189,13 @@ impl GenerateMipLevels {
         &self,
         chart_context: &ChartContext,
     ) -> Result<render::generate_mip_levels::GenerateMipLevels> {
-        let image = chart_context
-            .image_futures_by_id
-            .get(&self.image_id)
-            .with_context(|| {
-                anyhow!(
-                    "Image id not found: '{}' (mipmap generation step: '{}')",
-                    self.image_id,
-                    self.id
-                )
-            })?;
+        let image = chart_context.image_futures_by_id.get(&self.image_id).with_context(|| {
+            anyhow!(
+                "Image id not found: '{}' (mipmap generation step: '{}')",
+                self.image_id,
+                self.id
+            )
+        })?;
         let image = image.get().await?;
 
         Ok(render::generate_mip_levels::GenerateMipLevels {
@@ -252,33 +242,22 @@ pub struct Draw {
 impl Draw {
     #[allow(clippy::too_many_arguments)]
     pub async fn load(&self, chart_context: &ChartContext) -> Result<render::draw::Draw> {
-        let draw_control_id = chart_context
-            .chart_control_id
-            .add(ControlIdPartType::ChartStep, &self.id);
+        let draw_control_id =
+            chart_context.chart_control_id.add(ControlIdPartType::ChartStep, &self.id);
         let pass_futures = self.passes.iter().map(|pass| pass.load(chart_context));
 
         // Pass render targets rarely need an image to be loaded, no problem resolving it early
-        let passes = join_all(pass_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let passes = join_all(pass_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
-        let draw_item_futures = self
-            .items
-            .iter()
-            .map(|object| object.load(chart_context, &draw_control_id, &passes));
-        let objects = join_all(draw_item_futures)
-            .await
-            .into_iter()
-            .collect::<Result<_>>()?;
+        let draw_item_futures =
+            self.items.iter().map(|object| object.load(chart_context, &draw_control_id, &passes));
+        let objects = join_all(draw_item_futures).await.into_iter().collect::<Result<_>>()?;
 
         let light_dir_id = draw_control_id.add(ControlIdPartType::Value, "light_dir");
         let shadow_map_size_id = draw_control_id.add(ControlIdPartType::Value, "shadow_map_size");
 
         let light_dir = chart_context.control_set_builder.get_vec3(&light_dir_id);
-        let shadow_map_size = chart_context
-            .control_set_builder
-            .get_vec3(&shadow_map_size_id);
+        let shadow_map_size = chart_context.control_set_builder.get_vec3(&shadow_map_size_id);
 
         let draw = render::draw::Draw::new(&self.id, passes, objects, light_dir, shadow_map_size)?;
         Ok(draw)
@@ -336,9 +315,7 @@ impl Compute {
             }
         };
 
-        let control_id = chart_context
-            .chart_control_id
-            .add(ControlIdPartType::Compute, &self.id);
+        let control_id = chart_context.chart_control_id.add(ControlIdPartType::Compute, &self.id);
 
         let shader_context = ShaderContext::new(
             chart_context,
@@ -348,9 +325,8 @@ impl Compute {
             &self.buffers,
         )?;
 
-        let shader = shader_context
-            .make_shader(chart_context, ShaderKind::Compute, &self.shader)
-            .await?;
+        let shader =
+            shader_context.make_shader(chart_context, ShaderKind::Compute, &self.shader).await?;
 
         render::compute::Compute::new(context, &self.id, shader, run)
     }
@@ -401,17 +377,10 @@ impl Pass {
             .color_images
             .iter()
             .map(|color_buffer| color_buffer.load(&chart_context.image_futures_by_id));
-        let color_buffers = join_all(color_buffer_futures)
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let color_buffers =
+            join_all(color_buffer_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
-        render::pass::Pass::new(
-            &self.id,
-            color_buffers,
-            depth_buffer,
-            self.clear_color,
-        )
+        render::pass::Pass::new(&self.id, color_buffers, depth_buffer, self.clear_color)
     }
 }
 

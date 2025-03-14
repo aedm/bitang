@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use super::image::PixelFormat;
 
-
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
@@ -146,12 +145,10 @@ impl Shader {
         }
 
         let bind_group_layout =
-            context
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: None,
-                    entries: &entries,
-                });
+            context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &entries,
+            });
 
         Shader {
             shader_module,
@@ -166,13 +163,13 @@ impl Shader {
     }
 
     pub fn bind_to_render_pass(&self, context: &mut RenderPassContext<'_>) -> Result<()> {
-        let bind_group = self.make_bind_group(&context.gpu_context, &context.globals)?;        
+        let bind_group = self.make_bind_group(&context.gpu_context, &context.globals)?;
         context.pass.set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
         Ok(())
     }
 
     pub fn bind_to_compute_pass(&self, context: &mut ComputePassContext<'_>) -> Result<()> {
-        let bind_group = self.make_bind_group(&context.gpu_context, &context.globals)?;        
+        let bind_group = self.make_bind_group(&context.gpu_context, &context.globals)?;
         context.pass.set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
         Ok(())
     }
@@ -183,7 +180,6 @@ impl Shader {
         globals: &Globals,
         // TODO: no result
     ) -> Result<wgpu::BindGroup> {
-
         let mut texture_views = SmallVec::<[_; 64]>::new();
         let mut entries = SmallVec::<[_; 64]>::new();
 
@@ -216,24 +212,21 @@ impl Shader {
             });
         }
 
-
         for descriptor_resource in &self.descriptor_resources {
             // TODO: just the resource instead of BindGroupEntry
             let write_descriptor_set = match &descriptor_resource.source {
                 DescriptorSource::Image(image_descriptor) => {
                     // Just store texture view in an array.
-                    // This is needed because we create texture views per frame. 
+                    // This is needed because we create texture views per frame.
                     // TODO: cache texture views
                     let texture_view = image_descriptor.image.make_texture_view_for_sampler()?;
                     texture_views.push((descriptor_resource.binding, texture_view));
                     continue;
                 }
-                DescriptorSource::Sampler(sampler_descriptor) => {
-                    wgpu::BindGroupEntry {
-                        binding: descriptor_resource.binding,
-                        resource: wgpu::BindingResource::Sampler(&sampler_descriptor.sampler),
-                    }
-                }
+                DescriptorSource::Sampler(sampler_descriptor) => wgpu::BindGroupEntry {
+                    binding: descriptor_resource.binding,
+                    resource: wgpu::BindingResource::Sampler(&sampler_descriptor.sampler),
+                },
                 DescriptorSource::BufferCurrent(buffer) => wgpu::BindGroupEntry {
                     binding: descriptor_resource.binding,
                     resource: buffer.get_current_buffer().as_entire_binding(),
@@ -253,13 +246,11 @@ impl Shader {
             });
         }
 
-        let bind_group = context
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Bind Group"),
-                layout: &self.bind_group_layout,
-                entries: &entries,
-            });
+        let bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Bind Group"),
+            layout: &self.bind_group_layout,
+            entries: &entries,
+        });
         Ok(bind_group)
     }
 }

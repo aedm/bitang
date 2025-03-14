@@ -38,10 +38,8 @@ impl Project {
         });
 
         // Load all charts in parallel.
-        let charts_by_id: HashMap<_, _> = join_all(chart_futures_by_id)
-            .await
-            .into_iter()
-            .collect::<Result<_>>()?;
+        let charts_by_id: HashMap<_, _> =
+            join_all(chart_futures_by_id).await.into_iter().collect::<Result<_>>()?;
 
         let cuts = self
             .cuts

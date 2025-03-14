@@ -11,13 +11,10 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(
-    ) -> Result<Ui> {
+    pub fn new() -> Result<Ui> {
         let spline_editor = SplineEditor::new();
 
-        Ok(Ui {
-            spline_editor,
-        })
+        Ok(Ui { spline_editor })
     }
 
     pub fn draw(

@@ -117,9 +117,8 @@ impl SplineEditor {
                     let value = spline.get_value(time);
 
                     // Unwrap is safe: time is always a valid float
-                    let res = spline
-                        .points
-                        .binary_search_by(|p| p.time.partial_cmp(&time).unwrap());
+                    let res =
+                        spline.points.binary_search_by(|p| p.time.partial_cmp(&time).unwrap());
 
                     let index_after = match res {
                         Ok(index) => index,
@@ -152,15 +151,11 @@ impl SplineEditor {
                         ui.horizontal(|ui| {
                             ui.label("Time:");
                             ui.add(
-                                egui::DragValue::new(&mut point.time)
-                                    .speed(0.01)
-                                    .max_decimals(6),
+                                egui::DragValue::new(&mut point.time).speed(0.01).max_decimals(6),
                             );
                             ui.label("Value:");
                             ui.add(
-                                egui::DragValue::new(&mut point.value)
-                                    .speed(0.01)
-                                    .max_decimals(6),
+                                egui::DragValue::new(&mut point.value).speed(0.01).max_decimals(6),
                             );
                             ui.checkbox(&mut point.is_linear_after, "Linear");
                             ui.checkbox(&mut point.hold_after, "Hold");
@@ -179,11 +174,7 @@ impl SplineEditor {
             [time as f64, self.center_y as f64 - time_dy],
             [time as f64, self.center_y as f64 + time_dy],
         ];
-        plot_ui.line(
-            Line::new(points)
-                .color(Color32::from_rgb(150, 0, 150))
-                .width(1.0),
-        );
+        plot_ui.line(Line::new(points).color(Color32::from_rgb(150, 0, 150)).width(1.0));
     }
 
     // Returns the index of the hovered point

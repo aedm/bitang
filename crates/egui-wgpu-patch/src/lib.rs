@@ -35,8 +35,8 @@ pub mod capture;
 #[cfg(feature = "winit")]
 pub mod winit;
 
-use std::{sync::Arc};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use epaint::mutex::RwLock;
 
@@ -306,7 +306,7 @@ pub struct WgpuConfiguration {
     /// Callback for surface errors.
     pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
 
-    pub on_draw_background: Option<Rc::<dyn Fn(BackgroundRenderProps) -> ()>>,
+    pub on_draw_background: Option<Rc<dyn Fn(BackgroundRenderProps) -> ()>>,
 }
 
 // #[test]
@@ -372,10 +372,7 @@ pub fn preferred_framebuffer_format(
         }
     }
 
-    formats
-        .first()
-        .copied()
-        .ok_or(WgpuError::NoSurfaceFormatsAvailable)
+    formats.first().copied().ok_or(WgpuError::NoSurfaceFormatsAvailable)
 }
 
 /// Take's epi's depth/stencil bits and returns the corresponding wgpu format.

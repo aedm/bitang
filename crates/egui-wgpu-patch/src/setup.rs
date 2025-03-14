@@ -31,10 +31,9 @@ impl Default for WgpuSetup {
 impl std::fmt::Debug for WgpuSetup {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::CreateNew(create_new) => f
-                .debug_tuple("WgpuSetup::CreateNew")
-                .field(create_new)
-                .finish(),
+            Self::CreateNew(create_new) => {
+                f.debug_tuple("WgpuSetup::CreateNew").field(create_new).finish()
+            }
             Self::Existing { .. } => f.debug_tuple("WgpuSetup::Existing").finish(),
         }
     }
@@ -198,9 +197,7 @@ impl Default for WgpuSetupCreateNew {
                 }
             }),
 
-            trace_path: std::env::var("WGPU_TRACE")
-                .ok()
-                .map(std::path::PathBuf::from),
+            trace_path: std::env::var("WGPU_TRACE").ok().map(std::path::PathBuf::from),
         }
     }
 }

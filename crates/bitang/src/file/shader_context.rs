@@ -195,15 +195,12 @@ impl ShaderContext {
             .iter()
             .map(|binding| {
                 let control_id = if let Some(mapped_name) = self.control_map.get(&binding.name) {
-                    chart_context
-                        .values_control_id
-                        .add(ControlIdPartType::Value, mapped_name)
+                    chart_context.values_control_id.add(ControlIdPartType::Value, mapped_name)
                 } else {
                     self.control_id.add(ControlIdPartType::Value, &binding.name)
                 };
-                let control = chart_context
-                    .control_set_builder
-                    .get_vec(&control_id, binding.f32_count);
+                let control =
+                    chart_context.control_set_builder.get_vec(&control_id, binding.f32_count);
                 LocalUniformMapping {
                     control,
                     f32_count: binding.f32_count,
@@ -256,7 +253,10 @@ impl ShaderContext {
             let sampler_descriptor = DescriptorResource {
                 id: sampler.name.clone(),
                 binding: sampler.binding,
-                source: DescriptorSource::Sampler(SamplerDescriptor::new(&chart_context.gpu_context, source.mode.load())),
+                source: DescriptorSource::Sampler(SamplerDescriptor::new(
+                    &chart_context.gpu_context,
+                    source.mode.load(),
+                )),
             };
             descriptor_resources.push(sampler_descriptor);
         }

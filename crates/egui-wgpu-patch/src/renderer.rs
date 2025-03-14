@@ -622,11 +622,7 @@ impl Renderer {
                 origin,
                 // If the TextureOptions are the same as the previous ones, we can reuse the bind group. Otherwise we
                 // have to recreate it.
-                if image_delta.options == options {
-                    Some(bind_group)
-                } else {
-                    None
-                },
+                if image_delta.options == options { Some(bind_group) } else { None },
             )
         } else {
             // allocate a new texture

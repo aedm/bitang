@@ -2,9 +2,7 @@ use crate::render::image::{BitangImage, PixelFormat, SwapchainImage};
 use crate::render::{Size2D, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
-use crate::tool::{
-    FrameContext, GpuContext, Viewport, SCREEN_RATIO, START_IN_DEMO_MODE,
-};
+use crate::tool::{FrameContext, GpuContext, Viewport, SCREEN_RATIO, START_IN_DEMO_MODE};
 use anyhow::{Context, Result};
 use eframe::egui;
 use egui::ViewportBuilder;

@@ -12,4 +12,3 @@ impl GenerateMipLevels {
         self.image.generate_mipmaps(context)
     }
 }
-

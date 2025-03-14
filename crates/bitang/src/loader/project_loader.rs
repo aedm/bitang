@@ -1,7 +1,7 @@
 use crate::loader::file_cache::{FileCache, FileChangeHandler};
 use crate::loader::resource_repository::ResourceRepository;
 use crate::render::project::Project;
-use crate::tool::{GpuContext};
+use crate::tool::GpuContext;
 use anyhow::{ensure, Result};
 use dunce::canonicalize;
 use std::path::PathBuf;
@@ -59,8 +59,7 @@ impl ProjectLoader {
             && self.last_load_time.elapsed() > LOAD_RETRY_INTERVAL;
         if changed_files.is_some() || needs_retry {
             let now = Instant::now();
-            self.resource_repository
-                .start_load_cycle(changed_files.as_ref());
+            self.resource_repository.start_load_cycle(changed_files.as_ref());
             match self.run_project_loader(context) {
                 Ok(project) => {
                     info!("Project length: {} seconds", project.length);

@@ -33,10 +33,8 @@ pub fn load_mesh_collection(
 
         let Some(mesh) = node.mesh() else { continue };
 
-        let primitives = mesh
-            .primitives()
-            .filter(|p| p.mode() == gltf::mesh::Mode::Triangles)
-            .collect_vec();
+        let primitives =
+            mesh.primitives().filter(|p| p.mode() == gltf::mesh::Mode::Triangles).collect_vec();
 
         for (pi, primitive) in primitives.into_iter().enumerate() {
             let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
@@ -84,9 +82,8 @@ pub fn load_mesh_collection(
             };
 
             // Read indices
-            let indices = reader
-                .read_indices()
-                .and_then(|indices| Some(indices.into_u32().collect_vec()));
+            let indices =
+                reader.read_indices().and_then(|indices| Some(indices.into_u32().collect_vec()));
 
             debug!("Loaded {} vertices", vertices.len());
 

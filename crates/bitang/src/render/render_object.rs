@@ -17,7 +17,11 @@ pub struct RenderObject {
 }
 
 impl RenderObject {
-    pub fn render(&self, context: &mut RenderPassContext, material_pass_index: usize) -> Result<()> {
+    pub fn render(
+        &self,
+        context: &mut RenderPassContext,
+        material_pass_index: usize,
+    ) -> Result<()> {
         let Some(material_pass) = self.material.get_pass(material_pass_index) else {
             return Ok(());
         };
