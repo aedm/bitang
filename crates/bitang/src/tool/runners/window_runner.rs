@@ -50,9 +50,12 @@ impl WindowRunner {
             })),
             ..Default::default()
         };
-        let viewport_builder = ViewportBuilder::default()
-            .with_title("Bitang")
-            .with_inner_size(egui::vec2(1280.0, 1000.0));
+        let viewport_builder = ViewportBuilder::default().with_title("Bitang");
+        let viewport_builder = if START_IN_DEMO_MODE {
+            viewport_builder.with_fullscreen(true)
+        } else {
+            viewport_builder.with_inner_size(egui::vec2(1280.0, 1000.0))
+        };
         let native_options = eframe::NativeOptions {
             wgpu_options: wgpu_configuration,
             viewport: viewport_builder,
@@ -185,7 +188,7 @@ impl AppInner {
         Ok(())
     }
 
-    fn _has_timeline_ended(&self) -> bool {
+    fn has_timeline_ended(&self) -> bool {
         let Some(project) = &self.content_renderer.app_state.project else {
             return false;
         };
@@ -193,6 +196,8 @@ impl AppInner {
     }
 
     fn render_ui(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.handle_hotkeys(&ctx);
+
         let scale_factor = ctx.pixels_per_point();
         let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size() * scale_factor;
         self.compute_viewport([size.x as u32, size.y as u32]);
@@ -209,7 +214,12 @@ impl AppInner {
             );
         }
 
-        self.handle_hotkeys(&ctx);
+        if self.demo_mode && self.has_timeline_ended() {
+            // Avoid logging twice as eframe doesn't close the viewport immediately.
+            self.demo_mode = false;
+            info!("End of demo.");
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
     }
 
     const SAVE_SHORTCUT: egui::KeyboardShortcut =
@@ -315,7 +325,7 @@ impl App {
 
         let app_inner = AppInner {
             gpu_context,
-            is_fullscreen: false,
+            is_fullscreen: START_IN_DEMO_MODE,
             ui,
             content_renderer,
             app_start_time: Instant::now(),
@@ -331,13 +341,11 @@ impl App {
         if START_IN_DEMO_MODE {
             // Start demo in fullscreen
             info!("Starting demo.");
-            todo!();
             // TODO: this is not pretty
 
-            // let mut lock = app.inner.lock().unwrap();
-            // let inner = lock.as_mut().unwrap();
-            // inner.toggle_fullscreen();
-            // inner.content_renderer.play();
+            let mut lock = app.inner.lock().unwrap();
+            let inner = lock.as_mut().unwrap();
+            inner.content_renderer.play();
         }
 
         Ok(Box::new(app))
