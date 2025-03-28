@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use eframe::egui;
 use egui::ViewportBuilder;
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew};
+use tracing::debug;
 use std::cmp::max;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -238,7 +239,7 @@ impl AppInner {
             }
         }
         if ctx.input_mut(|i| i.consume_shortcut(&Self::FULLSCREEN_SHORTCUT)) {
-            self.toggle_fullscreen();
+            self.toggle_fullscreen(ctx);
             self.demo_mode = false;
         }
         if ctx.input_mut(|i| i.consume_shortcut(&Self::RESET_SIMULATION_SHORTCUT)) {
@@ -257,14 +258,16 @@ impl AppInner {
                 info!("Exiting on user request.");
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             } else if self.is_fullscreen {
-                self.toggle_fullscreen();
+                self.toggle_fullscreen(ctx);
                 self.content_renderer.app_state.pause();
             }
         }
     }
 
-    fn toggle_fullscreen(&mut self) {
-        todo!();
+    fn toggle_fullscreen(&mut self, ctx: &egui::Context) {
+        self.is_fullscreen = !self.is_fullscreen;
+        debug!("Setting fullscreen to {}", self.is_fullscreen);
+        ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
     }
 }
 
@@ -330,11 +333,13 @@ impl App {
         if START_IN_DEMO_MODE {
             // Start demo in fullscreen
             info!("Starting demo.");
+            todo!();
             // TODO: this is not pretty
-            let mut lock = app.inner.lock().unwrap();
-            let inner = lock.as_mut().unwrap();
-            inner.toggle_fullscreen();
-            inner.content_renderer.play();
+
+            // let mut lock = app.inner.lock().unwrap();
+            // let inner = lock.as_mut().unwrap();
+            // inner.toggle_fullscreen();
+            // inner.content_renderer.play();
         }
 
         Ok(Box::new(app))
