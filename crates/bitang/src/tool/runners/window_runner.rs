@@ -7,11 +7,11 @@ use anyhow::{Context, Result};
 use eframe::egui;
 use egui::ViewportBuilder;
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew};
-use tracing::debug;
 use std::cmp::max;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use tracing::debug;
 use tracing::{error, info};
 use wgpu::Backends;
 
@@ -200,16 +200,14 @@ impl AppInner {
             if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
         let bottom_panel_height = self.ui_height / pixels_per_point;
 
-        if bottom_panel_height <= 0.0 {
-            return;
+        if bottom_panel_height > 0.0 {
+            ctx.set_pixels_per_point(pixels_per_point);
+            self.ui.draw(
+                ctx,
+                &mut self.content_renderer.app_state,
+                bottom_panel_height,
+            );
         }
-
-        ctx.set_pixels_per_point(pixels_per_point);
-        self.ui.draw(
-            ctx,
-            &mut self.content_renderer.app_state,
-            bottom_panel_height,
-        );
 
         self.handle_hotkeys(&ctx);
     }
