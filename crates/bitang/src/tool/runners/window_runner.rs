@@ -11,6 +11,7 @@ use std::cmp::max;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use tracing::debug;
 use tracing::{error, info};
 use wgpu::Backends;
 
@@ -199,16 +200,14 @@ impl AppInner {
             if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
         let bottom_panel_height = self.ui_height / pixels_per_point;
 
-        if bottom_panel_height <= 0.0 {
-            return;
+        if bottom_panel_height > 0.0 {
+            ctx.set_pixels_per_point(pixels_per_point);
+            self.ui.draw(
+                ctx,
+                &mut self.content_renderer.app_state,
+                bottom_panel_height,
+            );
         }
-
-        ctx.set_pixels_per_point(pixels_per_point);
-        self.ui.draw(
-            ctx,
-            &mut self.content_renderer.app_state,
-            bottom_panel_height,
-        );
 
         self.handle_hotkeys(&ctx);
     }
@@ -238,7 +237,7 @@ impl AppInner {
             }
         }
         if ctx.input_mut(|i| i.consume_shortcut(&Self::FULLSCREEN_SHORTCUT)) {
-            self.toggle_fullscreen();
+            self.toggle_fullscreen(ctx);
             self.demo_mode = false;
         }
         if ctx.input_mut(|i| i.consume_shortcut(&Self::RESET_SIMULATION_SHORTCUT)) {
@@ -257,14 +256,16 @@ impl AppInner {
                 info!("Exiting on user request.");
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             } else if self.is_fullscreen {
-                self.toggle_fullscreen();
+                self.toggle_fullscreen(ctx);
                 self.content_renderer.app_state.pause();
             }
         }
     }
 
-    fn toggle_fullscreen(&mut self) {
-        todo!();
+    fn toggle_fullscreen(&mut self, ctx: &egui::Context) {
+        self.is_fullscreen = !self.is_fullscreen;
+        debug!("Setting fullscreen to {}", self.is_fullscreen);
+        ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
     }
 }
 
@@ -330,11 +331,13 @@ impl App {
         if START_IN_DEMO_MODE {
             // Start demo in fullscreen
             info!("Starting demo.");
+            todo!();
             // TODO: this is not pretty
-            let mut lock = app.inner.lock().unwrap();
-            let inner = lock.as_mut().unwrap();
-            inner.toggle_fullscreen();
-            inner.content_renderer.play();
+
+            // let mut lock = app.inner.lock().unwrap();
+            // let inner = lock.as_mut().unwrap();
+            // inner.toggle_fullscreen();
+            // inner.content_renderer.play();
         }
 
         Ok(Box::new(app))
