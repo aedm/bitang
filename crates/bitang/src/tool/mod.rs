@@ -10,20 +10,17 @@ mod ui;
 use crate::control::controls::Globals;
 use crate::render::image::{BitangImage, ImageSizeRule};
 use crate::render::{Size2D, FRAMEDUMP_PIXEL_FORMAT, SCREEN_RENDER_TARGET_ID};
-// use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
-use anyhow::Result;
+use anyhow::{Context, Result};
+use runners::frame_dump_runner::FrameDumpRunner;
 use runners::window_runner::WindowRunner;
 use std::default::Default;
 use std::sync::Arc;
 
-const START_IN_DEMO_MODE: bool = true;
+const START_IN_DEMO_MODE: bool = false;
 
 pub const FRAMEDUMP_MODE: bool = false;
-#[allow(dead_code)]
 pub const FRAMEDUMP_WIDTH: u32 = 3840;
-#[allow(dead_code)]
 pub const FRAMEDUMP_HEIGHT: u32 = 2160;
-#[allow(dead_code)]
 pub const FRAMEDUMP_FPS: u32 = 60;
 
 const SCREEN_RATIO: (u32, u32) = (16, 9);
@@ -46,9 +43,14 @@ impl GpuContext {
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
             .context("No suitable adapter found")?;
-    
+        let device_descriptor = wgpu::DeviceDescriptor {
+            required_features: wgpu::Features::FLOAT32_FILTERABLE
+                | wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER
+                | wgpu::Features::VERTEX_WRITABLE_STORAGE,
+            ..Default::default()
+        };
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default(), None)
+            .request_device(&device_descriptor, None)
             .await?;
 
         Ok(GpuContext {
@@ -94,8 +96,7 @@ pub struct ComputePassContext<'pass> {
 
 pub fn run_app() -> Result<()> {
     if FRAMEDUMP_MODE {
-        todo!()
-        // FrameDumpRunner::run()
+        FrameDumpRunner::run()
     } else {
         WindowRunner::run()
     }

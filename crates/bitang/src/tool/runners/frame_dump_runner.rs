@@ -1,5 +1,3 @@
-use crate::render::image::{BitangImage, ImageSizeRule};
-use crate::render::{SCREEN_COLOR_FORMAT, SCREEN_RENDER_TARGET_ID};
 use anyhow::Result;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -15,6 +13,7 @@ use crate::tool::{
 pub struct FrameDumpRunner {
     gpu_context: Arc<GpuContext>,
     app: ContentRenderer,
+    dst_buffer: wgpu::Buffer,
 }
 
 impl FrameDumpRunner {
@@ -27,9 +26,17 @@ impl FrameDumpRunner {
         let mut app = ContentRenderer::new(&gpu_context)?;
         app.reset_simulation(&gpu_context)?;
 
+        let dst_buffer = gpu_context.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Image save buffer"),
+            size: (FRAMEDUMP_WIDTH * FRAMEDUMP_HEIGHT * 4) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
         let mut frame_dump_runner = Self {
             gpu_context,
             app,
+            dst_buffer,
         };
 
         frame_dump_runner.render_demo_to_file();
@@ -128,27 +135,19 @@ impl FrameDumpRunner {
         self.app.draw(&mut frame_context);
 
         // Add a copy command to the end of the command buffer
-        self.add_frame_to_buffer_copy_command(&mut frame_context);
+        self.gpu_context.final_render_target.copy_attachment_to_buffer(&mut frame_context, &self.dst_buffer).unwrap();
 
         self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
     }
 
     fn get_frame_content(&mut self) -> Vec<u8> {
-        let buffer_lock = self.dumped_frame_buffer.read().unwrap();
-        buffer_lock.to_vec()
-    }
-
-    fn add_frame_to_buffer_copy_command(&mut self, render_context: &mut FrameContext) {
-        let image = render_context
-            .vulkan_context
-            .final_render_target
-            .get_image();
-        render_context
-            .command_builder
-            .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(
-                image,
-                self.dumped_frame_buffer.clone(),
-            ))
-            .unwrap();
+        let res = {
+            let dst_buffer_slice = self.dst_buffer.slice(..);
+            dst_buffer_slice.map_async(wgpu::MapMode::Read, |_| ());
+            self.gpu_context.device.poll(wgpu::Maintain::Wait);
+            dst_buffer_slice.get_mapped_range().to_vec()
+        };
+        self.dst_buffer.unmap();
+        res
     }
 }
