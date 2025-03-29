@@ -8,8 +8,8 @@ mod timer;
 mod ui;
 
 use crate::control::controls::Globals;
-use crate::render::image::BitangImage;
-use crate::render::Size2D;
+use crate::render::image::{BitangImage, ImageSizeRule};
+use crate::render::{Size2D, FRAMEDUMP_PIXEL_FORMAT, SCREEN_RENDER_TARGET_ID};
 // use crate::tool::runners::frame_dump_runner::FrameDumpRunner;
 use anyhow::Result;
 use runners::window_runner::WindowRunner;
@@ -35,7 +35,34 @@ pub struct GpuContext {
     pub device: wgpu::Device,
 
     // TODO: rename to swapchain something
+    // TODO: remove from here
     pub final_render_target: Arc<BitangImage>,
+}
+
+impl GpuContext {
+    pub async fn new_for_offscreen() -> Result<Self> {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .context("No suitable adapter found")?;
+    
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor::default(), None)
+            .await?;
+
+        Ok(GpuContext {
+            adapter,
+            queue,
+            device,
+            final_render_target: BitangImage::new_attachment(
+                SCREEN_RENDER_TARGET_ID,
+                FRAMEDUMP_PIXEL_FORMAT,
+                ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT),
+                false,
+            ),
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
