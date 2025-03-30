@@ -269,7 +269,9 @@ impl BitangImage {
         // Create a new image with the correct size.
         let mip_levels =
             if self.has_mipmaps { extent.max_mips(wgpu::TextureDimension::D2) } else { 1 };
-        let usage = wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT;
+        let usage = wgpu::TextureUsages::TEXTURE_BINDING
+            | wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::COPY_SRC;
         let image = context.device.create_texture(&wgpu::TextureDescriptor {
             label: Some(&self.id),
             size: extent,
@@ -338,6 +340,7 @@ impl BitangImage {
                 Ok(())
             }
             ImageInner::Immutable(texture) => {
+                // TODO: does this case ever run?
                 generate_mipmaps(
                     &mut context.command_encoder,
                     &context.gpu_context.device,
@@ -349,6 +352,43 @@ impl BitangImage {
                 bail!("Can't generate mipmaps for swapchain image");
             }
         }
+    }
+
+    pub fn copy_attachment_to_buffer(
+        &self,
+        context: &mut FrameContext,
+        buffer: &wgpu::Buffer,
+    ) -> Result<()> {
+        let ImageInner::Attachment(attachment) = &self.inner else {
+            bail!("Only attachment images can be copied to a buffer, and image '{}' is not an attachment texture.", self.id);
+        };
+        let attachment = attachment.read().unwrap();
+        let Some(texture) = &attachment.texture else {
+            bail!("Image '{}' has no texture, cannot copy to buffer.", self.id);
+        };
+        let extent = texture.size();
+        context.command_encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(extent.width * 4),
+                    rows_per_image: None,
+                },
+            },
+            wgpu::Extent3d {
+                width: extent.width,
+                height: extent.height,
+                depth_or_array_layers: 1,
+            },
+        );
+        Ok(())
     }
 }
 
