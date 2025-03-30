@@ -49,9 +49,7 @@ impl GpuContext {
                 | wgpu::Features::VERTEX_WRITABLE_STORAGE,
             ..Default::default()
         };
-        let (device, queue) = adapter
-            .request_device(&device_descriptor, None)
-            .await?;
+        let (device, queue) = adapter.request_device(&device_descriptor, None).await?;
 
         Ok(GpuContext {
             adapter,
