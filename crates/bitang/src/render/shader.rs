@@ -219,7 +219,7 @@ impl Shader {
                     // Just store texture view in an array.
                     // This is needed because we create texture views per frame.
                     // TODO: cache texture views
-                    let texture_view = image_descriptor.image.make_texture_view_for_sampler()?;
+                    let texture_view = image_descriptor.image.view_as_sampler()?;
                     texture_views.push((descriptor_resource.binding, texture_view));
                     continue;
                 }

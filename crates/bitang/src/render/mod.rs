@@ -14,6 +14,7 @@ pub mod project;
 pub mod render_object;
 pub mod scene;
 pub mod shader;
+pub mod mipmap_generator;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
