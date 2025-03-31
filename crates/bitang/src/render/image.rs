@@ -157,23 +157,26 @@ impl BitangImage {
             extent,
         );
 
-        if mip_level_count > 1 {
-            let mut command_encoder =
-                context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-            MipmapGenerator::generate(&mut command_encoder, &context.device, &texture);
-            context.queue.submit(Some(command_encoder.finish()));
-        }
-
-        Ok(Arc::new(Self {
+        let image = Arc::new(Self {
             id: id.to_owned(),
             pixel_format,
             inner: ImageInner::Immutable(texture),
             has_mipmaps: true,
-        }))
+        });
+
+        if mip_level_count > 1 {
+            let mut command_encoder =
+                context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+            MipmapGenerator::new(&context.device, image.clone())
+                .generate(&mut command_encoder, &context.device);
+            context.queue.submit(Some(command_encoder.finish()));
+        }
+
+        Ok(image)
     }
 
     // Returns an image view that only has one mip level.
-    pub fn get_view_for_render_target(&self) -> Result<wgpu::TextureView> {
+    pub fn view_as_render_target(&self) -> Result<wgpu::TextureView> {
         let view: wgpu::TextureView = match &self.inner {
             ImageInner::Immutable(_) => {
                 bail!("Immutable image can't be used as a render target");
@@ -202,7 +205,7 @@ impl BitangImage {
     }
 
     // Returns an image view for sampling purposes. It includes all mip levels.
-    pub fn make_texture_view_for_sampler(&self) -> Result<wgpu::TextureView> {
+    pub fn view_as_sampler(&self) -> Result<wgpu::TextureView> {
         let view: wgpu::TextureView = match &self.inner {
             ImageInner::Immutable(texture) => texture.create_view(&wgpu::TextureViewDescriptor {
                 usage: Some(wgpu::TextureUsages::TEXTURE_BINDING),
@@ -222,6 +225,34 @@ impl BitangImage {
                     mip_level_count: Some(texture.mip_level_count()),
                     ..wgpu::TextureViewDescriptor::default()
                 })
+            }
+            ImageInner::Swapchain(_) => {
+                bail!("Swapchain image can't be used in a sampler");
+            }
+        };
+        Ok(view)
+    }
+
+    pub fn view_mip_level(&self, mip_level: u32) -> Result<wgpu::TextureView> {
+        let view_descriptor = wgpu::TextureViewDescriptor {
+            label: Some("mip"),
+            format: None,
+            dimension: None,
+            usage: None,
+            aspect: wgpu::TextureAspect::All,
+            base_mip_level: mip_level,
+            mip_level_count: Some(1),
+            base_array_layer: 0,
+            array_layer_count: None,
+        };
+        let view = match &self.inner {
+            ImageInner::Immutable(texture) => texture.create_view(&view_descriptor),
+            ImageInner::Attachment(attachment) => {
+                let attachment = attachment.read().unwrap();
+                let Some(texture) = &attachment.texture else {
+                    bail!("Attachment image not initialized");
+                };
+                texture.create_view(&view_descriptor)
             }
             ImageInner::Swapchain(_) => {
                 bail!("Swapchain image can't be used in a sampler");
@@ -325,21 +356,20 @@ impl BitangImage {
         }
     }
 
-    pub fn generate_mipmaps(&self, context: &mut FrameContext) -> Result<()> {
-        let ImageInner::Attachment(attachment) = &self.inner else {
-            bail!("Mipmaps can only be generated for attachment textures during rendering, and image '{}' is not an attachment texture.", self.id);
-        };
-
-        let attachment = attachment.read().unwrap();
-        let Some(texture) = &attachment.texture else {
-            bail!("Image '{}' has no texture", self.id);
-        };
-        MipmapGenerator::generate(
-            &mut context.command_encoder,
-            &context.gpu_context.device,
-            texture,
-        );
-        Ok(())
+    pub fn mip_levels(&self) -> Result<u32> {
+        match &self.inner {
+            ImageInner::Attachment(attachment) => {
+                let attachment = attachment.read().unwrap();
+                let Some(texture) = &attachment.texture else {
+                    bail!("Image '{}' has no texture", self.id);
+                };
+                Ok(texture.mip_level_count())
+            }
+            ImageInner::Immutable(texture) => Ok(texture.mip_level_count()),
+            ImageInner::Swapchain(_) => {
+                bail!("Swapchain image has no mip levels");
+            }
+        }
     }
 
     pub fn copy_attachment_to_buffer(

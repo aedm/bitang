@@ -53,13 +53,13 @@ impl Pass {
         let color_attachment_views: SmallVec<[_; 64]> = self
             .color_buffers
             .iter()
-            .map(|image| image.get_view_for_render_target())
+            .map(|image| image.view_as_render_target())
             .collect::<Result<_>>()?;
 
         let depth_buffer_view = self
             .depth_buffer
             .as_ref()
-            .map(|depth_image| depth_image.get_view_for_render_target())
+            .map(|depth_image| depth_image.view_as_render_target())
             .transpose()?;
 
         // Collect attachments

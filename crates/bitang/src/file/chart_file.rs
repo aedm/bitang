@@ -198,10 +198,11 @@ impl GenerateMipLevels {
         })?;
         let image = image.get().await?;
 
-        Ok(render::generate_mip_levels::GenerateMipLevels {
-            _id: self.id.clone(),
-            image: image.clone(),
-        })
+        Ok(render::generate_mip_levels::GenerateMipLevels::new(
+            &chart_context.gpu_context,
+            &self.id,
+            image,
+        ))
     }
 }
 
