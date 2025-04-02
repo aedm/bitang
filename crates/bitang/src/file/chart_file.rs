@@ -26,7 +26,7 @@ pub struct ChartContext {
     pub control_set_builder: ControlSetBuilder,
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
-    pub buffers_by_id: HashMap<String, Rc<render::buffer::Buffer>>,
+    pub buffers_by_id: HashMap<String, Rc<render::double_buffer::DoubleBuffer>>,
     pub path: ResourcePath,
 }
 
@@ -36,7 +36,7 @@ pub struct Chart {
     pub images: Vec<Image>,
 
     #[serde(default)]
-    pub buffers: Vec<Buffer>,
+    pub buffers: Vec<DoubleBuffer>,
 
     /// Simulation should run this long before starting the demo
     #[serde(default)]
@@ -386,14 +386,14 @@ impl Pass {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Buffer {
+pub struct DoubleBuffer {
     id: String,
     item_size_in_vec4: usize,
     item_count: usize,
 }
 
-impl Buffer {
-    pub fn load(&self, context: &Arc<GpuContext>) -> render::buffer::Buffer {
-        render::buffer::Buffer::new(context, self.item_size_in_vec4, self.item_count)
+impl DoubleBuffer {
+    pub fn load(&self, context: &Arc<GpuContext>) -> render::double_buffer::DoubleBuffer {
+        render::double_buffer::DoubleBuffer::new(context, self.item_size_in_vec4, self.item_count)
     }
 }

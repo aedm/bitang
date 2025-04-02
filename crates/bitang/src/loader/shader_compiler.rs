@@ -193,11 +193,7 @@ impl ShaderArtifact {
             .combine_img_samplers(true)
             .gen_unique_names(false)
             .reflect()?;
-        let main_function = match kind {
-            ShaderKind::Vertex => "vs_main",
-            ShaderKind::Fragment => "fs_main",
-            ShaderKind::Compute => "cs_main",
-        };
+        let main_function = kind.entry_point();
         let entry_point = entry_points
             .iter()
             .find(|ep| ep.name == main_function)
@@ -213,6 +209,7 @@ impl ShaderArtifact {
             ShaderKind::Vertex => 0,
             ShaderKind::Fragment => 1,
             ShaderKind::Compute => 0,
+            ShaderKind::ComputeInit | ShaderKind::ComputeSimulate => 0,
         };
 
         let mut samplers = Vec::new();

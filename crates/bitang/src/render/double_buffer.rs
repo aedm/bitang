@@ -3,14 +3,14 @@ use std::array::from_fn;
 use std::cell::Cell;
 
 // TODO: id
-pub struct Buffer {
+pub struct DoubleBuffer {
     pub item_size_in_vec4: usize,
     pub item_count: usize,
     buffers: [wgpu::Buffer; 2],
     current_index: Cell<usize>,
 }
 
-impl Buffer {
+impl DoubleBuffer {
     pub fn new(context: &GpuContext, item_size_in_vec4: usize, item_count: usize) -> Self {
         let size = (item_count * item_size_in_vec4 * size_of::<glam::Vec4>()) as u64;
         let buffers = from_fn(|_| {
@@ -22,7 +22,7 @@ impl Buffer {
             })
         });
 
-        Buffer {
+        DoubleBuffer {
             item_size_in_vec4,
             item_count,
             buffers,

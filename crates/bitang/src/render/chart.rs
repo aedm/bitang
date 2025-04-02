@@ -7,7 +7,7 @@ use crate::render::generate_mip_levels::GenerateMipLevels;
 use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::{ComputePassContext, FrameContext};
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -26,13 +26,13 @@ pub struct Chart {
     pub steps: Vec<ChartStep>,
 
     /// The time representing the `Next` step
-    simulation_next_buffer_time: Cell<f32>,
+    // simulation_next_buffer_time: Cell<f32>,
 
-    /// The elapsed time, normally between `Current` and `Next` steps of the simulation
-    simulation_elapsed_time: Cell<f32>,
+    // /// The elapsed time, normally between `Current` and `Next` steps of the simulation
+    // simulation_elapsed_time: Cell<f32>,
 
-    /// Simulation should be running this long during precalculation
-    simulation_precalculation_time: f32,
+    // /// Simulation should be running this long during precalculation
+    // simulation_precalculation_time: f32,
 }
 
 impl Chart {
@@ -198,5 +198,56 @@ impl Chart {
         for control in &self.controls.used_controls {
             control.evaluate_splines(time);
         }
+    }
+}
+
+struct SimulationCursor {
+    /// Current time. Must be between 
+    /// (next_buffer_time-SIMULATION_STEP_SECONDS) < time <= next_buffer_time
+    time: Option<f32>,
+
+    /// Time of "next" buffer
+    next_buffer_time: f32,
+
+    precalculation_time: f32,
+}
+
+impl SimulationCursor {
+    pub fn new(precalculation_time: f32) -> SimulationCursor {
+        SimulationCursor {
+            time: None,
+            next_buffer_time: 0.0,
+            precalculation_time,
+        }
+    }
+
+    /// Returns the time at which the init computation needs to run.
+    pub fn reset(&mut self) -> f32 {
+        let cursor = -self.precalculation_time;
+        self.time = Some(cursor);
+        self.next_buffer_time = cursor;
+        cursor
+    }
+
+    /// Returns a time at which the simulation needs to run.
+    /// Returns None if the simulation is up-to-date.
+    pub fn step(&mut self) -> Result<Option<f32>> {
+        let Some(time) = self.time else {
+            bail!("Simulation is not initialized");
+        };
+
+        if self.next_buffer_time > time {
+            return Ok(None);
+        }
+        let next_step = self.next_buffer_time + SIMULATION_STEP_SECONDS;
+        self.next_buffer_time = next_step;
+        Ok(Some(next_step))
+    }
+
+    /// Seeks the simulation to a specific time.
+    /// Simulation needs to run at that point
+    pub fn seek(&mut self, cursor: f32) {
+        self.time = Some(cursor);
+        self.next_buffer_time = cursor;
     }
 }
