@@ -128,17 +128,6 @@ impl ContentRenderer {
         self.app_state.pause();
     }
 
-    // TODO: move to Chart
-    fn reset_chart_simulation(context: &mut ComputePassContext, chart: &Chart) -> Result<()> {
-        let mut first_iteration = true;
-        let mut is_simulation_done = false;
-        while !is_simulation_done {
-            is_simulation_done = chart.reset_simulation(context, first_iteration, true)?;
-            first_iteration = false;
-        }
-        Ok(())
-    }
-
     pub fn reset_simulation(&mut self, context: &GpuContext) -> Result<()> {
         let mut command_encoder =
             context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -157,13 +146,13 @@ impl ContentRenderer {
 
         match self.app_state.get_chart() {
             // Reset only the selected chart
-            Some(chart) => Self::reset_chart_simulation(&mut compute_pass_context, &chart)?,
+            Some(chart) => chart.reset_simulation(&mut compute_pass_context)?,
 
             // No chart selected, reset all of them
             None => {
                 if let Some(project) = &self.app_state.project {
                     for cut in &project.cuts {
-                        Self::reset_chart_simulation(&mut compute_pass_context, &cut.chart)?;
+                        cut.chart.reset_simulation(&mut compute_pass_context)?;
                     }
                 }
             }
