@@ -167,7 +167,7 @@ impl ContentRenderer {
         Ok(())
     }
 
-    pub fn set_last_render_time(&mut self, last_render_time: f32) {
-        self.last_render_time = Some(last_render_time);
+    pub fn unset_last_render_time(&mut self) {
+        self.last_render_time = None;
     }
 }

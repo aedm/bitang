@@ -8,6 +8,7 @@ use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::{ComputePassContext, FrameContext};
 use anyhow::{bail, ensure, Result};
+use tracing::{debug, info, warn};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -98,6 +99,8 @@ impl Chart {
         // The simulation sees the simulation time as the current time.
         let chart_time = context.globals.chart_time;
 
+        warn!("elapsed: {}", context.globals.simulation_elapsed_time_since_last_render);
+
         let mut simulation_cursor = self.simulation_cursor.borrow_mut();
         simulation_cursor.advance_cursor(context.globals.simulation_elapsed_time_since_last_render);
         
@@ -106,7 +109,9 @@ impl Chart {
         // let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
 
         for step_count in 0.. {
+            debug!("step_count: {step_count}");
             if !is_precalculation && step_count >= 3 {
+                info!("Simulation steps: {step_count}");
                 // Failsafe: limit the number steps per frame to avoid overloading the GPU.
                 break;
             }
@@ -219,6 +224,8 @@ impl SimulationCursor {
     /// Returns a time at which the simulation needs to run.
     /// Returns None if the simulation is up-to-date.
     pub fn step(&mut self) -> Option<f32> {
+        // debug!("cursor: {}", self.cursor);
+        // debug!("simulation_time: {:?}", self.simulation_time);
         let sim_time = match self.simulation_time {
             Some(sim_time) if sim_time > self.cursor => return None,
             Some(sim_time) => sim_time + SIMULATION_STEP_SECONDS,

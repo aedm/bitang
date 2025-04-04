@@ -173,7 +173,7 @@ impl AppInner {
         if self.content_renderer.reload_project(&self.gpu_context) {
             self.content_renderer.reset_simulation(&self.gpu_context).unwrap();
             frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
-            self.content_renderer.set_last_render_time(frame_context.globals.app_time);
+            self.content_renderer.unset_last_render_time();
         }
 
         // Render content
@@ -252,7 +252,7 @@ impl AppInner {
         }
         if ctx.input_mut(|i| i.consume_shortcut(&Self::RESET_SIMULATION_SHORTCUT)) {
             self.content_renderer.reset_simulation(&self.gpu_context).unwrap();
-            self.content_renderer.set_last_render_time(self.app_start_time.elapsed().as_secs_f32());
+            self.content_renderer.unset_last_render_time();
         }
         if ctx.input_mut(|i| i.consume_shortcut(&Self::TOGGLE_SIMULATION_SHORTCUT)) {
             self.content_renderer.app_state.is_simulation_enabled =
