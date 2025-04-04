@@ -48,6 +48,7 @@ impl ContentRenderer {
 
     pub fn draw(&mut self, context: &mut FrameContext) {
         self.app_state.tick();
+        context.globals.is_paused = !self.app_state.is_playing();
 
         // TODO: This value should be set to Globals at its initialization
         context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
