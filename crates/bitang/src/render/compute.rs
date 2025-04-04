@@ -1,12 +1,12 @@
-use crate::render::buffer::Buffer;
+use crate::render::double_buffer::DoubleBuffer;
 use crate::render::shader::Shader;
 use crate::tool::{ComputePassContext, GpuContext};
 use anyhow::Result;
 use std::rc::Rc;
 
 pub enum Run {
-    Init(Rc<Buffer>),
-    Simulate(Rc<Buffer>),
+    Init(Rc<DoubleBuffer>),
+    Simulate(Rc<DoubleBuffer>),
 }
 
 /// Represents a compute step in the chart sequence.

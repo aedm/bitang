@@ -1,5 +1,5 @@
 use crate::control::controls::{Control, GlobalType, Globals};
-use crate::render::buffer::Buffer;
+use crate::render::double_buffer::DoubleBuffer;
 use crate::render::image::BitangImage;
 use crate::tool::{ComputePassContext, GpuContext, RenderPassContext};
 use anyhow::Result;
@@ -14,9 +14,11 @@ const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 pub enum ShaderKind {
-    Vertex = 0,
-    Fragment = 1,
-    Compute = 2,
+    Vertex,
+    Fragment,
+    Compute,
+    ComputeInit,
+    ComputeSimulate,
 }
 
 impl ShaderKind {
@@ -34,6 +36,18 @@ impl ShaderKind {
             ShaderKind::Vertex => 0,
             ShaderKind::Fragment => 1,
             ShaderKind::Compute => 0,
+            ShaderKind::ComputeInit => 0,
+            ShaderKind::ComputeSimulate => 0,
+        }
+    }
+
+    pub fn entry_point(&self) -> &'static str {
+        match self {
+            ShaderKind::Vertex => "vs_main",
+            ShaderKind::Fragment => "fs_main",
+            ShaderKind::Compute => "cs_main",
+            ShaderKind::ComputeInit => "cs_main",
+            ShaderKind::ComputeSimulate => "cs_main",
         }
     }
 }
@@ -62,7 +76,7 @@ pub struct Shader {
     /// Storage for the uniform buffer values    
     uniform_buffer: wgpu::Buffer,
 
-    ///
+    /// Layout of the single bind group containing all resources
     pub bind_group_layout: wgpu::BindGroupLayout,
 }
 
@@ -89,6 +103,8 @@ impl Shader {
             ShaderKind::Vertex => wgpu::ShaderStages::VERTEX,
             ShaderKind::Fragment => wgpu::ShaderStages::FRAGMENT,
             ShaderKind::Compute => wgpu::ShaderStages::COMPUTE,
+            ShaderKind::ComputeInit => wgpu::ShaderStages::COMPUTE,
+            ShaderKind::ComputeSimulate => wgpu::ShaderStages::COMPUTE,
         };
 
         if uniform_buffer_size > 0 {
@@ -343,8 +359,8 @@ impl SamplerDescriptor {
 pub enum DescriptorSource {
     Image(ImageDescriptor),
     Sampler(SamplerDescriptor),
-    BufferCurrent(Rc<Buffer>),
-    BufferNext(Rc<Buffer>),
+    BufferCurrent(Rc<DoubleBuffer>),
+    BufferNext(Rc<DoubleBuffer>),
 }
 
 pub struct DescriptorResource {
