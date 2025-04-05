@@ -48,6 +48,7 @@ impl ContentRenderer {
 
     pub fn draw(&mut self, context: &mut FrameContext) {
         self.app_state.tick();
+        context.globals.is_paused = !self.app_state.is_playing();
 
         // TODO: This value should be set to Globals at its initialization
         context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
@@ -128,17 +129,6 @@ impl ContentRenderer {
         self.app_state.pause();
     }
 
-    // TODO: move to Chart
-    fn reset_chart_simulation(context: &mut ComputePassContext, chart: &Chart) -> Result<()> {
-        let mut first_iteration = true;
-        let mut is_simulation_done = false;
-        while !is_simulation_done {
-            is_simulation_done = chart.reset_simulation(context, first_iteration, true)?;
-            first_iteration = false;
-        }
-        Ok(())
-    }
-
     pub fn reset_simulation(&mut self, context: &GpuContext) -> Result<()> {
         let mut command_encoder =
             context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -157,13 +147,13 @@ impl ContentRenderer {
 
         match self.app_state.get_chart() {
             // Reset only the selected chart
-            Some(chart) => Self::reset_chart_simulation(&mut compute_pass_context, &chart)?,
+            Some(chart) => chart.reset_simulation(&mut compute_pass_context)?,
 
             // No chart selected, reset all of them
             None => {
                 if let Some(project) = &self.app_state.project {
                     for cut in &project.cuts {
-                        Self::reset_chart_simulation(&mut compute_pass_context, &cut.chart)?;
+                        cut.chart.reset_simulation(&mut compute_pass_context)?;
                     }
                 }
             }
@@ -178,7 +168,7 @@ impl ContentRenderer {
         Ok(())
     }
 
-    pub fn set_last_render_time(&mut self, last_render_time: f32) {
-        self.last_render_time = Some(last_render_time);
+    pub fn unset_last_render_time(&mut self) {
+        self.last_render_time = None;
     }
 }

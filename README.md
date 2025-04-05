@@ -1,6 +1,6 @@
 # Bitang
 
-A framework for creative coding, mainly targeted at demoscene productions. Currently in a very early stage of development.
+A framework for creative coding, mainly targeted at demoscene productions. Currently in a very early stage of development, code quality reflects the experimental nature of the project.
 
 ![screenshot2](screenshot2.png)
 
@@ -18,7 +18,6 @@ Not a lot of docs yet. Use the example project [`"Attractors"`](https://github.c
 
 Dependencies:
 - Rust
-- Cmake, Ninja and Python (see https://github.com/aedm/bitang/issues/227)
 
 
 ### Build & run
@@ -30,7 +29,7 @@ The development platform is Windows, but Linux and MacOS should work as well.
 
 ## Hardware requirements
 
-Anything that supports Vulkan.
+Anything that runs DX12 (Windows), Vulkan (Linux) or Metal (MacOS).
 
 
 ## License

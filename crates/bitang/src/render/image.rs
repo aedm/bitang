@@ -168,7 +168,7 @@ impl BitangImage {
             let mut command_encoder =
                 context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
             MipmapGenerator::new(&context.device, image.clone())
-                .generate(&mut command_encoder, &context.device);
+                .generate(&mut command_encoder, &context.device)?;
             context.queue.submit(Some(command_encoder.finish()));
         }
 

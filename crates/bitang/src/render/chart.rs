@@ -7,8 +7,9 @@ use crate::render::generate_mip_levels::GenerateMipLevels;
 use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::{ComputePassContext, FrameContext};
-use anyhow::Result;
-use std::cell::Cell;
+use anyhow::{bail, ensure, Result};
+use tracing::{debug, info, warn};
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -25,14 +26,7 @@ pub struct Chart {
     images: Vec<Arc<BitangImage>>,
     pub steps: Vec<ChartStep>,
 
-    /// The time representing the `Next` step
-    simulation_next_buffer_time: Cell<f32>,
-
-    /// The elapsed time, normally between `Current` and `Next` steps of the simulation
-    simulation_elapsed_time: Cell<f32>,
-
-    /// Simulation should be running this long during precalculation
-    simulation_precalculation_time: f32,
+    simulation_cursor: RefCell<SimulationCursor>,
 }
 
 impl Chart {
@@ -63,37 +57,30 @@ impl Chart {
             images,
             steps,
             controls,
-            simulation_next_buffer_time: Cell::new(0.0),
-            simulation_elapsed_time: Cell::new(0.0),
-            simulation_precalculation_time,
+            simulation_cursor: RefCell::new(SimulationCursor::new(simulation_precalculation_time)),
         }
+    }
+
+    pub fn seek(&self, cursor: f32) {
+        self.simulation_cursor.borrow_mut().seek(cursor);
     }
 
     /// Reruns the initialization step and runs the simulation for the precalculation time.
-    ///
-    /// Returns true if the computation is done, false if the precalculation needs more iterations.
-    pub fn reset_simulation(
-        &self,
-        context: &mut ComputePassContext,
-        run_init: bool,
-        run_precalc: bool,
-    ) -> Result<bool> {
-        if run_init {
-            self.initialize(context)?;
-
-            // Chart is started at negative time during precalculation
-            self.simulation_elapsed_time.set(0.0);
-            self.simulation_next_buffer_time.set(-self.simulation_precalculation_time);
-        }
-        if run_precalc {
-            return self.simulate(context, true);
-        }
-        Ok(true)
+    pub fn reset_simulation(&self, context: &mut ComputePassContext) -> Result<()> {
+        self.initialize(context)?;
+        self.simulate(context, true)?;
+        Ok(())
     }
 
     fn initialize(&self, context: &mut ComputePassContext) -> Result<()> {
-        self.simulation_next_buffer_time.set(0.0);
-        self.simulation_elapsed_time.set(0.0);
+        let mut simulation_cursor = self.simulation_cursor.borrow_mut();
+        simulation_cursor.reset();
+        let Some(sim_time) = simulation_cursor.step_and_return_diff() else {
+            unreachable!("Simulation cursor should always have a first step");
+        };
+        let chart_time = context.globals.chart_time;
+        context.globals.chart_time = sim_time;
+        self.evaluate_splines(sim_time);
         for step in &self.steps {
             if let ChartStep::Compute(compute) = step {
                 if let Run::Init(_) = compute.run {
@@ -101,6 +88,7 @@ impl Chart {
                 }
             }
         }
+        context.globals.chart_time = chart_time;
         Ok(())
     }
 
@@ -110,30 +98,38 @@ impl Chart {
     /// to blend buffer values during rendering.
     ///
     /// Returns true if the simulation is done, false if the simulation needs more iteration.
-    fn simulate(&self, context: &mut ComputePassContext, is_precalculation: bool) -> Result<bool> {
+    fn simulate(&self, context: &mut ComputePassContext, is_precalculation: bool) -> Result<()> {
         // Save the app time and restore it after the simulation step.
         // The simulation sees the simulation time as the current time.
-        let app_time = context.globals.app_time;
         let chart_time = context.globals.chart_time;
 
-        let time = self.simulation_elapsed_time.get()
-            + context.globals.simulation_elapsed_time_since_last_render;
-        let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
+        let mut simulation_cursor = self.simulation_cursor.borrow_mut();
+        simulation_cursor.advance_cursor(context.globals.simulation_elapsed_time_since_last_render);
 
-        // Failsafe: limit the number steps per frame to avoid overloading the GPU.
-        let maximum_steps = if is_precalculation { 10 } else { 3 };
-        for _ in 0..maximum_steps {
-            if simulation_next_buffer_time > time {
+        const MAX_SIMULATION_STEPS_PER_FRAME: usize = 3;
+        if !is_precalculation {
+            let allowed_steps = if context.globals.is_paused { 2 } else { MAX_SIMULATION_STEPS_PER_FRAME };
+            simulation_cursor.ensure_uptodate_max_steps(allowed_steps);
+        }
+
+        for step_count in 0.. {
+            if !is_precalculation && step_count >= 3 {
+                // Failsafe: limit the number steps per frame to avoid overloading the GPU.
                 break;
             }
+            let Some(sim_ahead) = simulation_cursor.step_and_return_diff() else {
+                // Simulation is up-to-date
+                break;
+            };
 
-            // Calculate chart time
-            if is_precalculation {
-                // TODO: this is incorrect, splines should always be evaluated at chart cursor
-                context.globals.app_time = simulation_next_buffer_time;
-                context.globals.chart_time = simulation_next_buffer_time;
-                self.evaluate_splines(simulation_next_buffer_time);
-            }
+            let sim_time = if context.globals.is_paused {
+                chart_time
+            } else {
+                chart_time + sim_ahead
+            };
+
+            context.globals.chart_time = sim_time;
+            self.evaluate_splines(sim_time);
 
             for step in &self.steps {
                 if let ChartStep::Compute(compute) = step {
@@ -142,21 +138,14 @@ impl Chart {
                     }
                 }
             }
-            simulation_next_buffer_time += SIMULATION_STEP_SECONDS;
         }
 
-        self.simulation_next_buffer_time.set(simulation_next_buffer_time);
-        self.simulation_elapsed_time.set(time);
-
-        let ratio = 1.0 - (simulation_next_buffer_time - time) / SIMULATION_STEP_SECONDS;
-        context.globals.simulation_frame_ratio = ratio.min(1.0).max(0.0);
+        context.globals.simulation_frame_ratio = simulation_cursor.ratio()?;
 
         // Restore globals
-        context.globals.app_time = app_time;
         context.globals.chart_time = chart_time;
 
-        // Simulation is done if next time is greater than current time
-        Ok(simulation_next_buffer_time >= time)
+        Ok(())
     }
 
     pub fn render(&self, context: &mut FrameContext) -> Result<()> {
@@ -198,5 +187,72 @@ impl Chart {
         for control in &self.controls.used_controls {
             control.evaluate_splines(time);
         }
+    }
+}
+
+struct SimulationCursor {
+    /// Current chart cursor.
+    /// (time-SIMULATION_STEP_SECONDS) < cursor <= simulation_time
+    cursor: f32,
+
+    /// Time of the most recent simulated step
+    simulation_time: Option<f32>,
+
+    precalculation_time: f32,
+}
+
+impl SimulationCursor {
+    pub fn new(precalculation_time: f32) -> SimulationCursor {
+        SimulationCursor {
+            cursor: 0.0,
+            simulation_time: None,
+            precalculation_time,
+        }
+    }
+
+    /// Returns the time at which the init computation needs to run.
+    /// Resetting the simulation does not reset the cursor to 0, the simulation
+    /// can continue from the current point. It's useful for resetting the simulation
+    /// during editing.
+    pub fn reset(&mut self) {
+        self.simulation_time = None;
+    }
+
+    /// Seeks the simulation to a specific time.
+    /// Simulation needs to run at that point
+    pub fn seek(&mut self, cursor: f32) {
+        self.cursor = cursor;
+        self.simulation_time = None;
+    }
+
+    pub fn advance_cursor(&mut self, elapsed: f32) {
+        self.cursor += elapsed;
+    }
+
+    /// Returns how much the simulation time is ahead of the cursor.
+    /// Returns None if the simulation is up-to-date.
+    pub fn step_and_return_diff(&mut self) -> Option<f32> {
+        let sim_time = match self.simulation_time {
+            Some(sim_time) if sim_time > self.cursor => return None,
+            Some(sim_time) => sim_time + SIMULATION_STEP_SECONDS,
+            None => self.cursor - self.precalculation_time,
+        };
+        self.simulation_time = Some(sim_time);
+        Some(sim_time - self.cursor)
+    }
+
+    pub fn ratio(&self) -> Result<f32> {
+        let Some(sim_time) = self.simulation_time else {
+            bail!("Simulation did not initialize");
+        };
+        let ratio = 1.0 - (sim_time - self.cursor) / SIMULATION_STEP_SECONDS;
+        Ok(ratio.min(1.0).max(0.0))
+    }
+
+    pub fn ensure_uptodate_max_steps(&mut self, max_steps: usize) {
+        if let Some(sim_time) = self.simulation_time {
+            let min_time = self.cursor - max_steps as f32 * SIMULATION_STEP_SECONDS;
+            self.simulation_time = Some(sim_time.max(min_time));
+        };
     }
 }

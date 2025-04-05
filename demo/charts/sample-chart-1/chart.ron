@@ -46,7 +46,7 @@ Chart(
     ],
     simulation_precalculation_time: 0,
     buffers: [
-        Buffer(
+        DoubleBuffer(
             id: "particles",
             item_size_in_vec4: 3,
             item_count: 256,

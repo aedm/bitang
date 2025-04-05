@@ -404,8 +404,9 @@ pub struct Globals {
     pub simulation_frame_ratio: f32,
     pub simulation_step_seconds: f32,
 
-    // TODO: find a better place for this
+    // TODO: find a better place for these
     pub simulation_elapsed_time_since_last_render: f32,
+    pub is_paused: bool,
 }
 
 impl Globals {
