@@ -61,6 +61,10 @@ impl Chart {
         }
     }
 
+    pub fn seek(&self, cursor: f32) {
+        self.simulation_cursor.borrow_mut().seek(cursor);
+    }
+
     /// Reruns the initialization step and runs the simulation for the precalculation time.
     pub fn reset_simulation(&self, context: &mut ComputePassContext) -> Result<()> {
         self.initialize(context)?;
@@ -69,16 +73,14 @@ impl Chart {
     }
 
     fn initialize(&self, context: &mut ComputePassContext) -> Result<()> {
-        todo!()
         let mut simulation_cursor = self.simulation_cursor.borrow_mut();
         simulation_cursor.reset();
         let Some(sim_time) = simulation_cursor.step_and_return_diff() else {
             unreachable!("Simulation cursor should always have a first step");
         };
-        let globals_time = context.globals.chart_time;
+        let chart_time = context.globals.chart_time;
         context.globals.chart_time = sim_time;
         self.evaluate_splines(sim_time);
-
         for step in &self.steps {
             if let ChartStep::Compute(compute) = step {
                 if let Run::Init(_) = compute.run {
@@ -86,6 +88,7 @@ impl Chart {
                 }
             }
         }
+        context.globals.chart_time = chart_time;
         Ok(())
     }
 
@@ -100,25 +103,17 @@ impl Chart {
         // The simulation sees the simulation time as the current time.
         let chart_time = context.globals.chart_time;
 
-        warn!("elapsed: {}", context.globals.simulation_elapsed_time_since_last_render);
-
         let mut simulation_cursor = self.simulation_cursor.borrow_mut();
         simulation_cursor.advance_cursor(context.globals.simulation_elapsed_time_since_last_render);
-        
-        // let time = self.simulation_elapsed_time.get()
-        //     + context.globals.simulation_elapsed_time_since_last_render;
-        // let mut simulation_next_buffer_time = self.simulation_next_buffer_time.get();
 
         const MAX_SIMULATION_STEPS_PER_FRAME: usize = 3;
         if !is_precalculation {
             let allowed_steps = if context.globals.is_paused { 2 } else { MAX_SIMULATION_STEPS_PER_FRAME };
-            simulation_cursor.ensure_uptodate_max_steps(allowed_steps)?;
+            simulation_cursor.ensure_uptodate_max_steps(allowed_steps);
         }
 
         for step_count in 0.. {
-            debug!("step_count: {step_count}");
             if !is_precalculation && step_count >= 3 {
-                info!("Simulation steps: {step_count}");
                 // Failsafe: limit the number steps per frame to avoid overloading the GPU.
                 break;
             }
@@ -237,8 +232,6 @@ impl SimulationCursor {
     /// Returns how much the simulation time is ahead of the cursor.
     /// Returns None if the simulation is up-to-date.
     pub fn step_and_return_diff(&mut self) -> Option<f32> {
-        // debug!("cursor: {}", self.cursor);
-        // debug!("simulation_time: {:?}", self.simulation_time);
         let sim_time = match self.simulation_time {
             Some(sim_time) if sim_time > self.cursor => return None,
             Some(sim_time) => sim_time + SIMULATION_STEP_SECONDS,
@@ -252,17 +245,14 @@ impl SimulationCursor {
         let Some(sim_time) = self.simulation_time else {
             bail!("Simulation did not initialize");
         };
-        
         let ratio = 1.0 - (sim_time - self.cursor) / SIMULATION_STEP_SECONDS;
         Ok(ratio.min(1.0).max(0.0))
     }
 
-    pub fn ensure_uptodate_max_steps(&mut self, max_steps: usize) -> Result<()> {
-        let Some(sim_time) = self.simulation_time else {
-            bail!("Simulation did not initialize");
+    pub fn ensure_uptodate_max_steps(&mut self, max_steps: usize) {
+        if let Some(sim_time) = self.simulation_time {
+            let min_time = self.cursor - max_steps as f32 * SIMULATION_STEP_SECONDS;
+            self.simulation_time = Some(sim_time.max(min_time));
         };
-        let min_time = self.cursor - max_steps as f32 * SIMULATION_STEP_SECONDS;
-        self.simulation_time = Some(sim_time.max(min_time));
-        Ok(())
     }
 }
