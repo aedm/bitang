@@ -3,7 +3,7 @@ use crate::file::chart_file::ChartContext;
 use crate::file::default_true;
 use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 use crate::{document, render};
-use crate::render::material::{BlendMode, MaterialPassProps};
+use crate::render::draw_call::{BlendMode, DrawCallProps};
 use crate::render::shader::ShaderKind;
 use anyhow::{anyhow, Result};
 use futures::future::join_all;
@@ -29,7 +29,7 @@ impl Material {
         passes: &[document::pass::Pass],
         control_map: &HashMap<String, String>,
         object_cid: &ControlId,
-    ) -> Result<Arc<render::material::Material>> {
+    ) -> Result<Arc<document::material::Material>> {
         let shader_context = ShaderContext::new(
             chart_context,
             control_map,
@@ -57,7 +57,7 @@ impl Material {
         let material_passes =
             join_all(material_pass_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
-        Ok(Arc::new(render::material::Material {
+        Ok(Arc::new(document::material::Material {
             passes: material_passes,
         }))
     }
@@ -85,7 +85,7 @@ impl MaterialPass {
         shader_context: &ShaderContext,
         chart_context: &ChartContext,
         framebuffer_info: &document::pass::FramebufferInfo,
-    ) -> Result<render::material::MaterialPass> {
+    ) -> Result<render::draw_call::DrawCall> {
         let vertex_shader_future =
             shader_context.make_shader(chart_context, ShaderKind::Vertex, &self.vertex_shader);
 
@@ -98,7 +98,7 @@ impl MaterialPass {
                 .try_into()
                 .map_err(|_| anyhow!("shouldn't happen"))?;
 
-        let material_props = MaterialPassProps {
+        let draw_call_props = DrawCallProps {
             id: id.to_string(),
             vertex_shader: vertex_shader?,
             fragment_shader: fragment_shader?,
@@ -107,9 +107,9 @@ impl MaterialPass {
             blend_mode: self.blend_mode.clone(),
         };
 
-        render::material::MaterialPass::new(
+        render::draw_call::DrawCall::new(
             &chart_context.gpu_context,
-            material_props,
+            draw_call_props,
             framebuffer_info,
         )
     }

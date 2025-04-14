@@ -18,29 +18,15 @@ pub enum BlendMode {
     Additive,
 }
 
-pub struct Material {
-    pub passes: Vec<Option<MaterialPass>>,
-}
 
-impl Material {
-    pub fn get_pass(&self, pass_id: usize) -> Option<&MaterialPass> {
-        self.passes[pass_id].as_ref()
-    }
-}
-
-pub struct MaterialPass {
+pub struct DrawCall {
     pub _id: String,
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
-
-    // TODO: check why these are here
-    pub _depth_test: bool,
-    pub _depth_write: bool,
-    pub _blend_mode: BlendMode,
     pipeline: wgpu::RenderPipeline,
 }
 
-pub struct MaterialPassProps {
+pub struct DrawCallProps {
     pub id: String,
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
@@ -49,12 +35,12 @@ pub struct MaterialPassProps {
     pub blend_mode: BlendMode,
 }
 
-impl MaterialPass {
+impl DrawCall {
     pub fn new(
         context: &GpuContext,
-        props: MaterialPassProps,
+        props: DrawCallProps,
         framebuffer_info: &FramebufferInfo,
-    ) -> Result<MaterialPass> {
+    ) -> Result<DrawCall> {
         let pipeline_layout =
             context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
@@ -131,13 +117,10 @@ impl MaterialPass {
             cache: None,
         });
 
-        Ok(MaterialPass {
+        Ok(DrawCall {
             _id: props.id,
             vertex_shader: props.vertex_shader,
             fragment_shader: props.fragment_shader,
-            _depth_test: props.depth_test,
-            _depth_write: props.depth_write,
-            _blend_mode: props.blend_mode,
             pipeline,
         })
     }

@@ -3,10 +3,10 @@ use image::PixelFormat;
 pub mod double_buffer;
 pub mod compute_call;
 pub mod image;
-pub mod material;
 pub mod mesh;
 pub mod shader;
 pub mod mipmap_generator;
+pub mod draw_call;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
