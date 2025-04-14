@@ -1,7 +1,7 @@
 use crate::control::controls::{ControlRepository, ControlSet};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::document::chart::Chart;
-use crate::document::project::Project;
+use crate::engine::chart::Chart;
+use crate::engine::project::Project;
 use crate::tool::timer::Timer;
 use std::rc::Rc;
 

@@ -1,9 +1,9 @@
 use crate::control::controls::{ControlSet, ControlSetBuilder};
 use crate::control::{ControlId, ControlIdPartType};
-use crate::document::camera::Camera;
-use crate::document::compute::{Compute, Run};
-use crate::document::draw::Draw;
-use crate::document::generate_mip_levels::GenerateMipLevels;
+use crate::engine::camera::Camera;
+use crate::engine::compute::{Compute, Run};
+use crate::engine::draw::Draw;
+use crate::engine::generate_mip_levels::GenerateMipLevels;
 use crate::render::image::BitangImage;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::{ComputePassContext, FrameContext};

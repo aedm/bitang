@@ -1,5 +1,5 @@
 use crate::control::controls::Control;
-use crate::document::material::Material;
+use crate::engine::material::Material;
 use crate::render::mesh::Mesh;
 use crate::tool::RenderPassContext;
 use anyhow::Result;

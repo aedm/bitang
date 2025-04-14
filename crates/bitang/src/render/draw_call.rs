@@ -1,4 +1,4 @@
-use crate::document::pass::FramebufferInfo;
+use crate::engine::pass::FramebufferInfo;
 use crate::render::mesh::Mesh;
 use crate::render::shader::Shader;
 use crate::render::Vertex3;

@@ -1,7 +1,7 @@
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
 use crate::file::material::Material;
-use crate::{document, render};
+use crate::{engine, render};
 use anyhow::Context;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -24,8 +24,8 @@ impl Scene {
         &self,
         parent_id: &ControlId,
         chart_context: &ChartContext,
-        passes: &[document::pass::Pass],
-    ) -> anyhow::Result<Rc<document::scene::Scene>> {
+        passes: &[engine::pass::Pass],
+    ) -> anyhow::Result<Rc<engine::scene::Scene>> {
         let scene_cid = parent_id.add(ControlIdPartType::Scene, &self.id);
         let mesh_collection_future = tokio::spawn({
             let mesh_cache = chart_context.resource_repository.mesh_cache.clone();
@@ -61,7 +61,7 @@ impl Scene {
                 let rotation = chart_context.control_set_builder.get_vec3(&rotation_id);
                 rotation.set(&[node_rot[0], node_rot[1], node_rot[2], 0.0]);
 
-                document::render_object::RenderObject {
+                engine::render_object::RenderObject {
                     _id: mesh_id.clone(),
                     mesh: scene_node.mesh.clone(),
                     material: material.clone(),
@@ -74,7 +74,7 @@ impl Scene {
             })
             .collect();
 
-        let scene = document::scene::Scene {
+        let scene = engine::scene::Scene {
             _id: self.id.clone(),
             objects,
         };
