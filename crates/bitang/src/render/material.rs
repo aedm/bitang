@@ -1,3 +1,4 @@
+use crate::document::pass::FramebufferInfo;
 use crate::render::mesh::Mesh;
 use crate::render::shader::Shader;
 use crate::render::Vertex3;
@@ -7,8 +8,7 @@ use serde::Deserialize;
 use smallvec::SmallVec;
 use wgpu::CompareFunction;
 
-use super::pass::FramebufferInfo;
-use super::VERTEX_FORMAT;
+use crate::render::VERTEX_FORMAT;
 
 #[derive(Debug, Deserialize, Default, Clone)]
 pub enum BlendMode {

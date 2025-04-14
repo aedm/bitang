@@ -8,7 +8,7 @@ use crate::render::image::ImageSizeRule;
 use crate::render::shader::ShaderKind;
 use crate::render::SCREEN_RENDER_TARGET_ID;
 use crate::tool::GpuContext;
-use crate::{file, render};
+use crate::{document, file, render};
 use ahash::AHashMap;
 use anyhow::{anyhow, Context, Result};
 use futures::future::join_all;
@@ -53,7 +53,7 @@ impl Chart {
         context: &Arc<GpuContext>,
         resource_repository: &Rc<ResourceRepository>,
         chart_file_path: &ResourcePath,
-    ) -> Result<Rc<render::chart::Chart>> {
+    ) -> Result<Rc<document::chart::Chart>> {
         trace!("Loading chart {}", id);
         let chart_control_id = ControlId::default().add(ControlIdPartType::Chart, id);
         let control_set_builder = ControlSetBuilder::new(
@@ -108,7 +108,7 @@ impl Chart {
             .map(|image_future| async move { image_future.get().await });
         let images = join_all(image_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
-        let chart = render::chart::Chart::new(
+        let chart = document::chart::Chart::new(
             id,
             &chart_context.chart_control_id,
             chart_context.control_set_builder,
@@ -157,19 +157,19 @@ impl ChartStep {
         &self,
         context: &Arc<GpuContext>,
         chart_context: &ChartContext,
-    ) -> Result<render::chart::ChartStep> {
+    ) -> Result<document::chart::ChartStep> {
         match self {
             ChartStep::Draw(draw) => {
                 let draw = draw.load(chart_context).await?;
-                Ok(render::chart::ChartStep::Draw(draw))
+                Ok(document::chart::ChartStep::Draw(draw))
             }
             ChartStep::Compute(compute) => {
                 let compute = compute.load(context, chart_context).await?;
-                Ok(render::chart::ChartStep::Compute(compute))
+                Ok(document::chart::ChartStep::Compute(compute))
             }
             ChartStep::GenerateMipLevels(generate_mip_levels) => {
                 let generate_mip_levels = generate_mip_levels.load(chart_context).await?;
-                Ok(render::chart::ChartStep::GenerateMipLevels(
+                Ok(document::chart::ChartStep::GenerateMipLevels(
                     generate_mip_levels,
                 ))
             }
@@ -188,7 +188,7 @@ impl GenerateMipLevels {
     pub async fn load(
         &self,
         chart_context: &ChartContext,
-    ) -> Result<render::generate_mip_levels::GenerateMipLevels> {
+    ) -> Result<document::generate_mip_levels::GenerateMipLevels> {
         let image = chart_context.image_futures_by_id.get(&self.image_id).with_context(|| {
             anyhow!(
                 "Image id not found: '{}' (mipmap generation step: '{}')",
@@ -198,7 +198,7 @@ impl GenerateMipLevels {
         })?;
         let image = image.get().await?;
 
-        Ok(render::generate_mip_levels::GenerateMipLevels::new(
+        Ok(document::generate_mip_levels::GenerateMipLevels::new(
             &chart_context.gpu_context,
             &self.id,
             image,
@@ -217,16 +217,16 @@ impl DrawItem {
         &self,
         chart_context: &ChartContext,
         draw_control_id: &ControlId,
-        passes: &[render::pass::Pass],
-    ) -> Result<render::draw::DrawItem> {
+        passes: &[document::pass::Pass],
+    ) -> Result<document::draw::DrawItem> {
         match self {
             DrawItem::Object(object) => {
                 let object = object.load(chart_context, draw_control_id, passes).await?;
-                Ok(render::draw::DrawItem::Object(object))
+                Ok(document::draw::DrawItem::Object(object))
             }
             DrawItem::Scene(scene) => {
                 let scene = scene.load(draw_control_id, chart_context, passes).await?;
-                Ok(render::draw::DrawItem::Scene(scene))
+                Ok(document::draw::DrawItem::Scene(scene))
             }
         }
     }
@@ -242,7 +242,7 @@ pub struct Draw {
 
 impl Draw {
     #[allow(clippy::too_many_arguments)]
-    pub async fn load(&self, chart_context: &ChartContext) -> Result<render::draw::Draw> {
+    pub async fn load(&self, chart_context: &ChartContext) -> Result<document::draw::Draw> {
         let draw_control_id =
             chart_context.chart_control_id.add(ControlIdPartType::ChartStep, &self.id);
         let pass_futures = self.passes.iter().map(|pass| pass.load(chart_context));
@@ -260,7 +260,7 @@ impl Draw {
         let light_dir = chart_context.control_set_builder.get_vec3(&light_dir_id);
         let shadow_map_size = chart_context.control_set_builder.get_vec3(&shadow_map_size_id);
 
-        let draw = render::draw::Draw::new(&self.id, passes, objects, light_dir, shadow_map_size)?;
+        let draw = document::draw::Draw::new(&self.id, passes, objects, light_dir, shadow_map_size)?;
         Ok(draw)
     }
 }
@@ -298,21 +298,21 @@ impl Compute {
         &self,
         context: &Arc<GpuContext>,
         chart_context: &ChartContext,
-    ) -> Result<render::compute::Compute> {
+    ) -> Result<document::compute::Compute> {
         let run = match &self.run {
             ComputeRun::Init(buffer_id) => {
                 let buffer = chart_context
                     .buffers_by_id
                     .get(buffer_id)
                     .with_context(|| anyhow!("Buffer not found: {buffer_id}"))?;
-                render::compute::Run::Init(buffer.clone())
+                document::compute::Run::Init(buffer.clone())
             }
             ComputeRun::Simulation(buffer_id) => {
                 let buffer = chart_context
                     .buffers_by_id
                     .get(buffer_id)
                     .with_context(|| anyhow!("Buffer not found: {buffer_id}"))?;
-                render::compute::Run::Simulate(buffer.clone())
+                document::compute::Run::Simulate(buffer.clone())
             }
         };
 
@@ -329,7 +329,7 @@ impl Compute {
         let shader =
             shader_context.make_shader(chart_context, ShaderKind::Compute, &self.shader).await?;
 
-        render::compute::Compute::new(context, &self.id, shader, run)
+        document::compute::Compute::new(context, &self.id, shader, run)
     }
 }
 
@@ -368,7 +368,7 @@ pub struct Pass {
 }
 
 impl Pass {
-    pub async fn load(&self, chart_context: &ChartContext) -> Result<render::pass::Pass> {
+    pub async fn load(&self, chart_context: &ChartContext) -> Result<document::pass::Pass> {
         let depth_buffer = match &self.depth_image {
             Some(selector) => Some(selector.load(&chart_context.image_futures_by_id).await?),
             None => None,
@@ -381,7 +381,7 @@ impl Pass {
         let color_buffers =
             join_all(color_buffer_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
-        render::pass::Pass::new(&self.id, color_buffers, depth_buffer, self.clear_color)
+        document::pass::Pass::new(&self.id, color_buffers, depth_buffer, self.clear_color)
     }
 }
 

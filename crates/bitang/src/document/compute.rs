@@ -4,7 +4,7 @@ use crate::tool::{ComputePassContext, GpuContext};
 use anyhow::Result;
 use std::rc::Rc;
 
-use super::compute_call::ComputeCall;
+use crate::render::compute_call::ComputeCall;
 
 // TODO: rename to "stage" or similar
 pub enum Run {

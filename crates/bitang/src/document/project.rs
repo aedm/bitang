@@ -1,4 +1,4 @@
-use crate::render::chart::Chart;
+use crate::document::chart::Chart;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;

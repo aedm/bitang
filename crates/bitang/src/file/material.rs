@@ -2,7 +2,7 @@ use crate::control::ControlId;
 use crate::file::chart_file::ChartContext;
 use crate::file::default_true;
 use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
-use crate::render;
+use crate::{document, render};
 use crate::render::material::{BlendMode, MaterialPassProps};
 use crate::render::shader::ShaderKind;
 use anyhow::{anyhow, Result};
@@ -26,7 +26,7 @@ impl Material {
     pub async fn load(
         &self,
         chart_context: &ChartContext,
-        passes: &[render::pass::Pass],
+        passes: &[document::pass::Pass],
         control_map: &HashMap<String, String>,
         object_cid: &ControlId,
     ) -> Result<Arc<render::material::Material>> {
@@ -84,7 +84,7 @@ impl MaterialPass {
         id: &str,
         shader_context: &ShaderContext,
         chart_context: &ChartContext,
-        framebuffer_info: &render::pass::FramebufferInfo,
+        framebuffer_info: &document::pass::FramebufferInfo,
     ) -> Result<render::material::MaterialPass> {
         let vertex_shader_future =
             shader_context.make_shader(chart_context, ShaderKind::Vertex, &self.vertex_shader);

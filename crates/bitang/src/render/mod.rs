@@ -5,7 +5,6 @@ pub mod compute_call;
 pub mod image;
 pub mod material;
 pub mod mesh;
-pub mod pass;
 pub mod shader;
 pub mod mipmap_generator;
 

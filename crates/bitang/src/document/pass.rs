@@ -4,9 +4,10 @@ use anyhow::{bail, ensure, Result};
 use smallvec::SmallVec;
 use std::sync::Arc;
 
-use super::image::PixelFormat;
-use super::Size2D;
+use crate::render::image::PixelFormat;
+use crate::render::Size2D;
 
+// TODO: this might not be needed at all
 #[derive(Clone, Debug)]
 pub struct FramebufferInfo {
     pub color_buffer_formats: Vec<PixelFormat>,

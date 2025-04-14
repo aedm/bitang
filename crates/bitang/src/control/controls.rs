@@ -2,7 +2,7 @@ use crate::control::spline::Spline;
 use crate::control::ControlIdPartType::Chart;
 use crate::control::{ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
 use crate::loader::CHARTS_FOLDER;
-use crate::render::project::Project;
+use crate::document::project::Project;
 use ahash::AHashSet;
 use anyhow::Context;
 use anyhow::Result;

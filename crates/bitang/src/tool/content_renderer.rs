@@ -1,6 +1,6 @@
 use crate::control::controls::Globals;
 use crate::loader::project_loader::ProjectLoader;
-use crate::render::chart::Chart;
+use crate::document::chart::Chart;
 use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;

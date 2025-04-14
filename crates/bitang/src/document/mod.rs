@@ -6,3 +6,4 @@ pub mod generate_mip_levels;
 pub mod project;
 pub mod render_object;
 pub mod scene;
+pub mod pass;

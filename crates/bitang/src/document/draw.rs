@@ -1,13 +1,12 @@
 use crate::control::controls::{Control, Globals};
-use crate::render::camera::Camera;
-use crate::render::pass::Pass;
-use crate::render::render_object::RenderObject;
+use crate::document::camera::Camera;
+use crate::document::pass::Pass;
+use crate::document::render_object::RenderObject;
+use crate::document::scene::Scene;
 use crate::tool::{FrameContext, RenderPassContext, Viewport};
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
-
-use crate::render::scene::Scene;
 
 pub(crate) enum DrawItem {
     Object(Rc<RenderObject>),

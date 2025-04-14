@@ -1,4 +1,4 @@
-use crate::render::render_object::RenderObject;
+use crate::document::render_object::RenderObject;
 use crate::tool::RenderPassContext;
 use anyhow::Result;
 
