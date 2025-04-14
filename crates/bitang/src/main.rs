@@ -3,6 +3,7 @@ mod file;
 mod loader;
 mod render;
 mod tool;
+mod document;
 
 use crate::tool::run_app;
 use anyhow::Result;

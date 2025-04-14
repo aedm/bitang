@@ -1,19 +1,11 @@
 use image::PixelFormat;
 
 pub mod double_buffer;
-pub mod camera;
-pub mod chart;
-pub mod compute;
 pub mod compute_call;
-pub mod draw;
-pub mod generate_mip_levels;
 pub mod image;
 pub mod material;
 pub mod mesh;
 pub mod pass;
-pub mod project;
-pub mod render_object;
-pub mod scene;
 pub mod shader;
 pub mod mipmap_generator;
 
