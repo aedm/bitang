@@ -1,4 +1,4 @@
-use super::render::draw_call::DrawCall;
+use super::DrawCall;
 
 pub struct Material {
     pub passes: Vec<Option<DrawCall>>,
