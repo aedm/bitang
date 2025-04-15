@@ -1,11 +1,11 @@
-use crate::engine::render::double_buffer::DoubleBuffer;
+use super::DoubleBuffer;
 use crate::tool::{ComputePassContext, GpuContext};
 use anyhow::Result;
 use std::rc::Rc;
 
-use crate::engine::render::compute_call::ComputeCall;
+use super::render::compute_call::ComputeCall;
 
-use crate::engine::render::shader::Shader;
+use super::Shader;
 
 // TODO: rename to "stage" or similar
 pub enum Run {

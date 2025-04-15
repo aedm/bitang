@@ -2,7 +2,7 @@ use crate::loader::async_cache::AsyncCache;
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
-use crate::engine::render::shader::ShaderKind;
+use crate::engine::ShaderKind;
 use crate::tool::GpuContext;
 use anyhow::{Context, Result};
 use dashmap::DashMap;

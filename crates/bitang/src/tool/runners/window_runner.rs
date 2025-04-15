@@ -1,5 +1,5 @@
-use crate::engine::render::image::{BitangImage, PixelFormat, SwapchainImage};
-use crate::engine::render::{Size2D, SCREEN_RENDER_TARGET_ID};
+use crate::engine::{BitangImage, PixelFormat, SwapchainImage};
+use crate::engine::{Size2D, SCREEN_RENDER_TARGET_ID};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::{FrameContext, GpuContext, Viewport, SCREEN_RATIO, START_IN_DEMO_MODE};

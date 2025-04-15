@@ -1,9 +1,8 @@
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
 use crate::loader::async_cache::LoadFuture;
-use crate::engine::render::image::BitangImage;
-use crate::engine::render::shader;
-use crate::engine::render::shader::{
+use crate::engine::{self, BitangImage};
+use crate::engine::{
     DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, SamplerDescriptor,
     Shader, ShaderKind,
 };
@@ -44,13 +43,13 @@ pub enum SamplerMode {
 }
 
 impl SamplerMode {
-    pub fn load(&self) -> shader::SamplerMode {
+    pub fn load(&self) -> engine::SamplerMode {
         match self {
-            SamplerMode::Repeat => shader::SamplerMode::Repeat,
-            SamplerMode::MirroredRepeat => shader::SamplerMode::MirroredRepeat,
-            SamplerMode::ClampToEdge => shader::SamplerMode::ClampToEdge,
-            SamplerMode::Envmap => shader::SamplerMode::Envmap,
-            SamplerMode::Shadow => shader::SamplerMode::Shadow,
+            SamplerMode::Repeat => engine::SamplerMode::Repeat,
+            SamplerMode::MirroredRepeat => engine::SamplerMode::MirroredRepeat,
+            SamplerMode::ClampToEdge => engine::SamplerMode::ClampToEdge,
+            SamplerMode::Envmap => engine::SamplerMode::Envmap,
+            SamplerMode::Shadow => engine::SamplerMode::Shadow,
         }
     }
 }

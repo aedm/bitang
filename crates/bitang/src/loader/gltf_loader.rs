@@ -1,6 +1,6 @@
 use crate::loader::resource_repository::{SceneFile, SceneNode};
-use crate::engine::render::mesh::Mesh;
-use crate::engine::render::Vertex3;
+use crate::engine::Mesh;
+use crate::engine::Vertex3;
 use crate::tool::GpuContext;
 use anyhow::{Context, Result};
 use itertools::Itertools;

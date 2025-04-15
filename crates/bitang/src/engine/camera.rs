@@ -4,7 +4,7 @@ use glam::{Mat3, Mat4, Vec2, Vec3};
 use std::f32::consts::PI;
 use std::rc::Rc;
 
-use crate::engine::render::Size2D;
+use crate::engine::Size2D;
 
 pub struct Camera {
     target: Rc<Control>,

@@ -1,11 +1,11 @@
-use crate::engine::render::image::BitangImage;
+use super::BitangImage;
 use crate::tool::{FrameContext, RenderPassContext, Viewport};
 use anyhow::{bail, ensure, Result};
 use smallvec::SmallVec;
 use std::sync::Arc;
 
-use crate::engine::render::image::PixelFormat;
-use crate::engine::render::Size2D;
+use super::PixelFormat;
+use crate::engine::Size2D;
 
 // TODO: this might not be needed at all
 #[derive(Clone, Debug)]

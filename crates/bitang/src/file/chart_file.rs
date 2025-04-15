@@ -4,9 +4,9 @@ use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::resource_repository::ResourceRepository;
-use crate::engine::render::image::ImageSizeRule;
-use crate::engine::render::shader::ShaderKind;
-use crate::engine::render::SCREEN_RENDER_TARGET_ID;
+use crate::engine::ImageSizeRule;
+use crate::engine::ShaderKind;
+use crate::engine::SCREEN_RENDER_TARGET_ID;
 use crate::tool::GpuContext;
 use crate::{engine, file, engine::render};
 use ahash::AHashMap;
@@ -22,11 +22,11 @@ use tracing::{instrument, trace};
 pub struct ChartContext {
     pub gpu_context: Arc<GpuContext>,
     pub resource_repository: Rc<ResourceRepository>,
-    pub image_futures_by_id: AHashMap<String, LoadFuture<engine::render::image::BitangImage>>,
+    pub image_futures_by_id: AHashMap<String, LoadFuture<engine::BitangImage>>,
     pub control_set_builder: ControlSetBuilder,
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
-    pub buffers_by_id: HashMap<String, Rc<engine::render::double_buffer::DoubleBuffer>>,
+    pub buffers_by_id: HashMap<String, Rc<engine::DoubleBuffer>>,
     pub path: ResourcePath,
 }
 
@@ -124,15 +124,15 @@ impl Chart {
 pub struct Image {
     pub id: String,
     pub size: ImageSizeRule,
-    pub format: engine::render::image::PixelFormat,
+    pub format: engine::PixelFormat,
 
     #[serde(default)]
     pub has_mipmaps: bool,
 }
 
 impl Image {
-    pub fn load(&self) -> Arc<engine::render::image::BitangImage> {
-        engine::render::image::BitangImage::new_attachment(
+    pub fn load(&self) -> Arc<engine::BitangImage> {
+        engine::BitangImage::new_attachment(
             &self.id,
             self.format,
             self.size,
@@ -343,8 +343,8 @@ pub enum ImageSelector {
 impl ImageSelector {
     pub async fn load(
         &self,
-        images_by_id: &AHashMap<String, LoadFuture<engine::render::image::BitangImage>>,
-    ) -> Result<Arc<engine::render::image::BitangImage>> {
+        images_by_id: &AHashMap<String, LoadFuture<engine::BitangImage>>,
+    ) -> Result<Arc<engine::BitangImage>> {
         match self {
             ImageSelector::Image(id) => {
                 let image_future = images_by_id
@@ -393,7 +393,7 @@ pub struct DoubleBuffer {
 }
 
 impl DoubleBuffer {
-    pub fn load(&self, context: &Arc<GpuContext>) -> engine::render::double_buffer::DoubleBuffer {
-        engine::render::double_buffer::DoubleBuffer::new(context, self.item_size_in_vec4, self.item_count)
+    pub fn load(&self, context: &Arc<GpuContext>) -> engine::DoubleBuffer {
+        engine::DoubleBuffer::new(context, self.item_size_in_vec4, self.item_count)
     }
 }

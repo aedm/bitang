@@ -1,5 +1,3 @@
-use image::PixelFormat;
-
 pub mod double_buffer;
 pub mod compute_call;
 pub mod image;
@@ -7,6 +5,8 @@ pub mod mesh;
 pub mod shader;
 pub mod mipmap_generator;
 pub mod draw_call;
+
+use image::PixelFormat;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -30,6 +30,7 @@ pub type MeshIndex = u32;
 
 pub type Size2D = [u32; 2];
 
+// TODO: move up one directory
 pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
 pub const FRAMEDUMP_PIXEL_FORMAT: PixelFormat = PixelFormat::Rgba8U;
 
