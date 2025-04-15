@@ -1,7 +1,6 @@
 mod control;
 mod file;
 mod loader;
-mod render;
 mod tool;
 mod engine;
 

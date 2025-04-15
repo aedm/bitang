@@ -1,6 +1,6 @@
 use crate::control::controls::Control;
 use crate::engine::material::Material;
-use crate::render::mesh::Mesh;
+use crate::engine::render::mesh::Mesh;
 use crate::tool::RenderPassContext;
 use anyhow::Result;
 use glam::{EulerRot, Mat4};

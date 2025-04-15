@@ -8,8 +8,8 @@ mod timer;
 mod ui;
 
 use crate::control::controls::Globals;
-use crate::render::image::{BitangImage, ImageSizeRule};
-use crate::render::{Size2D, FRAMEDUMP_PIXEL_FORMAT, SCREEN_RENDER_TARGET_ID};
+use crate::engine::render::image::{BitangImage, ImageSizeRule};
+use crate::engine::render::{Size2D, FRAMEDUMP_PIXEL_FORMAT, SCREEN_RENDER_TARGET_ID};
 use anyhow::{Context, Result};
 use runners::frame_dump_runner::FrameDumpRunner;
 use runners::window_runner::WindowRunner;

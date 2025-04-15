@@ -1,9 +1,9 @@
 use crate::control::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
 use crate::loader::async_cache::LoadFuture;
-use crate::render::image::BitangImage;
-use crate::render::shader;
-use crate::render::shader::{
+use crate::engine::render::image::BitangImage;
+use crate::engine::render::shader;
+use crate::engine::render::shader::{
     DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, SamplerDescriptor,
     Shader, ShaderKind,
 };

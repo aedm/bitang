@@ -1,4 +1,4 @@
-use crate::render::shader::Shader;
+use crate::engine::render::shader::Shader;
 use crate::tool::{ComputePassContext, GpuContext};
 use anyhow::Result;
 

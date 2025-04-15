@@ -1,8 +1,8 @@
-use crate::render::image::BitangImage;
+use crate::engine::render::image::BitangImage;
 use crate::tool::{FrameContext, GpuContext};
 use std::sync::Arc;
 
-use crate::render::mipmap_generator::MipmapGenerator;
+use crate::engine::render::mipmap_generator::MipmapGenerator;
 
 pub struct GenerateMipLevels {
     pub _id: String,

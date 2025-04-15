@@ -2,9 +2,9 @@ use crate::control::ControlId;
 use crate::file::chart_file::ChartContext;
 use crate::file::default_true;
 use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
-use crate::{engine, render};
-use crate::render::draw_call::{BlendMode, DrawCallProps};
-use crate::render::shader::ShaderKind;
+use crate::{engine, engine::render};
+use crate::engine::render::draw_call::{BlendMode, DrawCallProps};
+use crate::engine::render::shader::ShaderKind;
 use anyhow::{anyhow, Result};
 use futures::future::join_all;
 use serde::Deserialize;
@@ -85,7 +85,7 @@ impl MaterialPass {
         shader_context: &ShaderContext,
         chart_context: &ChartContext,
         framebuffer_info: &engine::pass::FramebufferInfo,
-    ) -> Result<render::draw_call::DrawCall> {
+    ) -> Result<engine::render::draw_call::DrawCall> {
         let vertex_shader_future =
             shader_context.make_shader(chart_context, ShaderKind::Vertex, &self.vertex_shader);
 
@@ -107,7 +107,7 @@ impl MaterialPass {
             blend_mode: self.blend_mode.clone(),
         };
 
-        render::draw_call::DrawCall::new(
+        engine::render::draw_call::DrawCall::new(
             &chart_context.gpu_context,
             draw_call_props,
             framebuffer_info,

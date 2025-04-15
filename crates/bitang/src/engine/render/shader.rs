@@ -1,6 +1,6 @@
 use crate::control::controls::{Control, GlobalType, Globals};
-use crate::render::double_buffer::DoubleBuffer;
-use crate::render::image::BitangImage;
+use super::double_buffer::DoubleBuffer;
+use super::image::BitangImage;
 use crate::tool::{ComputePassContext, GpuContext, RenderPassContext};
 use anyhow::Result;
 use smallvec::SmallVec;

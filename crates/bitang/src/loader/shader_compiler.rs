@@ -1,7 +1,7 @@
 use crate::control::controls::GlobalType;
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
-use crate::render::shader::{GlobalUniformMapping, ShaderKind};
+use crate::engine::render::shader::{GlobalUniformMapping, ShaderKind};
 use crate::tool::GpuContext;
 use anyhow::{bail, ensure, Context, Result};
 use codespan_reporting::diagnostic::{Diagnostic, Label};

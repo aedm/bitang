@@ -1,7 +1,6 @@
-use crate::control::controls::Globals;
+use crate::{control::controls::Globals, engine::render::SIMULATION_STEP_SECONDS};
 use crate::loader::project_loader::ProjectLoader;
 use crate::engine::chart::Chart;
-use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
