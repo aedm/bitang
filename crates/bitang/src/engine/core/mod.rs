@@ -5,6 +5,7 @@ pub mod mesh;
 pub mod shader;
 pub mod mipmap_generator;
 pub mod draw_call;
+pub mod context;
 
 use image::PixelFormat;
 

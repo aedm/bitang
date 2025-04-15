@@ -42,3 +42,5 @@ pub use core::shader::SamplerMode;
 pub use core::shader::GlobalUniformMapping;
 
 pub use core::SIMULATION_STEP_SECONDS;
+
+pub use core::context::{GpuContext, Viewport, FrameContext, RenderPassContext, ComputePassContext};
