@@ -3,7 +3,7 @@ use crate::tool::{ComputePassContext, GpuContext};
 use anyhow::Result;
 use std::rc::Rc;
 
-use super::render::compute_call::ComputeCall;
+use super::ComputeCall;
 
 use super::Shader;
 

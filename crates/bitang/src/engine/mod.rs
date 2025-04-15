@@ -16,6 +16,7 @@ pub use render::SCREEN_RENDER_TARGET_ID;
 pub use render::image::PixelFormat;
 pub use render::double_buffer::DoubleBuffer;
 pub use render::mipmap_generator::MipmapGenerator;
+pub use render::compute_call::ComputeCall;
 pub use render::draw_call::DrawCall;
 pub use render::draw_call::DrawCallProps;
 pub use render::shader::Shader;
