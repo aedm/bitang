@@ -1,4 +1,5 @@
-use crate::control::controls::{Control, GlobalType, Globals};
+// use crate::control::controls::{Control};
+use super::globals::{GlobalType, Globals};
 use super::double_buffer::DoubleBuffer;
 use super::image::BitangImage;
 use super::context::{ComputePassContext, GpuContext, RenderPassContext};

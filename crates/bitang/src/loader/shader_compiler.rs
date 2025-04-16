@@ -1,4 +1,4 @@
-use crate::control::controls::GlobalType;
+use crate::engine::GlobalType;
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::engine::{GlobalUniformMapping, ShaderKind};

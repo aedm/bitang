@@ -6,6 +6,7 @@ pub mod shader;
 pub mod mipmap_generator;
 pub mod draw_call;
 pub mod context;
+pub mod globals;
 
 use image::PixelFormat;
 

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 
-use crate::{control::controls::Globals, tool::{FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH}};
+use crate::{engine::Globals, tool::{FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH}};
 
 use super::{image::{BitangImage, ImageSizeRule}, Size2D, FRAMEDUMP_PIXEL_FORMAT, SCREEN_RENDER_TARGET_ID};
 
