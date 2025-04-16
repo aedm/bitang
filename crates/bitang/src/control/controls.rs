@@ -381,6 +381,7 @@ pub enum GlobalType {
     SimulationStepSeconds,
 }
 
+// TODO: move to engine
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Globals {
     pub projection_from_model: Mat4,

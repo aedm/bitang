@@ -1,5 +1,5 @@
 use super::BitangImage;
-use crate::tool::{FrameContext, GpuContext};
+use super::{FrameContext, GpuContext};
 use std::sync::Arc;
 
 use super::MipmapGenerator;

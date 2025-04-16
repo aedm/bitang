@@ -1,5 +1,5 @@
 use super::DoubleBuffer;
-use crate::tool::{ComputePassContext, GpuContext};
+use super::{ComputePassContext, GpuContext};
 use anyhow::Result;
 use std::rc::Rc;
 

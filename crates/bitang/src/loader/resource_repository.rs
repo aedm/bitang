@@ -11,7 +11,7 @@ use crate::engine::chart::Chart;
 use crate::engine::{BitangImage, PixelFormat};
 use crate::engine::Mesh;
 use crate::engine::project::Project;
-use crate::tool::GpuContext;
+use crate::engine::GpuContext;
 use anyhow::{anyhow, ensure, Context, Result};
 use image::GenericImageView;
 use jxl_oxide::JxlImage;

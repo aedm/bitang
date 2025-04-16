@@ -1,4 +1,4 @@
-use crate::tool::{FrameContext, GpuContext};
+use super::context::{FrameContext, GpuContext};
 use anyhow::{bail, Result};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};

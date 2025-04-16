@@ -1,7 +1,7 @@
 use crate::control::controls::{Control, GlobalType, Globals};
 use super::double_buffer::DoubleBuffer;
 use super::image::BitangImage;
-use crate::tool::{ComputePassContext, GpuContext, RenderPassContext};
+use super::context::{ComputePassContext, GpuContext, RenderPassContext};
 use anyhow::Result;
 use smallvec::SmallVec;
 use std::mem::size_of;

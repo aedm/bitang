@@ -7,7 +7,7 @@ use crate::loader::resource_repository::ResourceRepository;
 use crate::engine::ImageSizeRule;
 use crate::engine::ShaderKind;
 use crate::engine::SCREEN_RENDER_TARGET_ID;
-use crate::tool::GpuContext;
+use crate::engine::GpuContext;
 use crate::{engine, file, engine::core};
 use ahash::AHashMap;
 use anyhow::{anyhow, Context, Result};

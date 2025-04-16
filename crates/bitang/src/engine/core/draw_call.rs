@@ -2,7 +2,7 @@ use crate::engine::pass::FramebufferInfo;
 use super::mesh::Mesh;
 use super::shader::Shader;
 use super::Vertex3;
-use crate::tool::{GpuContext, RenderPassContext};
+use super::context::{GpuContext, RenderPassContext};
 use anyhow::Result;
 use serde::Deserialize;
 use smallvec::SmallVec;

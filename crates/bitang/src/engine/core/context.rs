@@ -1,3 +1,11 @@
+use std::sync::Arc;
+
+use anyhow::{Context, Result};
+
+use crate::{control::controls::Globals, tool::{FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH}};
+
+use super::{image::{BitangImage, ImageSizeRule}, Size2D, FRAMEDUMP_PIXEL_FORMAT, SCREEN_RENDER_TARGET_ID};
+
 pub struct GpuContext {
     #[allow(dead_code)]
     pub adapter: wgpu::Adapter,
@@ -28,6 +36,7 @@ impl GpuContext {
             adapter,
             queue,
             device,
+            // TODO: generate this somewhere else
             final_render_target: BitangImage::new_attachment(
                 SCREEN_RENDER_TARGET_ID,
                 FRAMEDUMP_PIXEL_FORMAT,

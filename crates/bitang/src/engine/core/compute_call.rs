@@ -1,5 +1,5 @@
 use super::shader::Shader;
-use crate::tool::{ComputePassContext, GpuContext};
+use super::context::{ComputePassContext, GpuContext};
 use anyhow::Result;
 
 /// Represents a compute shader with all necessary resources.

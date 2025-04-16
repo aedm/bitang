@@ -1,5 +1,5 @@
 use super::BitangImage;
-use crate::tool::{FrameContext, RenderPassContext, Viewport};
+use super::{FrameContext, RenderPassContext, Viewport};
 use anyhow::{bail, ensure, Result};
 use smallvec::SmallVec;
 use std::sync::Arc;

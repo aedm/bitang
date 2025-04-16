@@ -1,4 +1,4 @@
-use crate::tool::GpuContext;
+use super::context::GpuContext;
 use std::array::from_fn;
 use std::cell::Cell;
 

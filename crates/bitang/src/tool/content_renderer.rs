@@ -4,13 +4,13 @@ use crate::engine::chart::Chart;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
-use crate::tool::FrameContext;
+use crate::engine::FrameContext;
 use anyhow::{bail, Result};
 use std::rc::Rc;
 use std::sync::Arc;
 use tracing::error;
 
-use super::{ComputePassContext, GpuContext};
+use crate::engine::{ComputePassContext, GpuContext};
 
 pub struct ContentRenderer {
     pub app_state: AppState,

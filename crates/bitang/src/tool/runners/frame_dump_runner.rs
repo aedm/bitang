@@ -6,9 +6,10 @@ use std::time::{Duration, Instant};
 use tracing::info;
 
 use crate::tool::content_renderer::ContentRenderer;
-use crate::tool::{
-    FrameContext, GpuContext, Viewport, FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH,
+use crate::engine::{
+    FrameContext, GpuContext, Viewport
 };
+use crate::tool::{FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH};
 
 pub struct FrameDumpRunner {
     gpu_context: Arc<GpuContext>,

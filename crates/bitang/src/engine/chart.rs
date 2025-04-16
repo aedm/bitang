@@ -6,7 +6,7 @@ use crate::engine::draw::Draw;
 use crate::engine::generate_mip_levels::GenerateMipLevels;
 use super::BitangImage;
 use super::SIMULATION_STEP_SECONDS;
-use crate::tool::{ComputePassContext, FrameContext};
+use super::{ComputePassContext, FrameContext};
 use anyhow::{bail, ensure, Result};
 use tracing::{debug, info, warn};
 use std::cell::{Cell, RefCell};
