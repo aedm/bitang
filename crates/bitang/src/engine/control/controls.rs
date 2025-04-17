@@ -170,6 +170,7 @@ struct DeserializedControls {
     controls: Vec<Control>,
 }
 
+// TODO: move serialization out of "engine" mod.
 impl ControlRepository {
     fn get_control(&self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
         match self.by_id.entry(id.clone()) {

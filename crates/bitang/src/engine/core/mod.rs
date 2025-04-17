@@ -29,8 +29,3 @@ const VERTEX_FORMAT: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
 pub type MeshIndex = u32;
 
 pub type Size2D = [u32; 2];
-
-/// How many times the simulation is updated per second.
-/// Weird number on purpose.
-const SIMULATION_FREQUENCY_HZ: f32 = 60.0;
-pub const SIMULATION_STEP_SECONDS: f32 = 1.0 / SIMULATION_FREQUENCY_HZ;

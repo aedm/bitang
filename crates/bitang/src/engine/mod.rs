@@ -11,8 +11,6 @@ mod project;
 mod render_object;
 mod scene;
 
-pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
-
 pub use core::compute_call::ComputeCall;
 pub use core::context::{
     ComputePassContext, FrameContext, GpuContext, RenderPassContext, Viewport,
@@ -27,8 +25,9 @@ pub use core::shader::{
     DescriptorResource, DescriptorSource, GlobalUniformMapping, ImageDescriptor,
     LocalUniformMapping, SamplerDescriptor, SamplerMode, Shader, ShaderKind,
 };
-pub use core::{Size2D, Vertex3, SIMULATION_STEP_SECONDS};
+pub use core::{Size2D, Vertex3};
 
+pub use camera::Camera;
 pub use chart::{Chart, ChartStep};
 pub use compute::{Compute, Run};
 pub use control::controls::{
@@ -43,3 +42,10 @@ pub use pass::{FramebufferInfo, Pass};
 pub use project::{Cut, Project};
 pub use render_object::RenderObject;
 pub use scene::Scene;
+
+pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
+
+/// How many times the simulation is updated per second.
+/// Weird number on purpose so issues are easier to spot.
+const SIMULATION_FREQUENCY_HZ: f32 = 53.526621;
+pub const SIMULATION_STEP_SECONDS: f32 = 1.0 / SIMULATION_FREQUENCY_HZ;

@@ -5,13 +5,9 @@ use std::sync::Arc;
 use anyhow::{bail, Result};
 
 use super::{
-    BitangImage, ComputePassContext, ControlId, ControlIdPartType, ControlSet, ControlSetBuilder,
-    FrameContext, SIMULATION_STEP_SECONDS,
+    BitangImage, Camera, Compute, ComputePassContext, ControlId, ControlIdPartType, ControlSet,
+    ControlSetBuilder, Draw, FrameContext, GenerateMipLevels, Run, SIMULATION_STEP_SECONDS,
 };
-use crate::engine::camera::Camera;
-use crate::engine::compute::{Compute, Run};
-use crate::engine::draw::Draw;
-use crate::engine::generate_mip_levels::GenerateMipLevels;
 
 pub enum ChartStep {
     Draw(Draw),
