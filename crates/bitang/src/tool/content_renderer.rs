@@ -1,10 +1,10 @@
-use crate::{engine::SIMULATION_STEP_SECONDS};
-use crate::loader::project_loader::ProjectLoader;
 use crate::engine::Chart;
+use crate::engine::SIMULATION_STEP_SECONDS;
+use crate::engine::{FrameContext, Globals};
+use crate::loader::project_loader::ProjectLoader;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
-use crate::engine::{FrameContext, Globals};
 use anyhow::{bail, Result};
 use std::rc::Rc;
 use std::sync::Arc;

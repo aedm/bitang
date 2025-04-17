@@ -5,7 +5,7 @@ mod music_player;
 mod runners;
 mod spline_editor;
 mod timer;
-mod ui; 
+mod ui;
 
 use crate::engine::{BitangImage, ImageSizeRule, PixelFormat};
 use crate::engine::{Size2D, SCREEN_RENDER_TARGET_ID};

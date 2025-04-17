@@ -1,12 +1,12 @@
-pub mod double_buffer;
 pub mod compute_call;
+pub mod context;
+pub mod double_buffer;
+pub mod draw_call;
+pub mod globals;
 pub mod image;
 pub mod mesh;
-pub mod shader;
 pub mod mipmap_generator;
-pub mod draw_call;
-pub mod context;
-pub mod globals;
+pub mod shader;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]

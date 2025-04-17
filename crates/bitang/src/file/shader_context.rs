@@ -1,11 +1,11 @@
-use crate::engine::{ControlId, ControlIdPartType};
-use crate::file::chart_file::ChartContext;
-use crate::loader::async_cache::LoadFuture;
 use crate::engine::{self, BitangImage};
+use crate::engine::{ControlId, ControlIdPartType};
 use crate::engine::{
     DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, SamplerDescriptor,
     Shader, ShaderKind,
 };
+use crate::file::chart_file::ChartContext;
+use crate::loader::async_cache::LoadFuture;
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;

@@ -1,5 +1,5 @@
-use crate::loader::CHARTS_FOLDER;
 use crate::engine::project::Project;
+use crate::loader::CHARTS_FOLDER;
 use ahash::AHashSet;
 use anyhow::Context;
 use anyhow::Result;

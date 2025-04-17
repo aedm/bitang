@@ -1,9 +1,9 @@
+use crate::engine::GpuContext;
+use crate::engine::ShaderKind;
 use crate::loader::async_cache::AsyncCache;
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
-use crate::engine::ShaderKind;
-use crate::engine::GpuContext;
 use anyhow::{Context, Result};
 use dashmap::DashMap;
 use std::fmt::Debug;

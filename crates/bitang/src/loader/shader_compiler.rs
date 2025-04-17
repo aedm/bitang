@@ -1,8 +1,8 @@
 use crate::engine::GlobalType;
+use crate::engine::GpuContext;
+use crate::engine::{GlobalUniformMapping, ShaderKind};
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
-use crate::engine::{GlobalUniformMapping, ShaderKind};
-use crate::engine::GpuContext;
 use anyhow::{bail, ensure, Context, Result};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::SimpleFiles;

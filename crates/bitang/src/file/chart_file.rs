@@ -1,13 +1,13 @@
 use crate::engine::ControlSetBuilder;
+use crate::engine::GpuContext;
+use crate::engine::ImageSizeRule;
+use crate::engine::ShaderKind;
+use crate::engine::SCREEN_RENDER_TARGET_ID;
 use crate::engine::{ControlId, ControlIdPartType};
 use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::resource_repository::ResourceRepository;
-use crate::engine::ImageSizeRule;
-use crate::engine::ShaderKind;
-use crate::engine::SCREEN_RENDER_TARGET_ID;
-use crate::engine::GpuContext;
 use crate::{engine, file};
 use ahash::AHashMap;
 use anyhow::{anyhow, Context, Result};
@@ -132,12 +132,7 @@ pub struct Image {
 
 impl Image {
     pub fn load(&self) -> Arc<engine::BitangImage> {
-        engine::BitangImage::new_attachment(
-            &self.id,
-            self.format,
-            self.size,
-            self.has_mipmaps,
-        )
+        engine::BitangImage::new_attachment(&self.id, self.format, self.size, self.has_mipmaps)
     }
 }
 
@@ -169,9 +164,7 @@ impl ChartStep {
             }
             ChartStep::GenerateMipLevels(generate_mip_levels) => {
                 let generate_mip_levels = generate_mip_levels.load(chart_context).await?;
-                Ok(engine::ChartStep::GenerateMipLevels(
-                    generate_mip_levels,
-                ))
+                Ok(engine::ChartStep::GenerateMipLevels(generate_mip_levels))
             }
         }
     }
@@ -185,10 +178,7 @@ pub struct GenerateMipLevels {
 }
 
 impl GenerateMipLevels {
-    pub async fn load(
-        &self,
-        chart_context: &ChartContext,
-    ) -> Result<engine::GenerateMipLevels> {
+    pub async fn load(&self, chart_context: &ChartContext) -> Result<engine::GenerateMipLevels> {
         let image = chart_context.image_futures_by_id.get(&self.image_id).with_context(|| {
             anyhow!(
                 "Image id not found: '{}' (mipmap generation step: '{}')",

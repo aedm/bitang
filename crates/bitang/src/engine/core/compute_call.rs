@@ -1,5 +1,5 @@
-use super::shader::Shader;
 use super::context::{ComputePassContext, GpuContext};
+use super::shader::Shader;
 use anyhow::Result;
 
 /// Represents a compute shader with all necessary resources.
@@ -12,14 +12,19 @@ pub struct ComputeCall {
 
 impl ComputeCall {
     /// Creates a new compute shader call.
-    /// 
+    ///
     /// `invocation_count` - The number of invocations. The compute shader will run _AT_LEAST_ this
     /// many times. Note: the actual number of invocations may be higher since it's a multiple of the workgroup size.
     /// It's the responsibility of the actual compute shader code to handle this. For example: if you want to
     /// calculate something for each item in a buffer which has 100 items, then `invocation_count` should be 100.
     /// If the the workgroup size is 64, the compute shader will run 128 times since that's the smallest multiple of 64
     /// that is greater than or equal to 100.
-    pub fn new(context: &GpuContext, id: &str, shader: Shader, invocation_count: usize) -> Result<ComputeCall> {
+    pub fn new(
+        context: &GpuContext,
+        id: &str,
+        shader: Shader,
+        invocation_count: usize,
+    ) -> Result<ComputeCall> {
         let pipeline_layout =
             context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
@@ -38,7 +43,8 @@ impl ComputeCall {
 
         // TODO: use the actual workgroup size
         const WORKGROUP_SIZE: usize = 64;
-        let dispatch_count = ((invocation_count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE).try_into()?;
+        let dispatch_count =
+            ((invocation_count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE).try_into()?;
         Ok(ComputeCall {
             id: id.to_string(),
             shader,

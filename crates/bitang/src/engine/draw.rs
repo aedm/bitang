@@ -1,9 +1,9 @@
-use super::{Control};
+use super::Control;
+use super::{FrameContext, Globals, RenderPassContext, Viewport};
 use crate::engine::camera::Camera;
 use crate::engine::pass::Pass;
 use crate::engine::render_object::RenderObject;
 use crate::engine::scene::Scene;
-use super::{FrameContext, Globals, RenderPassContext, Viewport};
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;

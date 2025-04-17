@@ -1,7 +1,7 @@
-use crate::loader::resource_repository::{SceneFile, SceneNode};
+use crate::engine::GpuContext;
 use crate::engine::Mesh;
 use crate::engine::Vertex3;
-use crate::engine::GpuContext;
+use crate::loader::resource_repository::{SceneFile, SceneNode};
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use std::collections::HashMap;

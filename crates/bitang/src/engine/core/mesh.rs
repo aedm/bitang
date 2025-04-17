@@ -1,5 +1,5 @@
-use super::Vertex3;
 use super::context::GpuContext;
+use super::Vertex3;
 use anyhow::Result;
 use wgpu::util::DeviceExt;
 

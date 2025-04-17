@@ -1,6 +1,6 @@
-use crate::loader::resource_repository::ResourceRepository;
 use crate::engine;
 use crate::engine::GpuContext;
+use crate::loader::resource_repository::ResourceRepository;
 use anyhow::Result;
 use futures::future::join_all;
 use serde::Deserialize;

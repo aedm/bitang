@@ -1,7 +1,7 @@
 use super::Control;
-use crate::engine::material::Material;
 use super::Mesh;
 use super::RenderPassContext;
+use crate::engine::material::Material;
 use anyhow::Result;
 use glam::{EulerRot, Mat4};
 use std::rc::Rc;
