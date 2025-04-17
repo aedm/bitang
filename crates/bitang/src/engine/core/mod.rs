@@ -8,8 +8,6 @@ pub mod draw_call;
 pub mod context;
 pub mod globals;
 
-use image::PixelFormat;
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex3 {
@@ -31,10 +29,6 @@ const VERTEX_FORMAT: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
 pub type MeshIndex = u32;
 
 pub type Size2D = [u32; 2];
-
-// TODO: move up one directory
-pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
-pub const FRAMEDUMP_PIXEL_FORMAT: PixelFormat = PixelFormat::Rgba8U;
 
 /// How many times the simulation is updated per second.
 /// Weird number on purpose.

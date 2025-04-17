@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 
-use crate::{engine::Globals, tool::{FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH}};
+use crate::engine::Globals;
 
-use super::{image::{BitangImage, ImageSizeRule}, Size2D, FRAMEDUMP_PIXEL_FORMAT, SCREEN_RENDER_TARGET_ID};
+use super::{image::BitangImage, Size2D};
 
 pub struct GpuContext {
     #[allow(dead_code)]
@@ -14,11 +14,11 @@ pub struct GpuContext {
 
     // TODO: rename to swapchain something
     // TODO: remove from here
-    pub final_render_target: Arc<super::image::BitangImage>,
+    pub final_render_target: Arc<BitangImage>,
 }
 
 impl GpuContext {
-    pub async fn new_for_offscreen() -> Result<Self> {
+    pub async fn new_for_offscreen(final_render_target: Arc<BitangImage>) -> Result<Self> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
@@ -36,13 +36,7 @@ impl GpuContext {
             adapter,
             queue,
             device,
-            // TODO: generate this somewhere else
-            final_render_target: BitangImage::new_attachment(
-                SCREEN_RENDER_TARGET_ID,
-                FRAMEDUMP_PIXEL_FORMAT,
-                ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT),
-                false,
-            ),
+            final_render_target,
         })
     }
 }

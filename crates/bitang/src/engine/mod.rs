@@ -29,11 +29,9 @@ pub use pass::FramebufferInfo;
 pub use material::Material;
 
 
+pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
 
-
-pub use core::FRAMEDUMP_PIXEL_FORMAT;
 pub use core::Size2D;
-pub use core::SCREEN_RENDER_TARGET_ID;
 pub use core::image::PixelFormat;
 pub use core::double_buffer::DoubleBuffer;
 pub use core::mipmap_generator::MipmapGenerator;

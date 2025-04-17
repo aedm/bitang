@@ -7,9 +7,10 @@ use tracing::info;
 
 use crate::tool::content_renderer::ContentRenderer;
 use crate::engine::{
-    FrameContext, GpuContext, Viewport
+    BitangImage, FrameContext, GpuContext, Viewport, 
+    ImageSizeRule, SCREEN_RENDER_TARGET_ID
 };
-use crate::tool::{FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_WIDTH};
+use crate::tool::{FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_PIXEL_FORMAT, FRAMEDUMP_WIDTH};
 
 pub struct FrameDumpRunner {
     gpu_context: Arc<GpuContext>,
@@ -20,7 +21,13 @@ pub struct FrameDumpRunner {
 impl FrameDumpRunner {
     pub fn run() -> Result<()> {
         let rt = tokio::runtime::Runtime::new()?;
-        let gpu_context = rt.block_on(async { GpuContext::new_for_offscreen().await })?;
+        let final_render_target = BitangImage::new_attachment(
+            SCREEN_RENDER_TARGET_ID,
+            FRAMEDUMP_PIXEL_FORMAT,
+            ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT),
+            false,
+        );
+        let gpu_context = rt.block_on(async { GpuContext::new_for_offscreen(final_render_target).await })?;
         let gpu_context = Arc::new(gpu_context);
         let mut app = ContentRenderer::new(&gpu_context)?;
         app.reset_simulation(&gpu_context)?;
