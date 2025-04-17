@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::engine::chart::Chart;
+use super::Chart;
 
 pub struct Project {
     pub root_path: Arc<PathBuf>,

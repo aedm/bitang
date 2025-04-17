@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 
+use super::globals::Globals;
 use super::image::BitangImage;
 use super::Size2D;
-use crate::engine::Globals;
 
 pub struct GpuContext {
     #[allow(dead_code)]

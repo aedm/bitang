@@ -3,8 +3,7 @@ use std::sync::Arc;
 use anyhow::{bail, ensure, Result};
 use smallvec::SmallVec;
 
-use super::{BitangImage, FrameContext, PixelFormat, RenderPassContext, Viewport};
-use crate::engine::Size2D;
+use super::{BitangImage, FrameContext, PixelFormat, RenderPassContext, Size2D, Viewport};
 
 // TODO: this might not be needed at all
 #[derive(Clone, Debug)]

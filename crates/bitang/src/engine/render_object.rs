@@ -4,8 +4,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use glam::{EulerRot, Mat4};
 
-use super::{Control, Mesh, RenderPassContext};
-use crate::engine::material::Material;
+use super::{Control, Material, Mesh, RenderPassContext};
 
 pub struct RenderObject {
     pub _id: String,

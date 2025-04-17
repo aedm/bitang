@@ -3,11 +3,9 @@ use std::rc::Rc;
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 
-use super::{Control, FrameContext, Globals, RenderPassContext, Viewport};
-use crate::engine::camera::Camera;
-use crate::engine::pass::Pass;
-use crate::engine::render_object::RenderObject;
-use crate::engine::scene::Scene;
+use super::{
+    Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene, Viewport,
+};
 
 pub enum DrawItem {
     Object(Rc<RenderObject>),
