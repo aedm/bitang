@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
-use anyhow::{bail, Context};
-use dunce::canonicalize;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+use anyhow::{anyhow, bail, Context, Result};
+use dunce::canonicalize;
 
 /// The path of a resource file
 #[derive(Hash, Eq, PartialEq, Clone)]

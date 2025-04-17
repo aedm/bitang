@@ -1,6 +1,7 @@
-use anyhow::{bail, Result};
-use smallvec::SmallVec;
 use std::sync::{Arc, OnceLock};
+
+use anyhow::Result;
+use smallvec::SmallVec;
 
 use super::image::BitangImage;
 

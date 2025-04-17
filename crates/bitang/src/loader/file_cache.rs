@@ -1,17 +1,19 @@
-use crate::loader::async_cache::AsyncCache;
-use crate::loader::compute_hash;
-use crate::loader::resource_path::ResourcePath;
-use ahash::AHashSet;
-use anyhow::{bail, Result};
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::mem;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
+
+use ahash::AHashSet;
+use anyhow::{bail, Result};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::Mutex;
 use tokio::task::spawn_blocking;
 use tracing::{debug, error, trace};
+
+use crate::loader::async_cache::AsyncCache;
+use crate::loader::compute_hash;
+use crate::loader::resource_path::ResourcePath;
 
 pub type ContentHash = u64;
 

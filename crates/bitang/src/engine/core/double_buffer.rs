@@ -1,9 +1,11 @@
-use crate::tool::GpuContext;
 use std::array::from_fn;
 use std::cell::Cell;
 
+use super::context::GpuContext;
+
 // TODO: id
 pub struct DoubleBuffer {
+    #[allow(dead_code)]
     pub item_size_in_vec4: usize,
     pub item_count: usize,
     buffers: [wgpu::Buffer; 2],

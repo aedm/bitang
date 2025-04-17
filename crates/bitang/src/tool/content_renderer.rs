@@ -1,17 +1,16 @@
-use crate::control::controls::Globals;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use anyhow::{bail, Result};
+use tracing::error;
+
+use crate::engine::{
+    Chart, ComputePassContext, FrameContext, Globals, GpuContext, SIMULATION_STEP_SECONDS,
+};
 use crate::loader::project_loader::ProjectLoader;
-use crate::render::chart::Chart;
-use crate::render::SIMULATION_STEP_SECONDS;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
 use crate::tool::music_player::MusicPlayer;
-use crate::tool::FrameContext;
-use anyhow::{bail, Result};
-use std::rc::Rc;
-use std::sync::Arc;
-use tracing::error;
-
-use super::{ComputePassContext, GpuContext};
 
 pub struct ContentRenderer {
     pub app_state: AppState,

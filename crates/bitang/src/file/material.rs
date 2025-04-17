@@ -1,15 +1,15 @@
-use crate::control::ControlId;
-use crate::file::chart_file::ChartContext;
-use crate::file::default_true;
-use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
-use crate::render;
-use crate::render::material::{BlendMode, MaterialPassProps};
-use crate::render::shader::ShaderKind;
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use anyhow::{anyhow, Result};
 use futures::future::join_all;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::sync::Arc;
+
+use crate::engine;
+use crate::engine::{BlendMode, ControlId, DrawCallProps, ShaderKind};
+use crate::file::chart_file::ChartContext;
+use crate::file::default_true;
+use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 
 #[derive(Debug, Deserialize)]
 pub struct Material {
@@ -26,10 +26,10 @@ impl Material {
     pub async fn load(
         &self,
         chart_context: &ChartContext,
-        passes: &[render::pass::Pass],
+        passes: &[engine::Pass],
         control_map: &HashMap<String, String>,
         object_cid: &ControlId,
-    ) -> Result<Arc<render::material::Material>> {
+    ) -> Result<Arc<engine::Material>> {
         let shader_context = ShaderContext::new(
             chart_context,
             control_map,
@@ -57,7 +57,7 @@ impl Material {
         let material_passes =
             join_all(material_pass_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
-        Ok(Arc::new(render::material::Material {
+        Ok(Arc::new(engine::Material {
             passes: material_passes,
         }))
     }
@@ -84,8 +84,8 @@ impl MaterialPass {
         id: &str,
         shader_context: &ShaderContext,
         chart_context: &ChartContext,
-        framebuffer_info: &render::pass::FramebufferInfo,
-    ) -> Result<render::material::MaterialPass> {
+        framebuffer_info: &engine::FramebufferInfo,
+    ) -> Result<engine::DrawCall> {
         let vertex_shader_future =
             shader_context.make_shader(chart_context, ShaderKind::Vertex, &self.vertex_shader);
 
@@ -98,7 +98,7 @@ impl MaterialPass {
                 .try_into()
                 .map_err(|_| anyhow!("shouldn't happen"))?;
 
-        let material_props = MaterialPassProps {
+        let draw_call_props = DrawCallProps {
             id: id.to_string(),
             vertex_shader: vertex_shader?,
             fragment_shader: fragment_shader?,
@@ -107,9 +107,9 @@ impl MaterialPass {
             blend_mode: self.blend_mode.clone(),
         };
 
-        render::material::MaterialPass::new(
+        engine::DrawCall::new(
             &chart_context.gpu_context,
-            material_props,
+            draw_call_props,
             framebuffer_info,
         )
     }

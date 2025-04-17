@@ -1,12 +1,9 @@
-use crate::render::image::BitangImage;
-use crate::tool::{FrameContext, GpuContext};
 use std::sync::Arc;
 
-use super::mipmap_generator::MipmapGenerator;
+use super::{BitangImage, FrameContext, GpuContext, MipmapGenerator};
 
 pub struct GenerateMipLevels {
     pub _id: String,
-    pub image: Arc<BitangImage>,
     generator: MipmapGenerator,
 }
 
@@ -15,7 +12,6 @@ impl GenerateMipLevels {
         Self {
             _id: id.to_owned(),
             generator: MipmapGenerator::new(&context.device, image.clone()),
-            image,
         }
     }
 

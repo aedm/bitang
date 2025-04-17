@@ -1,10 +1,12 @@
-use crate::control::{ControlId, ControlIdPartType};
-use crate::file::chart_file::ChartContext;
-use crate::{file, render};
-use anyhow::Result;
-use serde::Deserialize;
 use std::collections::HashMap;
 use std::rc::Rc;
+
+use anyhow::Result;
+use serde::Deserialize;
+
+use crate::engine::{ControlId, ControlIdPartType};
+use crate::file::chart_file::ChartContext;
+use crate::{engine, file};
 
 #[derive(Debug, Deserialize)]
 pub struct Object {
@@ -22,8 +24,8 @@ impl Object {
         &self,
         chart_context: &ChartContext,
         parent_id: &ControlId,
-        passes: &[render::pass::Pass],
-    ) -> Result<Rc<render::render_object::RenderObject>> {
+        passes: &[engine::Pass],
+    ) -> Result<Rc<engine::RenderObject>> {
         let object_cid = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
             &chart_context.gpu_context,
@@ -42,7 +44,7 @@ impl Object {
         let rotation_id = object_cid.add(ControlIdPartType::Value, "rotation");
         let instances_id = object_cid.add(ControlIdPartType::Value, "instances");
 
-        let object = crate::render::render_object::RenderObject {
+        let object = crate::engine::RenderObject {
             _id: self.id.clone(),
             mesh,
             material,

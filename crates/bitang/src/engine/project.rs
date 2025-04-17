@@ -1,8 +1,9 @@
-use crate::render::chart::Chart;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
+
+use super::Chart;
 
 pub struct Project {
     pub root_path: Arc<PathBuf>,

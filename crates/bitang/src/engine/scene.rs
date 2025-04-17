@@ -1,6 +1,6 @@
-use crate::render::render_object::RenderObject;
-use crate::tool::RenderPassContext;
 use anyhow::Result;
+
+use super::{RenderObject, RenderPassContext};
 
 pub struct Scene {
     pub _id: String,

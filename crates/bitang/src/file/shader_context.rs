@@ -1,16 +1,15 @@
-use crate::control::{ControlId, ControlIdPartType};
-use crate::file::chart_file::ChartContext;
-use crate::loader::async_cache::LoadFuture;
-use crate::render::image::BitangImage;
-use crate::render::shader;
-use crate::render::shader::{
-    DescriptorResource, DescriptorSource, ImageDescriptor, LocalUniformMapping, SamplerDescriptor,
-    Shader, ShaderKind,
-};
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
-use std::collections::HashMap;
 use tracing::instrument;
+
+use crate::engine::{
+    self, BitangImage, ControlId, ControlIdPartType, DescriptorResource, DescriptorSource,
+    ImageDescriptor, LocalUniformMapping, SamplerDescriptor, Shader, ShaderKind,
+};
+use crate::file::chart_file::ChartContext;
+use crate::loader::async_cache::LoadFuture;
 
 #[derive(Debug, Deserialize)]
 pub enum BufferSource {
@@ -44,13 +43,13 @@ pub enum SamplerMode {
 }
 
 impl SamplerMode {
-    pub fn load(&self) -> shader::SamplerMode {
+    pub fn load(&self) -> engine::SamplerMode {
         match self {
-            SamplerMode::Repeat => shader::SamplerMode::Repeat,
-            SamplerMode::MirroredRepeat => shader::SamplerMode::MirroredRepeat,
-            SamplerMode::ClampToEdge => shader::SamplerMode::ClampToEdge,
-            SamplerMode::Envmap => shader::SamplerMode::Envmap,
-            SamplerMode::Shadow => shader::SamplerMode::Shadow,
+            SamplerMode::Repeat => engine::SamplerMode::Repeat,
+            SamplerMode::MirroredRepeat => engine::SamplerMode::MirroredRepeat,
+            SamplerMode::ClampToEdge => engine::SamplerMode::ClampToEdge,
+            SamplerMode::Envmap => engine::SamplerMode::Envmap,
+            SamplerMode::Shadow => engine::SamplerMode::Shadow,
         }
     }
 }
