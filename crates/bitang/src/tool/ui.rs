@@ -1,5 +1,8 @@
-use crate::control::controls::{Control, ControlSet, UsedControlsNode};
-use crate::control::{ControlId, ControlIdPartType};
+use crate::engine::Control;
+use crate::engine::ControlId;
+use crate::engine::ControlIdPartType;
+use crate::engine::ControlSet;
+use crate::engine::UsedControlsNode;
 use crate::tool::app_state::AppState;
 use crate::tool::spline_editor::SplineEditor;
 use anyhow::Result;

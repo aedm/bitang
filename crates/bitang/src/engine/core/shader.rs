@@ -1,4 +1,4 @@
-// use crate::control::controls::{Control};
+use crate::engine::Control;
 use super::globals::{GlobalType, Globals};
 use super::double_buffer::DoubleBuffer;
 use super::image::BitangImage;
@@ -376,6 +376,7 @@ pub struct DescriptorResource {
 
 #[derive(Clone)]
 pub struct LocalUniformMapping {
+    // TODO: this makes 'core' depend on 'control', find a way to avoid this.
     pub control: Rc<Control>,
     pub f32_count: usize,
     pub f32_offset: usize,

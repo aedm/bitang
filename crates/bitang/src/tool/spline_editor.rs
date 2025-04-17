@@ -1,5 +1,5 @@
-use crate::control::controls::Control;
-use crate::control::spline::SplinePoint;
+use crate::engine::Control;
+use crate::engine::SplinePoint;
 use crate::tool::app_state::AppState;
 use egui::Color32;
 use egui_plot::{Line, Plot, PlotBounds, PlotPoint, PlotUi};

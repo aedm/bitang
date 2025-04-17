@@ -9,6 +9,7 @@ pub mod scene;
 pub mod pass;
 pub mod material;
 pub mod core;
+pub mod control;
 
 pub use core::FRAMEDUMP_PIXEL_FORMAT;
 pub use core::Size2D;
@@ -46,3 +47,14 @@ pub use core::SIMULATION_STEP_SECONDS;
 pub use core::context::{GpuContext, Viewport, FrameContext, RenderPassContext, ComputePassContext};
 
 pub use core::globals::{Globals, GlobalType};
+
+pub use control::controls::Control;
+pub use control::controls::ControlSet;
+pub use control::controls::ControlSetBuilder;
+pub use control::controls::ControlRepository;
+pub use control::ControlId;
+pub use control::ControlIdPartType;
+
+pub use control::spline::SplinePoint;
+
+pub use control::controls::UsedControlsNode;

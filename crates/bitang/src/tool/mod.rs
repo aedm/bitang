@@ -7,7 +7,6 @@ mod spline_editor;
 mod timer;
 mod ui; 
 
-use crate::control::controls::Globals;
 use crate::engine::{BitangImage, ImageSizeRule};
 use crate::engine::{Size2D, FRAMEDUMP_PIXEL_FORMAT, SCREEN_RENDER_TARGET_ID};
 use anyhow::{Context, Result};

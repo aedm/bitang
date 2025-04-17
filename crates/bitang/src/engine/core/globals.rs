@@ -1,6 +1,3 @@
-use crate::control::spline::Spline;
-use crate::control::ControlIdPartType::Chart;
-use crate::control::{ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
 use crate::loader::CHARTS_FOLDER;
 use crate::engine::project::Project;
 use ahash::AHashSet;

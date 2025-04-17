@@ -1,4 +1,4 @@
-use crate::control::controls::Control;
+use super::Control;
 use crate::engine::material::Material;
 use super::Mesh;
 use super::RenderPassContext;

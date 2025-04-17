@@ -1,6 +1,6 @@
-use crate::control::spline::Spline;
-use crate::control::ControlIdPartType::Chart;
-use crate::control::{ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
+use super::spline::Spline;
+use super::ControlIdPartType::Chart;
+use super::{ControlId, ControlIdPart, ControlIdPartType, RcHashRef};
 use crate::loader::CHARTS_FOLDER;
 use crate::engine::project::Project;
 use ahash::AHashSet;
@@ -76,6 +76,7 @@ pub struct ControlSet {
     pub root_node: RefCell<UsedControlsNode>,
 }
 
+/// Builder for `ControlSet`, used during project loading.
 pub struct ControlSetBuilder {
     control_repository: Rc<ControlRepository>,
     used_controls: RefCell<AHashSet<RcHashRef<Control>>>,

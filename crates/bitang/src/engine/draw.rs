@@ -1,4 +1,4 @@
-use crate::control::controls::{Control};
+use super::{Control};
 use crate::engine::camera::Camera;
 use crate::engine::pass::Pass;
 use crate::engine::render_object::RenderObject;

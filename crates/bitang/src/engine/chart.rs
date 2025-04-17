@@ -1,5 +1,5 @@
-use crate::control::controls::{ControlSet, ControlSetBuilder};
-use crate::control::{ControlId, ControlIdPartType};
+use super::{ControlSet, ControlSetBuilder};
+use super::{ControlId, ControlIdPartType};
 use crate::engine::camera::Camera;
 use crate::engine::compute::{Compute, Run};
 use crate::engine::draw::Draw;

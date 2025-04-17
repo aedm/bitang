@@ -1,4 +1,4 @@
-use crate::control::{ControlId, ControlIdPartType};
+use crate::engine::{ControlId, ControlIdPartType};
 use crate::file::chart_file::ChartContext;
 use crate::loader::async_cache::LoadFuture;
 use crate::engine::{self, BitangImage};

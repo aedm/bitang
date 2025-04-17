@@ -1,4 +1,3 @@
-mod control;
 mod file;
 mod loader;
 mod tool;

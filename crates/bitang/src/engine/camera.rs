@@ -1,5 +1,5 @@
-use crate::control::controls::{Control, ControlSetBuilder};
-use crate::control::{ControlId, ControlIdPartType};
+use super::{Control, ControlSetBuilder};
+use super::{ControlId, ControlIdPartType};
 use glam::{Mat3, Mat4, Vec2, Vec3};
 use std::f32::consts::PI;
 use std::rc::Rc;
