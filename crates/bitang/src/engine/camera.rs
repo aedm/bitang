@@ -1,12 +1,10 @@
-use super::{Control, ControlSetBuilder};
-use super::{ControlId, ControlIdPartType};
-use glam::{Mat3, Mat4, Vec2, Vec3};
 use std::f32::consts::PI;
 use std::rc::Rc;
 
-use crate::engine::Size2D;
+use glam::{Mat3, Mat4, Vec2, Vec3};
 
-use super::Globals;
+use super::{Control, ControlId, ControlIdPartType, ControlSetBuilder, Globals};
+use crate::engine::Size2D;
 
 pub struct Camera {
     target: Rc<Control>,

@@ -1,8 +1,9 @@
-use anyhow::{bail, Context, Result};
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;
 use std::io::BufReader;
 use std::time::Duration;
+
+use anyhow::{bail, Context, Result};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use tracing::{debug, info, warn};
 
 struct MusicDevice {

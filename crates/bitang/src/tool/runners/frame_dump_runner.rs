@@ -1,8 +1,9 @@
-use anyhow::Result;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
+
+use anyhow::Result;
 use tracing::info;
 
 use crate::engine::{

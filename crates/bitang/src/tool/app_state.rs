@@ -1,11 +1,7 @@
-use crate::engine::Chart;
-use crate::engine::ControlId;
-use crate::engine::ControlIdPartType;
-use crate::engine::ControlRepository;
-use crate::engine::ControlSet;
-use crate::engine::Project;
-use crate::tool::timer::Timer;
 use std::rc::Rc;
+
+use crate::engine::{Chart, ControlId, ControlIdPartType, ControlRepository, ControlSet, Project};
+use crate::tool::timer::Timer;
 
 pub struct AppState {
     pub project: Option<Rc<Project>>,

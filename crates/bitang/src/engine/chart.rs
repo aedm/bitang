@@ -1,16 +1,17 @@
-use super::BitangImage;
-use super::SIMULATION_STEP_SECONDS;
-use super::{ComputePassContext, FrameContext};
-use super::{ControlId, ControlIdPartType};
-use super::{ControlSet, ControlSetBuilder};
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use anyhow::{bail, Result};
+
+use super::{
+    BitangImage, ComputePassContext, ControlId, ControlIdPartType, ControlSet, ControlSetBuilder,
+    FrameContext, SIMULATION_STEP_SECONDS,
+};
 use crate::engine::camera::Camera;
 use crate::engine::compute::{Compute, Run};
 use crate::engine::draw::Draw;
 use crate::engine::generate_mip_levels::GenerateMipLevels;
-use anyhow::{bail, Result};
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::Arc;
 
 pub enum ChartStep {
     Draw(Draw),

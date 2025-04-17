@@ -1,8 +1,9 @@
-use crate::engine::GlobalType;
-use crate::engine::GpuContext;
-use crate::engine::{GlobalUniformMapping, ShaderKind};
-use crate::loader::file_cache::{ContentHash, FileCache};
-use crate::loader::resource_path::ResourcePath;
+use std::error::Error;
+use std::mem::size_of;
+use std::str::FromStr;
+use std::sync::Arc;
+use std::thread;
+
 use anyhow::{bail, ensure, Context, Result};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::SimpleFiles;
@@ -13,13 +14,12 @@ use spirq::ty::ScalarType::Float;
 use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
 use spirq::ReflectConfig;
-use std::error::Error;
-use std::mem::size_of;
-use std::str::FromStr;
-use std::sync::Arc;
-use std::thread;
 use tracing::{debug, error, info, instrument, trace};
 use wgpu::{ShaderModule, ShaderModuleDescriptor};
+
+use crate::engine::{GlobalType, GlobalUniformMapping, GpuContext, ShaderKind};
+use crate::loader::file_cache::{ContentHash, FileCache};
+use crate::loader::resource_path::ResourcePath;
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
 

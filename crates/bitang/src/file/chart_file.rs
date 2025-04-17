@@ -1,22 +1,22 @@
-use crate::engine::ControlSetBuilder;
-use crate::engine::GpuContext;
-use crate::engine::ImageSizeRule;
-use crate::engine::ShaderKind;
-use crate::engine::SCREEN_RENDER_TARGET_ID;
-use crate::engine::{ControlId, ControlIdPartType};
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use ahash::AHashMap;
+use anyhow::{anyhow, Context, Result};
+use futures::future::join_all;
+use serde::Deserialize;
+use tracing::{instrument, trace};
+
+use crate::engine::{
+    ControlId, ControlIdPartType, ControlSetBuilder, GpuContext, ImageSizeRule, ShaderKind,
+    SCREEN_RENDER_TARGET_ID,
+};
 use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::resource_repository::ResourceRepository;
 use crate::{engine, file};
-use ahash::AHashMap;
-use anyhow::{anyhow, Context, Result};
-use futures::future::join_all;
-use serde::Deserialize;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::sync::Arc;
-use tracing::{instrument, trace};
 
 /// A context for loading a chart.
 pub struct ChartContext {

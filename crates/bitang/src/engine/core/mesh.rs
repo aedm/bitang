@@ -1,9 +1,8 @@
-use super::context::GpuContext;
-use super::Vertex3;
 use anyhow::Result;
 use wgpu::util::DeviceExt;
 
-use super::MeshIndex;
+use super::context::GpuContext;
+use super::{MeshIndex, Vertex3};
 
 #[derive(Clone)]
 pub struct Mesh {

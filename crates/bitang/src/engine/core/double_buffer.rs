@@ -1,6 +1,7 @@
-use super::context::GpuContext;
 use std::array::from_fn;
 use std::cell::Cell;
+
+use super::context::GpuContext;
 
 // TODO: id
 pub struct DoubleBuffer {

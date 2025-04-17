@@ -1,6 +1,7 @@
+use anyhow::Result;
+
 use super::context::{ComputePassContext, GpuContext};
 use super::shader::Shader;
-use anyhow::Result;
 
 /// Represents a compute shader with all necessary resources.
 pub struct ComputeCall {

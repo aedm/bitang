@@ -1,14 +1,13 @@
-use super::context::{GpuContext, RenderPassContext};
-use super::mesh::Mesh;
-use super::shader::Shader;
-use super::Vertex3;
-use crate::engine::pass::FramebufferInfo;
 use anyhow::Result;
 use serde::Deserialize;
 use smallvec::SmallVec;
 use wgpu::CompareFunction;
 
-use super::VERTEX_FORMAT;
+use super::context::{GpuContext, RenderPassContext};
+use super::mesh::Mesh;
+use super::shader::Shader;
+use super::{Vertex3, VERTEX_FORMAT};
+use crate::engine::pass::FramebufferInfo;
 
 #[derive(Debug, Deserialize, Default, Clone)]
 pub enum BlendMode {

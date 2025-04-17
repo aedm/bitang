@@ -1,10 +1,9 @@
-use super::BitangImage;
-use super::{FrameContext, RenderPassContext, Viewport};
-use anyhow::{bail, ensure, Result};
-use smallvec::SmallVec;
 use std::sync::Arc;
 
-use super::PixelFormat;
+use anyhow::{bail, ensure, Result};
+use smallvec::SmallVec;
+
+use super::{BitangImage, FrameContext, PixelFormat, RenderPassContext, Viewport};
 use crate::engine::Size2D;
 
 // TODO: this might not be needed at all

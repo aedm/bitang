@@ -1,15 +1,15 @@
-use super::context::{ComputePassContext, GpuContext, RenderPassContext};
-use super::double_buffer::DoubleBuffer;
-use super::globals::{GlobalType, Globals};
-use super::image::BitangImage;
-use crate::engine::Control;
-use anyhow::Result;
-use smallvec::SmallVec;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use super::image::PixelFormat;
+use anyhow::Result;
+use smallvec::SmallVec;
+
+use super::context::{ComputePassContext, GpuContext, RenderPassContext};
+use super::double_buffer::DoubleBuffer;
+use super::globals::{GlobalType, Globals};
+use super::image::{BitangImage, PixelFormat};
+use crate::engine::Control;
 
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 

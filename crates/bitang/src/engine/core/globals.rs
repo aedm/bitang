@@ -1,5 +1,6 @@
-use glam::{Mat4, Vec2, Vec3};
 use std::slice;
+
+use glam::{Mat4, Vec2, Vec3};
 use strum::EnumString;
 
 #[derive(Copy, Clone, EnumString, Debug)]

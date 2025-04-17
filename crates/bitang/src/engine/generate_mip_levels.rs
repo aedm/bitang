@@ -1,8 +1,6 @@
-use super::BitangImage;
-use super::{FrameContext, GpuContext};
 use std::sync::Arc;
 
-use super::MipmapGenerator;
+use super::{BitangImage, FrameContext, GpuContext, MipmapGenerator};
 
 pub struct GenerateMipLevels {
     pub _id: String,

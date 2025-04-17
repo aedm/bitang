@@ -13,52 +13,33 @@ mod scene;
 
 pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
 
-pub use chart::Chart;
-pub use chart::ChartStep;
-pub use compute::Compute;
-pub use compute::Run;
-pub use draw::Draw;
-pub use draw::DrawItem;
-pub use generate_mip_levels::GenerateMipLevels;
-pub use pass::FramebufferInfo;
-pub use pass::Pass;
-pub use project::Cut;
-pub use project::Project;
-pub use render_object::RenderObject;
-pub use scene::Scene;
-pub use material::Material;
 pub use core::compute_call::ComputeCall;
-pub use core::double_buffer::DoubleBuffer;
-pub use core::draw_call::DrawCall;
-pub use core::draw_call::DrawCallProps;
-pub use core::image::PixelFormat;
-pub use core::mesh::Mesh;
-pub use core::mipmap_generator::MipmapGenerator;
-pub use core::shader::Shader;
-pub use core::shader::ShaderKind;
-pub use core::Size2D;
-pub use core::image::BitangImage;
-pub use core::image::ImageSizeRule;
-pub use core::image::SwapchainImage;
-pub use core::draw_call::BlendMode;
-pub use core::Vertex3;
-pub use core::shader::DescriptorResource;
-pub use core::shader::DescriptorSource;
-pub use core::shader::GlobalUniformMapping;
-pub use core::shader::ImageDescriptor;
-pub use core::shader::LocalUniformMapping;
-pub use core::shader::SamplerDescriptor;
-pub use core::shader::SamplerMode;
-pub use core::SIMULATION_STEP_SECONDS;
 pub use core::context::{
     ComputePassContext, FrameContext, GpuContext, RenderPassContext, Viewport,
 };
+pub use core::double_buffer::DoubleBuffer;
+pub use core::draw_call::{BlendMode, DrawCall, DrawCallProps};
 pub use core::globals::{GlobalType, Globals};
-pub use control::controls::Control;
-pub use control::controls::ControlRepository;
-pub use control::controls::ControlSet;
-pub use control::controls::ControlSetBuilder;
-pub use control::ControlId;
-pub use control::ControlIdPartType;
+pub use core::image::{BitangImage, ImageSizeRule, PixelFormat, SwapchainImage};
+pub use core::mesh::Mesh;
+pub use core::mipmap_generator::MipmapGenerator;
+pub use core::shader::{
+    DescriptorResource, DescriptorSource, GlobalUniformMapping, ImageDescriptor,
+    LocalUniformMapping, SamplerDescriptor, SamplerMode, Shader, ShaderKind,
+};
+pub use core::{Size2D, Vertex3, SIMULATION_STEP_SECONDS};
+
+pub use chart::{Chart, ChartStep};
+pub use compute::{Compute, Run};
+pub use control::controls::{
+    Control, ControlRepository, ControlSet, ControlSetBuilder, UsedControlsNode,
+};
 pub use control::spline::SplinePoint;
-pub use control::controls::UsedControlsNode;
+pub use control::{ControlId, ControlIdPartType};
+pub use draw::{Draw, DrawItem};
+pub use generate_mip_levels::GenerateMipLevels;
+pub use material::Material;
+pub use pass::{FramebufferInfo, Pass};
+pub use project::{Cut, Project};
+pub use render_object::RenderObject;
+pub use scene::Scene;

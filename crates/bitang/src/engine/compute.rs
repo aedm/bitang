@@ -1,11 +1,8 @@
-use super::DoubleBuffer;
-use super::{ComputePassContext, GpuContext};
-use anyhow::Result;
 use std::rc::Rc;
 
-use super::ComputeCall;
+use anyhow::Result;
 
-use super::Shader;
+use super::{ComputeCall, ComputePassContext, DoubleBuffer, GpuContext, Shader};
 
 // TODO: rename to "stage" or similar
 pub enum Run {

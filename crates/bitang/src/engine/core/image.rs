@@ -1,10 +1,12 @@
-use super::context::{FrameContext, GpuContext};
+use std::sync::{Arc, RwLock};
+
 use anyhow::{bail, Result};
 use serde::Deserialize;
-use std::sync::{Arc, RwLock};
 use wgpu::Extent3d;
 
-use super::{mipmap_generator::MipmapGenerator, Size2D};
+use super::context::{FrameContext, GpuContext};
+use super::mipmap_generator::MipmapGenerator;
+use super::Size2D;
 
 #[derive(Debug, Deserialize, Clone, Copy)]
 pub enum PixelFormat {

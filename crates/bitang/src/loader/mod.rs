@@ -1,5 +1,6 @@
-use ahash::AHasher;
 use std::hash::Hasher;
+
+use ahash::AHasher;
 pub mod async_cache;
 pub mod file_cache;
 mod gltf_loader;

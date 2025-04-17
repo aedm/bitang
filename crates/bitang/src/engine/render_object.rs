@@ -1,11 +1,11 @@
-use super::Control;
-use super::Mesh;
-use super::RenderPassContext;
-use crate::engine::material::Material;
-use anyhow::Result;
-use glam::{EulerRot, Mat4};
 use std::rc::Rc;
 use std::sync::Arc;
+
+use anyhow::Result;
+use glam::{EulerRot, Mat4};
+
+use super::{Control, Mesh, RenderPassContext};
+use crate::engine::material::Material;
 
 pub struct RenderObject {
     pub _id: String,

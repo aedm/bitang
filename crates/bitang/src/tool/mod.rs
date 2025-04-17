@@ -7,10 +7,11 @@ mod spline_editor;
 mod timer;
 mod ui;
 
-use crate::engine::PixelFormat;
 use anyhow::Result;
 use runners::frame_dump_runner::FrameDumpRunner;
 use runners::window_runner::WindowRunner;
+
+use crate::engine::PixelFormat;
 
 const START_IN_DEMO_MODE: bool = false;
 

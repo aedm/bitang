@@ -1,11 +1,13 @@
+use std::sync::Arc;
+
+use anyhow::Result;
+use tokio::task::spawn_blocking;
+use tracing::trace;
+
 use crate::engine::GpuContext;
 use crate::loader::async_cache::{AsyncCache, LoadFuture};
 use crate::loader::file_cache::{ContentHash, FileCache, FileCacheEntry};
 use crate::loader::resource_path::ResourcePath;
-use anyhow::Result;
-use std::sync::Arc;
-use tokio::task::spawn_blocking;
-use tracing::trace;
 
 type LoaderFunc<T> =
     fn(context: &Arc<GpuContext>, blob: &[u8], resource_name: &str) -> Result<Arc<T>>;

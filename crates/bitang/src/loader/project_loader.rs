@@ -1,14 +1,15 @@
-use crate::engine::GpuContext;
-use crate::engine::Project;
-use crate::loader::file_cache::{FileCache, FileChangeHandler};
-use crate::loader::resource_repository::ResourceRepository;
-use anyhow::{ensure, Result};
-use dunce::canonicalize;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+use anyhow::{ensure, Result};
+use dunce::canonicalize;
 use tracing::{error, info, instrument};
+
+use crate::engine::{GpuContext, Project};
+use crate::loader::file_cache::{FileCache, FileChangeHandler};
+use crate::loader::resource_repository::ResourceRepository;
 
 // If loading fails, we want to retry periodically.
 const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
