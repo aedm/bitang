@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::cmp::min;
+
+use serde::{Deserialize, Serialize};
 
 // Plain Catmull-Rom spline ffs
 #[derive(Serialize, Deserialize)]

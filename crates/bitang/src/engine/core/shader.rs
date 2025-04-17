@@ -1,14 +1,15 @@
-use crate::control::controls::{Control, GlobalType, Globals};
-use crate::render::double_buffer::DoubleBuffer;
-use crate::render::image::BitangImage;
-use crate::tool::{ComputePassContext, GpuContext, RenderPassContext};
-use anyhow::Result;
-use smallvec::SmallVec;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use super::image::PixelFormat;
+use anyhow::Result;
+use smallvec::SmallVec;
+
+use super::context::{ComputePassContext, GpuContext, RenderPassContext};
+use super::double_buffer::DoubleBuffer;
+use super::globals::{GlobalType, Globals};
+use super::image::{BitangImage, PixelFormat};
+use crate::engine::Control;
 
 const MAX_UNIFORMS_F32_COUNT: usize = 1024;
 
@@ -17,7 +18,10 @@ pub enum ShaderKind {
     Vertex,
     Fragment,
     Compute,
+    // TODO: implement these
+    #[allow(dead_code)]
     ComputeInit,
+    #[allow(dead_code)]
     ComputeSimulate,
 }
 
@@ -375,6 +379,7 @@ pub struct DescriptorResource {
 
 #[derive(Clone)]
 pub struct LocalUniformMapping {
+    // TODO: this makes 'core' depend on 'control', find a way to avoid this.
     pub control: Rc<Control>,
     pub f32_count: usize,
     pub f32_offset: usize,

@@ -1,2 +1,4 @@
 single_line_if_else_max_width = 90
 chain_width = 90
+imports_granularity = "Module"
+group_imports ="StdExternalCrate"

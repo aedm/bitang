@@ -1,17 +1,13 @@
-use crate::control::controls::{ControlSet, ControlSetBuilder};
-use crate::control::{ControlId, ControlIdPartType};
-use crate::render::camera::Camera;
-use crate::render::compute::{Compute, Run};
-use crate::render::draw::Draw;
-use crate::render::generate_mip_levels::GenerateMipLevels;
-use crate::render::image::BitangImage;
-use crate::render::SIMULATION_STEP_SECONDS;
-use crate::tool::{ComputePassContext, FrameContext};
-use anyhow::{bail, ensure, Result};
-use tracing::{debug, info, warn};
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
+
+use anyhow::{bail, Result};
+
+use super::{
+    BitangImage, Camera, Compute, ComputePassContext, ControlId, ControlIdPartType, ControlSet,
+    ControlSetBuilder, Draw, FrameContext, GenerateMipLevels, Run, SIMULATION_STEP_SECONDS,
+};
 
 pub enum ChartStep {
     Draw(Draw),
@@ -108,7 +104,8 @@ impl Chart {
 
         const MAX_SIMULATION_STEPS_PER_FRAME: usize = 3;
         if !is_precalculation {
-            let allowed_steps = if context.globals.is_paused { 2 } else { MAX_SIMULATION_STEPS_PER_FRAME };
+            let allowed_steps =
+                if context.globals.is_paused { 2 } else { MAX_SIMULATION_STEPS_PER_FRAME };
             simulation_cursor.ensure_uptodate_max_steps(allowed_steps);
         }
 
@@ -122,11 +119,8 @@ impl Chart {
                 break;
             };
 
-            let sim_time = if context.globals.is_paused {
-                chart_time
-            } else {
-                chart_time + sim_ahead
-            };
+            let sim_time =
+                if context.globals.is_paused { chart_time } else { chart_time + sim_ahead };
 
             context.globals.chart_time = sim_time;
             self.evaluate_splines(sim_time);

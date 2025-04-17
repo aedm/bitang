@@ -1,8 +1,9 @@
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
 
 pub mod controls;
 pub mod spline;
@@ -32,21 +33,21 @@ impl<T> Deref for ArcHashRef<T> {
 
 pub struct RcHashRef<T>(Rc<T>);
 
-impl<T> std::hash::Hash for crate::control::RcHashRef<T> {
+impl<T> std::hash::Hash for RcHashRef<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.0.as_ref(), state);
     }
 }
 
-impl<T> PartialEq for crate::control::RcHashRef<T> {
+impl<T> PartialEq for RcHashRef<T> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self.0.as_ref(), other.0.as_ref())
     }
 }
 
-impl<T> Eq for crate::control::RcHashRef<T> {}
+impl<T> Eq for RcHashRef<T> {}
 
-impl<T> Deref for crate::control::RcHashRef<T> {
+impl<T> Deref for RcHashRef<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         self.0.deref()

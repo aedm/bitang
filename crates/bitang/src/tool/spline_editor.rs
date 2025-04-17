@@ -1,10 +1,11 @@
-use crate::control::controls::Control;
-use crate::control::spline::SplinePoint;
-use crate::tool::app_state::AppState;
+use std::rc::Rc;
+
 use egui::Color32;
 use egui_plot::{Line, Plot, PlotBounds, PlotPoint, PlotUi};
 use glam::Vec2;
-use std::rc::Rc;
+
+use crate::engine::{Control, SplinePoint};
+use crate::tool::app_state::AppState;
 
 enum SplineEditorState {
     Idle,

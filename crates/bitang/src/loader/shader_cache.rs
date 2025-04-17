@@ -1,15 +1,16 @@
+use std::fmt::Debug;
+use std::sync::Arc;
+
+use anyhow::{Context, Result};
+use dashmap::DashMap;
+use tokio::task::spawn_blocking;
+use tracing::trace;
+
+use crate::engine::{GpuContext, ShaderKind};
 use crate::loader::async_cache::AsyncCache;
 use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_compiler::{ShaderArtifact, ShaderCompilation};
-use crate::render::shader::ShaderKind;
-use crate::tool::GpuContext;
-use anyhow::{Context, Result};
-use dashmap::DashMap;
-use std::fmt::Debug;
-use std::sync::Arc;
-use tokio::task::spawn_blocking;
-use tracing::trace;
 
 /// Shader cache is a tree structure.
 ///

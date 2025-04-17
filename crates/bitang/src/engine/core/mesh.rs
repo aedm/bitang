@@ -1,9 +1,8 @@
-use crate::render::Vertex3;
-use crate::tool::GpuContext;
 use anyhow::Result;
 use wgpu::util::DeviceExt;
 
-use super::MeshIndex;
+use super::context::GpuContext;
+use super::{MeshIndex, Vertex3};
 
 #[derive(Clone)]
 pub struct Mesh {

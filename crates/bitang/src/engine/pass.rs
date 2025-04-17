@@ -1,12 +1,11 @@
-use crate::render::image::BitangImage;
-use crate::tool::{FrameContext, RenderPassContext, Viewport};
-use anyhow::{bail, ensure, Result};
-use smallvec::SmallVec;
 use std::sync::Arc;
 
-use super::image::PixelFormat;
-use super::Size2D;
+use anyhow::{bail, ensure, Result};
+use smallvec::SmallVec;
 
+use super::{BitangImage, FrameContext, PixelFormat, RenderPassContext, Size2D, Viewport};
+
+// TODO: this might not be needed at all
 #[derive(Clone, Debug)]
 pub struct FramebufferInfo {
     pub color_buffer_formats: Vec<PixelFormat>,

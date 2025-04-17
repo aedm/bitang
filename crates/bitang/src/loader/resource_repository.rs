@@ -1,4 +1,17 @@
-use crate::control::controls::ControlRepository;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::Arc;
+use std::time::Instant;
+
+use anyhow::{anyhow, ensure, Context, Result};
+use image::GenericImageView;
+use jxl_oxide::JxlImage;
+use tracing::{info, instrument, warn};
+
+use crate::engine::{
+    BitangImage, Chart, ControlRepository, GpuContext, Mesh, PixelFormat, Project,
+};
 use crate::file::{chart_file, project_file};
 use crate::loader::async_cache::LoadFuture;
 use crate::loader::file_cache::FileCache;
@@ -7,20 +20,6 @@ use crate::loader::resource_cache::ResourceCache;
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::shader_cache::ShaderCache;
 use crate::loader::{CHARTS_FOLDER, CHART_FILE_NAME, PROJECT_FILE_NAME};
-use crate::render::chart::Chart;
-use crate::render::image::{BitangImage, PixelFormat};
-use crate::render::mesh::Mesh;
-use crate::render::project::Project;
-use crate::tool::GpuContext;
-use anyhow::{anyhow, ensure, Context, Result};
-use image::GenericImageView;
-use jxl_oxide::JxlImage;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::time::Instant;
-use tracing::{info, instrument, warn};
 
 pub struct SceneNode {
     pub position: [f32; 3],
