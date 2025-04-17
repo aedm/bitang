@@ -18,7 +18,10 @@ pub enum ShaderKind {
     Vertex,
     Fragment,
     Compute,
+    // TODO: implement these
+    #[allow(dead_code)]
     ComputeInit,
+    #[allow(dead_code)]
     ComputeSimulate,
 }
 

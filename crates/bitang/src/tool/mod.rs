@@ -7,13 +7,10 @@ mod spline_editor;
 mod timer;
 mod ui;
 
-use crate::engine::{BitangImage, ImageSizeRule, PixelFormat};
-use crate::engine::{Size2D, SCREEN_RENDER_TARGET_ID};
-use anyhow::{Context, Result};
+use crate::engine::PixelFormat;
+use anyhow::Result;
 use runners::frame_dump_runner::FrameDumpRunner;
 use runners::window_runner::WindowRunner;
-use std::default::Default;
-use std::sync::Arc;
 
 const START_IN_DEMO_MODE: bool = false;
 

@@ -1,19 +1,6 @@
-use crate::engine::project::Project;
-use crate::loader::CHARTS_FOLDER;
-use ahash::AHashSet;
-use anyhow::Context;
-use anyhow::Result;
-use dashmap::mapref::entry::Entry::{Occupied, Vacant};
-use dashmap::DashMap;
-use glam::{Mat4, Vec2, Vec3, Vec4};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::cell::{Cell, RefCell};
-use std::cmp::max;
-use std::path::Path;
-use std::rc::Rc;
-use std::{array, mem, slice};
+use glam::{Mat4, Vec2, Vec3};
+use std::slice;
 use strum::EnumString;
-use tracing::{debug, info, instrument, warn};
 
 #[derive(Copy, Clone, EnumString, Debug)]
 #[strum(serialize_all = "snake_case")]

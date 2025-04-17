@@ -4,6 +4,7 @@ use anyhow::Result;
 
 /// Represents a compute shader with all necessary resources.
 pub struct ComputeCall {
+    #[allow(dead_code)]
     pub id: String,
     shader: Shader,
     pipeline: wgpu::ComputePipeline,

@@ -8,14 +8,13 @@ use anyhow::Context;
 use anyhow::Result;
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
 use dashmap::DashMap;
-use glam::{Mat4, Vec2, Vec3, Vec4};
+use glam::{Vec2, Vec3, Vec4};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::path::Path;
 use std::rc::Rc;
-use std::{array, mem, slice};
-use strum::EnumString;
+use std::{array, mem};
 use tracing::{debug, info, instrument, warn};
 
 const CONTROLS_FILE_NAME: &str = "controls.ron";

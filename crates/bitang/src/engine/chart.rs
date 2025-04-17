@@ -7,11 +7,10 @@ use crate::engine::camera::Camera;
 use crate::engine::compute::{Compute, Run};
 use crate::engine::draw::Draw;
 use crate::engine::generate_mip_levels::GenerateMipLevels;
-use anyhow::{bail, ensure, Result};
-use std::cell::{Cell, RefCell};
+use anyhow::{bail, Result};
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
 
 pub enum ChartStep {
     Draw(Draw),
