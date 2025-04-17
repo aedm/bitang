@@ -1,5 +1,5 @@
 use crate::loader::resource_repository::ResourceRepository;
-use crate::{engine, engine::core};
+use crate::engine;
 use crate::engine::GpuContext;
 use anyhow::Result;
 use futures::future::join_all;
@@ -28,7 +28,7 @@ impl Project {
         &self,
         context: &Arc<GpuContext>,
         resource_repository: &Rc<ResourceRepository>,
-    ) -> Result<engine::project::Project> {
+    ) -> Result<engine::Project> {
         let chart_ids: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();
         let chart_futures_by_id = chart_ids.iter().map(|&chart_name| async move {
             let now = Instant::now();
@@ -44,14 +44,14 @@ impl Project {
         let cuts = self
             .cuts
             .iter()
-            .map(|cut| engine::project::Cut {
+            .map(|cut| engine::Cut {
                 chart: charts_by_id[&cut.chart].clone(),
                 start_time: cut.start_time,
                 end_time: cut.end_time,
                 offset: cut.offset,
             })
             .collect();
-        Ok(engine::project::Project::new(
+        Ok(engine::Project::new(
             &resource_repository.root_path,
             charts_by_id,
             cuts,

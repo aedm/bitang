@@ -24,8 +24,8 @@ impl Scene {
         &self,
         parent_id: &ControlId,
         chart_context: &ChartContext,
-        passes: &[engine::pass::Pass],
-    ) -> anyhow::Result<Rc<engine::scene::Scene>> {
+        passes: &[engine::Pass],
+    ) -> anyhow::Result<Rc<engine::Scene>> {
         let scene_cid = parent_id.add(ControlIdPartType::Scene, &self.id);
         let mesh_collection_future = tokio::spawn({
             let mesh_cache = chart_context.resource_repository.mesh_cache.clone();
@@ -61,7 +61,7 @@ impl Scene {
                 let rotation = chart_context.control_set_builder.get_vec3(&rotation_id);
                 rotation.set(&[node_rot[0], node_rot[1], node_rot[2], 0.0]);
 
-                engine::render_object::RenderObject {
+                engine::RenderObject {
                     _id: mesh_id.clone(),
                     mesh: scene_node.mesh.clone(),
                     material: material.clone(),
@@ -74,7 +74,7 @@ impl Scene {
             })
             .collect();
 
-        let scene = engine::scene::Scene {
+        let scene = engine::Scene {
             _id: self.id.clone(),
             objects,
         };

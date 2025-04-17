@@ -1,15 +1,35 @@
-pub mod camera;
-pub mod chart;
-pub mod compute;
-pub mod draw;
-pub mod generate_mip_levels;
-pub mod project;
-pub mod render_object;
-pub mod scene;
-pub mod pass;
-pub mod material;
-pub mod core;
-pub mod control;
+mod camera;
+mod chart;
+mod compute;
+mod draw;
+mod generate_mip_levels;
+mod project;
+mod render_object;
+mod scene;
+mod pass;
+mod material;
+mod core;
+mod control;
+
+pub use camera::Camera;
+pub use chart::Chart;
+pub use chart::ChartStep;
+pub use compute::Compute;
+pub use compute::Run;
+pub use draw::Draw;
+pub use draw::DrawItem;
+pub use generate_mip_levels::GenerateMipLevels;
+pub use project::Project;
+pub use project::Cut;
+pub use render_object::RenderObject;
+pub use scene::Scene;
+pub use pass::Pass;
+pub use pass::FramebufferInfo;
+
+pub use material::Material;
+
+
+
 
 pub use core::FRAMEDUMP_PIXEL_FORMAT;
 pub use core::Size2D;

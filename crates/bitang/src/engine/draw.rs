@@ -8,7 +8,7 @@ use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 use std::rc::Rc;
 
-pub(crate) enum DrawItem {
+pub enum DrawItem {
     Object(Rc<RenderObject>),
     Scene(Rc<Scene>),
 }

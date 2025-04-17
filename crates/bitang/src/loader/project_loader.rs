@@ -1,6 +1,6 @@
 use crate::loader::file_cache::{FileCache, FileChangeHandler};
 use crate::loader::resource_repository::ResourceRepository;
-use crate::engine::project::Project;
+use crate::engine::Project;
 use crate::engine::GpuContext;
 use anyhow::{ensure, Result};
 use dunce::canonicalize;
