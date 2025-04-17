@@ -6,7 +6,6 @@ use super::MipmapGenerator;
 
 pub struct GenerateMipLevels {
     pub _id: String,
-    pub image: Arc<BitangImage>,
     generator: MipmapGenerator,
 }
 
@@ -15,7 +14,6 @@ impl GenerateMipLevels {
         Self {
             _id: id.to_owned(),
             generator: MipmapGenerator::new(&context.device, image.clone()),
-            image,
         }
     }
 

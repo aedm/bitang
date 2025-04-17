@@ -4,6 +4,7 @@ use std::cell::Cell;
 
 // TODO: id
 pub struct DoubleBuffer {
+    #[allow(dead_code)]
     pub item_size_in_vec4: usize,
     pub item_count: usize,
     buffers: [wgpu::Buffer; 2],
