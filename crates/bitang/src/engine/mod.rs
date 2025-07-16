@@ -43,8 +43,6 @@ pub use project::{Cut, Project};
 pub use render_object::RenderObject;
 pub use scene::Scene;
 
-pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
-
 /// How many times the simulation is updated per second.
 /// Weird number on purpose so issues are easier to spot.
 const SIMULATION_FREQUENCY_HZ: f32 = 53.526621;

@@ -10,10 +10,8 @@ use tracing::{instrument, trace};
 
 use crate::engine::{
     ControlId, ControlIdPartType, ControlSetBuilder, GpuContext, ImageSizeRule, ShaderKind,
-    SCREEN_RENDER_TARGET_ID,
 };
 use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
-use crate::loader::async_cache::LoadFuture;
 use crate::loader::resource_path::ResourcePath;
 use crate::loader::resource_repository::ResourceRepository;
 use crate::{engine, file};
@@ -22,7 +20,7 @@ use crate::{engine, file};
 pub struct ChartContext {
     pub gpu_context: Arc<GpuContext>,
     pub resource_repository: Rc<ResourceRepository>,
-    pub image_futures_by_id: AHashMap<String, LoadFuture<engine::BitangImage>>,
+    pub images_by_id: AHashMap<String, Arc<engine::BitangImage>>,
     pub control_set_builder: ControlSetBuilder,
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
@@ -61,20 +59,11 @@ impl Chart {
             resource_repository.control_repository.clone(),
         );
 
-        let mut image_futures_by_id = self
+        let images_by_id = self
             .images
             .iter()
-            .map(|image_desc| {
-                let image = LoadFuture::new_from_value(format!("chart:{}", id), image_desc.load());
-                Ok((image_desc.id.clone(), image))
-            })
+            .map(|image_desc| Ok((image_desc.id.clone(), image_desc.load())))
             .collect::<Result<AHashMap<_, _>>>()?;
-
-        // Add swapchain image to the image map
-        image_futures_by_id.insert(
-            SCREEN_RENDER_TARGET_ID.to_string(),
-            LoadFuture::new_from_value("screen_render_target", context.final_render_target.clone()),
-        );
 
         let buffers_by_id = self
             .buffers
@@ -88,7 +77,7 @@ impl Chart {
         let chart_context = ChartContext {
             gpu_context: context.clone(),
             resource_repository: resource_repository.clone(),
-            image_futures_by_id,
+            images_by_id,
             control_set_builder,
             values_control_id: chart_control_id.add(ControlIdPartType::ChartValues, "Chart Values"),
             chart_control_id,
@@ -102,11 +91,7 @@ impl Chart {
         let chart_steps =
             join_all(chart_step_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
 
-        let image_futures = chart_context
-            .image_futures_by_id
-            .into_values()
-            .map(|image_future| async move { image_future.get().await });
-        let images = join_all(image_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
+        let images = chart_context.images_by_id.values().cloned().collect::<Vec<_>>();
 
         let chart = engine::Chart::new(
             id,
@@ -179,14 +164,13 @@ pub struct GenerateMipLevels {
 
 impl GenerateMipLevels {
     pub async fn load(&self, chart_context: &ChartContext) -> Result<engine::GenerateMipLevels> {
-        let image = chart_context.image_futures_by_id.get(&self.image_id).with_context(|| {
+        let image = chart_context.images_by_id.get(&self.image_id).with_context(|| {
             anyhow!(
                 "Image id not found: '{}' (mipmap generation step: '{}')",
                 self.image_id,
                 self.id
             )
         })?;
-        let image = image.get().await?;
 
         Ok(engine::GenerateMipLevels::new(
             &chart_context.gpu_context,
@@ -328,20 +312,24 @@ impl Compute {
 pub enum ImageSelector {
     /// Level 0 of the image
     Image(String),
+
+    /// The swapchain image
+    Screen,
 }
 
 impl ImageSelector {
-    pub async fn load(
-        &self,
-        images_by_id: &AHashMap<String, LoadFuture<engine::BitangImage>>,
-    ) -> Result<Arc<engine::BitangImage>> {
+    pub fn load(&self, chart_context: &ChartContext) -> Result<Arc<engine::BitangImage>> {
         match self {
             ImageSelector::Image(id) => {
-                let image_future = images_by_id
+                let image = chart_context
+                    .images_by_id
                     .get(id)
                     .with_context(|| anyhow!("Render target not found: {id}"))?;
-                let image = image_future.get().await?;
-                Ok(image)
+                Ok(Arc::clone(image))
+            }
+            ImageSelector::Screen => {
+                let swapchain_image = chart_context.gpu_context.final_render_target.clone();
+                Ok(swapchain_image)
             }
         }
     }
@@ -360,16 +348,15 @@ pub struct Pass {
 impl Pass {
     pub async fn load(&self, chart_context: &ChartContext) -> Result<engine::Pass> {
         let depth_buffer = match &self.depth_image {
-            Some(selector) => Some(selector.load(&chart_context.image_futures_by_id).await?),
+            Some(selector) => Some(selector.load(chart_context)?),
             None => None,
         };
 
-        let color_buffer_futures = self
+        let color_buffers = self
             .color_images
             .iter()
-            .map(|color_buffer| color_buffer.load(&chart_context.image_futures_by_id));
-        let color_buffers =
-            join_all(color_buffer_futures).await.into_iter().collect::<Result<Vec<_>>>()?;
+            .map(|color_buffer| color_buffer.load(chart_context))
+            .collect::<Result<Vec<_>>>()?;
 
         engine::Pass::new(&self.id, color_buffers, depth_buffer, self.clear_color)
     }

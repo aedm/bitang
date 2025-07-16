@@ -81,11 +81,14 @@ impl ShaderContext {
                             &chart_context.gpu_context,
                             &chart_context.path.relative_path(texture_path)?,
                         ),
-                        ImageSource::Image(id) => chart_context
-                            .image_futures_by_id
-                            .get(id)
-                            .with_context(|| anyhow!("Render target '{id}' not found"))?
-                            .clone(),
+                        ImageSource::Image(id) => {
+                            let image = chart_context
+                                .images_by_id
+                                .get(id)
+                                .with_context(|| anyhow!("Render target '{id}' not found"))?
+                                .clone();
+                            LoadFuture::new_from_value(format!("image:{}", id), image)
+                        }
                     }
                 };
                 let value = (image, texture.clone());
