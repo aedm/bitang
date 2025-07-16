@@ -8,10 +8,10 @@ pub struct GenerateMipLevels {
 }
 
 impl GenerateMipLevels {
-    pub fn new(context: &GpuContext, id: &str, image: Arc<BitangImage>) -> Self {
+    pub fn new(context: &GpuContext, id: &str, image: &Arc<BitangImage>) -> Self {
         Self {
             _id: id.to_owned(),
-            generator: MipmapGenerator::new(&context.device, image.clone()),
+            generator: MipmapGenerator::new(&context.device, Arc::clone(image)),
         }
     }
 

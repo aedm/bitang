@@ -331,7 +331,7 @@ Chart(
            passes: [
                Pass(
                    id: "solid",
-                   color_images: [Image("screen")],
+                   color_images: [Screen],
                    clear_color: (0, 0.37, 0, 0),
                ),
            ],

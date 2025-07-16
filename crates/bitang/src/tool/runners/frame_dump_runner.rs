@@ -6,9 +6,7 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use tracing::info;
 
-use crate::engine::{
-    BitangImage, FrameContext, GpuContext, ImageSizeRule, Viewport, SCREEN_RENDER_TARGET_ID,
-};
+use crate::engine::{BitangImage, FrameContext, GpuContext, ImageSizeRule, Viewport};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::{FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_PIXEL_FORMAT, FRAMEDUMP_WIDTH};
 
@@ -22,7 +20,7 @@ impl FrameDumpRunner {
     pub fn run() -> Result<()> {
         let rt = tokio::runtime::Runtime::new()?;
         let final_render_target = BitangImage::new_attachment(
-            SCREEN_RENDER_TARGET_ID,
+            "__screen",
             FRAMEDUMP_PIXEL_FORMAT,
             ImageSizeRule::Fixed(FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT),
             false,

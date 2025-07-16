@@ -12,7 +12,6 @@ use wgpu::Backends;
 
 use crate::engine::{
     BitangImage, FrameContext, GpuContext, PixelFormat, Size2D, SwapchainImage, Viewport,
-    SCREEN_RENDER_TARGET_ID,
 };
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
@@ -310,8 +309,7 @@ impl App {
         );
 
         let swapchain_pixel_format = PixelFormat::from_wgpu_format(render_state.target_format)?;
-        let final_render_target =
-            BitangImage::new_swapchain(SCREEN_RENDER_TARGET_ID, swapchain_pixel_format);
+        let final_render_target = BitangImage::new_swapchain("__screen", swapchain_pixel_format);
 
         let gpu_context = Arc::new(GpuContext {
             adapter: render_state.adapter.clone(),
