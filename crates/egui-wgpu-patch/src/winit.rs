@@ -7,7 +7,7 @@ use std::sync::Arc;
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 
 use crate::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
-use crate::{renderer, BackgroundRenderProps, RenderState, SurfaceErrorAction, WgpuConfiguration};
+use crate::{renderer, PaintBackgroundProps, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
@@ -450,9 +450,9 @@ impl Painter {
                 });
 
             // Call the optional background painter callback
-            let (clear_color, clear_depth) = match &self.configuration.on_draw_background {
+            let (clear_color, clear_depth) = match &self.configuration.on_paint_background {
                 Some(on_draw_background) => {
-                    on_draw_background(BackgroundRenderProps {
+                    on_draw_background(PaintBackgroundProps {
                         // surface_size: [surface_state.width, surface_state.height],
                         surface_size: [texture_size.width, texture_size.height],
                         surface_view: view.clone(),

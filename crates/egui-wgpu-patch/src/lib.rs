@@ -280,7 +280,8 @@ pub enum SurfaceErrorAction {
     RecreateSurface,
 }
 
-pub struct BackgroundRenderProps {
+/// Props passed to the `on_paint_background` callback.
+pub struct PaintBackgroundProps {
     pub surface_view: wgpu::TextureView,
     pub surface_size: [u32; 2],
 }
@@ -306,14 +307,16 @@ pub struct WgpuConfiguration {
     /// Callback for surface errors.
     pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
 
-    pub on_draw_background: Option<Rc<dyn Fn(BackgroundRenderProps) -> ()>>,
+    /// Optional callback to paint the background. If set, egui doesn't clear the surface.
+    /// Instead, it will call this callback which should set every pixel of the surface.
+    pub on_paint_background: Option<Arc<dyn Fn(PaintBackgroundProps) -> () + Send + Sync>>,
 }
 
-// #[test]
-// fn wgpu_config_impl_send_sync() {
-//     fn assert_send_sync<T: Send + Sync>() {}
-//     assert_send_sync::<WgpuConfiguration>();
-// }
+#[test]
+fn wgpu_config_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<WgpuConfiguration>();
+}
 
 impl std::fmt::Debug for WgpuConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -322,7 +325,7 @@ impl std::fmt::Debug for WgpuConfiguration {
             desired_maximum_frame_latency,
             wgpu_setup,
             on_surface_error: _,
-            on_draw_background: _,
+            on_paint_background: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
             .field("present_mode", &present_mode)
@@ -351,7 +354,7 @@ impl Default for WgpuConfiguration {
                 }
                 SurfaceErrorAction::SkipFrame
             }),
-            on_draw_background: None,
+            on_paint_background: None,
         }
     }
 }

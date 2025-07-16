@@ -43,7 +43,7 @@ impl WindowRunner {
                 }),
                 ..Default::default()
             }),
-            on_draw_background: Some(Rc::new(move |props| {
+            on_paint_background: Some(Arc::new(move |props| {
                 let mut inner = inner_clone.lock().unwrap();
                 let Some(app_inner) = inner.as_mut() else {
                     error!("Failed to get app inner");
@@ -96,6 +96,9 @@ struct AppInner {
     ui_height: f32,
 }
 
+// TODO: remove this unsafe Send. It's here to make eframe happy.
+unsafe impl Send for AppInner {}
+
 impl AppInner {
     fn compute_viewport(&mut self, swapchain_size: Size2D) {
         // Calculate viewport
@@ -141,7 +144,7 @@ impl AppInner {
         };
     }
 
-    fn render_frame_to_screen(&mut self, props: egui_wgpu::BackgroundRenderProps) -> Result<()> {
+    fn render_frame_to_screen(&mut self, props: egui_wgpu::PaintBackgroundProps) -> Result<()> {
         // Don't render anything if the window is minimized
         if props.surface_size[0] == 0 || props.surface_size[1] == 0 {
             return Ok(());
