@@ -27,7 +27,7 @@ impl Scene {
         parent_id: &ControlId,
         chart_context: &ChartContext,
         passes: &[engine::Pass],
-    ) -> anyhow::Result<Rc<engine::Scene>> {
+    ) -> anyhow::Result<Arc<engine::Scene>> {
         let scene_cid = parent_id.add(ControlIdPartType::Scene, &self.id);
         let mesh_collection_future = tokio::spawn({
             let mesh_cache = chart_context.resource_repository.mesh_cache.clone();
@@ -80,6 +80,6 @@ impl Scene {
             _id: self.id.clone(),
             objects,
         };
-        Ok(Rc::new(scene))
+        Ok(Arc::new(scene))
     }
 }

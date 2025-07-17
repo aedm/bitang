@@ -8,8 +8,8 @@ use super::{
 };
 
 pub enum DrawItem {
-    Object(Rc<RenderObject>),
-    Scene(Rc<Scene>),
+    Object(Arc<RenderObject>),
+    Scene(Arc<Scene>),
 }
 
 /// Represents a draw step in the chart sequence.
@@ -17,8 +17,8 @@ pub struct Draw {
     pub id: String,
     pub passes: Vec<Pass>,
     pub items: Vec<DrawItem>,
-    pub light_dir_worldspace: Rc<Control>,
-    pub shadow_map_size: Rc<Control>,
+    pub light_dir_worldspace: Arc<Control>,
+    pub shadow_map_size: Arc<Control>,
 }
 
 impl Draw {
@@ -26,8 +26,8 @@ impl Draw {
         id: &str,
         passes: Vec<Pass>,
         items: Vec<DrawItem>,
-        light_dir_worldspace: Rc<Control>,
-        shadow_map_size: Rc<Control>,
+        light_dir_worldspace: Arc<Control>,
+        shadow_map_size: Arc<Control>,
     ) -> Result<Draw> {
         Ok(Draw {
             id: id.to_string(),

@@ -48,12 +48,22 @@ pub struct Viewport {
     pub size: Size2D,
 }
 
-pub struct FrameContext {
+pub enum RenderStage<'frame> {
+    Offscreen(&'frame mut wgpu::CommandEncoder),
+    Onscreen(&'frame mut wgpu::RenderPass<'static>),
+}
+
+pub struct FrameContext<'frame> {
     // TODO: remove Arc
     pub gpu_context: Arc<GpuContext>,
     pub screen_viewport: Viewport,
-    pub command_encoder: wgpu::CommandEncoder,
+    // pub command_encoder: &'frame mut wgpu::CommandEncoder,
     pub globals: Globals,
+
+    /// Content is rendered in two steps: offscreen and onscreen rendering.
+    /// If the screen renderpass is available, only the onscreen rendering is done.
+    /// Otherwise, the offscreen rendering is done.
+    pub render_stage: RenderStage<'frame>,
 }
 
 pub struct RenderPassContext<'pass> {

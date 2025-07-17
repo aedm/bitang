@@ -19,12 +19,12 @@ use crate::{engine, file};
 /// A context for loading a chart.
 pub struct ChartContext {
     pub gpu_context: Arc<GpuContext>,
-    pub resource_repository: Rc<ResourceRepository>,
+    pub resource_repository: Arc<ResourceRepository>,
     pub images_by_id: AHashMap<String, Arc<engine::BitangImage>>,
     pub control_set_builder: ControlSetBuilder,
     pub chart_control_id: ControlId,
     pub values_control_id: ControlId,
-    pub buffers_by_id: HashMap<String, Rc<engine::DoubleBuffer>>,
+    pub buffers_by_id: HashMap<String, Arc<engine::DoubleBuffer>>,
     pub path: ResourcePath,
 }
 
@@ -49,9 +49,9 @@ impl Chart {
         &self,
         id: &str,
         context: &Arc<GpuContext>,
-        resource_repository: &Rc<ResourceRepository>,
+        resource_repository: &Arc<ResourceRepository>,
         chart_file_path: &ResourcePath,
-    ) -> Result<Rc<engine::Chart>> {
+    ) -> Result<Arc<engine::Chart>> {
         trace!("Loading chart {}", id);
         let chart_control_id = ControlId::default().add(ControlIdPartType::Chart, id);
         let control_set_builder = ControlSetBuilder::new(
@@ -70,7 +70,7 @@ impl Chart {
             .iter()
             .map(|buffer_desc| {
                 let buffer = buffer_desc.load(context);
-                (buffer_desc.id.clone(), Rc::new(buffer))
+                (buffer_desc.id.clone(), Arc::new(buffer))
             })
             .collect::<HashMap<_, _>>();
 
@@ -101,7 +101,7 @@ impl Chart {
             chart_steps,
             self.simulation_precalculation_time,
         );
-        Ok(Rc::new(chart))
+        Ok(Arc::new(chart))
     }
 }
 

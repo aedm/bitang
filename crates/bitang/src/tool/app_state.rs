@@ -1,21 +1,22 @@
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::engine::{Chart, ControlId, ControlIdPartType, ControlRepository, ControlSet, Project};
 use crate::tool::timer::Timer;
 
 pub struct AppState {
-    pub project: Option<Rc<Project>>,
+    pub project: Option<Arc<Project>>,
     pub selected_control_id: ControlId,
     pub cursor_time: f32,
     cursor: Timer,
-    pub control_repository: Rc<ControlRepository>,
+    pub control_repository: Arc<ControlRepository>,
     pub is_simulation_enabled: bool,
 }
 
 impl AppState {
     pub fn new(
-        project: Option<Rc<Project>>,
-        control_repository: Rc<ControlRepository>,
+        project: Option<Arc<Project>>,
+        control_repository: Arc<ControlRepository>,
     ) -> AppState {
         AppState {
             project,
@@ -31,7 +32,7 @@ impl AppState {
         self.cursor_time = self.cursor.now();
     }
 
-    pub fn get_chart(&self) -> Option<Rc<Chart>> {
+    pub fn get_chart(&self) -> Option<Arc<Chart>> {
         let id_first = self.selected_control_id.parts.first();
         if let Some(project) = &self.project {
             if let Some(id_first) = id_first {
@@ -43,7 +44,7 @@ impl AppState {
         None
     }
 
-    pub fn get_current_chart_control_set(&self) -> Option<Rc<ControlSet>> {
+    pub fn get_current_chart_control_set(&self) -> Option<Arc<ControlSet>> {
         self.get_chart().map(|chart| chart.controls.clone())
     }
 

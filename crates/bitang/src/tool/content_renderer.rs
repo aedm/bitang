@@ -102,7 +102,7 @@ impl ContentRenderer {
         let project = self.project_loader.get_or_load_project(context);
 
         // Compare references to see if it's the same cached value that we tried rendering last time
-        if project.as_ref().map(Rc::as_ptr) != self.app_state.project.as_ref().map(Rc::as_ptr) {
+        if project.as_ref().map(Arc::as_ptr) != self.app_state.project.as_ref().map(Arc::as_ptr) {
             self.app_state.project = project;
             self.has_render_failure = false;
             return true;

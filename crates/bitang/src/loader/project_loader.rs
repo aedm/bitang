@@ -18,8 +18,8 @@ const LOAD_RETRY_INTERVAL: Duration = Duration::from_millis(500);
 pub struct ProjectLoader {
     // TODO: remove if not needed
     pub _root_path: Arc<PathBuf>,
-    pub resource_repository: Rc<ResourceRepository>,
-    cached_root: Option<Rc<Project>>,
+    pub resource_repository: Arc<ResourceRepository>,
+    cached_root: Option<Arc<Project>>,
     last_load_time: Instant,
     file_change_handler: FileChangeHandler,
     async_runtime: tokio::runtime::Runtime,
@@ -36,7 +36,7 @@ impl ProjectLoader {
         let async_runtime = tokio::runtime::Runtime::new()?;
         Ok(Self {
             _root_path: root_path,
-            resource_repository: Rc::new(ResourceRepository::try_new(Arc::clone(&file_cache))?),
+            resource_repository: Arc::new(ResourceRepository::try_new(Arc::clone(&file_cache))?),
             cached_root: None,
             last_load_time: Instant::now() - LOAD_RETRY_INTERVAL,
             file_change_handler,
@@ -53,7 +53,7 @@ impl ProjectLoader {
     }
 
     #[instrument(skip_all, name = "load")]
-    pub fn get_or_load_project(&mut self, context: &Arc<GpuContext>) -> Option<Rc<Project>> {
+    pub fn get_or_load_project(&mut self, context: &Arc<GpuContext>) -> Option<Arc<Project>> {
         let changed_files = self.file_change_handler.handle_file_changes();
         let needs_retry = self.cached_root.is_none()
             && self.file_change_handler.has_missing_files()
@@ -65,7 +65,7 @@ impl ProjectLoader {
                 Ok(project) => {
                     info!("Project length: {} seconds", project.length);
                     info!("Load time {:?}", now.elapsed());
-                    self.cached_root = Some(Rc::new(project));
+                    self.cached_root = Some(Arc::new(project));
                 }
                 Err(err) => {
                     if changed_files.is_some() {

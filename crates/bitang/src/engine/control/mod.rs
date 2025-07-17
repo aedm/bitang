@@ -31,7 +31,7 @@ impl<T> Deref for ArcHashRef<T> {
     }
 }
 
-pub struct RcHashRef<T>(Rc<T>);
+pub struct RcHashRef<T>(Arc<T>);
 
 impl<T> std::hash::Hash for RcHashRef<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

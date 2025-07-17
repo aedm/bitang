@@ -363,8 +363,8 @@ impl SamplerDescriptor {
 pub enum DescriptorSource {
     Image(ImageDescriptor),
     Sampler(SamplerDescriptor),
-    BufferCurrent(Rc<DoubleBuffer>),
-    BufferNext(Rc<DoubleBuffer>),
+    BufferCurrent(Arc<DoubleBuffer>),
+    BufferNext(Arc<DoubleBuffer>),
 }
 
 pub struct DescriptorResource {
@@ -380,7 +380,7 @@ pub struct DescriptorResource {
 #[derive(Clone)]
 pub struct LocalUniformMapping {
     // TODO: this makes 'core' depend on 'control', find a way to avoid this.
-    pub control: Rc<Control>,
+    pub control: Arc<Control>,
     pub f32_count: usize,
     pub f32_offset: usize,
 }

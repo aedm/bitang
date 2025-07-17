@@ -556,6 +556,7 @@ dependencies = [
  "notify",
  "nu-ansi-term 0.50.1",
  "num_cpus",
+ "parking_lot",
  "rodio",
  "ron",
  "serde",

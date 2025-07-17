@@ -113,33 +113,35 @@ impl FrameDumpRunner {
     }
 
     fn render_frame_to_buffer(&mut self) {
-        let size = [FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT];
-        let screen_viewport = Viewport { x: 0, y: 0, size };
-        self.gpu_context.final_render_target.enforce_size_rule(&self.gpu_context, &size).unwrap();
+        unimplemented!()
 
-        let command_encoder = self
-            .gpu_context
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-        let mut frame_context = FrameContext {
-            gpu_context: self.gpu_context.clone(),
-            command_encoder,
-            globals: Default::default(),
-            screen_viewport,
-        };
-        frame_context.globals.simulation_elapsed_time_since_last_render =
-            1.0 / (FRAMEDUMP_FPS as f32);
-        frame_context.globals.app_time = self.app.app_state.cursor_time;
+        // let size = [FRAMEDUMP_WIDTH, FRAMEDUMP_HEIGHT];
+        // let screen_viewport = Viewport { x: 0, y: 0, size };
+        // self.gpu_context.final_render_target.enforce_size_rule(&self.gpu_context, &size).unwrap();
 
-        self.app.draw(&mut frame_context);
+        // let command_encoder = self
+        //     .gpu_context
+        //     .device
+        //     .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        // let mut frame_context = FrameContext {
+        //     gpu_context: self.gpu_context.clone(),
+        //     command_encoder,
+        //     globals: Default::default(),
+        //     screen_viewport,
+        // };
+        // frame_context.globals.simulation_elapsed_time_since_last_render =
+        //     1.0 / (FRAMEDUMP_FPS as f32);
+        // frame_context.globals.app_time = self.app.app_state.cursor_time;
 
-        // Add a copy command to the end of the command buffer
-        self.gpu_context
-            .final_render_target
-            .copy_attachment_to_buffer(&mut frame_context, &self.dst_buffer)
-            .unwrap();
+        // self.app.draw(&mut frame_context);
 
-        self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
+        // // Add a copy command to the end of the command buffer
+        // self.gpu_context
+        //     .final_render_target
+        //     .copy_attachment_to_buffer(&mut frame_context, &self.dst_buffer)
+        //     .unwrap();
+
+        // self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
     }
 
     fn get_frame_content(&mut self) -> Vec<u8> {

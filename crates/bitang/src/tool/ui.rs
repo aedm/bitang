@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::sync::Arc;
 
 use anyhow::Result;
 use egui::SliderClamping;
@@ -128,7 +129,7 @@ impl Ui {
         ui: &mut egui::Ui,
         ui_state: &mut AppState,
         controls: &'a ControlSet,
-    ) -> Option<(&'a Rc<Control>, usize)> {
+    ) -> Option<(&'a Arc<Control>, usize)> {
         // An iterator that mutably borrows all used control values
         let trim_parts = ui_state.selected_control_id.parts.len();
         let controls_borrow = controls
@@ -145,8 +146,8 @@ impl Ui {
                 (
                     index,
                     name,
-                    c.used_component_count.get(),
-                    c.components.borrow_mut(),
+                    *c.used_component_count.lock(),
+                    c.components.lock(),
                 )
             });
         let mut selected = None;

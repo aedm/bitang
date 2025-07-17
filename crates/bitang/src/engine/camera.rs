@@ -6,13 +6,13 @@ use glam::{Mat3, Mat4, Vec2, Vec3};
 use super::{Control, ControlId, ControlIdPartType, ControlSetBuilder, Globals, Size2D};
 
 pub struct Camera {
-    target: Rc<Control>,
-    orientation: Rc<Control>,
-    distance: Rc<Control>,
-    field_of_view: Rc<Control>,
-    shake: Rc<Control>,
-    speed: Rc<Control>,
-    time_adjustment: Rc<Control>,
+    target: Arc<Control>,
+    orientation: Arc<Control>,
+    distance: Arc<Control>,
+    field_of_view: Arc<Control>,
+    shake: Arc<Control>,
+    speed: Arc<Control>,
+    time_adjustment: Arc<Control>,
 }
 
 impl Camera {

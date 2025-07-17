@@ -3,6 +3,8 @@ use std::sync::Arc;
 use anyhow::{bail, ensure, Result};
 use smallvec::SmallVec;
 
+use crate::engine::RenderStage;
+
 use super::{BitangImage, FrameContext, PixelFormat, RenderPassContext, Size2D, Viewport};
 
 // TODO: this might not be needed at all
@@ -46,8 +48,12 @@ impl Pass {
 
     pub fn make_render_pass_context<'pass, 'frame>(
         &'pass self,
-        frame_context: &'pass mut FrameContext,
+        frame_context: &'pass mut FrameContext<'frame>,
     ) -> Result<RenderPassContext<'pass>> {
+        let RenderStage::Offscreen(command_encoder) = &mut frame_context.render_stage else {
+            bail!("Pass {} is not an offscreen pass", self.id);
+        };
+
         // Collect attachment texture views
         let color_attachment_views: SmallVec<[_; 64]> = self
             .color_buffers
@@ -69,7 +75,7 @@ impl Pass {
         let depth_stencil_attachment =
             depth_buffer_view.as_ref().map(|view| self.make_depth_attachment(view));
 
-        let pass = frame_context.command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             // TODO: label
             label: None,
             color_attachments: &color_attachments,

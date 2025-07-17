@@ -306,7 +306,7 @@ pub struct WgpuConfiguration {
     /// Callback for surface errors.
     pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
 
-    pub on_draw_background: Option<Rc<dyn Fn(BackgroundRenderProps) -> ()>>,
+    pub on_draw_background: Option<Arc<dyn Fn(BackgroundRenderProps) -> ()>>,
 }
 
 // #[test]

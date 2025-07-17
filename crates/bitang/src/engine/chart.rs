@@ -17,7 +17,7 @@ pub enum ChartStep {
 
 pub struct Chart {
     pub id: String,
-    pub controls: Rc<ControlSet>,
+    pub controls: Arc<ControlSet>,
     camera: Camera,
     images: Vec<Arc<BitangImage>>,
     pub steps: Vec<ChartStep>,
@@ -46,7 +46,7 @@ impl Chart {
                 ChartStep::GenerateMipLevels(genmips) => genmips._id.clone(),
             })
             .collect::<Vec<String>>();
-        let controls = Rc::new(control_set_builder.into_control_set(&chart_step_ids));
+        let controls = Arc::new(control_set_builder.into_control_set(&chart_step_ids));
         Chart {
             id: id.to_string(),
             camera: _camera,

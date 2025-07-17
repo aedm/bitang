@@ -7,14 +7,14 @@ use super::Chart;
 
 pub struct Project {
     pub root_path: Arc<PathBuf>,
-    pub charts_by_id: HashMap<String, Rc<Chart>>,
-    pub charts: Vec<Rc<Chart>>,
+    pub charts_by_id: HashMap<String, Arc<Chart>>,
+    pub charts: Vec<Arc<Chart>>,
     pub cuts: Vec<Cut>,
     pub length: f32,
 }
 
 pub struct Cut {
-    pub chart: Rc<Chart>,
+    pub chart: Arc<Chart>,
     pub start_time: f32,
     pub end_time: f32,
     pub offset: f32,
@@ -23,7 +23,7 @@ pub struct Cut {
 impl Project {
     pub fn new(
         root_path: &Arc<PathBuf>,
-        charts_by_id: HashMap<String, Rc<Chart>>,
+        charts_by_id: HashMap<String, Arc<Chart>>,
         cuts: Vec<Cut>,
     ) -> Self {
         let mut charts = vec![];

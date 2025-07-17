@@ -10,9 +10,9 @@ pub struct RenderObject {
     pub _id: String,
     pub mesh: Arc<Mesh>,
     pub material: Arc<Material>,
-    pub position: Rc<Control>,
-    pub rotation: Rc<Control>,
-    pub instances: Rc<Control>,
+    pub position: Arc<Control>,
+    pub rotation: Arc<Control>,
+    pub instances: Arc<Control>,
 }
 
 impl RenderObject {

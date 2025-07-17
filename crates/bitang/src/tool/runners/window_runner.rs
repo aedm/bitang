@@ -1,17 +1,17 @@
 use std::cmp::max;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use std::time::Instant;
 
 use anyhow::{Context, Result};
 use eframe::egui;
 use egui::ViewportBuilder;
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew};
+use parking_lot::Mutex;
 use tracing::{debug, error, info};
 use wgpu::Backends;
 
 use crate::engine::{
-    BitangImage, FrameContext, GpuContext, PixelFormat, Size2D, SwapchainImage, Viewport,
+    BitangImage, FrameContext, GpuContext, PixelFormat, RenderStage, Size2D, SwapchainImage, Viewport
 };
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
@@ -42,14 +42,14 @@ impl WindowRunner {
                 }),
                 ..Default::default()
             }),
-            on_draw_background: Some(Rc::new(move |props| {
-                let mut inner = inner_clone.lock().unwrap();
-                let Some(app_inner) = inner.as_mut() else {
-                    error!("Failed to get app inner");
-                    return;
-                };
-                app_inner.render_frame_to_screen(props).unwrap();
-            })),
+            // on_draw_background: Some(Arc::new(move |props| {
+            //     let mut inner = inner_clone.lock();
+            //     let Some(app_inner) = inner.as_mut() else {
+            //         error!("Failed to get app inner");
+            //         return;
+            //     };
+            //     app_inner.render_frame_to_screen(props).unwrap();
+            // })),
             ..Default::default()
         };
         let viewport_builder = ViewportBuilder::default().with_title("Bitang");
@@ -96,43 +96,37 @@ struct AppInner {
 }
 
 impl AppInner {
-    fn compute_viewport(&mut self, swapchain_size: Size2D) {
+    fn compute_viewport(&mut self, window_size: Size2D) {
         // Calculate viewport
-        // TODO: simplify, the is_fullscreen flag is probably not used
         let (width, height, top, left) = if self.is_fullscreen {
-            if swapchain_size[0] * SCREEN_RATIO.1 > swapchain_size[1] * SCREEN_RATIO.0 {
-                // Screen is too wide
-                let height = swapchain_size[1];
-                let width = height * SCREEN_RATIO.0 / SCREEN_RATIO.1;
-                let left = (swapchain_size[0] - width) / 2;
-                let top = 0;
-                (width, height, top, left)
+            if window_size[0] * SCREEN_RATIO.1 >= window_size[1] * SCREEN_RATIO.0 {
+                (window_size[0], window_size[1], 0, 0)
             } else {
-                // Screen is too tall
-                let width = swapchain_size[0];
+                // Window is too tall
+                let width = window_size[0];
                 let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
                 let left = 0;
-                let top = (swapchain_size[1] - height) / 2;
+                let top = (window_size[1] - height) / 2;
                 (width, height, top, left)
             }
         } else {
-            if swapchain_size[0] * SCREEN_RATIO.1 > swapchain_size[1] * SCREEN_RATIO.0 {
-                // Screen is too wide
-                let height = swapchain_size[1];
+            if window_size[0] * SCREEN_RATIO.1 > window_size[1] * SCREEN_RATIO.0 {
+                // Window is too wide
+                let height = window_size[1];
                 let width = height * SCREEN_RATIO.0 / SCREEN_RATIO.1;
-                let left = (swapchain_size[0] - width) / 2;
+                let left = (window_size[0] - width) / 2;
                 let top = 0;
                 (width, height, top, left)
             } else {
-                // Screen is too tall
-                let width = swapchain_size[0];
+                // Window is too tall
+                let width = window_size[0];
                 let height = width * SCREEN_RATIO.1 / SCREEN_RATIO.0;
                 let left = 0;
                 let top = 0;
                 (width, height, top, left)
             }
         };
-        self.ui_height = max(swapchain_size[1] as i32 - height as i32, 0) as f32;
+        self.ui_height = max(window_size[1] as i32 - height as i32, 0) as f32;
         self.viewport = Viewport {
             x: left,
             y: top,
@@ -140,31 +134,27 @@ impl AppInner {
         };
     }
 
-    fn render_frame_to_screen(&mut self, props: egui_wgpu::BackgroundRenderProps) -> Result<()> {
+    fn render_offscreen_content(&mut self, cb: &mut CustomRenderCallback, command_encoder: &mut wgpu::CommandEncoder) -> Result<()> {
         // Don't render anything if the window is minimized
-        if props.surface_size[0] == 0 || props.surface_size[1] == 0 {
+        if cb.window_size[0] == 0 || cb.window_size[1] == 0 {
             return Ok(());
         }
 
-        self.compute_viewport(props.surface_size);
+        self.compute_viewport(cb.window_size);
 
         // Update swapchain target
-        let swapchain_view = props.surface_view;
-        let swapchain_image = Some(SwapchainImage {
-            texture_view: swapchain_view,
-            size: props.surface_size,
-        });
-        self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
+        // let swapchain_view = props.surface_view;
+        // let swapchain_image = Some(SwapchainImage {
+        //     texture_view: swapchain_view,
+        //     size: props.surface_size,
+        // });
+        // self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
 
         // Create frame context
         // TODO: create it content_renderer
-        let command_encoder = self
-            .gpu_context
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
         let mut frame_context = FrameContext {
             gpu_context: self.gpu_context.clone(),
-            command_encoder,
+            render_stage: RenderStage::Offscreen(command_encoder),
             globals: Default::default(),
             screen_viewport: self.viewport,
         };
@@ -181,14 +171,109 @@ impl AppInner {
         // Render content
         self.content_renderer.draw(&mut frame_context);
 
-        // Execute commands and display the result
-        self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
+        // // Execute commands and display the result
+        // self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
 
-        // Set swapchain image view to None, DX12 would fail without this
-        self.gpu_context.final_render_target.set_swapchain_image_view(None);
+        // // Set swapchain image view to None, DX12 would fail without this
+        // self.gpu_context.final_render_target.set_swapchain_image_view(None);
 
         Ok(())
     }
+
+    fn render_onscreen_content(&mut self, cb: &mut CustomRenderCallback,
+        render_pass: &mut wgpu::RenderPass<'static>,
+    ) -> Result<()> {
+        // Don't render anything if the window is minimized
+        if cb.window_size[0] == 0 || cb.window_size[1] == 0 {
+            return Ok(());
+        }
+
+        // Update swapchain target
+        // let swapchain_view = props.surface_view;
+        // let swapchain_image = Some(SwapchainImage {
+        //     texture_view: swapchain_view,
+        //     size: props.surface_size,
+        // });
+        // self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
+
+        // Create frame context
+        // TODO: create it content_renderer
+        let mut frame_context = FrameContext {
+            gpu_context: self.gpu_context.clone(),
+            render_stage: RenderStage::Onscreen(render_pass),
+            globals: Default::default(),
+            screen_viewport: self.viewport,
+        };
+        frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
+
+        // Reload project
+        // TODO: start render function with this block
+        if self.content_renderer.reload_project(&self.gpu_context) {
+            self.content_renderer.reset_simulation(&self.gpu_context).unwrap();
+            frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
+            self.content_renderer.unset_last_render_time();
+        }
+
+        // Render content
+        self.content_renderer.draw(&mut frame_context);
+
+        // // Execute commands and display the result
+        // self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
+
+        // // Set swapchain image view to None, DX12 would fail without this
+        // self.gpu_context.final_render_target.set_swapchain_image_view(None);
+
+        Ok(())    }
+
+    // fn render_frame_to_screen(&mut self, props: egui_wgpu::BackgroundRenderProps) -> Result<()> {
+    //     // Don't render anything if the window is minimized
+    //     if props.surface_size[0] == 0 || props.surface_size[1] == 0 {
+    //         return Ok(());
+    //     }
+
+    //     self.compute_viewport(props.surface_size);
+
+    //     // Update swapchain target
+    //     let swapchain_view = props.surface_view;
+    //     let swapchain_image = Some(SwapchainImage {
+    //         texture_view: swapchain_view,
+    //         size: props.surface_size,
+    //     });
+    //     self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
+
+    //     // Create frame context
+    //     // TODO: create it content_renderer
+    //     let command_encoder = self
+    //         .gpu_context
+    //         .device
+    //         .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+    //     let mut frame_context = FrameContext {
+    //         gpu_context: self.gpu_context.clone(),
+    //         command_encoder,
+    //         globals: Default::default(),
+    //         screen_viewport: self.viewport,
+    //     };
+    //     frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
+
+    //     // Reload project
+    //     // TODO: start render function with this block
+    //     if self.content_renderer.reload_project(&self.gpu_context) {
+    //         self.content_renderer.reset_simulation(&self.gpu_context).unwrap();
+    //         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
+    //         self.content_renderer.unset_last_render_time();
+    //     }
+
+    //     // Render content
+    //     self.content_renderer.draw(&mut frame_context);
+
+    //     // Execute commands and display the result
+    //     self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
+
+    //     // Set swapchain image view to None, DX12 would fail without this
+    //     self.gpu_context.final_render_target.set_swapchain_image_view(None);
+
+    //     Ok(())
+    // }
 
     fn has_timeline_ended(&self) -> bool {
         let Some(project) = &self.content_renderer.app_state.project else {
@@ -281,13 +366,42 @@ impl AppInner {
     }
 }
 
+struct CustomRenderCallback {
+    app: Arc<Mutex<AppInner>>,
+    window_size: Size2D,
+}
+
+impl egui_wgpu::CallbackTrait for CustomRenderCallback {
+    fn paint(
+        &self,
+        info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        callback_resources: &egui_wgpu::CallbackResources,
+    ) {
+        
+        todo!()
+    }
+
+    fn prepare(
+        &self,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+        _screen_descriptor: &egui_wgpu::ScreenDescriptor,
+        _egui_encoder: &mut wgpu::CommandEncoder,
+        _callback_resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<wgpu::CommandBuffer> {
+        todo!();
+        Vec::new()
+    }
+}
+
 struct App {
     inner: Arc<Mutex<Option<AppInner>>>,
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock();
         if let Some(inner) = &mut *inner {
             inner.render_ui(ctx, frame);
             ctx.request_repaint();
@@ -335,7 +449,7 @@ impl App {
             ui_height: 0.0,
         };
 
-        *inner.lock().unwrap() = Some(app_inner);
+        *inner.lock() = Some(app_inner);
 
         let app = Self { inner };
 
@@ -344,7 +458,7 @@ impl App {
             info!("Starting demo.");
             // TODO: this is not pretty
 
-            let mut lock = app.inner.lock().unwrap();
+            let mut lock = app.inner.lock();
             let inner = lock.as_mut().unwrap();
             inner.content_renderer.play();
         }

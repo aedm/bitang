@@ -29,7 +29,7 @@ impl Project {
     pub async fn load(
         &self,
         context: &Arc<GpuContext>,
-        resource_repository: &Rc<ResourceRepository>,
+        resource_repository: &Arc<ResourceRepository>,
     ) -> Result<engine::Project> {
         let chart_ids: HashSet<_> = self.cuts.iter().map(|cut| &cut.chart).collect();
         let chart_futures_by_id = chart_ids.iter().map(|&chart_name| async move {

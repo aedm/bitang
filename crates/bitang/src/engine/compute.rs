@@ -6,8 +6,8 @@ use super::{ComputeCall, ComputePassContext, DoubleBuffer, GpuContext, Shader};
 
 // TODO: rename to "stage" or similar
 pub enum Run {
-    Init(Rc<DoubleBuffer>),
-    Simulate(Rc<DoubleBuffer>),
+    Init(Arc<DoubleBuffer>),
+    Simulate(Arc<DoubleBuffer>),
 }
 
 /// Represents a compute step in the chart sequence.

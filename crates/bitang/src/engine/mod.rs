@@ -42,6 +42,7 @@ pub use pass::{FramebufferInfo, Pass};
 pub use project::{Cut, Project};
 pub use render_object::RenderObject;
 pub use scene::Scene;
+pub use core::context::RenderStage;
 
 /// How many times the simulation is updated per second.
 /// Weird number on purpose so issues are easier to spot.

@@ -25,7 +25,7 @@ impl Object {
         chart_context: &ChartContext,
         parent_id: &ControlId,
         passes: &[engine::Pass],
-    ) -> Result<Rc<engine::RenderObject>> {
+    ) -> Result<Arc<engine::RenderObject>> {
         let object_cid = parent_id.add(ControlIdPartType::Object, &self.id);
         let mesh_future = chart_context.resource_repository.get_mesh(
             &chart_context.gpu_context,
@@ -52,6 +52,6 @@ impl Object {
             rotation: chart_context.control_set_builder.get_vec3(&rotation_id),
             instances: chart_context.control_set_builder.get_float_with_default(&instances_id, 1.),
         };
-        Ok(Rc::new(object))
+        Ok(Arc::new(object))
     }
 }

@@ -2,6 +2,7 @@ use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::path::Path;
 use std::rc::Rc;
+use std::sync::{Arc};
 use std::{array, mem};
 
 use ahash::AHashSet;
@@ -9,6 +10,7 @@ use anyhow::{Context, Result};
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
 use dashmap::DashMap;
 use glam::{Vec2, Vec3, Vec4};
+use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tracing::{debug, info, instrument, warn};
 
@@ -24,11 +26,11 @@ const CONTROLS_FILE_NAME: &str = "controls.ron";
 pub struct UsedControlsNode {
     pub id_prefix: ControlId,
     pub children: Vec<UsedControlsNode>,
-    pub control: Option<Rc<Control>>,
+    pub control: Option<Arc<Control>>,
 }
 
 impl UsedControlsNode {
-    fn insert(&mut self, control: Rc<Control>, chart_step_ids: &[String]) {
+    fn insert(&mut self, control: Arc<Control>, chart_step_ids: &[String]) {
         for i in 0..self.id_prefix.parts.len() {
             assert_eq!(self.id_prefix.parts[i], control.id.parts[i]);
         }
@@ -72,20 +74,20 @@ impl UsedControlsNode {
 }
 
 pub struct ControlSet {
-    pub used_controls: Vec<Rc<Control>>,
+    pub used_controls: Vec<Arc<Control>>,
     pub root_node: RefCell<UsedControlsNode>,
 }
 
 /// Builder for `ControlSet`, used during project loading.
 pub struct ControlSetBuilder {
-    control_repository: Rc<ControlRepository>,
+    control_repository: Arc<ControlRepository>,
     used_controls: RefCell<AHashSet<RcHashRef<Control>>>,
-    used_control_list: RefCell<Vec<Rc<Control>>>,
+    used_control_list: RefCell<Vec<Arc<Control>>>,
     root_id: ControlId,
 }
 
 impl ControlSetBuilder {
-    pub fn new(root_id: ControlId, control_repository: Rc<ControlRepository>) -> Self {
+    pub fn new(root_id: ControlId, control_repository: Arc<ControlRepository>) -> Self {
         Self {
             root_id,
             control_repository,
@@ -111,32 +113,32 @@ impl ControlSetBuilder {
         }
     }
 
-    pub fn get_float_with_default(&self, id: &ControlId, default: f32) -> Rc<Control> {
+    pub fn get_float_with_default(&self, id: &ControlId, default: f32) -> Arc<Control> {
         self.get_control(id, 1, &[default, 0.0, 0.0, 0.0])
     }
 
-    pub fn get_vec(&self, id: &ControlId, component_count: usize) -> Rc<Control> {
+    pub fn get_vec(&self, id: &ControlId, component_count: usize) -> Arc<Control> {
         self.get_control(id, component_count, &[0.0; 4])
     }
 
     #[allow(dead_code)]
-    pub fn get_vec2_with_default(&self, id: &ControlId, default: &[f32; 2]) -> Rc<Control> {
+    pub fn get_vec2_with_default(&self, id: &ControlId, default: &[f32; 2]) -> Arc<Control> {
         self.get_control(id, 2, &[default[0], default[1], 0.0, 0.0])
     }
 
-    pub fn get_vec3(&self, id: &ControlId) -> Rc<Control> {
+    pub fn get_vec3(&self, id: &ControlId) -> Arc<Control> {
         self.get_control(id, 3, &[0.0; 4])
     }
 
-    pub fn get_vec3_with_default(&self, id: &ControlId, default: &[f32; 3]) -> Rc<Control> {
+    pub fn get_vec3_with_default(&self, id: &ControlId, default: &[f32; 3]) -> Arc<Control> {
         self.get_control(id, 3, &[default[0], default[1], default[2], 0.0])
     }
 
-    pub fn get_vec4(&self, id: &ControlId) -> Rc<Control> {
+    pub fn get_vec4(&self, id: &ControlId) -> Arc<Control> {
         self.get_control(id, 4, &[0.0; 4])
     }
 
-    pub fn _get_vec4_with_default(&self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
+    pub fn _get_vec4_with_default(&self, id: &ControlId, default: &[f32; 4]) -> Arc<Control> {
         self.get_control(id, 4, default)
     }
 
@@ -145,7 +147,7 @@ impl ControlSetBuilder {
         id: &ControlId,
         component_count: usize,
         default: &[f32; 4],
-    ) -> Rc<Control> {
+    ) -> Arc<Control> {
         let control = self.control_repository.get_control(id, default);
         control.used_component_count.set(max(control.used_component_count.get(), component_count));
         if self.used_controls.borrow_mut().insert(RcHashRef(control.clone())) {
@@ -156,13 +158,13 @@ impl ControlSetBuilder {
 }
 
 pub struct ControlRepository {
-    by_id: DashMap<ControlId, Rc<Control>>,
+    by_id: DashMap<ControlId, Arc<Control>>,
 }
 
 // We want to serialize the controls by reference, but deserialize them by value to avoid cloning them.
 #[derive(Serialize)]
 struct SerializedControls {
-    controls: Vec<Rc<Control>>,
+    controls: Vec<Arc<Control>>,
 }
 
 #[derive(Deserialize)]
@@ -172,11 +174,11 @@ struct DeserializedControls {
 
 // TODO: move serialization out of "engine" mod.
 impl ControlRepository {
-    fn get_control(&self, id: &ControlId, default: &[f32; 4]) -> Rc<Control> {
+    fn get_control(&self, id: &ControlId, default: &[f32; 4]) -> Arc<Control> {
         match self.by_id.entry(id.clone()) {
             Occupied(x) => x.get().clone(),
             Vacant(entry) => {
-                let control = Rc::new(Control::new(id.clone(), default));
+                let control = Arc::new(Control::new(id.clone(), default));
                 entry.insert(control.clone());
                 control
             }
@@ -224,7 +226,7 @@ impl ControlRepository {
                                 name: chart_id.to_string(),
                             },
                         );
-                        by_id.insert(control.id.clone(), Rc::new(control));
+                        by_id.insert(control.id.clone(), Arc::new(control));
                     }
                 } else {
                     warn!("No controls file found at {controls_path:?}.");
@@ -248,10 +250,10 @@ pub struct Control {
         deserialize_with = "deserialize_control_id"
     )]
     pub id: ControlId,
-    pub components: RefCell<[ControlComponent; 4]>,
+    pub components: Mutex<[ControlComponent; 4]>,
 
     #[serde(skip)]
-    pub used_component_count: Cell<usize>,
+    pub used_component_count: Mutex<usize>,
 }
 
 fn serialize_control_id<S>(id: &ControlId, s: S) -> Result<S::Ok, S::Error>
@@ -290,12 +292,12 @@ impl Control {
     pub fn new(id: ControlId, value: &[f32; 4]) -> Self {
         Self {
             id,
-            components: RefCell::new(array::from_fn(|i| ControlComponent {
+            components: Mutex::new(array::from_fn(|i| ControlComponent {
                 value: value[i],
                 spline: Spline::new(),
                 use_spline: false,
             })),
-            used_component_count: Cell::new(0),
+            used_component_count: Mutex::new(0),
         }
     }
 

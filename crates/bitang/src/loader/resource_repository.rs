@@ -39,7 +39,7 @@ pub struct ResourceRepository {
     chart_file_cache: Arc<ResourceCache<chart_file::Chart>>,
     project_file_cache: Arc<ResourceCache<project_file::Project>>,
     pub shader_cache: ShaderCache,
-    pub control_repository: Rc<ControlRepository>,
+    pub control_repository: Arc<ControlRepository>,
 }
 
 impl ResourceRepository {
@@ -53,7 +53,7 @@ impl ResourceRepository {
             chart_file_cache: Arc::new(ResourceCache::new(&file_cache, load_chart_file)),
             project_file_cache: Arc::new(ResourceCache::new(&file_cache, load_project_file)),
             file_cache,
-            control_repository: Rc::new(control_repository),
+            control_repository: Arc::new(control_repository),
         })
     }
 
@@ -77,7 +77,7 @@ impl ResourceRepository {
 
     #[instrument(skip(self, context))]
     pub fn get_texture(
-        self: &Rc<Self>,
+        self: &Arc<Self>,
         context: &Arc<GpuContext>,
         path: &ResourcePath,
     ) -> LoadFuture<BitangImage> {
@@ -88,7 +88,7 @@ impl ResourceRepository {
     // TODO: use get_mesh_collection instead
     #[instrument(skip(self, context))]
     pub fn get_mesh(
-        self: &Rc<Self>,
+        self: &Arc<Self>,
         context: &Arc<GpuContext>,
         path: &ResourcePath,
         selector: &str,
@@ -110,10 +110,10 @@ impl ResourceRepository {
 
     #[instrument(skip(self, context))]
     pub async fn load_chart(
-        self: &Rc<Self>,
+        self: &Arc<Self>,
         id: &str,
         context: &Arc<GpuContext>,
-    ) -> Result<Rc<Chart>> {
+    ) -> Result<Arc<Chart>> {
         let subdirectory = [CHARTS_FOLDER, id].iter().collect::<PathBuf>();
         let path = ResourcePath::new(&self.root_path, subdirectory, CHART_FILE_NAME);
         let chart = self.chart_file_cache.load(context, &path).await?;
@@ -123,7 +123,7 @@ impl ResourceRepository {
             .with_context(|| anyhow!("Failed to load chart '{id}'"))
     }
 
-    pub async fn load_project(self: &Rc<Self>, context: &Arc<GpuContext>) -> Result<Project> {
+    pub async fn load_project(self: &Arc<Self>, context: &Arc<GpuContext>) -> Result<Project> {
         let path = ResourcePath::new(&self.root_path, PathBuf::new(), PROJECT_FILE_NAME);
         let project = self.project_file_cache.load(context, &path).await?;
         project.load(context, self).await
