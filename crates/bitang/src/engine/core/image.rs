@@ -4,6 +4,8 @@ use anyhow::{bail, Result};
 use serde::Deserialize;
 use wgpu::Extent3d;
 
+use crate::engine::RenderStage;
+
 use super::context::{FrameContext, GpuContext};
 use super::mipmap_generator::MipmapGenerator;
 use super::Size2D;
@@ -379,6 +381,9 @@ impl BitangImage {
         context: &mut FrameContext,
         buffer: &wgpu::Buffer,
     ) -> Result<()> {
+        let RenderStage::Offscreen(command_encoder) = &mut context.render_stage else {
+            bail!("GenerateMipLevels can only be executed in offscreen mode");
+        };
         let ImageInner::Attachment(attachment) = &self.inner else {
             bail!("Only attachment images can be copied to a buffer, and image '{}' is not an attachment texture.", self.id);
         };
@@ -387,7 +392,7 @@ impl BitangImage {
             bail!("Image '{}' has no texture, cannot copy to buffer.", self.id);
         };
         let extent = texture.size();
-        context.command_encoder.copy_texture_to_buffer(
+        command_encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
                 texture: &texture,
                 mip_level: 0,

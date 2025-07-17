@@ -3,6 +3,9 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
+use parking_lot::Mutex;
+
+use crate::engine::RenderStage;
 
 use super::{
     BitangImage, Camera, Compute, ComputePassContext, ControlId, ControlIdPartType, ControlSet,
@@ -22,7 +25,7 @@ pub struct Chart {
     images: Vec<Arc<BitangImage>>,
     pub steps: Vec<ChartStep>,
 
-    simulation_cursor: RefCell<SimulationCursor>,
+    simulation_cursor: Mutex<SimulationCursor>,
 }
 
 impl Chart {
@@ -53,12 +56,12 @@ impl Chart {
             images,
             steps,
             controls,
-            simulation_cursor: RefCell::new(SimulationCursor::new(simulation_precalculation_time)),
+            simulation_cursor: Mutex::new(SimulationCursor::new(simulation_precalculation_time)),
         }
     }
 
     pub fn seek(&self, cursor: f32) {
-        self.simulation_cursor.borrow_mut().seek(cursor);
+        self.simulation_cursor.lock().seek(cursor);
     }
 
     /// Reruns the initialization step and runs the simulation for the precalculation time.
@@ -69,7 +72,7 @@ impl Chart {
     }
 
     fn initialize(&self, context: &mut ComputePassContext) -> Result<()> {
-        let mut simulation_cursor = self.simulation_cursor.borrow_mut();
+        let mut simulation_cursor = self.simulation_cursor.lock();
         simulation_cursor.reset();
         let Some(sim_time) = simulation_cursor.step_and_return_diff() else {
             unreachable!("Simulation cursor should always have a first step");
@@ -99,7 +102,7 @@ impl Chart {
         // The simulation sees the simulation time as the current time.
         let chart_time = context.globals.chart_time;
 
-        let mut simulation_cursor = self.simulation_cursor.borrow_mut();
+        let mut simulation_cursor = self.simulation_cursor.lock();
         simulation_cursor.advance_cursor(context.globals.simulation_elapsed_time_since_last_render);
 
         const MAX_SIMULATION_STEPS_PER_FRAME: usize = 3;
@@ -142,12 +145,16 @@ impl Chart {
         Ok(())
     }
 
-    pub fn render(&self, context: &mut FrameContext) -> Result<()> {
+    fn render_offline_content(&self, context: &mut FrameContext) -> Result<()> {
         {
             // Simulation step
             // TODO: check if it's necessary to create a compute pass, if simulation needs to run
+            let RenderStage::Offscreen(command_encoder) = &mut context.render_stage else {
+                bail!("render_offline_content can only be executed in offscreen mode");
+            };
+    
             let compute_pass =
-                context.command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+                command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
             let mut compute_pass_context = ComputePassContext {
                 gpu_context: &context.gpu_context,
                 pass: compute_pass,
@@ -172,6 +179,23 @@ impl Chart {
                 ChartStep::GenerateMipLevels(genmips) => {
                     genmips.execute(context)?;
                 }
+            }
+        }
+        Ok(())
+    }
+
+
+    pub fn render(&self, context: &mut FrameContext) -> Result<()> {
+        match &mut context.render_stage {
+            RenderStage::Offscreen(_) => {
+                self.render_offline_content(context)?;
+            }
+            RenderStage::Onscreen(_) => {
+                for step in &self.steps {
+                    if let ChartStep::Draw(draw) = step {
+                        draw.render(context, &self.camera)?;
+                    }
+                }   
             }
         }
         Ok(())

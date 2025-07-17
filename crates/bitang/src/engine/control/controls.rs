@@ -75,7 +75,7 @@ impl UsedControlsNode {
 
 pub struct ControlSet {
     pub used_controls: Vec<Arc<Control>>,
-    pub root_node: RefCell<UsedControlsNode>,
+    pub root_node: Mutex<UsedControlsNode>,
 }
 
 /// Builder for `ControlSet`, used during project loading.
@@ -109,7 +109,7 @@ impl ControlSetBuilder {
         }
         ControlSet {
             used_controls: controls,
-            root_node: RefCell::new(root_node),
+            root_node: Mutex::new(root_node),
         }
     }
 
@@ -149,9 +149,12 @@ impl ControlSetBuilder {
         default: &[f32; 4],
     ) -> Arc<Control> {
         let control = self.control_repository.get_control(id, default);
-        control.used_component_count.set(max(control.used_component_count.get(), component_count));
-        if self.used_controls.borrow_mut().insert(RcHashRef(control.clone())) {
-            self.used_control_list.borrow_mut().push(control.clone());
+        {
+            let mut component_count_lock = control.used_component_count.lock();
+            *component_count_lock = max(*component_count_lock, component_count);
+            if self.used_controls.borrow_mut().insert(RcHashRef(control.clone())) {
+                self.used_control_list.borrow_mut().push(control.clone());
+            }
         }
         control
     }
@@ -238,7 +241,7 @@ impl ControlRepository {
 
     pub fn reset_component_usage_counts(&self) {
         for it in self.by_id.iter() {
-            it.value().used_component_count.set(0);
+            *it.value().used_component_count.lock() = 0;
         }
     }
 }
@@ -250,6 +253,8 @@ pub struct Control {
         deserialize_with = "deserialize_control_id"
     )]
     pub id: ControlId,
+
+    // TODO: two Mutexes are unsound, merge them
     pub components: Mutex<[ControlComponent; 4]>,
 
     #[serde(skip)]
@@ -302,14 +307,14 @@ impl Control {
     }
 
     pub fn set(&self, value: &[f32; 4]) {
-        let mut components = self.components.borrow_mut();
+        let mut components = self.components.lock();
         for i in 0..4 {
             components[i].value = value[i];
         }
     }
 
     pub fn evaluate_splines(&self, time: f32) {
-        let mut components = self.components.borrow_mut();
+        let mut components = self.components.lock();
         for component in components.iter_mut() {
             if component.use_spline {
                 component.value = component.spline.get_value(time);
@@ -318,17 +323,17 @@ impl Control {
     }
 
     pub fn as_float(&self) -> f32 {
-        self.components.borrow()[0].value
+        self.components.lock()[0].value
     }
 
     #[allow(dead_code)]
     pub fn as_vec2(&self) -> Vec2 {
-        let components = self.components.borrow();
+        let components = self.components.lock();
         Vec2::new(components[0].value, components[1].value)
     }
 
     pub fn as_vec3(&self) -> Vec3 {
-        let components = self.components.borrow();
+        let components = self.components.lock();
         Vec3::new(
             components[0].value,
             components[1].value,
@@ -337,7 +342,7 @@ impl Control {
     }
 
     pub fn as_vec4(&self) -> Vec4 {
-        let components = self.components.borrow();
+        let components = self.components.lock();
         Vec4::new(
             components[0].value,
             components[1].value,

@@ -391,7 +391,7 @@ impl egui_wgpu::CallbackTrait for CustomRenderCallback {
         _callback_resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
         todo!();
-        Vec::new()
+        // Vec::new()
     }
 }
 

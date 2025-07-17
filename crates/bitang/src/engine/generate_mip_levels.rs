@@ -1,5 +1,9 @@
 use std::sync::Arc;
 
+use anyhow::bail;
+
+use crate::engine::RenderStage;
+
 use super::{BitangImage, FrameContext, GpuContext, MipmapGenerator};
 
 pub struct GenerateMipLevels {
@@ -16,6 +20,9 @@ impl GenerateMipLevels {
     }
 
     pub fn execute(&self, context: &mut FrameContext) -> anyhow::Result<()> {
-        self.generator.generate(&mut context.command_encoder, &context.gpu_context.device)
+        let RenderStage::Offscreen(command_encoder) = &mut context.render_stage else {
+            bail!("GenerateMipLevels can only be executed in offscreen mode");
+        };
+        self.generator.generate(command_encoder, &context.gpu_context.device)
     }
 }

@@ -30,7 +30,7 @@ dashmap = "5.5.3"
 tokio = { version = "1.36.0", features = ["fs", "rt-multi-thread", "sync"] }
 futures = "0.3.30"
 num_cpus = "*"
-parking_lot = "0.12"
+parking_lot = { version = "0.12", features = ["serde"] }
 
 serde = { version = "*", features = ["derive", "rc"] }
 notify = "5.1.0"

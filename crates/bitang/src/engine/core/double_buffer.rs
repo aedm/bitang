@@ -1,6 +1,5 @@
 use std::array::from_fn;
-use std::cell::Cell;
-
+use parking_lot::Mutex;
 use super::context::GpuContext;
 
 // TODO: id
@@ -9,7 +8,7 @@ pub struct DoubleBuffer {
     pub item_size_in_vec4: usize,
     pub item_count: usize,
     buffers: [wgpu::Buffer; 2],
-    current_index: Cell<usize>,
+    current_index: Mutex<usize>,
 }
 
 impl DoubleBuffer {
@@ -28,19 +27,20 @@ impl DoubleBuffer {
             item_size_in_vec4,
             item_count,
             buffers,
-            current_index: Cell::new(0),
+            current_index: Mutex::new(0),
         }
     }
 
     pub fn step(&self) {
-        self.current_index.set(1 - self.current_index.get());
+        let mut current_index = self.current_index.lock();
+        *current_index = 1 - *current_index;
     }
 
     pub fn get_current_buffer(&self) -> &wgpu::Buffer {
-        &self.buffers[self.current_index.get()]
+        &self.buffers[*self.current_index.lock()]
     }
 
     pub fn get_next_buffer(&self) -> &wgpu::Buffer {
-        &self.buffers[1 - self.current_index.get()]
+        &self.buffers[1 - *self.current_index.lock()]
     }
 }

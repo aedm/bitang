@@ -214,7 +214,7 @@ impl Shader {
                 }
             }
             for local_mapping in &self.local_uniform_bindings {
-                let components = local_mapping.control.components.borrow();
+                let components = local_mapping.control.components.lock();
                 for i in 0..local_mapping.f32_count {
                     uniform_values[local_mapping.f32_offset + i] = components[i].value;
                 }

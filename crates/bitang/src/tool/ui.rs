@@ -60,7 +60,7 @@ impl Ui {
                     for chart in &project.charts {
                         Self::draw_control_tree_node(
                             ui,
-                            &chart.controls.root_node.borrow(),
+                            &*chart.controls.root_node.lock(),
                             ui_state,
                         );
                     }
