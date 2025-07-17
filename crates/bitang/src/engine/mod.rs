@@ -42,6 +42,7 @@ pub use pass::{FramebufferInfo, Pass};
 pub use project::{Cut, Project};
 pub use render_object::RenderObject;
 pub use scene::Scene;
+pub use core::context::RenderStage;
 
 pub const SCREEN_RENDER_TARGET_ID: &str = "screen";
 

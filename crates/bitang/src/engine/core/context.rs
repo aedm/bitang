@@ -48,11 +48,16 @@ pub struct Viewport {
     pub size: Size2D,
 }
 
-pub struct FrameContext {
+pub enum RenderStage<'frame> {
+    Offscreen(&'frame mut wgpu::CommandEncoder),
+    Onscreen(&'frame mut wgpu::RenderPass<'static>),
+}
+
+pub struct FrameContext<'frame> {
     // TODO: remove Arc
     pub gpu_context: Arc<GpuContext>,
     pub screen_viewport: Viewport,
-    pub command_encoder: wgpu::CommandEncoder,
+    pub render_stage: RenderStage<'frame>,
     pub globals: Globals,
 }
 
