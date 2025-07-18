@@ -349,16 +349,6 @@ impl BitangImage {
         matches!(&self.inner, ImageInner::Swapchain(_))
     }
 
-    pub fn set_swapchain_image_view(&self, view: Option<SwapchainImage>) {
-        match &self.inner {
-            ImageInner::Swapchain(rw_lock) => {
-                let mut swapchain_view = rw_lock.write().unwrap();
-                *swapchain_view = view;
-            }
-            _ => panic!("Not a swapchain image"),
-        }
-    }
-
     pub fn mip_levels(&self) -> Result<u32> {
         match &self.inner {
             ImageInner::Attachment(attachment) => {

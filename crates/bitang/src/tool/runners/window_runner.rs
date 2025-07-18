@@ -291,7 +291,7 @@ struct CustomRenderCallback {
 impl egui_wgpu::CallbackTrait for CustomRenderCallback {
     fn paint(
         &self,
-        info: egui::PaintCallbackInfo,
+        _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'static>,
         callback_resources: &egui_wgpu::CallbackResources,
     ) {

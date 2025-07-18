@@ -92,7 +92,7 @@ impl Draw {
         frame_context: &mut FrameContext,
         camera: &Camera,
     ) -> Result<()> {
-        let RenderStage::Offscreen(command_encoder) = &mut frame_context.render_stage else {
+        let RenderStage::Offscreen(_) = &mut frame_context.render_stage else {
             bail!("Render stage is not offscreen");
         };
 
