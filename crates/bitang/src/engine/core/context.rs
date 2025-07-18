@@ -67,7 +67,6 @@ pub struct FrameContext<'frame> {
     // TODO: remove Arc
     pub gpu_context: Arc<GpuContext>,
     pub screen_viewport: Viewport,
-    // pub command_encoder: &'frame mut wgpu::CommandEncoder,
     pub globals: Globals,
 
     /// Content is rendered in two steps: offscreen and onscreen rendering.

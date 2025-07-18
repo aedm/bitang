@@ -181,35 +181,5 @@ impl Draw {
             RenderStage::Offscreen(_) => self.render_offscreen(frame_context, camera),
             RenderStage::Onscreen(_) => self.render_onscreen(frame_context, camera),
         }
-
-        // // Render each pass
-        // for (pass_index, pass) in self.passes.iter().enumerate() {
-        //     let (viewport, canvas_size) = pass.get_viewport_and_canvas_size(frame_context)?;
-
-        //     // Set globals unspecific to pass
-        //     self.set_common_globals(&mut frame_context.globals);
-
-        //     // Set pass-specific globals
-        //     if pass.id() == "shadow" {
-        //         self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
-        //     } else {
-        //         camera.set_globals(&mut frame_context.globals, canvas_size);
-        //     }
-
-        //     let mut render_pass_context = pass.make_render_pass_context(frame_context)?;
-        //     let Viewport { x, y, size } = viewport;
-        //     render_pass_context.pass.set_viewport(
-        //         x as f32,
-        //         y as f32,
-        //         size[0] as f32,
-        //         size[1] as f32,
-        //         0.0,
-        //         1.0,
-        //     );
-
-        //     self.render_items(&mut render_pass_context, pass_index)?;
-        // }
-
-        // Ok(())
     }
 }

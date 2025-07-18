@@ -65,7 +65,6 @@ impl RenderTarget {
     pub fn make_render_pass_context<'pass, 'frame: 'pass>(
         &'pass self,
         render_stage: &'pass mut RenderStage<'frame>,
-        // frame_context: &'pass mut FrameContext<'frame>,
     ) -> Result<wgpu::RenderPass<'static>> {
         let RenderStage::Offscreen(command_encoder) = render_stage else {
             bail!("Pass {} is not an offscreen pass", self.id);
