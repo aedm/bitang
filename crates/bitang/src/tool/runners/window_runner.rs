@@ -298,10 +298,12 @@ impl AppInner {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
-                let mut rect = egui::Rect::from_min_size(
-                    egui::Pos2::new(0.0, 0.0),
-                    egui::Vec2::new(self.viewport.size[0] as f32, self.viewport.size[1] as f32),
-                );
+                let size = egui::Vec2::new(self.viewport.size[0] as f32, self.viewport.size[1] as f32);
+                // let mut rect = egui::Rect::from_min_size(
+                //     egui::Pos2::new(0.0, 0.0),
+                //     egui::Vec2::new(self.viewport.size[0] as f32, self.viewport.size[1] as f32),
+                // );
+                let (rect, _response) = ui.allocate_exact_size(size, egui::Sense::hover());
                 ui.painter().add(egui_wgpu::Callback::new_paint_callback(
                     rect,
                     CustomRenderCallback {

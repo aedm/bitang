@@ -110,7 +110,7 @@ impl Draw {
             self.set_common_globals(&mut frame_context.globals);
 
             // Set pass-specific globals
-            if pass.id() == "shadow" {
+            if render_target.id == "shadow" {
                 self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
             } else {
                 camera.set_globals(&mut frame_context.globals, canvas_size);
@@ -135,10 +135,52 @@ impl Draw {
         Ok(())
     }
 
+    pub fn render_onscreen(
+        &self,
+        frame_context: &mut FrameContext,
+        camera: &Camera,
+    ) -> Result<()> {
+        let RenderStage::Onscreen(render_pass) = &mut frame_context.render_stage else {
+            bail!("Render stage is not onscreen");
+        };
+
+        // Render each pass
+        for (pass_index, pass) in self.passes.iter().enumerate() {
+            let Pass::Screen = pass else {
+                continue;
+            };
+
+            let viewport = frame_context.screen_viewport;
+
+            // Set globals unspecific to pass
+            self.set_common_globals(&mut frame_context.globals);
+
+            // Set pass-specific globals
+            camera.set_globals(&mut frame_context.globals, viewport.size);
+
+            let Viewport { x, y, size } = viewport;
+            render_pass.set_viewport(x as f32, y as f32, size[0] as f32, size[1] as f32, 0.0, 1.0);
+
+            {
+                let mut render_pass_context = RenderPassContext {
+                    gpu_context: &frame_context.gpu_context,
+                    pass: render_pass,
+                    globals: &mut frame_context.globals,
+                };
+                self.render_items(&mut render_pass_context, pass_index)?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn render(&self, frame_context: &mut FrameContext, camera: &Camera) -> Result<()> {
         ensure!(!self.passes.is_empty(), "Draw '{}' has no passes", self.id);
 
-        todo!("Render draw not implemented");
+        match &frame_context.render_stage {
+            RenderStage::Offscreen(_) => self.render_offscreen(frame_context, camera),
+            RenderStage::Onscreen(_) => self.render_onscreen(frame_context, camera),
+        }
 
         // // Render each pass
         // for (pass_index, pass) in self.passes.iter().enumerate() {
