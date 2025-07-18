@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use tracing::info;
 
-use crate::engine::{BitangImage, FrameContext, GpuContext, ImageSizeRule, Viewport};
+use crate::engine::{BitangImage, GpuContext, ImageSizeRule};
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::{FRAMEDUMP_FPS, FRAMEDUMP_HEIGHT, FRAMEDUMP_PIXEL_FORMAT, FRAMEDUMP_WIDTH};
 

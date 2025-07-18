@@ -1,7 +1,6 @@
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::cmp::max;
 use std::path::Path;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::{array, mem};
 
@@ -10,7 +9,7 @@ use anyhow::{Context, Result};
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
 use dashmap::DashMap;
 use glam::{Vec2, Vec3, Vec4};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tracing::{debug, info, instrument, warn};
 
