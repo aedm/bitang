@@ -11,7 +11,8 @@ use tracing::{debug, error, info};
 use wgpu::Backends;
 
 use crate::engine::{
-    BitangImage, FrameContext, FramebufferInfo, GpuContext, PixelFormat, RenderStage, Size2D, Viewport,
+    BitangImage, FrameContext, FramebufferInfo, GpuContext, PixelFormat, RenderStage, Size2D,
+    Viewport,
 };
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
