@@ -43,7 +43,12 @@ bitang v0.0.0 (D:\demo\bitang\crates\bitang)
 │   ├── cfg-if v1.0.0
 │   ├── hashbrown v0.14.5
 │   ├── lock_api v0.4.12
-│   │   └── scopeguard v1.2.0
+│   │   ├── scopeguard v1.2.0
+│   │   └── serde v1.0.218
+│   │       └── serde_derive v1.0.218 (proc-macro)
+│   │           ├── proc-macro2 v1.0.93 (*)
+│   │           ├── quote v1.0.38 (*)
+│   │           └── syn v2.0.98 (*)
 │   │   [build-dependencies]
 │   │   └── autocfg v1.4.0
 │   ├── once_cell v1.20.3
@@ -56,29 +61,25 @@ bitang v0.0.0 (D:\demo\bitang\crates\bitang)
 │   ├── ahash v0.8.11 (*)
 │   ├── document-features v0.2.11 (proc-macro)
 │   │   └── litrs v0.4.1
-│   ├── egui v0.31.0
+│   ├── egui v0.31.1
 │   │   ├── accesskit v0.17.1
 │   │   ├── ahash v0.8.11 (*)
 │   │   ├── bitflags v2.8.0
-│   │   │   └── serde v1.0.218
-│   │   │       └── serde_derive v1.0.218 (proc-macro)
-│   │   │           ├── proc-macro2 v1.0.93 (*)
-│   │   │           ├── quote v1.0.38 (*)
-│   │   │           └── syn v2.0.98 (*)
-│   │   ├── emath v0.31.0
+│   │   │   └── serde v1.0.218 (*)
+│   │   ├── emath v0.31.1
 │   │   │   └── bytemuck v1.21.0 (*)
-│   │   ├── epaint v0.31.0
+│   │   ├── epaint v0.31.1
 │   │   │   ├── ab_glyph v0.2.29
 │   │   │   │   ├── ab_glyph_rasterizer v0.1.8
 │   │   │   │   └── owned_ttf_parser v0.25.0
 │   │   │   │       └── ttf-parser v0.25.1
 │   │   │   ├── ahash v0.8.11 (*)
 │   │   │   ├── bytemuck v1.21.0 (*)
-│   │   │   ├── ecolor v0.31.0
+│   │   │   ├── ecolor v0.31.1
 │   │   │   │   ├── bytemuck v1.21.0 (*)
-│   │   │   │   └── emath v0.31.0 (*)
-│   │   │   ├── emath v0.31.0 (*)
-│   │   │   ├── epaint_default_fonts v0.31.0
+│   │   │   │   └── emath v0.31.1 (*)
+│   │   │   ├── emath v0.31.1 (*)
+│   │   │   ├── epaint_default_fonts v0.31.1
 │   │   │   ├── log v0.4.26
 │   │   │   ├── nohash-hasher v0.2.0
 │   │   │   ├── parking_lot v0.12.3
@@ -88,12 +89,12 @@ bitang v0.0.0 (D:\demo\bitang\crates\bitang)
 │   │   ├── log v0.4.26
 │   │   ├── nohash-hasher v0.2.0
 │   │   └── profiling v1.0.16
-│   ├── egui-wgpu v0.31.0 (D:\demo\bitang\crates\egui-wgpu-patch)
+│   ├── egui-wgpu v0.31.1
 │   │   ├── ahash v0.8.11 (*)
 │   │   ├── bytemuck v1.21.0 (*)
 │   │   ├── document-features v0.2.11 (proc-macro) (*)
-│   │   ├── egui v0.31.0 (*)
-│   │   ├── epaint v0.31.0 (*)
+│   │   ├── egui v0.31.1 (*)
+│   │   ├── epaint v0.31.1 (*)
 │   │   ├── log v0.4.26
 │   │   ├── profiling v1.0.16
 │   │   ├── thiserror v1.0.69
@@ -307,7 +308,7 @@ bitang v0.0.0 (D:\demo\bitang\crates\bitang)
 │   │   │       └── windows-targets v0.48.5
 │   │   │           └── windows_x86_64_msvc v0.48.5
 │   │   ├── bytemuck v1.21.0 (*)
-│   │   ├── egui v0.31.0 (*)
+│   │   ├── egui v0.31.1 (*)
 │   │   ├── log v0.4.26
 │   │   ├── profiling v1.0.16
 │   │   ├── raw-window-handle v0.6.2
@@ -398,7 +399,7 @@ bitang v0.0.0 (D:\demo\bitang\crates\bitang)
 │   ├── egui_glow v0.31.0
 │   │   ├── ahash v0.8.11 (*)
 │   │   ├── bytemuck v1.21.0 (*)
-│   │   ├── egui v0.31.0 (*)
+│   │   ├── egui v0.31.1 (*)
 │   │   ├── glow v0.16.0
 │   │   ├── log v0.4.26
 │   │   ├── memoffset v0.9.1
@@ -437,12 +438,29 @@ bitang v0.0.0 (D:\demo\bitang\crates\bitang)
 │   ├── winapi v0.3.9
 │   ├── windows-sys v0.59.0 (*)
 │   └── winit v0.30.9 (*)
-├── egui v0.31.0 (*)
-├── egui-wgpu v0.31.0 (D:\demo\bitang\crates\egui-wgpu-patch) (*)
+├── egui v0.32.0
+│   ├── ahash v0.8.11 (*)
+│   ├── bitflags v2.8.0 (*)
+│   ├── emath v0.32.0
+│   ├── epaint v0.32.0
+│   │   ├── ab_glyph v0.2.29 (*)
+│   │   ├── ahash v0.8.11 (*)
+│   │   ├── ecolor v0.32.0
+│   │   │   └── emath v0.32.0
+│   │   ├── emath v0.32.0
+│   │   ├── epaint_default_fonts v0.32.0
+│   │   ├── nohash-hasher v0.2.0
+│   │   ├── parking_lot v0.12.3 (*)
+│   │   └── profiling v1.0.16
+│   ├── nohash-hasher v0.2.0
+│   ├── profiling v1.0.16
+│   ├── smallvec v1.14.0
+│   └── unicode-segmentation v1.12.0
+├── egui-wgpu v0.31.1 (*)
 ├── egui_plot v0.31.0
 │   ├── ahash v0.8.11 (*)
-│   ├── egui v0.31.0 (*)
-│   └── emath v0.31.0 (*)
+│   ├── egui v0.31.1 (*)
+│   └── emath v0.31.1 (*)
 ├── futures v0.3.31
 │   ├── futures-channel v0.3.31
 │   │   ├── futures-core v0.3.31
@@ -562,7 +580,6 @@ bitang v0.0.0 (D:\demo\bitang\crates\bitang)
 │   │   └── tracing v0.1.41 (*)
 │   ├── jxl-threadpool v0.1.2 (*)
 │   └── tracing v0.1.41 (*)
-├── log v0.4.26
 ├── naga v24.0.0 (*)
 ├── notify v5.2.0
 │   ├── bitflags v1.3.2
@@ -582,6 +599,7 @@ bitang v0.0.0 (D:\demo\bitang\crates\bitang)
 ├── nu-ansi-term v0.50.1
 │   └── windows-sys v0.52.0 (*)
 ├── num_cpus v1.16.0
+├── parking_lot v0.12.3 (*)
 ├── rodio v0.17.3
 │   ├── cpal v0.15.3
 │   │   ├── dasp_sample v0.11.0
@@ -664,5 +682,3 @@ bitang v0.0.0 (D:\demo\bitang\crates\bitang)
 │       ├── once_cell v1.20.3
 │       └── tracing-core v0.1.33 (*)
 └── wgpu v24.0.1 (*)
-
-egui-wgpu v0.31.0 (D:\demo\bitang\crates\egui-wgpu-patch) (*)
