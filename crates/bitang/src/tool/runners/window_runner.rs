@@ -1,5 +1,5 @@
 use std::cmp::max;
-use std::sync::{Arc};
+use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
@@ -11,7 +11,8 @@ use tracing::{debug, error, info};
 use wgpu::Backends;
 
 use crate::engine::{
-    BitangImage, FrameContext, GpuContext, PixelFormat, RenderStage, Size2D, SwapchainImage, Viewport
+    BitangImage, FrameContext, GpuContext, PixelFormat, RenderStage, Size2D, SwapchainImage,
+    Viewport,
 };
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
@@ -21,8 +22,8 @@ pub struct WindowRunner {}
 
 impl WindowRunner {
     pub fn run() -> Result<()> {
-        let inner = Arc::new(Mutex::new(None::<AppInner>));
-        let inner_clone = inner.clone();
+        // let inner = Arc::new(Mutex::new(None::<AppInner>));
+        // let inner_clone = inner.clone();
 
         let wgpu_configuration = egui_wgpu::WgpuConfiguration {
             #[cfg(windows)]
@@ -70,7 +71,7 @@ impl WindowRunner {
             native_options,
             Box::new(|cc| {
                 // TODO: no unwrap
-                Ok(App::new(cc, inner).unwrap())
+                Ok(App::new(cc).unwrap())
             }),
         )
         .map_err(|e| {
@@ -134,10 +135,14 @@ impl AppInner {
         };
     }
 
-    fn render_offscreen_content(&mut self, cb: &mut CustomRenderCallback, command_encoder: &mut wgpu::CommandEncoder) -> Result<()> {
+    fn render_offscreen_content(
+        &mut self,
+        cb: &CustomRenderCallback,
+        command_encoder: &mut wgpu::CommandEncoder,
+    ) {
         // Don't render anything if the window is minimized
         if cb.window_size[0] == 0 || cb.window_size[1] == 0 {
-            return Ok(());
+            return;
         }
 
         self.compute_viewport(cb.window_size);
@@ -176,16 +181,16 @@ impl AppInner {
 
         // // Set swapchain image view to None, DX12 would fail without this
         // self.gpu_context.final_render_target.set_swapchain_image_view(None);
-
-        Ok(())
     }
 
-    fn render_onscreen_content(&mut self, cb: &mut CustomRenderCallback,
+    fn render_onscreen_content(
+        &mut self,
+        cb: &CustomRenderCallback,
         render_pass: &mut wgpu::RenderPass<'static>,
-    ) -> Result<()> {
+    ) {
         // Don't render anything if the window is minimized
         if cb.window_size[0] == 0 || cb.window_size[1] == 0 {
-            return Ok(());
+            return;
         }
 
         // Update swapchain target
@@ -222,8 +227,7 @@ impl AppInner {
 
         // // Set swapchain image view to None, DX12 would fail without this
         // self.gpu_context.final_render_target.set_swapchain_image_view(None);
-
-        Ok(())    }
+    }
 
     // fn render_frame_to_screen(&mut self, props: egui_wgpu::BackgroundRenderProps) -> Result<()> {
     //     // Don't render anything if the window is minimized
@@ -285,21 +289,37 @@ impl AppInner {
     fn render_ui(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.handle_hotkeys(&ctx);
 
-        let scale_factor = ctx.pixels_per_point();
-        let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size() * scale_factor;
+        // let scale_factor = ctx.pixels_per_point();
+        // let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size() * scale_factor;
+        let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size();
         self.compute_viewport([size.x as u32, size.y as u32]);
-        let pixels_per_point =
-            if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
-        let bottom_panel_height = self.ui_height / pixels_per_point;
+        // let pixels_per_point =
+        //     if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
+        // let bottom_panel_height = self.ui_height / pixels_per_point;
 
-        if bottom_panel_height > 0.0 {
-            ctx.set_pixels_per_point(pixels_per_point);
-            self.ui.draw(
-                ctx,
-                &mut self.content_renderer.app_state,
-                bottom_panel_height,
-            );
-        }
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.vertical(|ui| {
+                let mut rect = egui::Rect::from_min_size(
+                    egui::Pos2::new(0.0, 0.0),
+                    egui::Vec2::new(self.viewport.size[0] as f32, self.viewport.size[1] as f32),
+                );
+                ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                    rect,
+                    CustomRenderCallback {
+                        window_size: self.viewport.size,
+                    },
+                ));
+
+                // if bottom_panel_height > 0.0 {
+                // ctx.set_pixels_per_point(pixels_per_point);
+                self.ui.draw(
+                    ui,
+                    &mut self.content_renderer.app_state,
+                    // bottom_panel_height,
+                );
+                // }
+            });
+        });
 
         if self.demo_mode && self.has_timeline_ended() {
             // Avoid logging twice as eframe doesn't close the viewport immediately.
@@ -367,7 +387,7 @@ impl AppInner {
 }
 
 struct CustomRenderCallback {
-    app: Arc<Mutex<AppInner>>,
+    // app: Arc<Mutex<AppInner>>,
     window_size: Size2D,
 }
 
@@ -378,8 +398,9 @@ impl egui_wgpu::CallbackTrait for CustomRenderCallback {
         render_pass: &mut wgpu::RenderPass<'static>,
         callback_resources: &egui_wgpu::CallbackResources,
     ) {
-        
-        todo!()
+        let inner: &Arc<Mutex<AppInner>> = callback_resources.get().unwrap();
+        let mut inner = inner.lock();
+        inner.render_onscreen_content(self, render_pass);
     }
 
     fn prepare(
@@ -387,33 +408,30 @@ impl egui_wgpu::CallbackTrait for CustomRenderCallback {
         _device: &wgpu::Device,
         _queue: &wgpu::Queue,
         _screen_descriptor: &egui_wgpu::ScreenDescriptor,
-        _egui_encoder: &mut wgpu::CommandEncoder,
-        _callback_resources: &mut egui_wgpu::CallbackResources,
+        egui_encoder: &mut wgpu::CommandEncoder,
+        callback_resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
-        todo!();
-        // Vec::new()
+        let inner: &Arc<Mutex<AppInner>> = callback_resources.get().unwrap();
+        let mut inner = inner.lock();
+        inner.render_offscreen_content(self, egui_encoder);
+        Vec::new()
     }
 }
 
 struct App {
-    inner: Arc<Mutex<Option<AppInner>>>,
+    inner: Arc<Mutex<AppInner>>,
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         let mut inner = self.inner.lock();
-        if let Some(inner) = &mut *inner {
-            inner.render_ui(ctx, frame);
-            ctx.request_repaint();
-        }
+        inner.render_ui(ctx, frame);
+        ctx.request_repaint();
     }
 }
 
 impl App {
-    fn new(
-        cc: &eframe::CreationContext<'_>,
-        inner: Arc<Mutex<Option<AppInner>>>,
-    ) -> Result<Box<dyn eframe::App>> {
+    fn new(cc: &eframe::CreationContext<'_>) -> Result<Box<dyn eframe::App>> {
         let render_state = cc.wgpu_render_state.as_ref().context("No WGPU render state")?;
 
         let adapter_info = render_state.adapter.get_info();
@@ -449,7 +467,9 @@ impl App {
             ui_height: 0.0,
         };
 
-        *inner.lock() = Some(app_inner);
+        let inner = Arc::new(Mutex::new(app_inner));
+
+        render_state.renderer.write().callback_resources.insert(inner.clone());
 
         let app = Self { inner };
 
@@ -458,8 +478,8 @@ impl App {
             info!("Starting demo.");
             // TODO: this is not pretty
 
-            let mut lock = app.inner.lock();
-            let inner = lock.as_mut().unwrap();
+            let mut inner = app.inner.lock();
+            // let inner = lock.as_mut().unwrap();
             inner.content_renderer.play();
         }
 

@@ -16,7 +16,7 @@ pub struct ContentRenderer {
     pub app_state: AppState,
     project_loader: ProjectLoader,
     has_render_failure: bool,
-    music_player: MusicPlayer,
+    // music_player: MusicPlayer,
     last_render_time: Option<f32>,
 }
 
@@ -40,7 +40,7 @@ impl ContentRenderer {
             project_loader,
             app_state,
             has_render_failure,
-            music_player,
+            // music_player,
             last_render_time: None,
         })
     }
@@ -119,12 +119,14 @@ impl ContentRenderer {
     }
 
     pub fn play(&mut self) {
-        self.music_player.play_from(self.app_state.get_project_relative_time());
+        error!("Music player not implemented");
+        // self.music_player.play_from(self.app_state.get_project_relative_time());
         self.app_state.start();
     }
 
     pub fn stop(&mut self) {
-        self.music_player.stop();
+        error!("Music player not implemented");
+        // self.music_player.stop();
         self.app_state.pause();
     }
 
@@ -162,7 +164,8 @@ impl ContentRenderer {
         self.app_state.tick();
         if self.app_state.is_playing() {
             self.app_state.reset();
-            self.music_player.play_from(self.app_state.get_project_relative_time());
+            error!("Music player not implemented");
+            //self.music_player.play_from(self.app_state.get_project_relative_time());
         }
         Ok(())
     }

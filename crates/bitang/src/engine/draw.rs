@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use anyhow::{ensure, Result};
 use glam::{Mat4, Vec2, Vec3};

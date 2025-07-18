@@ -21,14 +21,15 @@ impl Ui {
 
     pub fn draw(
         &mut self,
-        ctx: &egui::Context,
+        // ctx: &egui::Context,
+        ui: &mut egui::Ui,
         app_state: &mut AppState,
-        bottom_panel_height: f32,
+        // bottom_panel_height: f32,
     ) {
         let spline_editor = &mut self.spline_editor;
-        egui::TopBottomPanel::bottom("ui_root")
-            .height_range(bottom_panel_height..=bottom_panel_height)
-            .show(&ctx, |ui| {
+        // egui::TopBottomPanel::bottom("ui_root")
+        //     .height_range(bottom_panel_height..=bottom_panel_height)
+        //     .show(&ctx, |ui| {
                 ui.add_space(5.0);
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                     Self::draw_control_tree(ui, app_state);
@@ -42,7 +43,7 @@ impl Ui {
                     }
                     spline_editor.draw(ui, app_state);
                 });
-            });
+            // });
     }
 
     fn draw_control_tree(ui: &mut egui::Ui, ui_state: &mut AppState) {

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use egui::Color32;
 use egui_plot::{Line, Plot, PlotBounds, PlotPoint, PlotUi};
@@ -106,7 +106,7 @@ impl SplineEditor {
     fn draw_info(&mut self, ui: &mut egui::Ui, time: f32) {
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
             if let Some(control) = self.control.as_mut() {
-                let components = &mut control.components.borrow_mut();
+                let components = &mut control.components.lock();
                 let spline = &mut components[self.component_index].spline;
 
                 // Add new point
@@ -189,7 +189,7 @@ impl SplineEditor {
         let Some(control) = self.control.as_ref() else {
             return (None, pointer_coordinate);
         };
-        let components = control.components.borrow();
+        let components = control.components.lock();
         let spline = &components[self.component_index].spline;
 
         let pixel_size = Vec2::new(
@@ -330,7 +330,7 @@ impl SplineEditor {
             }
             SplineEditorState::PointMove { index } => {
                 if let Some(control) = self.control.as_mut() {
-                    let mut components = control.components.borrow_mut();
+                    let mut components = control.components.lock();
                     let spline = &mut components[self.component_index].spline;
                     let point = spline.points.get_mut(index).unwrap();
                     point.time += pointer_delta.x * Self::calculate_pixel_size(self.zoom.x);
