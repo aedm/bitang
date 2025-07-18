@@ -10,11 +10,27 @@ use super::{BitangImage, FrameContext, PixelFormat, RenderPassContext, Size2D, V
 // TODO: this might not be needed at all
 #[derive(Clone, Debug)]
 pub struct FramebufferInfo {
+    // TODO: SmallVec
     pub color_buffer_formats: Vec<PixelFormat>,
     pub depth_buffer_format: Option<PixelFormat>,
 }
 
-pub struct Pass {
+pub enum Pass {
+    OffScreen(RenderTarget),
+    Screen,
+}
+
+impl Pass {
+    pub fn id(&self) -> &str {
+        match self {
+            Pass::OffScreen(render_target) => &render_target.id,
+            Pass::Screen => "screen",
+        }
+    }
+}
+
+/// A user-defined render target.
+pub struct RenderTarget {
     pub id: String,
     pub color_buffers: Vec<Arc<BitangImage>>,
     pub depth_buffer: Option<Arc<BitangImage>>,
@@ -22,7 +38,7 @@ pub struct Pass {
     pub framebuffer_info: FramebufferInfo,
 }
 
-impl Pass {
+impl RenderTarget {
     pub fn new(
         id: &str,
         color_buffers: Vec<Arc<BitangImage>>,
@@ -37,7 +53,7 @@ impl Pass {
             depth_buffer_format,
         };
 
-        Ok(Pass {
+        Ok(RenderTarget {
             id: id.to_string(),
             depth_buffer,
             color_buffers,
@@ -46,11 +62,12 @@ impl Pass {
         })
     }
 
-    pub fn make_render_pass_context<'pass, 'frame>(
+    pub fn make_render_pass_context<'pass, 'frame: 'pass>(
         &'pass self,
-        frame_context: &'pass mut FrameContext<'frame>,
-    ) -> Result<RenderPassContext<'pass>> {
-        let RenderStage::Offscreen(command_encoder) = &mut frame_context.render_stage else {
+        render_stage: &'pass mut RenderStage<'frame>,
+        // frame_context: &'pass mut FrameContext<'frame>,
+    ) -> Result<wgpu::RenderPass<'static>> {
+        let RenderStage::Offscreen(command_encoder) = render_stage else {
             bail!("Pass {} is not an offscreen pass", self.id);
         };
 
@@ -75,7 +92,7 @@ impl Pass {
         let depth_stencil_attachment =
             depth_buffer_view.as_ref().map(|view| self.make_depth_attachment(view));
 
-        let pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             // TODO: label
             label: None,
             color_attachments: &color_attachments,
@@ -83,12 +100,8 @@ impl Pass {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-
-        Ok(RenderPassContext {
-            gpu_context: &frame_context.gpu_context,
-            pass,
-            globals: &mut frame_context.globals,
-        })
+        
+        Ok(render_pass.forget_lifetime())
     }
 
     fn make_color_attachment<'a>(

@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 
+use crate::engine::FramebufferInfo;
+
 use super::globals::Globals;
 use super::image::BitangImage;
 use super::Size2D;
@@ -15,6 +17,9 @@ pub struct GpuContext {
     // TODO: rename to swapchain something
     // TODO: remove from here
     pub final_render_target: Arc<BitangImage>,
+
+    /// Buffer layout of the swapchain. Wgpu requires this to be known at pipeline creation time.
+    pub swapchain_framebuffer_info: FramebufferInfo,
 }
 
 impl GpuContext {
@@ -31,12 +36,17 @@ impl GpuContext {
             ..Default::default()
         };
         let (device, queue) = adapter.request_device(&device_descriptor, None).await?;
+        let swapchain_framebuffer_info = FramebufferInfo {
+            color_buffer_formats: vec![final_render_target.pixel_format],
+            depth_buffer_format: None,
+        };
 
         Ok(GpuContext {
             adapter,
             queue,
             device,
             final_render_target,
+            swapchain_framebuffer_info,
         })
     }
 }
@@ -68,7 +78,7 @@ pub struct FrameContext<'frame> {
 
 pub struct RenderPassContext<'pass> {
     pub gpu_context: &'pass GpuContext,
-    pub pass: wgpu::RenderPass<'pass>,
+    pub pass: &'pass mut wgpu::RenderPass<'static>,
     pub globals: &'pass mut Globals,
 }
 

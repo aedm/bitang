@@ -38,19 +38,21 @@ impl Material {
             &self.buffers,
         )?;
 
-        let material_pass_futures = passes.iter().map(|pass| async {
-            if let Some(material_pass) = self.passes.get(&pass.id) {
-                let pass = material_pass
-                    .load(
-                        &pass.id,
-                        &shader_context,
-                        chart_context,
-                        &pass.framebuffer_info,
-                    )
-                    .await?;
-                Ok(Some(pass))
-            } else {
-                Ok(None)
+        let material_pass_futures = passes.iter().map(|pass| {
+            let framebuffer_info = match &pass {
+                engine::Pass::OffScreen(render_target) => &render_target.framebuffer_info,
+                engine::Pass::Screen => &chart_context.gpu_context.swapchain_framebuffer_info,
+            };
+            async {
+                let id = pass.id();
+                if let Some(material_pass) = self.passes.get(id) {
+                    let pass = material_pass
+                        .load(id, &shader_context, chart_context, framebuffer_info)
+                        .await?;
+                    Ok(Some(pass))
+                } else {
+                    Ok(None)
+                }
             }
         });
 

@@ -73,12 +73,12 @@ Chart(
         Draw(
             id: "pass1",
             passes: [
-                Pass(
+                RenderTarget(
                     id: "shadow",
                     depth_image: Image("shadow"),
                     color_images: [],
                 ),
-                Pass(
+                RenderTarget(
                     id: "solid",
                     depth_image: Image("depth"),
                     color_images: [Image("color")],
@@ -186,7 +186,7 @@ Chart(
        Draw(
            id: "depth-of-field",
            passes: [
-               Pass(
+               RenderTarget(
                    id: "solid",
                    color_images: [Image("dof")],
                    clear_color: (0, 0.37, 0, 0),
@@ -223,7 +223,7 @@ Chart(
        Draw(
            id: "gamma-compression",
            passes: [
-               Pass(
+               RenderTarget(
                    id: "solid",
                    color_images: [Image("color-gamma")],
                    clear_color: (0, 0.37, 0, 0),
@@ -262,7 +262,7 @@ Chart(
        Draw(
            id: "gaussian-horizontal",
            passes: [
-               Pass(
+               RenderTarget(
                    id: "solid",
                    color_images: [Image("gaussian-horizontal")],
                    clear_color: (0, 0.37, 0, 0),
@@ -294,7 +294,7 @@ Chart(
        Draw(
            id: "gaussian-vertical",
            passes: [
-               Pass(
+               RenderTarget(
                    id: "solid",
                    color_images: [Image("gaussian")],
                    clear_color: (0, 0.37, 0, 0),
@@ -329,11 +329,12 @@ Chart(
        Draw(
            id: "compose",
            passes: [
-               Pass(
-                   id: "solid",
-                   color_images: [Screen],
-                   clear_color: (0, 0.37, 0, 0),
-               ),
+               Screen,
+            //    Pass(
+            //        id: "solid",
+            //        color_images: [Screen],
+            //        clear_color: (0, 0.37, 0, 0),
+            //    ),
            ],
            items: [
                Object(
@@ -342,7 +343,7 @@ Chart(
                    mesh_name: "Plane",
                    material: Material(
                        passes: {
-                           "solid": MaterialPass(
+                           "screen": MaterialPass(
                                vertex_shader: "/shaders/fullscreen.vs.wgsl",
                                fragment_shader: "/shaders/post/compose.fs.wgsl",
                                depth_test: false,
@@ -360,6 +361,6 @@ Chart(
                    ),
                ),
            ],
-       ),
+        ),
     ],
 )

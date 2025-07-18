@@ -9,7 +9,7 @@ use serde::Deserialize;
 use tracing::{instrument, trace};
 
 use crate::engine::{
-    ControlId, ControlIdPartType, ControlSetBuilder, GpuContext, ImageSizeRule, ShaderKind,
+    ControlId, ControlIdPartType, ControlSetBuilder, GpuContext, ImageSizeRule, ShaderKind
 };
 use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 use crate::loader::resource_path::ResourcePath;
@@ -336,7 +336,25 @@ impl ImageSelector {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Pass {
+pub enum Pass {
+    RenderTarget(RenderTarget),
+    Screen,
+}
+
+impl Pass {
+    pub async fn load(&self, chart_context: &ChartContext) -> Result<engine::Pass> {
+        match self {
+            Pass::RenderTarget(render_target) => {
+                let render_target = render_target.load(chart_context).await?;
+                Ok(engine::Pass::OffScreen(render_target))
+            }
+            Pass::Screen => Ok(engine::Pass::Screen),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RenderTarget {
     pub id: String,
     pub depth_image: Option<ImageSelector>,
     pub color_images: Vec<ImageSelector>,
@@ -345,8 +363,8 @@ pub struct Pass {
     pub clear_color: Option<[f32; 4]>,
 }
 
-impl Pass {
-    pub async fn load(&self, chart_context: &ChartContext) -> Result<engine::Pass> {
+impl RenderTarget {
+    pub async fn load(&self, chart_context: &ChartContext) -> Result<engine::RenderTarget> {
         let depth_buffer = match &self.depth_image {
             Some(selector) => Some(selector.load(chart_context)?),
             None => None,
@@ -358,7 +376,7 @@ impl Pass {
             .map(|color_buffer| color_buffer.load(chart_context))
             .collect::<Result<Vec<_>>>()?;
 
-        engine::Pass::new(&self.id, color_buffers, depth_buffer, self.clear_color)
+        engine::RenderTarget::new(&self.id, color_buffers, depth_buffer, self.clear_color)
     }
 }
 

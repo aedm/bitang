@@ -1,7 +1,9 @@
 use std::{rc::Rc, sync::Arc};
 
-use anyhow::{ensure, Result};
+use anyhow::{bail, ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
+
+use crate::engine::RenderStage;
 
 use super::{
     Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene, Viewport,
@@ -86,21 +88,67 @@ impl Draw {
         globals.update_compound_matrices();
     }
 
-    pub fn render(&self, frame_context: &mut FrameContext, camera: &Camera) -> Result<()> {
-        todo!("Add Screen pass");
+    pub fn render_offscreen(
+        &self,
+        frame_context: &mut FrameContext,
+        camera: &Camera,
+    ) -> Result<()> {
+        let RenderStage::Offscreen(command_encoder) = &mut frame_context.render_stage else {
+            bail!("Render stage is not offscreen");
+        };
 
-        // ensure!(!self.passes.is_empty(), "Draw '{}' has no passes", self.id);
+        // Render each pass
+        for (pass_index, pass) in self.passes.iter().enumerate() {
+            let Pass::OffScreen(render_target) = pass else {
+                continue;
+            };
+
+            let (viewport, canvas_size) =
+                render_target.get_viewport_and_canvas_size(frame_context)?;
+
+            // Set globals unspecific to pass
+            self.set_common_globals(&mut frame_context.globals);
+
+            // Set pass-specific globals
+            if pass.id() == "shadow" {
+                self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
+            } else {
+                camera.set_globals(&mut frame_context.globals, canvas_size);
+            }
+
+            let mut render_pass =
+                render_target.make_render_pass_context(&mut frame_context.render_stage)?;
+
+            let Viewport { x, y, size } = viewport;
+            render_pass.set_viewport(x as f32, y as f32, size[0] as f32, size[1] as f32, 0.0, 1.0);
+
+            {
+                let mut render_pass_context = RenderPassContext {
+                    gpu_context: &frame_context.gpu_context,
+                    pass: &mut render_pass,
+                    globals: &mut frame_context.globals,
+                };
+                self.render_items(&mut render_pass_context, pass_index)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn render(&self, frame_context: &mut FrameContext, camera: &Camera) -> Result<()> {
+        ensure!(!self.passes.is_empty(), "Draw '{}' has no passes", self.id);
+
+        todo!("Render draw not implemented");
 
         // // Render each pass
         // for (pass_index, pass) in self.passes.iter().enumerate() {
-
         //     let (viewport, canvas_size) = pass.get_viewport_and_canvas_size(frame_context)?;
 
         //     // Set globals unspecific to pass
         //     self.set_common_globals(&mut frame_context.globals);
 
         //     // Set pass-specific globals
-        //     if pass.id == "shadow" {
+        //     if pass.id() == "shadow" {
         //         self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
         //     } else {
         //         camera.set_globals(&mut frame_context.globals, canvas_size);
