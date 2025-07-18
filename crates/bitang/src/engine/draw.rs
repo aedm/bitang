@@ -122,14 +122,12 @@ impl Draw {
             let Viewport { x, y, size } = viewport;
             render_pass.set_viewport(x as f32, y as f32, size[0] as f32, size[1] as f32, 0.0, 1.0);
 
-            {
                 let mut render_pass_context = RenderPassContext {
                     gpu_context: &frame_context.gpu_context,
                     pass: &mut render_pass,
                     globals: &mut frame_context.globals,
                 };
                 self.render_items(&mut render_pass_context, pass_index)?;
-            }
         }
 
         Ok(())
@@ -161,14 +159,12 @@ impl Draw {
             let Viewport { x, y, size } = viewport;
             render_pass.set_viewport(x as f32, y as f32, size[0] as f32, size[1] as f32, 0.0, 1.0);
 
-            {
                 let mut render_pass_context = RenderPassContext {
                     gpu_context: &frame_context.gpu_context,
                     pass: render_pass,
                     globals: &mut frame_context.globals,
                 };
                 self.render_items(&mut render_pass_context, pass_index)?;
-            }
         }
 
         Ok(())

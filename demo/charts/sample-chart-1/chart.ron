@@ -330,11 +330,6 @@ Chart(
            id: "compose",
            passes: [
                Screen,
-            //    Pass(
-            //        id: "solid",
-            //        color_images: [Screen],
-            //        clear_color: (0, 0.37, 0, 0),
-            //    ),
            ],
            items: [
                Object(
