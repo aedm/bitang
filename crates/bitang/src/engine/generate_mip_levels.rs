@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use anyhow::bail;
 
-use crate::engine::RenderStage;
-
 use super::{BitangImage, FrameContext, GpuContext, MipmapGenerator};
+use crate::engine::RenderStage;
 
 pub struct GenerateMipLevels {
     pub _id: String,

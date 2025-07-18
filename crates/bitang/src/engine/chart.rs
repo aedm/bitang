@@ -5,12 +5,11 @@ use std::sync::Arc;
 use anyhow::{bail, Result};
 use parking_lot::Mutex;
 
-use crate::engine::RenderStage;
-
 use super::{
     BitangImage, Camera, Compute, ComputePassContext, ControlId, ControlIdPartType, ControlSet,
     ControlSetBuilder, Draw, FrameContext, GenerateMipLevels, Run, SIMULATION_STEP_SECONDS,
 };
+use crate::engine::RenderStage;
 
 pub enum ChartStep {
     Draw(Draw),
@@ -152,7 +151,7 @@ impl Chart {
             let RenderStage::Offscreen(command_encoder) = &mut context.render_stage else {
                 bail!("render_offline_content can only be executed in offscreen mode");
             };
-    
+
             let compute_pass =
                 command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
             let mut compute_pass_context = ComputePassContext {
@@ -184,7 +183,6 @@ impl Chart {
         Ok(())
     }
 
-
     pub fn render(&self, context: &mut FrameContext) -> Result<()> {
         match &mut context.render_stage {
             RenderStage::Offscreen(_) => {
@@ -195,7 +193,7 @@ impl Chart {
                     if let ChartStep::Draw(draw) = step {
                         draw.render(context, &self.camera)?;
                     }
-                }   
+                }
             }
         }
         Ok(())

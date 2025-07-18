@@ -1,13 +1,13 @@
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
+use std::sync::Arc;
 
 use anyhow::{bail, ensure, Result};
 use glam::{Mat4, Vec2, Vec3};
 
-use crate::engine::RenderStage;
-
 use super::{
     Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene, Viewport,
 };
+use crate::engine::RenderStage;
 
 pub enum DrawItem {
     Object(Arc<RenderObject>),
@@ -122,22 +122,18 @@ impl Draw {
             let Viewport { x, y, size } = viewport;
             render_pass.set_viewport(x as f32, y as f32, size[0] as f32, size[1] as f32, 0.0, 1.0);
 
-                let mut render_pass_context = RenderPassContext {
-                    gpu_context: &frame_context.gpu_context,
-                    pass: &mut render_pass,
-                    globals: &mut frame_context.globals,
-                };
-                self.render_items(&mut render_pass_context, pass_index)?;
+            let mut render_pass_context = RenderPassContext {
+                gpu_context: &frame_context.gpu_context,
+                pass: &mut render_pass,
+                globals: &mut frame_context.globals,
+            };
+            self.render_items(&mut render_pass_context, pass_index)?;
         }
 
         Ok(())
     }
 
-    pub fn render_onscreen(
-        &self,
-        frame_context: &mut FrameContext,
-        camera: &Camera,
-    ) -> Result<()> {
+    pub fn render_onscreen(&self, frame_context: &mut FrameContext, camera: &Camera) -> Result<()> {
         let RenderStage::Onscreen(render_pass) = &mut frame_context.render_stage else {
             bail!("Render stage is not onscreen");
         };
@@ -159,12 +155,12 @@ impl Draw {
             let Viewport { x, y, size } = viewport;
             render_pass.set_viewport(x as f32, y as f32, size[0] as f32, size[1] as f32, 0.0, 1.0);
 
-                let mut render_pass_context = RenderPassContext {
-                    gpu_context: &frame_context.gpu_context,
-                    pass: render_pass,
-                    globals: &mut frame_context.globals,
-                };
-                self.render_items(&mut render_pass_context, pass_index)?;
+            let mut render_pass_context = RenderPassContext {
+                gpu_context: &frame_context.gpu_context,
+                pass: render_pass,
+                globals: &mut frame_context.globals,
+            };
+            self.render_items(&mut render_pass_context, pass_index)?;
         }
 
         Ok(())

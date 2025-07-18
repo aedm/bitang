@@ -4,11 +4,10 @@ use anyhow::{bail, Result};
 use serde::Deserialize;
 use wgpu::Extent3d;
 
-use crate::engine::RenderStage;
-
 use super::context::{FrameContext, GpuContext};
 use super::mipmap_generator::MipmapGenerator;
 use super::Size2D;
+use crate::engine::RenderStage;
 
 #[derive(Debug, Deserialize, Clone, Copy)]
 pub enum PixelFormat {

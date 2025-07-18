@@ -9,7 +9,7 @@ use serde::Deserialize;
 use tracing::{instrument, trace};
 
 use crate::engine::{
-    ControlId, ControlIdPartType, ControlSetBuilder, GpuContext, ImageSizeRule, ShaderKind
+    ControlId, ControlIdPartType, ControlSetBuilder, GpuContext, ImageSizeRule, ShaderKind,
 };
 use crate::file::shader_context::{BufferSource, ShaderContext, Texture};
 use crate::loader::resource_path::ResourcePath;

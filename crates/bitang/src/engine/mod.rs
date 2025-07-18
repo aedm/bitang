@@ -13,7 +13,7 @@ mod scene;
 
 pub use core::compute_call::ComputeCall;
 pub use core::context::{
-    ComputePassContext, FrameContext, GpuContext, RenderPassContext, Viewport,
+    ComputePassContext, FrameContext, GpuContext, RenderPassContext, RenderStage, Viewport,
 };
 pub use core::double_buffer::DoubleBuffer;
 pub use core::draw_call::{BlendMode, DrawCall, DrawCallProps};
@@ -38,12 +38,10 @@ pub use control::{ControlId, ControlIdPartType};
 pub use draw::{Draw, DrawItem};
 pub use generate_mip_levels::GenerateMipLevels;
 pub use material::Material;
-pub use pass::{FramebufferInfo, Pass};
+pub use pass::{FramebufferInfo, Pass, RenderTarget};
 pub use project::{Cut, Project};
 pub use render_object::RenderObject;
 pub use scene::Scene;
-pub use core::context::RenderStage;
-pub use pass::RenderTarget;
 
 /// How many times the simulation is updated per second.
 /// Weird number on purpose so issues are easier to spot.

@@ -2,7 +2,7 @@ use std::cell::{Cell, RefCell};
 use std::cmp::max;
 use std::path::Path;
 use std::rc::Rc;
-use std::sync::{Arc};
+use std::sync::Arc;
 use std::{array, mem};
 
 use ahash::AHashSet;

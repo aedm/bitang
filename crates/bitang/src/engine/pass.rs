@@ -3,9 +3,8 @@ use std::sync::Arc;
 use anyhow::{bail, ensure, Result};
 use smallvec::SmallVec;
 
-use crate::engine::RenderStage;
-
 use super::{BitangImage, FrameContext, PixelFormat, RenderPassContext, Size2D, Viewport};
+use crate::engine::RenderStage;
 
 // TODO: this might not be needed at all
 #[derive(Clone, Debug)]
@@ -99,7 +98,7 @@ impl RenderTarget {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        
+
         Ok(render_pass.forget_lifetime())
     }
 
