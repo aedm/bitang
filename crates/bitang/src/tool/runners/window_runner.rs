@@ -11,10 +11,11 @@ use tracing::{debug, error, info};
 use wgpu::Backends;
 
 use crate::engine::{
-    BitangImage, FrameContext, FramebufferInfo, GpuContext, PixelFormat, RenderStage, Size2D,
-    Viewport,
+    BitangImage, FrameContext, FramebufferInfo, Globals, GpuContext, PixelFormat, RenderStage, Size2D, Viewport
 };
-use crate::tool::content_renderer::ContentRenderer;
+use crate::tool::app_config::AppConfig;
+use crate::tool::content_renderer::{self, ContentRenderer};
+use crate::tool::music_player::MusicPlayer;
 use crate::tool::ui::Ui;
 use crate::tool::{SCREEN_RATIO, START_IN_DEMO_MODE};
 
@@ -140,18 +141,9 @@ impl AppInner {
         let mut frame_context = FrameContext {
             gpu_context: self.gpu_context.clone(),
             render_stage: RenderStage::Offscreen(command_encoder),
-            globals: Default::default(),
+            globals: cb.globals,
             screen_viewport: self.viewport,
         };
-        frame_context.globals.app_time = cb.render_time;
-
-        // Reload project
-        // TODO: start render function with this block
-        if self.content_renderer.reload_project(&self.gpu_context) {
-            self.content_renderer.reset_simulation(&self.gpu_context).unwrap();
-            frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
-            self.content_renderer.unset_last_render_time();
-        }
 
         // Render content
         self.content_renderer.draw(&mut frame_context);
@@ -172,10 +164,9 @@ impl AppInner {
         let mut frame_context = FrameContext {
             gpu_context: self.gpu_context.clone(),
             render_stage: RenderStage::Onscreen(render_pass),
-            globals: Default::default(),
+            globals: cb.globals,
             screen_viewport: self.viewport,
         };
-        frame_context.globals.app_time = cb.render_time;
 
         // Render content
         self.content_renderer.draw(&mut frame_context);
@@ -188,8 +179,9 @@ impl AppInner {
         self.content_renderer.app_state.cursor_time >= project.length
     }
 
-    fn render_ui(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.handle_hotkeys(&ctx);
+    fn render_app(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let mut globals = Globals::default();
+        globals.app_time = self.app_start_time.elapsed().as_secs_f32();
 
         // let scale_factor = ctx.pixels_per_point();
         // let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size() * scale_factor;
@@ -208,7 +200,7 @@ impl AppInner {
                     rect,
                     CustomRenderCallback {
                         window_size: self.viewport.size,
-                        render_time: self.app_start_time.elapsed().as_secs_f32(),
+                        globals
                     },
                 ));
 
@@ -225,56 +217,6 @@ impl AppInner {
         }
     }
 
-    const SAVE_SHORTCUT: egui::KeyboardShortcut =
-        egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
-    const FULLSCREEN_SHORTCUT: egui::KeyboardShortcut =
-        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F11);
-    const RESET_SIMULATION_SHORTCUT: egui::KeyboardShortcut =
-        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F1);
-    const TOGGLE_SIMULATION_SHORTCUT: egui::KeyboardShortcut =
-        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F2);
-    const TOGGLE_PLAY_SHORTCUT: egui::KeyboardShortcut =
-        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Space);
-    const STOP_SHORTCUT: egui::KeyboardShortcut =
-        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Escape);
-
-    fn handle_hotkeys(&mut self, ctx: &egui::Context) {
-        // Save
-        if ctx.input_mut(|i| i.consume_shortcut(&Self::SAVE_SHORTCUT)) {
-            if let Some(project) = &self.content_renderer.app_state.project {
-                if let Err(err) =
-                    self.content_renderer.app_state.control_repository.save_control_files(project)
-                {
-                    error!("Failed to save controls: {err}");
-                }
-            }
-        }
-        if ctx.input_mut(|i| i.consume_shortcut(&Self::FULLSCREEN_SHORTCUT)) {
-            self.toggle_fullscreen(ctx);
-            self.demo_mode = false;
-        }
-        if ctx.input_mut(|i| i.consume_shortcut(&Self::RESET_SIMULATION_SHORTCUT)) {
-            self.content_renderer.reset_simulation(&self.gpu_context).unwrap();
-            self.content_renderer.unset_last_render_time();
-        }
-        if ctx.input_mut(|i| i.consume_shortcut(&Self::TOGGLE_SIMULATION_SHORTCUT)) {
-            self.content_renderer.app_state.is_simulation_enabled =
-                !self.content_renderer.app_state.is_simulation_enabled;
-        }
-        if ctx.input_mut(|i| i.consume_shortcut(&Self::TOGGLE_PLAY_SHORTCUT)) {
-            self.content_renderer.toggle_play();
-        }
-        if ctx.input_mut(|i| i.consume_shortcut(&Self::STOP_SHORTCUT)) {
-            if self.demo_mode {
-                info!("Exiting on user request.");
-                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-            } else if self.is_fullscreen {
-                self.toggle_fullscreen(ctx);
-                self.content_renderer.app_state.pause();
-            }
-        }
-    }
-
     fn toggle_fullscreen(&mut self, ctx: &egui::Context) {
         self.is_fullscreen = !self.is_fullscreen;
         debug!("Setting fullscreen to {}", self.is_fullscreen);
@@ -285,7 +227,8 @@ impl AppInner {
 struct CustomRenderCallback {
     // app: Arc<Mutex<AppInner>>,
     window_size: Size2D,
-    render_time: f32,
+    // render_time: f32,
+    globals: Globals,
 }
 
 impl egui_wgpu::CallbackTrait for CustomRenderCallback {
@@ -317,18 +260,26 @@ impl egui_wgpu::CallbackTrait for CustomRenderCallback {
 
 struct App {
     inner: Arc<Mutex<AppInner>>,
+    music_player: MusicPlayer,
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let mut inner = self.inner.lock();
-        inner.render_ui(ctx, frame);
+        self.reload_project();
+        self.handle_hotkeys(&ctx);
+        self.inner.lock().render_app(ctx, frame);
         ctx.request_repaint();
     }
 }
 
 impl App {
     fn new(cc: &eframe::CreationContext<'_>) -> Result<Box<dyn eframe::App>> {
+        let mut music_player = MusicPlayer::new();
+        // TODO: app config is also loaded in contentrenderer
+        let app_config = AppConfig::load()?;
+        music_player.set_root_path(&app_config.root_folder);
+
+
         let render_state = cc.wgpu_render_state.as_ref().context("No WGPU render state")?;
 
         let adapter_info = render_state.adapter.get_info();
@@ -374,14 +325,109 @@ impl App {
 
         render_state.renderer.write().callback_resources.insert(inner.clone());
 
-        let app = Self { inner };
+        let mut app = Self { inner, music_player };
 
         if START_IN_DEMO_MODE {
-            // Start demo in fullscreen
+            // TODO: start demo in fullscreen
             info!("Starting demo.");
-            app.inner.lock().content_renderer.play();
+            app.play();
         }
 
         Ok(Box::new(app))
+    }
+
+    fn reload_project(&mut self) {
+        let reload_was_necessary = {
+            let mut inner = self.inner.lock();
+            let AppInner {content_renderer, gpu_context, ..} = &mut *inner;
+            content_renderer.reload_project(gpu_context)
+        };
+        if reload_was_necessary {
+            self.reset_simulation();
+        }
+    }
+
+    fn reset_simulation(&mut self) {
+        let mut inner = self.inner.lock();
+        let AppInner {content_renderer, gpu_context, ..} = &mut *inner;
+        content_renderer.reset_simulation(gpu_context).unwrap();
+
+        if content_renderer.app_state.is_playing() {
+            content_renderer.app_state.reset();
+            error!("Music player not implemented");
+            self.music_player.play_from(content_renderer.app_state.get_project_relative_time());
+        }
+    }
+
+    fn play(&mut self) {
+        let mut inner = self.inner.lock();
+        self.music_player.play_from(inner.content_renderer.app_state.get_project_relative_time());
+        inner.content_renderer.app_state.start();
+    }
+
+    pub fn stop(&mut self) {
+        self.music_player.stop();
+        self.inner.lock().content_renderer.app_state.pause();
+    }
+
+    pub fn toggle_play(&mut self) {
+        if self.inner.lock().content_renderer.app_state.is_playing() {
+            self.stop();
+        } else {
+            self.play();
+        }
+    }
+
+    const SAVE_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
+    const FULLSCREEN_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F11);
+    const RESET_SIMULATION_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F1);
+    const TOGGLE_SIMULATION_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F2);
+    const TOGGLE_PLAY_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Space);
+    const STOP_SHORTCUT: egui::KeyboardShortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Escape);
+
+    fn handle_hotkeys(&mut self, ctx: &egui::Context) {
+        // Save
+        if ctx.input_mut(|i| i.consume_shortcut(&Self::SAVE_SHORTCUT)) {
+            let inner = self.inner.lock();
+            if let Some(project) = &inner.content_renderer.app_state.project {
+                if let Err(err) =
+                    inner.content_renderer.app_state.control_repository.save_control_files(project)
+                {
+                    error!("Failed to save controls: {err}");
+                }
+            }
+        }
+        if ctx.input_mut(|i| i.consume_shortcut(&Self::FULLSCREEN_SHORTCUT)) {
+            let mut inner = self.inner.lock();
+            inner.toggle_fullscreen(ctx);
+            inner.demo_mode = false;
+        }
+        if ctx.input_mut(|i| i.consume_shortcut(&Self::RESET_SIMULATION_SHORTCUT)) {
+            self.reset_simulation();
+        }
+        if ctx.input_mut(|i| i.consume_shortcut(&Self::TOGGLE_SIMULATION_SHORTCUT)) {
+            let mut inner = self.inner.lock();
+            inner.content_renderer.app_state.is_simulation_enabled =
+                !inner.content_renderer.app_state.is_simulation_enabled;
+        }
+        if ctx.input_mut(|i| i.consume_shortcut(&Self::TOGGLE_PLAY_SHORTCUT)) {
+            self.toggle_play();
+        }
+        if ctx.input_mut(|i| i.consume_shortcut(&Self::STOP_SHORTCUT)) {
+            let mut inner = self.inner.lock();
+            if inner.demo_mode {
+                info!("Exiting on user request.");
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            } else if inner.is_fullscreen {
+                inner.toggle_fullscreen(ctx);
+                inner.content_renderer.app_state.pause();
+            }
+        }
     }
 }

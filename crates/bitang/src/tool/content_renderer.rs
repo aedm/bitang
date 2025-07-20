@@ -4,28 +4,22 @@ use anyhow::{bail, Result};
 use tracing::error;
 
 use crate::engine::{
-    Chart, ComputePassContext, FrameContext, Globals, GpuContext, SIMULATION_STEP_SECONDS,
+    Chart, ComputePassContext, FrameContext, Globals, GpuContext, RenderStage, SIMULATION_STEP_SECONDS
 };
 use crate::loader::project_loader::ProjectLoader;
 use crate::tool::app_config::AppConfig;
 use crate::tool::app_state::AppState;
-use crate::tool::music_player::MusicPlayer;
 
 pub struct ContentRenderer {
     pub app_state: AppState,
     project_loader: ProjectLoader,
     has_render_failure: bool,
-    // music_player: MusicPlayer,
     last_render_time: Option<f32>,
 }
 
 impl ContentRenderer {
     pub fn new(context: &Arc<GpuContext>) -> Result<ContentRenderer> {
-        let mut music_player = MusicPlayer::new();
-
         let app_config = AppConfig::load()?;
-        music_player.set_root_path(&app_config.root_folder);
-
         let mut project_loader = ProjectLoader::try_new(&app_config.root_folder)?;
         let project = project_loader.get_or_load_project(context);
         let has_render_failure = project.is_none();
@@ -39,13 +33,14 @@ impl ContentRenderer {
             project_loader,
             app_state,
             has_render_failure,
-            // music_player,
             last_render_time: None,
         })
     }
 
     pub fn draw(&mut self, context: &mut FrameContext) {
-        self.app_state.tick();
+        if let RenderStage::Offscreen(_) = context.render_stage {
+            self.app_state.tick();
+        }
         context.globals.is_paused = !self.app_state.is_playing();
 
         // TODO: This value should be set to Globals at its initialization
@@ -64,7 +59,9 @@ impl ContentRenderer {
             None => self.draw_project(context),
         };
 
-        self.last_render_time = Some(context.globals.app_time);
+        if let RenderStage::Onscreen(_) = context.render_stage {
+            self.last_render_time = Some(context.globals.app_time);
+        }
 
         if let Err(err) = draw_result {
             if !self.has_render_failure {
@@ -109,26 +106,6 @@ impl ContentRenderer {
         false
     }
 
-    pub fn toggle_play(&mut self) {
-        if self.app_state.is_playing() {
-            self.stop();
-        } else {
-            self.play();
-        }
-    }
-
-    pub fn play(&mut self) {
-        error!("Music player not implemented");
-        // self.music_player.play_from(self.app_state.get_project_relative_time());
-        self.app_state.start();
-    }
-
-    pub fn stop(&mut self) {
-        error!("Music player not implemented");
-        // self.music_player.stop();
-        self.app_state.pause();
-    }
-
     pub fn reset_simulation(&mut self, context: &GpuContext) -> Result<()> {
         let mut command_encoder =
             context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -158,18 +135,10 @@ impl ContentRenderer {
                 }
             }
         };
+        self.last_render_time = None;
 
         // Update state
         self.app_state.tick();
-        if self.app_state.is_playing() {
-            self.app_state.reset();
-            error!("Music player not implemented");
-            //self.music_player.play_from(self.app_state.get_project_relative_time());
-        }
         Ok(())
-    }
-
-    pub fn unset_last_render_time(&mut self) {
-        self.last_render_time = None;
     }
 }

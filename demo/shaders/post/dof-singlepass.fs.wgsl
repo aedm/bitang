@@ -18,7 +18,7 @@ var<uniform> uniforms: Uniforms;
 
 
 const GOLDEN_ANGLE: f32 = 2.39996323;
-const MAX_BLUR_SIZE: f32 = 12.0;
+const MAX_BLUR_SIZE: f32 = 10.0;
 const RAD_SCALE: f32 = 3.0; // Smaller = nicer blur, larger = faster
 const FILM_GRAIN: f32 = 0.0;
 
