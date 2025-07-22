@@ -22,11 +22,12 @@ pub use wgpu;
 
 /// Low-level painting of [`egui`](https://github.com/emilk/egui) on [`wgpu`].
 mod renderer;
-
 mod setup;
+mod canvas;
 
 pub use renderer::*;
 pub use setup::{NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
+pub use canvas::WgpuCanvas;
 
 /// Helpers for capturing screenshots of the UI.
 pub mod capture;
