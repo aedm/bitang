@@ -23,7 +23,9 @@ Dependencies:
 
 ### Build & run
 
-Just run `cargo run --release`.
+On Mac: `export CMAKE_POLICY_VERSION_MINIMUM=3.5`
+
+Then run `cargo run --release`.
 
 The development platform is Windows, but Linux and MacOS should work as well.
 
