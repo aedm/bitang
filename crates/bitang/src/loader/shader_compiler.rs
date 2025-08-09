@@ -15,6 +15,7 @@ use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
 use spirq::ReflectConfig;
 use tracing::{debug, error, info, instrument, trace};
+use wesl::Wesl;
 use wgpu::{ShaderModule, ShaderModuleDescriptor};
 
 use crate::engine::{GlobalType, GlobalUniformMapping, GpuContext, ShaderKind};
@@ -50,6 +51,15 @@ impl ShaderCompilation {
             tokio::runtime::Handle::current()
                 .block_on(async move { file_hash_cache.get(path).await })
         }?;
+
+        let wgsl = {
+            let wesl = Wesl::new(path.root_path.to_str().unwrap());
+            let k = path.subdirectory.as_os_str().to_os_string().to_str().unwrap().replace("/", "::");
+            bail!("PATH {}{}", k, path.file_name);
+
+            // let src = wesl.compile(format!("charts::{}"))
+        };
+
         let source = std::str::from_utf8(&source_file.content)
             .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
 
