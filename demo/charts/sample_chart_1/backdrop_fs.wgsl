@@ -1,5 +1,6 @@
 // Constants
-const PI: f32 = 3.1415926535;
+// const PI: f32 = 3.1415926535;
+// import super::external::PI;
 
 // Struct for uniform buffer
 struct Uniforms {

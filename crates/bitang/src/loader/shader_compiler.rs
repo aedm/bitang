@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::mem::size_of;
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
@@ -14,7 +15,7 @@ use spirq::ty::ScalarType::Float;
 use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
 use spirq::ReflectConfig;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace, warn};
 use wesl::Wesl;
 use wgpu::{ShaderModule, ShaderModuleDescriptor};
 
@@ -52,25 +53,44 @@ impl ShaderCompilation {
                 .block_on(async move { file_hash_cache.get(path).await })
         }?;
 
-        let wgsl = {
+        let compile_result = {
             let wesl = Wesl::new(path.root_path.to_str().unwrap());
-            let k = path.subdirectory.as_os_str().to_os_string().to_str().unwrap().replace("/", "::");
-            bail!("PATH {}{}", k, path.file_name);
+            info!("WESL root: {}", path.root_path.to_str().unwrap());
+            let mut parent_module = path.subdirectory.to_str().unwrap().replace("/", "::");
+            if !parent_module.ends_with("::") {
+                parent_module.push_str("::");
+            }
+            let base_name = Path::new(&path.file_name).file_stem().unwrap().to_str().unwrap();
+            let module_path = format!("package::{}{}", parent_module, base_name);
+            let src = wesl.compile(&module_path.parse().unwrap());
+
+
+            match src {
+                Ok(wgsl) => {
+                    info!("PATH {module_path}, WGSL: {}", wgsl);
+                    wgsl
+                },
+                Err(err) => {
+                    bail!("ERR2: {:?}, PATH {module_path}", err);
+                }
+            }
 
             // let src = wesl.compile(format!("charts::{}"))
         };
 
-        let source = std::str::from_utf8(&source_file.content)
-            .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
+        let source = compile_result.to_string();
+
+        // let source = std::str::from_utf8(&source_file.content)
+        //     .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
 
         let spirv = {
             // TODO: report code spans on the top level, not here
             let mut frontend = naga::front::wgsl::Frontend::new();
-            let res = match frontend.parse(source) {
+            let res = match frontend.parse(&source) {
                 Ok(res) => res,
                 Err(err) => {
                     let mut files = SimpleFiles::new();
-                    let file_id = files.add(path.to_pwd_relative_path().unwrap(), source);
+                    let file_id = files.add(path.to_pwd_relative_path().unwrap(), &source);
 
                     let labels = err
                         .labels()
