@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::mem::size_of;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
@@ -64,12 +64,11 @@ impl ShaderCompilation {
             let module_path = format!("package::{}{}", parent_module, base_name);
             let src = wesl.compile(&module_path.parse().unwrap());
 
-
             match src {
                 Ok(wgsl) => {
                     info!("PATH {module_path}, WGSL: {}", wgsl);
                     wgsl
-                },
+                }
                 Err(err) => {
                     bail!("ERR2: {:?}, PATH {module_path}", err);
                 }
@@ -78,7 +77,19 @@ impl ShaderCompilation {
             // let src = wesl.compile(format!("charts::{}"))
         };
 
+        for module in &compile_result.modules {
+            ensure!(module.origin.is_absolute());
+            let mut path_buf = PathBuf::clone(&path.root_path);
+            for component in &module.components {
+                path_buf.push(component);
+            }
+            path_buf.set_extension("wgsl");
+            warn!("PATH ADD {path_buf:?}");
+            tokio::runtime::Handle::current()
+                .block_on(async { file_hash_cache.add_accessed_path(path_buf).await })
+        }
         let source = compile_result.to_string();
+        // debug!("MODULES: {:#?}", compile_result.modules);
 
         // let source = std::str::from_utf8(&source_file.content)
         //     .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
