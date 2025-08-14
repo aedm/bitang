@@ -1,7 +1,0 @@
-#ifndef SHADERS_COMMON_GLSL
-#define SHADERS_COMMON_GLSL
-
-const float PI = 3.1415926535f;
-
-#endif// SHADERS_COMMON_GLSL
-

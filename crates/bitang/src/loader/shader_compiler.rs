@@ -48,15 +48,26 @@ impl ShaderCompilation {
         }?;
 
         let compile_result = {
-            let wesl = Wesl::new(path.root_path.to_str().unwrap());
-            // info!("WESL root: {}", path.root_path.to_str().unwrap());
-            let mut parent_module = path.subdirectory.to_str().unwrap().replace("/", "::");
+            let wesl = Wesl::new(
+                path.root_path
+                    .to_str()
+                    .with_context(|| format!("Invalid root path '{:?}'", path.root_path))?,
+            );
+            let mut parent_module = path
+                .subdirectory
+                .to_str()
+                .with_context(|| format!("Invalid subdirectory '{:?}'", path.subdirectory))?
+                .replace("/", "::");
             if !parent_module.ends_with("::") {
                 parent_module.push_str("::");
             }
-            let base_name = Path::new(&path.file_name).file_stem().unwrap().to_str().unwrap();
+            let base_name = Path::new(&path.file_name)
+                .file_stem()
+                .with_context(|| format!("File name has no stem: '{:?}'", path.file_name))?
+                .to_str()
+                .with_context(|| format!("Invalid file name: '{:?}'", path.file_name))?;
             let module_path = format!("package::{}{}", parent_module, base_name);
-            let src = wesl.compile(&module_path.parse().unwrap());
+            let src = wesl.compile(&module_path.parse()?);
 
             match src {
                 Ok(wgsl) => {
@@ -76,30 +87,14 @@ impl ShaderCompilation {
             .iter()
             .map(|module| {
                 ensure!(module.origin.is_absolute());
-                // let mut path_buf = PathBuf::clone(&path.root_path);
-                // for component in &module.components {
-                //     path_buf.push(component);
-                // }
-
-                let mut path_buf = module.components.iter().collect::<PathBuf>();
-                path_buf.set_extension("wgsl");
-                let path_buf = path.root_path.join(path_buf);
-                warn!("PATH ADD {path_buf:?}");
-                // tokio::runtime::Handle::current()
-                //     .block_on(async { file_hash_cache.add_accessed_path(path_buf).await });
-
-                info!("PATH {path_buf:?}  ROOT_PATH {:?}", path.root_path.to_str());
-                let resource_path = ResourcePath::from_pathbuf(&path.root_path, &path_buf);
-                info!("RESOURCE PATH {resource_path:?}");
-                resource_path
+                let path_buf = path
+                    .root_path
+                    .join(module.components.iter().collect::<PathBuf>().with_extension("wgsl"));
+                ResourcePath::from_pathbuf(&path.root_path, &path_buf)
             })
             .collect::<Result<Vec<_>>>()?;
 
         let source = compile_result.to_string();
-        // debug!("MODULES: {:#?}", compile_result.modules);
-
-        // let source = std::str::from_utf8(&source_file.content)
-        //     .with_context(|| format!("Shader source file is not UTF-8: '{:?}'", path))?;
 
         let spirv = {
             // TODO: report code spans on the top level, not here
