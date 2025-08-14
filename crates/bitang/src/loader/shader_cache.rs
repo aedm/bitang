@@ -188,8 +188,6 @@ impl ShaderCache {
             };
             node = next_node;
 
-            error!("SHADER DEP {dep:?}");
-
             let file = file_hash_cache.get(&dep).await?;
             hash = file.hash;
         }

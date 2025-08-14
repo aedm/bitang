@@ -86,14 +86,6 @@ impl FileCache {
         }
         value
     }
-
-    /// Adds a path to the list of paths accessed during the current loading cycle
-    /// without reading the file. The shader compiler doesn't use the file cache,
-    /// but we need to keep track of the paths it accessed so we can watch them.
-    pub async fn add_accessed_path(&self, path_buf: PathBuf) {
-        let mut load_cycle_paths = self.paths_accessed_in_loading_cycle.lock().await;
-        load_cycle_paths.insert(path_buf);
-    }
 }
 
 /// Takes care of file change events

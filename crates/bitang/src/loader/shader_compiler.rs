@@ -67,19 +67,7 @@ impl ShaderCompilation {
                 .to_str()
                 .with_context(|| format!("Invalid file name: '{:?}'", path.file_name))?;
             let module_path = format!("package::{}{}", parent_module, base_name);
-            let src = wesl.compile(&module_path.parse()?);
-
-            match src {
-                Ok(wgsl) => {
-                    // info!("PATH {module_path}, WGSL: {}", wgsl);
-                    wgsl
-                }
-                Err(err) => {
-                    bail!("ERR2: {:?}, PATH {module_path}", err);
-                }
-            }
-
-            // let src = wesl.compile(format!("charts::{}"))
+            wesl.compile(&module_path.parse()?)?
         };
 
         let include_chain = compile_result
