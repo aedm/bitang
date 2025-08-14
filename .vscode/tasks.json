@@ -38,7 +38,7 @@
 				"env": {
 					"RUSTFLAGS": "-A dead_code -A unused_variables -A unused_mut -A unused_imports",
 					"RUST_BACKTRACE": "0",
-					"RUST_LOG": "debug"
+					"RUST_LOG": "trace"
 				}
 			}
 		}

@@ -25,15 +25,9 @@ use crate::loader::resource_path::ResourcePath;
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
 
-#[derive(Debug)]
-pub struct IncludeChainLink {
-    pub resource_path: ResourcePath,
-    pub hash: ContentHash,
-}
-
 pub struct ShaderCompilation {
     pub shader_artifact: ShaderArtifact,
-    pub include_chain: Vec<IncludeChainLink>,
+    pub include_chain: Vec<ResourcePath>,
 }
 
 impl ShaderCompilation {
@@ -55,7 +49,7 @@ impl ShaderCompilation {
 
         let compile_result = {
             let wesl = Wesl::new(path.root_path.to_str().unwrap());
-            info!("WESL root: {}", path.root_path.to_str().unwrap());
+            // info!("WESL root: {}", path.root_path.to_str().unwrap());
             let mut parent_module = path.subdirectory.to_str().unwrap().replace("/", "::");
             if !parent_module.ends_with("::") {
                 parent_module.push_str("::");
@@ -66,7 +60,7 @@ impl ShaderCompilation {
 
             match src {
                 Ok(wgsl) => {
-                    info!("PATH {module_path}, WGSL: {}", wgsl);
+                    // info!("PATH {module_path}, WGSL: {}", wgsl);
                     wgsl
                 }
                 Err(err) => {
@@ -77,17 +71,22 @@ impl ShaderCompilation {
             // let src = wesl.compile(format!("charts::{}"))
         };
 
-        for module in &compile_result.modules {
+        let include_chain = compile_result.modules.iter().map(|module| {
             ensure!(module.origin.is_absolute());
-            let mut path_buf = PathBuf::clone(&path.root_path);
-            for component in &module.components {
-                path_buf.push(component);
-            }
+            // let mut path_buf = PathBuf::clone(&path.root_path);
+            // for component in &module.components {
+            //     path_buf.push(component);
+            // }
+
+            let mut path_buf = module.components.iter().collect::<PathBuf>();
             path_buf.set_extension("wgsl");
             warn!("PATH ADD {path_buf:?}");
-            tokio::runtime::Handle::current()
-                .block_on(async { file_hash_cache.add_accessed_path(path_buf).await })
-        }
+            // tokio::runtime::Handle::current()
+            //     .block_on(async { file_hash_cache.add_accessed_path(path_buf).await });
+
+            ResourcePath::from_pathbuf(&path.root_path, &path_buf)
+        }).collect_vec();
+
         let source = compile_result.to_string();
         // debug!("MODULES: {:#?}", compile_result.modules);
 
