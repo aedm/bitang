@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use dashmap::DashMap;
 use tokio::task::spawn_blocking;
-use tracing::{error, trace};
+use tracing::trace;
 
 use crate::engine::{GpuContext, ShaderKind};
 use crate::loader::async_cache::AsyncCache;
@@ -152,13 +152,11 @@ impl ShaderCache {
             shader_artifact,
         } = {
             let source_path_clone = source_path.clone();
-            let file_hash_cache = Arc::clone(&file_hash_cache);
             spawn_blocking(move || {
                 ShaderCompilation::compile_shader(
                     &context,
                     &source_path_clone,
                     kind,
-                    file_hash_cache,
                     macros,
                 )
             })

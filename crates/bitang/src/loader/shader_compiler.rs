@@ -20,7 +20,6 @@ use wesl::Wesl;
 use wgpu::{ShaderModule, ShaderModuleDescriptor};
 
 use crate::engine::{GlobalType, GlobalUniformMapping, GpuContext, ShaderKind};
-use crate::loader::file_cache::{ContentHash, FileCache};
 use crate::loader::resource_path::ResourcePath;
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
@@ -31,21 +30,14 @@ pub struct ShaderCompilation {
 }
 
 impl ShaderCompilation {
-    #[instrument(skip(context, kind, file_hash_cache))]
+    #[instrument(skip(context, kind))]
     pub fn compile_shader(
         context: &Arc<GpuContext>,
         path: &ResourcePath,
         kind: ShaderKind,
-        file_hash_cache: Arc<FileCache>,
         macros: Vec<(String, String)>,
     ) -> Result<Self> {
         let now = std::time::Instant::now();
-
-        let source_file = {
-            let file_hash_cache = Arc::clone(&file_hash_cache);
-            tokio::runtime::Handle::current()
-                .block_on(async move { file_hash_cache.get(path).await })
-        }?;
 
         let compile_result = {
             let wesl = Wesl::new(
