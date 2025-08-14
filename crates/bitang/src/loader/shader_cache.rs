@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use dashmap::DashMap;
 use tokio::task::spawn_blocking;
-use tracing::trace;
+use tracing::{error, trace};
 
 use crate::engine::{GpuContext, ShaderKind};
 use crate::loader::async_cache::AsyncCache;
@@ -187,6 +187,8 @@ impl ShaderCache {
                 ShaderDependency::NextInclude(next) => Arc::clone(next),
             };
             node = next_node;
+
+            error!("SHADER DEP {dep:?}");
 
             let file = file_hash_cache.get(&dep).await?;
             hash = file.hash;

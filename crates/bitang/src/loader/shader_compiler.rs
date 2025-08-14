@@ -71,21 +71,29 @@ impl ShaderCompilation {
             // let src = wesl.compile(format!("charts::{}"))
         };
 
-        let include_chain = compile_result.modules.iter().map(|module| {
-            ensure!(module.origin.is_absolute());
-            // let mut path_buf = PathBuf::clone(&path.root_path);
-            // for component in &module.components {
-            //     path_buf.push(component);
-            // }
+        let include_chain = compile_result
+            .modules
+            .iter()
+            .map(|module| {
+                ensure!(module.origin.is_absolute());
+                // let mut path_buf = PathBuf::clone(&path.root_path);
+                // for component in &module.components {
+                //     path_buf.push(component);
+                // }
 
-            let mut path_buf = module.components.iter().collect::<PathBuf>();
-            path_buf.set_extension("wgsl");
-            warn!("PATH ADD {path_buf:?}");
-            // tokio::runtime::Handle::current()
-            //     .block_on(async { file_hash_cache.add_accessed_path(path_buf).await });
+                let mut path_buf = module.components.iter().collect::<PathBuf>();
+                path_buf.set_extension("wgsl");
+                let path_buf = path.root_path.join(path_buf);
+                warn!("PATH ADD {path_buf:?}");
+                // tokio::runtime::Handle::current()
+                //     .block_on(async { file_hash_cache.add_accessed_path(path_buf).await });
 
-            ResourcePath::from_pathbuf(&path.root_path, &path_buf)
-        }).collect_vec();
+                info!("PATH {path_buf:?}  ROOT_PATH {:?}", path.root_path.to_str());
+                let resource_path = ResourcePath::from_pathbuf(&path.root_path, &path_buf);
+                info!("RESOURCE PATH {resource_path:?}");
+                resource_path
+            })
+            .collect::<Result<Vec<_>>>()?;
 
         let source = compile_result.to_string();
         // debug!("MODULES: {:#?}", compile_result.modules);
@@ -187,7 +195,7 @@ impl ShaderCompilation {
 
         Ok(Self {
             shader_artifact,
-            include_chain: vec![],
+            include_chain,
         })
     }
 }
