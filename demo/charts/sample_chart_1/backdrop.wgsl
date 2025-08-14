@@ -1,3 +1,6 @@
+// Constants
+import super::external::PI;
+
 struct UniformsVs {
     g_projection_from_camera: mat4x4<f32>,
     g_camera_from_world: mat4x4<f32>,
@@ -39,9 +42,6 @@ fn calculate_backdrop_ray(uv: vec2<f32>) -> vec3<f32> {
     ));
     return inverse_rotation * vec3<f32>(uv * fov, 1.0);
 }
-
-// Constants
-const PI: f32 = 3.1415926535;
 
 // Helper functions
 fn direction_wn_to_spherical_envmap_uv(direction_wn: vec3<f32>) -> vec2<f32> {

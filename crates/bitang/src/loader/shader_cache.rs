@@ -152,13 +152,11 @@ impl ShaderCache {
             shader_artifact,
         } = {
             let source_path_clone = source_path.clone();
-            let file_hash_cache = Arc::clone(&file_hash_cache);
             spawn_blocking(move || {
                 ShaderCompilation::compile_shader(
                     &context,
                     &source_path_clone,
                     kind,
-                    file_hash_cache,
                     macros,
                 )
             })
@@ -177,7 +175,7 @@ impl ShaderCache {
                 .entry(hash)
                 .or_insert_with(|| {
                     ShaderDependency::NextInclude(Arc::new(ShaderTreeNode {
-                        source_path: dep.resource_path.clone(),
+                        source_path: dep.clone(),
                         subtrees_by_file_content: DashMap::new(),
                     }))
                 })
@@ -187,7 +185,9 @@ impl ShaderCache {
                 ShaderDependency::NextInclude(next) => Arc::clone(next),
             };
             node = next_node;
-            hash = dep.hash;
+
+            let file = file_hash_cache.get(&dep).await?;
+            hash = file.hash;
         }
         node.subtrees_by_file_content
             .insert(hash, ShaderDependency::None(Arc::clone(&shader_artifact)));
