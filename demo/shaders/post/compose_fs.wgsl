@@ -40,12 +40,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     color = min(color, vec3<f32>(1.0));
 
     // glow
-    // #ifdef IMAGE_BOUND_TO_SAMPLER_GLOW_MAP
-    var glow_color = textureSampleLevel(glow_map, sampler_clamp_to_edge, in.v_uv, 0.0).rgb;
-    glow_color = gamma_decompress(glow_color);
-    glow_color = pow(glow_color, vec3<f32>(uniforms.glow_pow)) * uniforms.glow;
-    color += glow_color;
-    // #endif
+    @if(TEXTURE_BOUND_TO_GLOW_MAP) 
+    {
+        var glow_color = textureSampleLevel(glow_map, sampler_clamp_to_edge, in.v_uv, 0.0).rgb;
+        glow_color = gamma_decompress(glow_color);
+        glow_color = pow(glow_color, vec3<f32>(uniforms.glow_pow)) * uniforms.glow;
+        color += glow_color;
+    }
 
     // tone mapping
     color = pow(clamp(color, vec3<f32>(0.0), vec3<f32>(1.0)), uniforms.tone_mapping) * uniforms.coloring;

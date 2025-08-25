@@ -16,7 +16,7 @@ use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
 use spirq::ReflectConfig;
 use tracing::{debug, error, info, instrument, trace, warn};
-use wesl::Wesl;
+use wesl::{Feature, Wesl};
 use wgpu::{ShaderModule, ShaderModuleDescriptor};
 
 use crate::engine::{GlobalType, GlobalUniformMapping, GpuContext, ShaderKind};
@@ -35,12 +35,12 @@ impl ShaderCompilation {
         context: &Arc<GpuContext>,
         path: &ResourcePath,
         kind: ShaderKind,
-        macros: Vec<(String, String)>,
+        features: Vec<String>,
     ) -> Result<Self> {
         let now = std::time::Instant::now();
 
         let compile_result = {
-            let wesl = Wesl::new(
+            let mut wesl = Wesl::new(
                 path.root_path
                     .to_str()
                     .with_context(|| format!("Invalid root path '{:?}'", path.root_path))?,
@@ -59,6 +59,9 @@ impl ShaderCompilation {
                 .to_str()
                 .with_context(|| format!("Invalid file name: '{:?}'", path.file_name))?;
             let module_path = format!("package::{}{}", parent_module, base_name);
+            for feature in &features {
+                wesl.set_feature(feature, Feature::Enable);
+            }
             wesl.compile(&module_path.parse()?)?
         };
 

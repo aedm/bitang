@@ -171,15 +171,11 @@ impl ShaderContext {
         kind: ShaderKind,
         source_path: &str,
     ) -> Result<Shader> {
-        let mut macros = vec![];
-
-        // Add sampler macros
-        for (sampler_name, _) in &self.texture_futures {
-            macros.push((
-                format!("IMAGE_BOUND_TO_SAMPLER_{}", sampler_name.to_uppercase()),
-                "1".to_string(),
-            ));
-        }
+        let features = self
+            .texture_futures
+            .keys()
+            .map(|s| format!("TEXTURE_BOUND_TO_{}", s.to_uppercase()))
+            .collect::<Vec<_>>();
 
         let shader_artifact = chart_context
             .resource_repository
@@ -188,7 +184,7 @@ impl ShaderContext {
                 &chart_context.gpu_context,
                 chart_context.path.relative_path(source_path)?,
                 kind,
-                macros,
+                features,
             )
             .await?;
 

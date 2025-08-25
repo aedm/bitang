@@ -86,28 +86,28 @@ Chart(
                 ),
             ],
             items: [
-                Object(
-                    id: "backdrop",
-                    mesh_file: "/common/plane_xz.glb",
-                    mesh_name: "Plane",
-                    material: Material(
-                        passes: {
-                            "solid": MaterialPass(
-                                vertex_shader: "backdrop.wgsl",
-                                fragment_shader: "backdrop.wgsl",
-                                depth_test: false,
-                                depth_write: false,
-                            ),
-                        },
-                        textures: {
-                            "envmap": Texture(
-                                bind: File(
-                                    "/common/medieval_cafe_1k.jxl",
-                                ),
-                            ),
-                        },
-                    ),
-                ),
+                // Object(
+                //     id: "backdrop",
+                //     mesh_file: "/common/plane_xz.glb",
+                //     mesh_name: "Plane",
+                //     material: Material(
+                //         passes: {
+                //             "solid": MaterialPass(
+                //                 vertex_shader: "backdrop.wgsl",
+                //                 fragment_shader: "backdrop.wgsl",
+                //                 depth_test: false,
+                //                 depth_write: false,
+                //             ),
+                //         },
+                //         textures: {
+                //             "envmap": Texture(
+                //                 bind: File(
+                //                     "/common/medieval_cafe_1k.jxl",
+                //                 ),
+                //             ),
+                //         },
+                //     ),
+                // ),
 
 
                 Object(
@@ -353,9 +353,9 @@ Chart(
                            "base_color": Texture(
                                bind: Image("dof"),
                            ),
-                           "glow_map": Texture(
-                               bind: Image("gaussian"),
-                           ),
+                        //    "glow_map": Texture(
+                        //        bind: Image("gaussian"),
+                        //    ),
                        },
                    ),
                ),
