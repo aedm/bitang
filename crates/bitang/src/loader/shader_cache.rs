@@ -41,7 +41,7 @@ enum ShaderDependency {
 struct ShaderCacheKey {
     source_path: ResourcePath,
     kind: ShaderKind,
-    macros: Vec<(String, String)>,
+    features: Vec<String>,
 }
 
 impl Debug for ShaderCacheKey {
@@ -74,12 +74,12 @@ impl ShaderCache {
         context: &Arc<GpuContext>,
         source_path: ResourcePath,
         kind: ShaderKind,
-        macros: Vec<(String, String)>,
+        features: Vec<String>,
     ) -> Result<Arc<ShaderArtifact>> {
         let key = ShaderCacheKey {
             source_path: source_path.clone(),
             kind,
-            macros: macros.clone(),
+            features: features.clone(),
         };
 
         let shader_tree_root = self
@@ -104,7 +104,7 @@ impl ShaderCache {
                 source_path,
                 kind,
                 shader_tree_root,
-                macros,
+                features,
             )
         };
         self.load_cycle_shader_cache.get(format!("shader:{key:?}"), key, shader_load_func).await
@@ -124,7 +124,7 @@ impl ShaderCache {
         source_path: ResourcePath,
         kind: ShaderKind,
         shader_tree_root: Arc<ShaderTreeNode>,
-        macros: Vec<(String, String)>,
+        features: Vec<String>,
     ) -> Result<Arc<ShaderArtifact>> {
         // Find the shader in the cache tree
         let mut node = shader_tree_root.clone();
@@ -157,7 +157,7 @@ impl ShaderCache {
                     &context,
                     &source_path_clone,
                     kind,
-                    macros,
+                    features,
                 )
             })
             .await
