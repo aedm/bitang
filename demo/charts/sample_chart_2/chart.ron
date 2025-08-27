@@ -111,9 +111,9 @@ Chart(
 
 
                 Object(
-                    id: "duck",
-                    mesh_file: "/duck/duck.glb",
-                    mesh_name: "Duck_002",
+                    id: "cube",
+                    mesh_file: "/common/cube.glb",
+                    mesh_name: "Cube",
                     material: Material(
                         passes: {
                             "shadow": MaterialPass(

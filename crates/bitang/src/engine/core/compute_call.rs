@@ -33,12 +33,11 @@ impl ComputeCall {
                 bind_group_layouts: &[&shader.bind_group_layout],
                 push_constant_ranges: &[],
             });
-        let entry_point = shader.kind.entry_point();
         let pipeline = context.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
             module: &shader.shader_module,
-            entry_point: Some(entry_point),
+            entry_point: Some(&shader.entry_point),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
             cache: None,
         });

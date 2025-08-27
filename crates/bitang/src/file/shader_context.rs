@@ -177,6 +177,12 @@ impl ShaderContext {
             .map(|s| format!("TEXTURE_BOUND_TO_{}", s.to_uppercase()))
             .collect::<Vec<_>>();
 
+        let (source_path, entry_point) = if let Some(i) = source_path.find(':') {
+            (&source_path[..i], source_path[i + 1..].to_string())
+        } else {
+            (source_path, kind.default_entry_point().to_string())
+        };
+
         let shader_artifact = chart_context
             .resource_repository
             .shader_cache
@@ -184,6 +190,7 @@ impl ShaderContext {
                 &chart_context.gpu_context,
                 chart_context.path.relative_path(source_path)?,
                 kind,
+                entry_point.clone(),
                 features,
             )
             .await?;
@@ -263,6 +270,7 @@ impl ShaderContext {
             &chart_context.gpu_context,
             shader_artifact.module.clone(),
             kind,
+            entry_point,
             shader_artifact.global_uniform_bindings.clone(),
             local_uniform_bindings,
             shader_artifact.uniform_buffer_byte_size,
