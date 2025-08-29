@@ -1,7 +1,7 @@
 Project(
     cuts: [
         Cut(
-            chart: "sample_chart_2",
+            chart: "sample_chart_1",
             offset: 0,
             start_time: 0,
             end_time: 600,

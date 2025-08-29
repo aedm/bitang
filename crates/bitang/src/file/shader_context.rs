@@ -171,7 +171,7 @@ impl ShaderContext {
         kind: ShaderKind,
         source_path: &str,
     ) -> Result<Shader> {
-        let features = self
+        let mut features = self
             .texture_futures
             .keys()
             .map(|s| format!("TEXTURE_BOUND_TO_{}", s.to_uppercase()))
@@ -182,6 +182,7 @@ impl ShaderContext {
         } else {
             (source_path, kind.default_entry_point().to_string())
         };
+        features.push(format!("ENTRY_POINT_{}", entry_point.to_uppercase()));
 
         let shader_artifact = chart_context
             .resource_repository

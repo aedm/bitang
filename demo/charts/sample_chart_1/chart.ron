@@ -117,14 +117,14 @@ Chart(
                     material: Material(
                         passes: {
                             "shadow": MaterialPass(
-                                vertex_shader: "vs.wgsl",
-                                fragment_shader: "fs_noop.wgsl",
+                                vertex_shader: "duck.wgsl",
+                                fragment_shader: "duck.wgsl:fs_main_noop",
                                 depth_test: true,
                                 depth_write: true,
                             ),
                             "solid": MaterialPass(
-                                vertex_shader: "vs.wgsl",
-                                fragment_shader: "fs.wgsl",
+                                vertex_shader: "duck.wgsl",
+                                fragment_shader: "duck.wgsl",
                                 depth_test: true,
                                 depth_write: true,
                             ),

@@ -217,11 +217,12 @@ impl ShaderArtifact {
         // Extract metadata from SPIRV
         let entry_points = ReflectConfig::new()
             .spv(spirv_binary)
+            // TODO: make this false, don't bind unused resources
             .ref_all_rscs(true)
             .combine_img_samplers(true)
             .gen_unique_names(false)
             .reflect()?;
-        let entry_point = entry_points
+        let spv_entry_point = entry_points
             .iter()
             .find(|ep| ep.name == entry_point)
             .with_context(|| format!("Failed to find entry point '{entry_point}'"))?;
@@ -246,7 +247,7 @@ impl ShaderArtifact {
         let mut local_uniform_bindings = Vec::new();
         let mut uniform_buffer_byte_size = 0;
 
-        for var in &entry_point.vars {
+        for var in &spv_entry_point.vars {
             match var {
                 Variable::Descriptor {
                     desc_ty,
