@@ -1,3 +1,5 @@
+const PI: f32 = 3.14159265359;
+
 fn translate_matrix(translate_vector: vec3<f32>) -> mat4x4<f32> {
     var matrix: mat4x4<f32>;
     matrix[0] = vec4<f32>(1.0, 0.0, 0.0, 0.0);
