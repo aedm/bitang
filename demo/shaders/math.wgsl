@@ -1,3 +1,5 @@
+const PI: f32 = 3.14159265359;
+
 fn translate_matrix(translate_vector: vec3<f32>) -> mat4x4<f32> {
     var matrix: mat4x4<f32>;
     matrix[0] = vec4<f32>(1.0, 0.0, 0.0, 0.0);
@@ -48,3 +50,9 @@ fn calculate_camera_pos_worldspace(camera_from_world: mat4x4<f32>) -> vec3<f32> 
     let inverse_rotation = transpose(mat3x3<f32>(camera_from_world[0].xyz, camera_from_world[1].xyz, camera_from_world[2].xyz));
     return inverse_rotation * -camera_from_world[3].xyz;
 }
+
+// fn calculate_camera_pos_worldspace(camera_from_world: mat4x4<f32>) -> vec3<f32> {
+//     let myMat3x3 = mat3x3(camera_from_world[0].xyz, camera_from_world[1].xyz, camera_from_world[2].xyz);
+//     let inverse_rotation = transpose(myMat3x3);
+//     return inverse_rotation * -camera_from_world[3].xyz;
+// }

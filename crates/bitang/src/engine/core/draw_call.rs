@@ -98,13 +98,13 @@ impl DrawCall {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &props.vertex_shader.shader_module,
-                entry_point: Some("vs_main"),
+                entry_point: Some(props.vertex_shader.entry_point.as_ref()),
                 buffers: &[vertex_buffer_layout],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &props.fragment_shader.shader_module,
-                entry_point: Some("fs_main"),
+                entry_point: Some(props.fragment_shader.entry_point.as_ref()),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &fragment_targets,
             }),

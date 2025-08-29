@@ -55,15 +55,15 @@ Chart(
     steps: [
         Compute(
             id: "particles-init",
-            shader: "particles_init_cs.wgsl",
+            shader: "particles.wgsl:cs_init",
             run: Init("particles"),
             buffers: {
-                "particles": Next("particles"),
+                "particles_next": Next("particles"),
             },
         ),
 		Compute(
 			id: "particles-simulate",
-			shader: "particles_simulate_cs.wgsl",
+			shader: "particles.wgsl:cs_simulate",
 			run: Simulation("particles"),
 			buffers: {
 				"particles_current": Current("particles"),
@@ -117,14 +117,14 @@ Chart(
                     material: Material(
                         passes: {
                             "shadow": MaterialPass(
-                                vertex_shader: "vs.wgsl",
-                                fragment_shader: "fs_noop.wgsl",
+                                vertex_shader: "duck.wgsl",
+                                fragment_shader: "duck.wgsl:fs_main_noop",
                                 depth_test: true,
                                 depth_write: true,
                             ),
                             "solid": MaterialPass(
-                                vertex_shader: "vs.wgsl",
-                                fragment_shader: "fs.wgsl",
+                                vertex_shader: "duck.wgsl",
+                                fragment_shader: "duck.wgsl",
                                 depth_test: true,
                                 depth_write: true,
                             ),

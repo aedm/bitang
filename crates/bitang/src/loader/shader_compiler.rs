@@ -35,6 +35,7 @@ impl ShaderCompilation {
         context: &Arc<GpuContext>,
         path: &ResourcePath,
         kind: ShaderKind,
+        entry_point: &str,
         features: Vec<String>,
     ) -> Result<Self> {
         let now = std::time::Instant::now();
@@ -169,7 +170,7 @@ impl ShaderCompilation {
         };
         info!("compiled in {:?}.", now.elapsed());
 
-        let shader_artifact = ShaderArtifact::from_spirv_binary(context, kind, &spirv)?;
+        let shader_artifact = ShaderArtifact::from_spirv_binary(context, kind, entry_point, &spirv)?;
 
         Ok(Self {
             shader_artifact,
@@ -210,20 +211,21 @@ impl ShaderArtifact {
     fn from_spirv_binary(
         context: &GpuContext,
         kind: ShaderKind,
+        entry_point: &str,
         spirv_binary: &[u8],
     ) -> Result<Self> {
         // Extract metadata from SPIRV
         let entry_points = ReflectConfig::new()
             .spv(spirv_binary)
+            // TODO: make this false, don't bind unused resources
             .ref_all_rscs(true)
             .combine_img_samplers(true)
             .gen_unique_names(false)
             .reflect()?;
-        let main_function = kind.entry_point();
-        let entry_point = entry_points
+        let spv_entry_point = entry_points
             .iter()
-            .find(|ep| ep.name == main_function)
-            .context("Failed to find entry point 'main'")?;
+            .find(|ep| ep.name == entry_point)
+            .with_context(|| format!("Failed to find entry point '{entry_point}'"))?;
 
         let source = wgpu::util::make_spirv(spirv_binary);
         let module = context.device.create_shader_module(ShaderModuleDescriptor {
@@ -245,7 +247,7 @@ impl ShaderArtifact {
         let mut local_uniform_bindings = Vec::new();
         let mut uniform_buffer_byte_size = 0;
 
-        for var in &entry_point.vars {
+        for var in &spv_entry_point.vars {
             match var {
                 Variable::Descriptor {
                     desc_ty,

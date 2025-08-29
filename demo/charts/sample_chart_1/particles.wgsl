@@ -26,14 +26,36 @@ struct Particle {
     upvector: vec3<f32>,
 }
 
-@group(0) @binding(0)
-var<uniform> context: Context;
+@group(0) @binding(0) var<uniform> context: Context;
+@group(0) @binding(1) var<storage, read> particles_current: array<Particle>;
+@group(0) @binding(2) var<storage, read_write> particles_next: array<Particle>;
 
-@group(0) @binding(1)
-var<storage, read> particles_current: array<Particle>;
+fn init_particle(iv: f32) -> Particle {
+    let pos = vec3<f32>(cos(iv), 0.0, sin(iv * 2.2342));
+    let vel = vec3<f32>(0.0, 0.0, 0.0);
+    let up = vec3<f32>(0.0, 1.0, 0.0);
+    
+    var particle: Particle;
+    particle.position = pos;
+    particle.velocity = vel;
+    particle.upvector = up;
+    
+    return particle;
+}
 
-@group(0) @binding(2)
-var<storage, read_write> particles_next: array<Particle>;
+@compute @workgroup_size(64, 1, 1)
+fn cs_init(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let index = global_id.x;
+    
+    // Get the length of the particles array
+    let num_particles = arrayLength(&particles_next);
+    
+    if (index >= num_particles) {
+        return;
+    }
+    
+    particles_next[index] = init_particle(f32(index));
+}
 
 fn rotate_axis_matrix(axis: vec3<f32>, angle: f32) -> mat3x3<f32> {
     let c = cos(angle);
@@ -106,7 +128,7 @@ fn step_particle(p: Particle, index: f32) -> Particle {
 }
 
 @compute @workgroup_size(64, 1, 1)
-fn cs_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+fn cs_simulate(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = global_id.x;
     let num_particles = arrayLength(&particles_current);
 

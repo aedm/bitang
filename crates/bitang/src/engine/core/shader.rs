@@ -45,7 +45,7 @@ impl ShaderKind {
         }
     }
 
-    pub fn entry_point(&self) -> &'static str {
+    pub fn default_entry_point(&self) -> &'static str {
         match self {
             ShaderKind::Vertex => "vs_main",
             ShaderKind::Fragment => "fs_main",
@@ -63,6 +63,9 @@ pub struct Shader {
 
     /// The kind of shader, either vertex or fragment.
     pub kind: ShaderKind,
+
+    /// The main function of the shader.
+    pub entry_point: String,
 
     // TODO: merge local and global uniform sources
     /// The value global uniforms are taken from a `Globals` struct.
@@ -89,6 +92,7 @@ impl Shader {
         context: &GpuContext,
         shader_module: wgpu::ShaderModule,
         kind: ShaderKind,
+        entry_point: String,
         global_uniform_bindings: Vec<GlobalUniformMapping>,
         local_uniform_bindings: Vec<LocalUniformMapping>,
         uniform_buffer_size: usize,
@@ -173,6 +177,7 @@ impl Shader {
         Shader {
             shader_module,
             kind,
+            entry_point,
             global_uniform_bindings,
             local_uniform_bindings,
             uniform_buffer_size,

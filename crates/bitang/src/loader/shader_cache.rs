@@ -41,12 +41,13 @@ enum ShaderDependency {
 struct ShaderCacheKey {
     source_path: ResourcePath,
     kind: ShaderKind,
+    entry_point: String,
     features: Vec<String>,
 }
 
 impl Debug for ShaderCacheKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} {:?}", self.source_path, self.kind)
+        write!(f, "{:?}:{}({:?})", self.source_path, self.entry_point, self.features)
     }
 }
 
@@ -74,11 +75,13 @@ impl ShaderCache {
         context: &Arc<GpuContext>,
         source_path: ResourcePath,
         kind: ShaderKind,
+        entry_point: String,
         features: Vec<String>,
     ) -> Result<Arc<ShaderArtifact>> {
         let key = ShaderCacheKey {
             source_path: source_path.clone(),
             kind,
+            entry_point: entry_point.clone(),
             features: features.clone(),
         };
 
@@ -103,6 +106,7 @@ impl ShaderCache {
                 file_hash_cache,
                 source_path,
                 kind,
+                entry_point,
                 shader_tree_root,
                 features,
             )
@@ -123,6 +127,7 @@ impl ShaderCache {
         file_hash_cache: Arc<FileCache>,
         source_path: ResourcePath,
         kind: ShaderKind,
+        entry_point: String,
         shader_tree_root: Arc<ShaderTreeNode>,
         features: Vec<String>,
     ) -> Result<Arc<ShaderArtifact>> {
@@ -157,6 +162,7 @@ impl ShaderCache {
                     &context,
                     &source_path_clone,
                     kind,
+                    &entry_point,
                     features,
                 )
             })
