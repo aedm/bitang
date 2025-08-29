@@ -219,13 +219,12 @@ impl ShaderContext {
 
         // Collect buffer generator bindings
         for buffer in &shader_artifact.buffers {
-            let descriptor_source =
-                self.buffers_by_binding.get(&buffer.name).with_context(|| {
-                    anyhow!(
-                        "Buffer generator definition for '{}' not found",
-                        buffer.name
-                    )
-                })?;
+            let Some(descriptor_source) =
+                self.buffers_by_binding.get(&buffer.name) else {
+                    // TODO: once we only collect used resources, this should be an error
+                    continue;
+                };
+                
             let buffer_descriptor = DescriptorResource {
                 id: buffer.name.clone(),
                 binding: buffer.binding,

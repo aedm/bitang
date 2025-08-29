@@ -1,5 +1,5 @@
 // Constants
-import super::external::PI;
+import package::shaders::math::PI;
 
 struct UniformsVs {
     g_projection_from_camera: mat4x4<f32>,
