@@ -1,5 +1,18 @@
 import package::shaders::quaternion::q_from_axis_angle;
-// alias Quaternion = vec4<f32>;
+import super::particle::Particle;
+
+// fn q_from_axis_angle(axis: vec3<f32>, angle: f32) -> vec4f {
+//     let half_angle = angle * 0.5;
+//     let s = sin(half_angle);
+//     let c = cos(half_angle);
+//     return vec4f(axis.x * s, axis.y * s, axis.z * s, c);
+// }
+
+// struct Particle {
+//     position: vec3<f32>,
+//     velocity: vec3<f32>,
+//     rotation_quat: vec4<f32>,
+// }
 
 struct Context {
     g_simulation_step_seconds: f32,
@@ -23,13 +36,6 @@ struct Context {
     _pad: vec4<f32>,
 }
 
-struct Particle {
-    position: vec3<f32>,
-    velocity: vec3<f32>,
-    upvector: vec3<f32>,
-    rotation_quat: vec4f,
-}
-
 @group(0) @binding(0) var<uniform> context: Context;
 @group(0) @binding(1) var<storage, read> particles_current: array<Particle>;
 @group(0) @binding(2) var<storage, read_write> particles_next: array<Particle>;
@@ -38,11 +44,12 @@ fn init_particle(iv: f32) -> Particle {
     let pos = vec3<f32>(cos(iv), 0.0, sin(iv * 2.2342));
     let vel = vec3<f32>(0.0, 0.0, 0.0);
     let up = vec3<f32>(0.0, 1.0, 0.0);
+    let rotation_quat = q_from_axis_angle(up, 0.0);
     
     var particle: Particle;
     particle.position = pos;
     particle.velocity = vel;
-    particle.upvector = up;
+    particle.rotation_quat = rotation_quat;
     
     return particle;
 }
@@ -123,11 +130,12 @@ fn step_particle(p: Particle, index: f32) -> Particle {
     // vel *= (1.0 - context.brake);
 
     let pos = vec3<f32>(cos(index+t), 0.0, sin(index * 2.2342 + t));
+    let rot = q_from_axis_angle(vec3<f32>(0.0, 1.0, 0.0), index * 2.2342 + t);
 
     var result: Particle;
     result.position = pos;
     result.velocity = vel;
-    result.upvector = p.upvector;
+    result.rotation_quat = rot;
     return result;
 }
 
