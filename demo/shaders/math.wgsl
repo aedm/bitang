@@ -51,8 +51,22 @@ fn calculate_camera_pos_worldspace(camera_from_world: mat4x4<f32>) -> vec3<f32> 
     return inverse_rotation * -camera_from_world[3].xyz;
 }
 
-// fn calculate_camera_pos_worldspace(camera_from_world: mat4x4<f32>) -> vec3<f32> {
-//     let myMat3x3 = mat3x3(camera_from_world[0].xyz, camera_from_world[1].xyz, camera_from_world[2].xyz);
-//     let inverse_rotation = transpose(myMat3x3);
-//     return inverse_rotation * -camera_from_world[3].xyz;
-// }
+fn make_lightspace_from_worldspace_transformation(light_dir_worldspace_n: vec3<f32>) -> mat3x3<f32> {
+    // Axes of lightspace expressed in worldspace
+    let light_z = light_dir_worldspace_n;
+    let light_x = normalize(cross(light_z, vec3<f32>(0.0, 1.0, 0.0)));
+    let light_y = cross(light_x, light_z);
+
+    // Orthonormal transformation from lightspace to worldspace
+    let world_from_light = mat3x3<f32>(
+        light_x,
+        light_y,
+        light_z
+    );
+
+    // We need the inverse to transform worldspace vectors to lightspace.
+    // For orthonormal vectors, transpose is the same as inverse but cheaper.
+    let light_from_world = transpose(world_from_light);
+
+    return light_from_world;
+}

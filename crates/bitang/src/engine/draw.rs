@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use anyhow::{ensure, Result};
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat3, Mat4, Vec2, Vec3};
 
 use super::{
     Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene, Viewport,
@@ -80,6 +80,7 @@ impl Draw {
 
         // Render objects should take care of their model-to-world transformation
         globals.world_from_model = Mat4::IDENTITY;
+        globals.lightspace_from_world = Mat3::from_mat4(globals.camera_from_world);
         globals.light_projection_from_world =
             globals.projection_from_camera * globals.camera_from_world;
 

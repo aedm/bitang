@@ -82,19 +82,6 @@ impl AppState {
         self.pause();
         self.cursor.set(time);
         self.cursor_time = time;
-        if let Some(project) = &self.project {
-            match self.get_chart() {
-                Some(chart) => chart.seek(time),
-                None => {
-                    for cut in &project.cuts {
-                        if cut.start_time <= time && time <= cut.end_time {
-                            let chart_time = time - cut.start_time + cut.offset;
-                            cut.chart.seek(chart_time);
-                        }
-                    }
-                }
-            }
-        }
     }
 
     pub fn is_playing(&self) -> bool {

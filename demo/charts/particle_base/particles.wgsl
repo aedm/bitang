@@ -1,19 +1,6 @@
 import package::shaders::quaternion::q_from_axis_angle;
 import super::particle::Particle;
 
-// fn q_from_axis_angle(axis: vec3<f32>, angle: f32) -> vec4f {
-//     let half_angle = angle * 0.5;
-//     let s = sin(half_angle);
-//     let c = cos(half_angle);
-//     return vec4f(axis.x * s, axis.y * s, axis.z * s, c);
-// }
-
-// struct Particle {
-//     position: vec3<f32>,
-//     velocity: vec3<f32>,
-//     rotation_quat: vec4<f32>,
-// }
-
 struct Context {
     g_simulation_step_seconds: f32,
     time: f32,
@@ -40,33 +27,6 @@ struct Context {
 @group(0) @binding(1) var<storage, read> particles_current: array<Particle>;
 @group(0) @binding(2) var<storage, read_write> particles_next: array<Particle>;
 
-fn init_particle(iv: f32) -> Particle {
-    let pos = vec3<f32>(cos(iv), 0.0, sin(iv * 2.2342));
-    let vel = vec3<f32>(0.0, 0.0, 0.0);
-    let up = vec3<f32>(0.0, 1.0, 0.0);
-    let rotation_quat = q_from_axis_angle(up, 0.0);
-    
-    var particle: Particle;
-    particle.position = pos;
-    particle.velocity = vel;
-    particle.rotation_quat = rotation_quat;
-    
-    return particle;
-}
-
-@compute @workgroup_size(64, 1, 1)
-fn cs_init(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let index = global_id.x;
-    
-    // Get the length of the particles array
-    let num_particles = arrayLength(&particles_next);
-    
-    if (index >= num_particles) {
-        return;
-    }
-    
-    particles_next[index] = init_particle(f32(index));
-}
 
 fn rotate_axis_matrix(axis: vec3<f32>, angle: f32) -> mat3x3<f32> {
     let c = cos(angle);
@@ -115,21 +75,21 @@ fn flux_force(pos: vec3<f32>, a: vec4<f32>, b: vec4<f32>, index: f32) -> vec3<f3
 }
 
 fn step_particle(p: Particle, index: f32) -> Particle {
-    // var pos = p.position;
+    var pos = p.position;
     var vel = p.velocity;
 
     let t = context.time;
-    // let c = vec3<f32>(cos(context.grav2_center * t)) * context.grav_center_speed;
+    let c = vec3<f32>(cos(context.grav2_center * t)) * context.grav_center_speed;
 
-    // vel += rotator_force(pos, c, context.rot1_axis, context.rot1_speed);
-    // vel += pull_force(pos, c, context.grav1_strength);
-    // vel += repel_force(pos, c, context.grav2_strength);
-    // vel += flux_force(pos, context.flux1_a, context.flux1_b, index);
+    vel += rotator_force(pos, c, context.rot1_axis, context.rot1_speed);
+    vel += pull_force(pos, c, context.grav1_strength);
+    vel += repel_force(pos, c, context.grav2_strength);
+    vel += flux_force(pos, context.flux1_a, context.flux1_b, index);
 
-    // pos += vel;
-    // vel *= (1.0 - context.brake);
+    pos += vel;
+    vel *= (1.0 - context.brake);
 
-    let pos = vec3<f32>(cos(index+t), 0.0, sin(index * 2.2342 + t));
+    // let pos = vec3<f32>(cos(index+t), 0.0, sin(index * 2.2342 + t));
     let rot = q_from_axis_angle(vec3<f32>(0.0, 1.0, 0.0), index * 2.2342 + t);
 
     var result: Particle;
@@ -151,4 +111,32 @@ fn cs_simulate(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let p = particles_current[index];
     let next = step_particle(p, f32(index));
     particles_next[index] = next;
+}
+
+fn init_particle(iv: f32) -> Particle {
+    let pos = vec3<f32>(cos(iv), 0.0, sin(iv * 2.2342));
+    let vel = vec3<f32>(0.0, 0.0, 0.0);
+    let up = vec3<f32>(0.0, 1.0, 0.0);
+    let rotation_quat = q_from_axis_angle(up, 0.0);
+    
+    var particle: Particle;
+    particle.position = pos;
+    particle.velocity = vel;
+    particle.rotation_quat = rotation_quat;
+    
+    return particle;
+}
+
+@compute @workgroup_size(64, 1, 1)
+fn cs_init(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let index = global_id.x;
+    
+    // Get the length of the particles array
+    let num_particles = arrayLength(&particles_next);
+    
+    if (index >= num_particles) {
+        return;
+    }
+    
+    particles_next[index] = init_particle(f32(index));
 }

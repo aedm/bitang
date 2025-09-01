@@ -40,26 +40,6 @@ fn apply_normal_map_amount(normal_map: texture_2d<f32>, uv: vec2<f32>,
     return normalize(mix(normal_n, n, normal_strength));
 }
 
-fn make_lightspace_from_worldspace_transformation(light_dir_worldspace_n: vec3<f32>) -> mat3x3<f32> {
-    // Axes of lightspace expressed in worldspace
-    let light_z = light_dir_worldspace_n;
-    let light_x = normalize(cross(light_z, vec3<f32>(0.0, 1.0, 0.0)));
-    let light_y = cross(light_x, light_z);
-
-    // Orthonormal transformation from lightspace to worldspace
-    let world_from_light = mat3x3<f32>(
-        light_x,
-        light_y,
-        light_z
-    );
-
-    // We need the inverse to transform worldspace vectors to lightspace.
-    // For orthonormal vectors, transpose is the same as inverse but cheaper.
-    let light_from_world = transpose(world_from_light);
-
-    return light_from_world;
-}
-
 // Fresnel-Schlick approximation
 fn fresnel_schlick(cosTheta: f32, F0: vec3<f32>) -> vec3<f32> {
     return F0 + (vec3<f32>(1.0) - F0) * pow(1.0 - cosTheta, 5.0);
@@ -134,39 +114,6 @@ fn cook_torrance_brdf_ibl(V: vec3<f32>, N: vec3<f32>, baseColor: vec3<f32>,
     // Combine and ensure energy conservation
     return diffuse + specular;
 }
-
-// Note: The sample_environment_map function needs to be implemented separately
-// as it depends on your specific environment mapping implementation
-fn cook_torrance_brdf_lightmap(V: vec3<f32>, N: vec3<f32>, L: vec3<f32>,
-    baseColor: vec3<f32>, metallic: f32, roughness: f32, envmap: texture_2d<f32>,
-    brdf_lut: texture_2d<f32>, light_color: vec3<f32>, sampler_envmap: sampler) -> vec3<f32> {
-    let light_from_world = make_lightspace_from_worldspace_transformation(L);
-    let F0 = mix(vec3<f32>(0.04), baseColor, metallic);
-
-    // Calculate DFG terms
-    let n_dot_v = max(dot(N, V), 0.0);
-    let F = fresnel_schlick_roughness(n_dot_v, F0, roughness);
-
-    // Sample environment map and irradiance map
-    let normal_lightspace = light_from_world * N;
-    let irradiance = light_color * sample_environment_map(normal_lightspace, 1.0, 
-        envmap, sampler_envmap).rgb;
-    let reflection = reflect(-V, N);
-    let reflection_lightspace = light_from_world * reflection;
-    let envSample = light_color * sample_environment_map(reflection_lightspace, roughness, 
-        envmap, sampler_envmap).rgb;
-
-    // Calculate specular and diffuse terms
-    let kD = (vec3<f32>(1.0) - F) * (1.0 - metallic);
-    let diffuse = kD * irradiance * baseColor * max(dot(N, L), 0.0);
-
-    let envBRDF = textureSampleLevel(brdf_lut, sampler_envmap, vec2<f32>(n_dot_v, roughness), 0.0).rgb;
-    let specular = envSample * (F * envBRDF.x + envBRDF.y) * max(dot(L, N), 0.0);
-
-    // Combine and ensure energy conservation
-    return diffuse + specular;
-}
-
 
 fn adjust(value: f32, factor: f32) -> f32 {
     if factor < 0.0 {

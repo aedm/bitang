@@ -53,11 +53,16 @@ impl ContentRenderer {
         context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
 
         if self.app_state.is_simulation_enabled {
-            context.globals.simulation_elapsed_time_since_last_render = match self.last_render_time
-            {
-                Some(last_render_time) => context.globals.app_time - last_render_time,
-                None => 0.0,
-            };
+            context.globals.simulation_elapsed_time_since_last_render = {
+                if self.app_state.is_playing() {
+                    match self.last_render_time {
+                        Some(last_render_time) => context.globals.app_time - last_render_time,
+                        None => 0.0,
+                    }
+                } else {
+                    0.0
+                }
+            }
         }
 
         let draw_result = match self.app_state.get_chart() {
@@ -132,31 +137,35 @@ impl ContentRenderer {
         let mut command_encoder =
             context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
-        let compute_pass =
-            command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
-        let mut globals = Globals::default();
-        let mut compute_pass_context = ComputePassContext {
-            gpu_context: context,
-            pass: compute_pass,
-            globals: &mut globals,
-        };
+        {
+            let compute_pass =
+                command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+            let mut globals = Globals::default();
+            let mut compute_pass_context = ComputePassContext {
+                gpu_context: context,
+                pass: compute_pass,
+                globals: &mut globals,
+            };
 
-        compute_pass_context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
-        compute_pass_context.globals.simulation_elapsed_time_since_last_render = 0.0;
+            compute_pass_context.globals.simulation_step_seconds = SIMULATION_STEP_SECONDS;
+            compute_pass_context.globals.simulation_elapsed_time_since_last_render = 0.0;
 
-        match self.app_state.get_chart() {
-            // Reset only the selected chart
-            Some(chart) => chart.reset_simulation(&mut compute_pass_context)?,
+            match self.app_state.get_chart() {
+                // Reset only the selected chart
+                Some(chart) => chart.reset_simulation(&mut compute_pass_context)?,
 
-            // No chart selected, reset all of them
-            None => {
-                if let Some(project) = &self.app_state.project {
-                    for cut in &project.cuts {
-                        cut.chart.reset_simulation(&mut compute_pass_context)?;
+                // No chart selected, reset all of them
+                None => {
+                    if let Some(project) = &self.app_state.project {
+                        for cut in &project.cuts {
+                            cut.chart.reset_simulation(&mut compute_pass_context)?;
+                        }
                     }
                 }
-            }
-        };
+            };
+        }
+
+        context.queue.submit(Some(command_encoder.finish()));
 
         // Update state
         self.app_state.tick();

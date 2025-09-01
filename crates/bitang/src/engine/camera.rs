@@ -49,6 +49,11 @@ impl Camera {
             globals.aspect_ratio,
             globals.z_near,
         );
+        globals.lightspace_from_world = Mat3::from_mat4(Mat4::look_to_lh(
+            Vec3::ZERO,
+            globals.light_dir_worldspace_norm,
+            Vec3::Y,
+        ));
 
         // Shake
         let shake = {
