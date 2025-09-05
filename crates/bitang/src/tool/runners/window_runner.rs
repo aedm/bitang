@@ -55,7 +55,7 @@ impl WindowRunner {
         let viewport_builder = if START_IN_DEMO_MODE {
             viewport_builder.with_fullscreen(true)
         } else {
-            viewport_builder.with_inner_size(egui::vec2(1280.0, 1000.0))
+            viewport_builder.with_inner_size(egui::vec2(960.0, 1000.0))
         };
         let native_options = eframe::NativeOptions {
             wgpu_options: wgpu_configuration,

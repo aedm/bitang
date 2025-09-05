@@ -1,23 +1,23 @@
-import package::shaders::quaternion::q_from_axis_angle;
+import package::shaders::quaternion::{q_from_axis_angle, q_rotate};
 import super::particle::Particle;
 
 struct Context {
     g_simulation_step_seconds: f32,
     time: f32,
+
+    seed_size: vec3f,
     
-    rot1_center: vec3<f32>,
-    rot1_axis: vec3<f32>,
-    rot1_speed: f32,
-    
-    grav1_center: vec3<f32>,
-    grav1_strength: vec3<f32>,
-    
-    grav2_center: vec3<f32>,
-    grav2_strength: vec3<f32>,
-    
-    flux1_a: vec4<f32>,
-    flux1_b: vec4<f32>,
-    grav_center_speed: f32,
+    selector_1_ty: f32,
+    selector_1_center: vec3<f32>,
+    selector_1_strength: vec3<f32>,
+    selector_1_args: vec4<f32>,
+
+    field_1_ty: f32,
+    field_1_center: vec3<f32>,
+    field_1_args1: vec4<f32>,
+    field_1_args2: vec4<f32>,
+
+
     
     brake: f32,
     _pad: vec4<f32>,
@@ -28,69 +28,119 @@ struct Context {
 @group(0) @binding(2) var<storage, read_write> particles_next: array<Particle>;
 
 
-fn rotate_axis_matrix(axis: vec3<f32>, angle: f32) -> mat3x3<f32> {
-    let c = cos(angle);
-    let s = sin(angle);
-    let t = 1.0 - c;
-    let x = axis.x;
-    let y = axis.y;
-    let z = axis.z;
 
-    return mat3x3<f32>(
-        vec3<f32>(t*x*x + c, t*x*y - s*z, t*x*z + s*y),
-        vec3<f32>(t*x*y + s*z, t*y*y + c, t*y*z - s*x),
-        vec3<f32>(t*x*z - s*y, t*y*z + s*x, t*z*z + c)
-    );
+
+// Calculates selector strength for a given distance.
+// strength.x: damping (0.0 = no damping)
+// strength.y: max distance
+// strength.z: falloff exponent
+fn calc_selector_strength(distance: f32, strength: vec3f) -> f32 {
+    let amplify = strength.x;
+    let distance_max = strength.y;
+    let exponent = strength.z + 1.0;
+    let value = pow(max(0.0, 1.0 - distance / distance_max), exponent);
+    return value * amplify;
 }
 
-fn rotator_force(pos: vec3<f32>, center: vec3<f32>, axis: vec3<f32>, speed: f32) -> vec3<f32> {
-    let p = pos - center;
-    let rot = rotate_axis_matrix(axis, speed * context.g_simulation_step_seconds);
-    let p2 = rot * p;
-    let d = length(p);
-    let f = d / (d + 1.0);
-    return (p2 - p) * f;
+// Selector function. Defines a strength for each point in space.
+// Returns a value between 0 and 1 for each particle.
+const SELECTOR_EVERYWHERE: u32 = 0;
+const SELECTOR_SPHERE: u32 = 1;  // args: x=radius
+const SELECTOR_PLANE: u32 = 2;  // args: xyz=normal
+const SELECTOR_TUBE: u32 = 3;   // args: xyz=axis, w=radius
+fn selector(particle_pos: vec3f, ty: u32, center: vec3f, strength: vec3f, args: vec4f) -> f32 {
+    switch ty {
+        case SELECTOR_EVERYWHERE: { return strength.x; }
+        case SELECTOR_SPHERE: {
+            let radius = args.x;
+            // let distance = max(0.0, 1.0 - length(particle_pos - center) / radius);
+            let distance = length(particle_pos - center);
+            return calc_selector_strength(distance, strength);
+        }
+        case SELECTOR_PLANE: {
+            let normal = normalize(args.xyz);
+            let distance = abs(dot(particle_pos - center, normal));
+            return calc_selector_strength(distance, strength);
+        }
+        case SELECTOR_TUBE: {
+            let axis = normalize(args.xyz);
+            let radius = args.w;
+            let distance = max(0.0, length(cross(particle_pos - center, axis)) - radius);
+            return calc_selector_strength(distance, strength);
+        }
+        default: { return 1.0; }
+    }
 }
 
-fn pull_force(pos: vec3<f32>, center: vec3<f32>, strength: vec3<f32>) -> vec3<f32> {
-    let p = pos - center;
-    let d = length(p);
-    let f = 1.0 - pow((d + 0.1) / (d + 1.0), strength.y);
-    return p * -d * f * strength.x * context.g_simulation_step_seconds;
+
+// Field function
+// Returns the force applied to a particle at a given position.
+const FIELD_ROTATE_AXIS: u32 = 0;  // args1: xyz=axis
+const FIELD_ATTRACT_POINT: u32 = 1;
+const FIELD_ATTRACT_AXIS: u32 = 2; // args1: xyz=axis
+const FIELD_ATTRACT_PLANE: u32 = 3; // args1: xyz=normal
+const FIELD_FLUX: u32 = 4;  // args1, args2
+const FIELD_DIRECTION: u32 = 5; // args1: xyz=direction
+fn field(particle_pos: vec3f, ty: u32, center: vec3f, args1: vec4f, args2: vec4f, selector_strength: f32,sim_step: f32) -> vec3f {
+    switch ty {
+        case FIELD_ROTATE_AXIS: { 
+            let axis = normalize(args1.xyz);
+            let pull_to_center = args1.w;
+            // let rotation_quat = q_from_axis_angle(axis, speed * sim_step);
+
+            let center_to_projected = dot(particle_pos - center, axis) * axis;
+            let axis_to_point = particle_pos - center_to_projected;
+
+            // let rotated_pos = q_rotate(axis_to_point, rotation_quat) * pull_to_center;
+            // return (rotated_pos - axis_to_point);
+            
+            let rotation_dir = cross(axis, normalize(axis_to_point));
+            return rotation_dir - pull_to_center * axis_to_point;
+        }
+        case FIELD_ATTRACT_POINT: { 
+            let direction = normalize(particle_pos - center);
+            return direction;
+        }
+        case FIELD_ATTRACT_AXIS: { 
+            let axis = normalize(args1.xyz);
+            let center_to_projected = dot(particle_pos - center, axis) * axis;
+            let axis_to_point = particle_pos - center_to_projected;
+            return normalize(axis_to_point);
+        }
+        case FIELD_ATTRACT_PLANE: { 
+            let normal = normalize(args1.xyz);
+            let normal_projected = dot(particle_pos - center, normal) * normal;
+            return normalize(normal_projected);
+        }
+        case FIELD_FLUX: {
+            let p = particle_pos;
+            let a = args1;
+            let index = 0.0;
+            let vx = cos(p.y * a.x + p.z * a.y + index);
+            let vy = cos(p.z * a.x + p.x * a.y + index);
+            let vz = cos(p.x * a.x + p.y * a.y + index);
+            return vec3<f32>(vx, vy, vz) * a.w;
+        }
+        case FIELD_DIRECTION: { 
+            return normalize(args1.xyz);
+        }
+        default: { return vec3<f32>(0.0, 0.0, 0.0); }
+    };
 }
 
-fn repel_force(pos: vec3<f32>, center: vec3<f32>, strength: vec3<f32>) -> vec3<f32> {
-    let p = pos - center;
-    let d = length(p);
-    let f = pow(max(1.0 - d/strength.y, 0.0), strength.z + 1.0) * strength.x;
-    return p / d * f * context.g_simulation_step_seconds;
-}
-
-fn flux_force(pos: vec3<f32>, a: vec4<f32>, b: vec4<f32>, index: f32) -> vec3<f32> {
-    let p = pos;
-    let vx = cos(p.y * a.x + p.z * a.y + index);
-    let vy = cos(p.z * a.x + p.x * a.y + index);
-    let vz = cos(p.x * a.x + p.y * a.y + index);
-    return vec3<f32>(vx, vy, vz) * a.w * context.g_simulation_step_seconds;
-}
 
 fn step_particle(p: Particle, index: f32) -> Particle {
     var pos = p.position;
     var vel = p.velocity;
+    var rot = p.rotation_quat;
 
-    let t = context.time;
-    let c = vec3<f32>(cos(context.grav2_center * t)) * context.grav_center_speed;
+    let selector_strength = selector(pos, u32(context.selector_1_ty), context.selector_1_center, 
+        context.selector_1_strength, context.selector_1_args);
+    let force = field(pos, u32(context.field_1_ty), context.field_1_center, context.field_1_args1, 
+        context.field_1_args2, selector_strength, context.g_simulation_step_seconds);
 
-    vel += rotator_force(pos, c, context.rot1_axis, context.rot1_speed);
-    vel += pull_force(pos, c, context.grav1_strength);
-    vel += repel_force(pos, c, context.grav2_strength);
-    vel += flux_force(pos, context.flux1_a, context.flux1_b, index);
-
-    pos += vel;
-    vel *= (1.0 - context.brake);
-
-    // let pos = vec3<f32>(cos(index+t), 0.0, sin(index * 2.2342 + t));
-    let rot = q_from_axis_angle(vec3<f32>(0.0, 1.0, 0.0), index * 2.2342 + t);
+    vel += force * selector_strength;
+    pos += vel * context.g_simulation_step_seconds;
 
     var result: Particle;
     result.position = pos;
@@ -99,12 +149,11 @@ fn step_particle(p: Particle, index: f32) -> Particle {
     return result;
 }
 
+
 @compute @workgroup_size(64, 1, 1)
 fn cs_simulate(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = global_id.x;
-    let num_particles = arrayLength(&particles_current);
-
-    if (index >= num_particles) {
+    if (index >= arrayLength(&particles_next)) {
         return;
     }
 
@@ -113,8 +162,15 @@ fn cs_simulate(@builtin(global_invocation_id) global_id: vec3<u32>) {
     particles_next[index] = next;
 }
 
-fn init_particle(iv: f32) -> Particle {
-    let pos = vec3<f32>(cos(iv), 0.0, sin(iv * 2.2342));
+@compute @workgroup_size(64, 1, 1)
+fn cs_init(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let index = global_id.x;
+    if (index >= arrayLength(&particles_next)) {
+        return;
+    }
+
+    let iv = f32(index);
+    let pos = vec3<f32>(cos(iv), cos(iv * 2.913424), sin(iv * 2.2342)) * context.seed_size;
     let vel = vec3<f32>(0.0, 0.0, 0.0);
     let up = vec3<f32>(0.0, 1.0, 0.0);
     let rotation_quat = q_from_axis_angle(up, 0.0);
@@ -123,20 +179,6 @@ fn init_particle(iv: f32) -> Particle {
     particle.position = pos;
     particle.velocity = vel;
     particle.rotation_quat = rotation_quat;
-    
-    return particle;
-}
 
-@compute @workgroup_size(64, 1, 1)
-fn cs_init(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let index = global_id.x;
-    
-    // Get the length of the particles array
-    let num_particles = arrayLength(&particles_next);
-    
-    if (index >= num_particles) {
-        return;
-    }
-    
-    particles_next[index] = init_particle(f32(index));
+    particles_next[index] = particle;
 }
