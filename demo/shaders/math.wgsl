@@ -1,4 +1,5 @@
 const PI: f32 = 3.14159265359;
+const EPSILON: f32 = 0.001;
 
 fn translate_matrix(translate_vector: vec3<f32>) -> mat4x4<f32> {
     var matrix: mat4x4<f32>;

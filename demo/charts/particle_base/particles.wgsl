@@ -1,11 +1,16 @@
-import package::shaders::quaternion::{q_from_axis_angle, q_rotate};
+import package::shaders::quaternion::{q_from_axis_angle, q_rotate, q_multiply};
+import package::shaders::math::EPSILON;
 import super::particle::Particle;
+
 
 struct Context {
     g_simulation_step_seconds: f32,
     time: f32,
 
     seed_size: vec3f,
+
+    max_velocity: f32,
+    brake: f32,
     
     selector_1_ty: f32,
     selector_1_center: vec3<f32>,
@@ -19,7 +24,6 @@ struct Context {
 
 
     
-    brake: f32,
     _pad: vec4<f32>,
 }
 
@@ -35,7 +39,7 @@ struct Context {
 // strength.y: max distance
 // strength.z: falloff exponent
 fn calc_selector_strength(distance: f32, strength: vec3f) -> f32 {
-    let amplify = strength.x;
+    let amplify = strength.x / 1.0;
     let distance_max = strength.y;
     let exponent = strength.z + 1.0;
     let value = pow(max(0.0, 1.0 - distance / distance_max), exponent);
@@ -50,7 +54,7 @@ const SELECTOR_PLANE: u32 = 2;  // args: xyz=normal
 const SELECTOR_TUBE: u32 = 3;   // args: xyz=axis, w=radius
 fn selector(particle_pos: vec3f, ty: u32, center: vec3f, strength: vec3f, args: vec4f) -> f32 {
     switch ty {
-        case SELECTOR_EVERYWHERE: { return strength.x; }
+        case SELECTOR_EVERYWHERE: { return strength.x / 100.0; }
         case SELECTOR_SPHERE: {
             let radius = args.x;
             // let distance = max(0.0, 1.0 - length(particle_pos - center) / radius);
@@ -94,8 +98,9 @@ fn field(particle_pos: vec3f, ty: u32, center: vec3f, args1: vec4f, args2: vec4f
             // let rotated_pos = q_rotate(axis_to_point, rotation_quat) * pull_to_center;
             // return (rotated_pos - axis_to_point);
             
-            let rotation_dir = cross(axis, normalize(axis_to_point));
-            return rotation_dir - pull_to_center * axis_to_point;
+            let axis_to_point_normalized = normalize(axis_to_point);
+            let rotation_dir = cross(axis, axis_to_point_normalized);
+            return rotation_dir - pull_to_center * axis_to_point_normalized;
         }
         case FIELD_ATTRACT_POINT: { 
             let direction = normalize(particle_pos - center);
@@ -131,7 +136,7 @@ fn field(particle_pos: vec3f, ty: u32, center: vec3f, args1: vec4f, args2: vec4f
 
 fn step_particle(p: Particle, index: f32) -> Particle {
     var pos = p.position;
-    var vel = p.velocity;
+    var old_vel = p.velocity;
     var rot = p.rotation_quat;
 
     let selector_strength = selector(pos, u32(context.selector_1_ty), context.selector_1_center, 
@@ -139,12 +144,39 @@ fn step_particle(p: Particle, index: f32) -> Particle {
     let force = field(pos, u32(context.field_1_ty), context.field_1_center, context.field_1_args1, 
         context.field_1_args2, selector_strength, context.g_simulation_step_seconds);
 
-    vel += force * selector_strength;
-    pos += vel * context.g_simulation_step_seconds;
+    var force_vec = force * selector_strength;
+    var new_vel = old_vel + force_vec;
+
+    var velocity_length = length(new_vel);
+    let new_vel_normalized = new_vel / velocity_length;
+
+    // Calculate rotation by velocity direction change
+    if (velocity_length > EPSILON) {
+        let old_vel_length = length(old_vel);
+        if (old_vel_length > EPSILON) {
+            let old_vel_normalized = old_vel / old_vel_length;
+            let axis = cross(old_vel_normalized, new_vel_normalized);
+            let axis_length = length(axis);
+            if (axis_length > EPSILON) {
+                let angle = acos(dot(old_vel_normalized, new_vel_normalized));
+                let rotation_quat = q_from_axis_angle(axis / axis_length, angle * 1.0);
+                rot = q_multiply(rot, rotation_quat);
+                // rot = rotation_quat;
+            }
+        }
+    }
+
+    if (velocity_length > context.max_velocity) {
+        velocity_length = context.max_velocity;
+    }
+    velocity_length *= (1.0 - context.brake * context.g_simulation_step_seconds);
+
+    new_vel = new_vel_normalized * velocity_length;
+    pos += new_vel * context.g_simulation_step_seconds;
 
     var result: Particle;
     result.position = pos;
-    result.velocity = vel;
+    result.velocity = new_vel;
     result.rotation_quat = rot;
     return result;
 }

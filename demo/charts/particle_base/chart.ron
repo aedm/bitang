@@ -49,7 +49,7 @@ Chart(
         DoubleBuffer(
             id: "particles",
             item_size_in_vec4: 3,
-            item_count: 10000,
+            item_count: 50000,
         ),
     ],    
     steps: [

@@ -1,10 +1,10 @@
 alias Quaternion = vec4f;
 
-fn q_from_axis_angle(axis: vec3<f32>, angle: f32) -> Quaternion {
+fn q_from_axis_angle(axis_n: vec3<f32>, angle: f32) -> Quaternion {
     let half_angle = angle * 0.5;
     let s = sin(half_angle);
     let c = cos(half_angle);
-    return Quaternion(axis.x * s, axis.y * s, axis.z * s, c);
+    return Quaternion(axis_n.x * s, axis_n.y * s, axis_n.z * s, c);
 }
 
 fn q_multiply(q1: Quaternion, q2: Quaternion) -> Quaternion {
