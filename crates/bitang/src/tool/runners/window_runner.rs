@@ -8,6 +8,8 @@ use eframe::egui;
 use egui::ViewportBuilder;
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew};
 use tracing::{debug, error, info};
+#[cfg(windows)]
+use wgpu::Backends;
 
 use crate::engine::{
     BitangImage, FrameContext, GpuContext, PixelFormat, Size2D, SwapchainImage, Viewport,

@@ -16,13 +16,15 @@ use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
 use spirq::ReflectConfig;
 use tracing::{debug, error, info, instrument, trace, warn};
-use wesl::{Feature, Wesl};
+use wesl::{Feature, HashMangler, ModulePath, Wesl};
 use wgpu::{ShaderModule, ShaderModuleDescriptor};
 
 use crate::engine::{GlobalType, GlobalUniformMapping, GpuContext, ShaderKind};
 use crate::loader::resource_path::ResourcePath;
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
+
+struct WindowsPathSafeMangler {}
 
 pub struct ShaderCompilation {
     pub shader_artifact: ShaderArtifact,
@@ -46,6 +48,7 @@ impl ShaderCompilation {
                     .to_str()
                     .with_context(|| format!("Invalid root path '{:?}'", path.root_path))?,
             );
+            wesl.set_custom_mangler(HashMangler::default());
             let mut parent_module = path
                 .subdirectory
                 .to_str()
