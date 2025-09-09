@@ -1,7 +1,7 @@
 Project(
     cuts: [
         Cut(
-            chart: "particle_base",
+            chart: "blood",
             offset: 0,
             start_time: 0,
             end_time: 600,

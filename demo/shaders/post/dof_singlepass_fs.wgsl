@@ -20,7 +20,7 @@ var<uniform> uniforms: Uniforms;
 const GOLDEN_ANGLE: f32 = 2.39996323;
 const MAX_BLUR_SIZE: f32 = 10.0;
 const RAD_SCALE: f32 = 4.0; // Smaller = nicer blur, larger = faster
-const FILM_GRAIN: f32 = 0.2;
+const FILM_GRAIN: f32 = 0.1;
 
 fn getBlurSize(depth: f32, focusPoint: f32, focusScale: f32) -> f32 {
     let coc = clamp((1.0 / focusPoint - 1.0 / depth) * focusScale, -1.0, 1.0);

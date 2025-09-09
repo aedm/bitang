@@ -119,7 +119,7 @@ Chart(
 
                 Object(
                     id: "duck",
-                    mesh_file: "/common/cube.glb",
+                    mesh_file: "/common/smooth_cube.glb",
                     mesh_name: "Cube",
                     material: Material(
                         passes: {
