@@ -14,9 +14,10 @@ use wgpu::Backends;
 use crate::engine::{
     BitangImage, FrameContext, GpuContext, PixelFormat, Size2D, SwapchainImage, Viewport,
 };
+use crate::tool::app_config::AppConfig;
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
-use crate::tool::{SCREEN_RATIO, START_IN_DEMO_MODE};
+use crate::tool::{SCREEN_RATIO};
 
 pub struct WindowRunner {}
 
@@ -54,7 +55,7 @@ impl WindowRunner {
             ..Default::default()
         };
         let viewport_builder = ViewportBuilder::default().with_title("Bitang");
-        let viewport_builder = if START_IN_DEMO_MODE {
+        let viewport_builder = if AppConfig::get().start_in_demo_mode {
             viewport_builder.with_fullscreen(true)
         } else {
             viewport_builder.with_inner_size(egui::vec2(960.0, 1000.0))
@@ -325,13 +326,14 @@ impl App {
 
         let ui = Ui::new()?;
 
+        let demo_mode = AppConfig::get().start_in_demo_mode;
         let app_inner = AppInner {
             gpu_context,
-            is_fullscreen: START_IN_DEMO_MODE,
+            is_fullscreen: demo_mode,
             ui,
             content_renderer,
             app_start_time: Instant::now(),
-            demo_mode: START_IN_DEMO_MODE,
+            demo_mode,
             viewport: Viewport::default(),
             ui_height: 0.0,
         };
@@ -340,7 +342,7 @@ impl App {
 
         let app = Self { inner };
 
-        if START_IN_DEMO_MODE {
+        if demo_mode {
             // Start demo in fullscreen
             info!("Starting demo.");
             // TODO: this is not pretty

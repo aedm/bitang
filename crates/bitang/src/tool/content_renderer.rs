@@ -24,10 +24,10 @@ impl ContentRenderer {
     pub fn new(context: &Arc<GpuContext>) -> Result<ContentRenderer> {
         let mut music_player = MusicPlayer::new();
 
-        let app_config = AppConfig::load()?;
-        music_player.set_root_path(&app_config.root_folder);
+        let root_folder = &AppConfig::get().root_folder;
+        music_player.set_root_path(root_folder);
 
-        let mut project_loader = ProjectLoader::try_new(&app_config.root_folder)?;
+        let mut project_loader = ProjectLoader::try_new(root_folder)?;
         let project = project_loader.get_or_load_project(context);
         let has_render_failure = project.is_none();
 

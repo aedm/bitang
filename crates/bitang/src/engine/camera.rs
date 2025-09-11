@@ -65,10 +65,16 @@ impl Camera {
             let sens = 0.004 * s.w;
             let shake_pitch =
                 ((t.0 * shc.0).sin() * (t.0 * shc.1).sin() * (t.0 * shc.2).sin()) * s.x * sens;
+            let shake_pitch =
+                ((shake_pitch * shc.0).sin() * (t.0 * shc.1).sin() * (t.0 * shc.2).sin()) * s.x * sens;
             let shake_yaw =
                 ((t.1 * shc.0).sin() * (t.1 * shc.1).sin() * (t.1 * shc.2).sin()) * s.y * sens;
+            let shake_yaw =
+                ((shake_yaw * shc.0).sin() * (t.1 * shc.1).sin() * (t.1 * shc.2).sin()) * s.y * sens;
             let shake_roll =
                 ((t.2 * shc.0).sin() * (t.2 * shc.1).sin() * (t.2 * shc.2).sin()) * s.z * sens;
+            let shake_roll =
+                ((shake_roll * shc.0).sin() * (t.2 * shc.1).sin() * (t.2 * shc.2).sin()) * s.z * sens;
             let roll = Mat4::from_rotation_z(shake_roll);
             let pitch = Mat4::from_rotation_x(shake_pitch);
             let yaw = Mat4::from_rotation_y(shake_yaw);

@@ -31,6 +31,7 @@ pub struct DrawCallProps {
     pub depth_test: bool,
     pub depth_write: bool,
     pub blend_mode: BlendMode,
+    pub cull: bool,
 }
 
 impl DrawCall {
@@ -93,6 +94,7 @@ impl DrawCall {
             }
         });
 
+        let cull_mode = if props.cull { Some(wgpu::Face::Back) } else { None };
         let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
@@ -108,7 +110,10 @@ impl DrawCall {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &fragment_targets,
             }),
-            primitive: wgpu::PrimitiveState::default(),
+            primitive: wgpu::PrimitiveState {
+                cull_mode,
+                ..wgpu::PrimitiveState::default()
+            },
             depth_stencil,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
