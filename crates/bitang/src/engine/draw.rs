@@ -101,7 +101,7 @@ impl Draw {
             if pass.id == "shadow" {
                 self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
             } else {
-                camera.set_globals(&mut frame_context.globals, canvas_size);
+                camera.set_globals(&mut frame_context.globals, viewport.size);
             }
 
             let mut render_pass_context = pass.make_render_pass_context(frame_context)?;

@@ -20,6 +20,25 @@
 					"RUST_LOG": "debug"
 				}
 			}
-		}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"args": [
+				"--release",
+			],
+			"group": "test",
+			"label": "default-run-2",
+			"options": {
+				"env": {
+					"RUSTFLAGS": "-A dead_code -A unused_variables -A unused_mut -A unused_imports",
+					"RUST_BACKTRACE": "1",
+					"RUST_LOG": "debug"
+				}
+			}
+		},
 	]
 }

@@ -1,7 +1,5 @@
-use std::sync::OnceLock;
-
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 
 const APP_CONFIG_FILE: &str = "config.ron";
 static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
@@ -28,7 +26,7 @@ impl AppConfig {
         if let Ok(config_str) = std::fs::read_to_string(APP_CONFIG_FILE) {
             match ron::de::from_str(&config_str) {
                 Ok(app_config) => app_config,
-                Err(err) => panic!("Invalid config file context: {err:?}")
+                Err(err) => panic!("Invalid config file context: {err:?}"),
             }
         } else {
             Self {
