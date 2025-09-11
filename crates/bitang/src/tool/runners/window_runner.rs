@@ -202,6 +202,16 @@ impl AppInner {
     fn render_ui(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.handle_hotkeys(&ctx);
 
+        if self.demo_mode {
+            if self.has_timeline_ended() {
+                // Avoid logging twice as eframe doesn't close the viewport immediately.
+                self.demo_mode = false;
+                info!("End of demo.");
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            return;
+        }
+
         let scale_factor = ctx.pixels_per_point();
         let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size() * scale_factor;
         self.compute_viewport([size.x as u32, size.y as u32]);
@@ -216,13 +226,6 @@ impl AppInner {
                 &mut self.content_renderer.app_state,
                 bottom_panel_height,
             );
-        }
-
-        if self.demo_mode && self.has_timeline_ended() {
-            // Avoid logging twice as eframe doesn't close the viewport immediately.
-            self.demo_mode = false;
-            info!("End of demo.");
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
     }
 
@@ -321,7 +324,6 @@ impl App {
         });
 
         let mut content_renderer = ContentRenderer::new(&gpu_context)?;
-        info!("Init DOOM refresh daemon...");
         content_renderer.reset_simulation(&gpu_context)?;
 
         let ui = Ui::new()?;

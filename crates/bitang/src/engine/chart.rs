@@ -76,7 +76,6 @@ impl Chart {
         for step in &self.steps {
             if let ChartStep::Compute(compute) = step {
                 if let Run::Init(_) = compute.run {
-                    println!("Initializing compute step: {}", compute.id);
                     compute.execute(context)?;
                 }
             }
