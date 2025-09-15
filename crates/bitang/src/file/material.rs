@@ -76,6 +76,9 @@ struct MaterialPass {
 
     #[serde(default)]
     blend_mode: BlendMode,
+
+    #[serde(default)]
+    cull: bool,
 }
 
 impl MaterialPass {
@@ -105,6 +108,7 @@ impl MaterialPass {
             depth_test: self.depth_test,
             depth_write: self.depth_write,
             blend_mode: self.blend_mode.clone(),
+            cull: self.cull,
         };
 
         engine::DrawCall::new(

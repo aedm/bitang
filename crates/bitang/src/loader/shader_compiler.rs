@@ -16,15 +16,13 @@ use spirq::ty::{DescriptorType, SpirvType, Type, VectorType};
 use spirq::var::Variable;
 use spirq::ReflectConfig;
 use tracing::{debug, error, info, instrument, trace, warn};
-use wesl::{Feature, HashMangler, ModulePath, Wesl};
+use wesl::{Feature, HashMangler, Wesl};
 use wgpu::{ShaderModule, ShaderModuleDescriptor};
 
 use crate::engine::{GlobalType, GlobalUniformMapping, GpuContext, ShaderKind};
 use crate::loader::resource_path::ResourcePath;
 
 const GLOBAL_UNIFORM_PREFIX: &str = "g_";
-
-struct WindowsPathSafeMangler {}
 
 pub struct ShaderCompilation {
     pub shader_artifact: ShaderArtifact,
@@ -173,7 +171,8 @@ impl ShaderCompilation {
         };
         info!("compiled in {:?}.", now.elapsed());
 
-        let shader_artifact = ShaderArtifact::from_spirv_binary(context, kind, entry_point, &spirv)?;
+        let shader_artifact =
+            ShaderArtifact::from_spirv_binary(context, kind, entry_point, &spirv)?;
 
         Ok(Self {
             shader_artifact,

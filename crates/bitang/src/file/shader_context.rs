@@ -219,12 +219,11 @@ impl ShaderContext {
 
         // Collect buffer generator bindings
         for buffer in &shader_artifact.buffers {
-            let Some(descriptor_source) =
-                self.buffers_by_binding.get(&buffer.name) else {
-                    // TODO: once we only collect used resources, this should be an error
-                    continue;
-                };
-                
+            let Some(descriptor_source) = self.buffers_by_binding.get(&buffer.name) else {
+                // TODO: once we only collect used resources, this should be an error
+                continue;
+            };
+
             let buffer_descriptor = DescriptorResource {
                 id: buffer.name.clone(),
                 binding: buffer.binding,

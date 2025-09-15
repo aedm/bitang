@@ -1,6 +1,8 @@
 import package::shaders::pbr::pbr_material;
 import package::shaders::quaternion::{q_slerp, q_rotate, Quaternion};
-import package::shaders::math::calculate_camera_pos_worldspace;
+import package::shaders::math::{
+    calculate_camera_pos_worldspace, make_lightspace_from_worldspace_transformation
+};
 import super::particle::Particle;
 
 // const PI: f32 = 3.14159265359;
@@ -29,10 +31,13 @@ struct VsUniforms {
     g_camera_from_model: mat4x4<f32>,
     g_camera_from_world: mat4x4<f32>,
     g_world_from_model: mat4x4<f32>,
+    g_lightspace_from_world: mat3x3<f32>,
     g_light_dir_worldspace_norm: vec3<f32>,
     g_app_time: f32,
     g_simulation_frame_ratio: f32,
     instance_move: vec3<f32>,
+
+    scale: f32,
 };
 
 @group(0) @binding(0) var<uniform> context: VsUniforms;
@@ -83,13 +88,13 @@ fn sample_shadow_map(world_pos: vec3<f32>, shadow: texture_depth_2d) -> f32 {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let lightness = sample_shadow_map(in.v_pos_worldspace, shadow);
 
-    let color = pbr_material(in.v_uv, in.v_pos_worldspace, in.v_normal_worldspace, 
-        in.v_tangent_worldspace, 
+    let color = pbr_material(in.v_uv, in.v_pos_worldspace, in.v_normal_worldspace,
+        in.v_tangent_worldspace,
         in.v_camera_pos_worldspace, u.g_light_dir_worldspace_norm,
-        u.normal_strength, u.light_color.rgb * lightness, vec3f(u.ambient), 
-        u.roughness, u.metallic, 
-        base_color_map, roughness_map, metallic_map, normal_map, 
-        envmap, brdf_lut, 
+        u.normal_strength, u.light_color.rgb * lightness, vec3f(u.ambient),
+        u.roughness, u.metallic,
+        base_color_map, roughness_map, metallic_map, normal_map,
+        envmap, brdf_lut,
         sampler_repeat, sampler_envmap);
     return vec4<f32>(color, 1.0);
 }
@@ -112,18 +117,18 @@ fn get_particle_rotation(instance_index: u32) -> Quaternion {
 @vertex
 fn vs_main(input: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var output: VertexOutput;
-    let per_row = 8;
-    let mi = vec3<f32>(f32(instance_index % u32(per_row)), f32(instance_index / u32(per_row)), 0.0);
-    var mov = context.instance_move * (mi - vec3<f32>((f32(per_row) - 1.0) / 2.0, 0.0, 0.0));
+    // let per_row = 8;
+    // let mi = vec3<f32>(f32(instance_index % u32(per_row)), f32(instance_index / u32(per_row)), 0.0);
+    // var mov = context.instance_move * (mi - vec3<f32>((f32(per_row) - 1.0) / 2.0, 0.0, 0.0));
 
-    mov += get_particle_position(instance_index) * 200.0;
+    var mov = get_particle_position(instance_index) * 100.0;
 
     let r = get_particle_rotation(instance_index);
-    let position = q_rotate(input.a_position, r);
+    let position = q_rotate(input.a_position, r) * (context.scale * 100 + 1.0) + mov;
     let normal = q_rotate(input.a_normal, r);
     let tangent = q_rotate(input.a_tangent, r);
 
-    output.v_pos_worldspace = (context.g_world_from_model * vec4<f32>(position, 1.0)).xyz + mov;
+    output.v_pos_worldspace = (context.g_world_from_model * vec4<f32>(position, 1.0)).xyz;
 
     output.position = context.g_projection_from_world * vec4<f32>(output.v_pos_worldspace, 1.0);
 
@@ -132,7 +137,6 @@ fn vs_main(input: VertexInput, @builtin(instance_index) instance_index: u32) -> 
     output.v_tangent_worldspace = (context.g_world_from_model * vec4<f32>(tangent, 0.0)).xyz;
     output.v_camera_pos_worldspace = calculate_camera_pos_worldspace(context.g_camera_from_world);
 
-    output.v_material_adjustment = vec3<f32>(0.99 - mi.x / (f32(per_row) - 1.0), mi.y / 2.0, 0.0);
-
+    // output.v_material_adjustment = vec3<f32>(0.99 - mi.x / (f32(per_row) - 1.0), mi.y / 2.0, 0.0);
     return output;
 }

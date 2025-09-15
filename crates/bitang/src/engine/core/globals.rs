@@ -1,6 +1,6 @@
 use std::slice;
 
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat3, Mat4, Vec2, Vec3};
 use strum::EnumString;
 
 #[derive(Copy, Clone, EnumString, Debug)]
@@ -14,6 +14,7 @@ pub enum GlobalType {
     ChartTime,
 
     ProjectionFromModel,
+    LightspaceFromWorld,
     LightProjectionFromModel,
     LightProjectionFromWorld,
     ProjectionFromCamera,
@@ -50,6 +51,9 @@ pub struct Globals {
     pub projection_from_world: Mat4,
     pub camera_from_world: Mat4,
     pub world_from_model: Mat4,
+
+    // Lightspace and worldspace share origin, mat3 is enough
+    pub lightspace_from_world: Mat3,
     pub light_projection_from_world: Mat4,
     pub light_projection_from_model: Mat4,
     pub pixel_size: Vec2,
@@ -76,6 +80,7 @@ impl Globals {
             GlobalType::AppTime => slice::from_ref(&self.app_time),
             GlobalType::ChartTime => slice::from_ref(&self.chart_time),
             GlobalType::ProjectionFromModel => self.projection_from_model.as_ref(),
+            GlobalType::LightspaceFromWorld => self.lightspace_from_world.as_ref(),
             GlobalType::LightProjectionFromModel => self.light_projection_from_model.as_ref(),
             GlobalType::LightProjectionFromWorld => self.light_projection_from_world.as_ref(),
             GlobalType::ProjectionFromCamera => self.projection_from_camera.as_ref(),

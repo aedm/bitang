@@ -49,7 +49,7 @@ Chart(
         DoubleBuffer(
             id: "particles",
             item_size_in_vec4: 3,
-            item_count: 256,
+            item_count: 50000,
         ),
     ],    
     steps: [
@@ -79,11 +79,18 @@ Chart(
                     color_images: [],
                 ),
                 Pass(
+                    id: "z-prepass",
+                    depth_image: Image("depth"),
+                    color_images: [],
+                    clear_color: (0, 0.37, 0, 0),
+                ),
+                Pass(
                     id: "solid",
                     depth_image: Image("depth"),
                     color_images: [Image("color")],
-                    clear_color: (0, 0.37, 0, 0),
+                    clear_color: None,
                 ),
+
             ],
             items: [
                 Object(
@@ -112,21 +119,27 @@ Chart(
 
                 Object(
                     id: "duck",
-                    mesh_file: "/duck/duck.glb",
-                    mesh_name: "Duck_002",
+                    mesh_file: "/common/smooth_cube.glb",
+                    mesh_name: "Cube",
                     material: Material(
                         passes: {
                             "shadow": MaterialPass(
-                                vertex_shader: "duck.wgsl",
-                                fragment_shader: "duck.wgsl:fs_main_noop",
+                                vertex_shader: "cube.wgsl",
+                                fragment_shader: "cube.wgsl:fs_main_noop",
                                 depth_test: true,
                                 depth_write: true,
                             ),
-                            "solid": MaterialPass(
-                                vertex_shader: "duck.wgsl",
-                                fragment_shader: "duck.wgsl",
+                            "z-prepass": MaterialPass(
+                                vertex_shader: "cube.wgsl",
+                                fragment_shader: "cube.wgsl:fs_main_noop",
                                 depth_test: true,
                                 depth_write: true,
+                            ),                            
+                            "solid": MaterialPass(
+                                vertex_shader: "cube.wgsl",
+                                fragment_shader: "cube.wgsl",
+                                depth_test: true,
+                                depth_write: false,
                             ),
                         },
 

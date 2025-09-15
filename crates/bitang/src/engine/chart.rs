@@ -57,10 +57,6 @@ impl Chart {
         }
     }
 
-    pub fn seek(&self, cursor: f32) {
-        self.simulation_cursor.borrow_mut().seek(cursor);
-    }
-
     /// Reruns the initialization step and runs the simulation for the precalculation time.
     pub fn reset_simulation(&self, context: &mut ComputePassContext) -> Result<()> {
         self.initialize(context)?;
@@ -209,13 +205,6 @@ impl SimulationCursor {
     /// can continue from the current point. It's useful for resetting the simulation
     /// during editing.
     pub fn reset(&mut self) {
-        self.simulation_time = None;
-    }
-
-    /// Seeks the simulation to a specific time.
-    /// Simulation needs to run at that point
-    pub fn seek(&mut self, cursor: f32) {
-        self.cursor = cursor;
         self.simulation_time = None;
     }
 

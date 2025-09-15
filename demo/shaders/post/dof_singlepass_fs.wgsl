@@ -18,9 +18,9 @@ var<uniform> uniforms: Uniforms;
 
 
 const GOLDEN_ANGLE: f32 = 2.39996323;
-const MAX_BLUR_SIZE: f32 = 20.0;
-const RAD_SCALE: f32 = 3.0; // Smaller = nicer blur, larger = faster
-const FILM_GRAIN: f32 = 0.0;
+const MAX_BLUR_SIZE: f32 = 10.0;
+const RAD_SCALE: f32 = 4.0; // Smaller = nicer blur, larger = faster
+const FILM_GRAIN: f32 = 0.1;
 
 fn getBlurSize(depth: f32, focusPoint: f32, focusScale: f32) -> f32 {
     let coc = clamp((1.0 / focusPoint - 1.0 / depth) * focusScale, -1.0, 1.0);
@@ -68,5 +68,5 @@ struct VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let center = uniforms.g_camera_from_world * vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    return vec4<f32>(depthOfField(in.v_uv, uniforms.focus_distance, uniforms.focus_scale), 1.0);
+    return vec4<f32>(depthOfField(in.v_uv, uniforms.focus_distance * 1000.0, uniforms.focus_scale * 1000.0), 1.0);
 }

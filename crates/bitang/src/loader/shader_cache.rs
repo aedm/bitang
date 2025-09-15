@@ -47,7 +47,11 @@ struct ShaderCacheKey {
 
 impl Debug for ShaderCacheKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}:{}({:?})", self.source_path, self.entry_point, self.features)
+        write!(
+            f,
+            "{:?}:{}({:?})",
+            self.source_path, self.entry_point, self.features
+        )
     }
 }
 

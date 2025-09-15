@@ -15,6 +15,7 @@ pub enum BlendMode {
     None,
     Alpha,
     Additive,
+    Subtractive,
 }
 
 pub struct DrawCall {
@@ -31,6 +32,7 @@ pub struct DrawCallProps {
     pub depth_test: bool,
     pub depth_write: bool,
     pub blend_mode: BlendMode,
+    pub cull: bool,
 }
 
 impl DrawCall {
@@ -70,6 +72,18 @@ impl DrawCall {
                     operation: wgpu::BlendOperation::Max,
                 },
             },
+            BlendMode::Subtractive => wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::ReverseSubtract,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Max,
+                },
+            },
         };
 
         let mut fragment_targets = SmallVec::<[_; 8]>::new();
@@ -93,6 +107,7 @@ impl DrawCall {
             }
         });
 
+        let cull_mode = if props.cull { Some(wgpu::Face::Back) } else { None };
         let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
@@ -108,7 +123,10 @@ impl DrawCall {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &fragment_targets,
             }),
-            primitive: wgpu::PrimitiveState::default(),
+            primitive: wgpu::PrimitiveState {
+                cull_mode,
+                ..wgpu::PrimitiveState::default()
+            },
             depth_stencil,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,

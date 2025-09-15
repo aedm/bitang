@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use anyhow::{ensure, Result};
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat3, Mat4, Vec2, Vec3};
 
 use super::{
     Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene, Viewport,
@@ -80,6 +80,7 @@ impl Draw {
 
         // Render objects should take care of their model-to-world transformation
         globals.world_from_model = Mat4::IDENTITY;
+        globals.lightspace_from_world = Mat3::from_mat4(globals.camera_from_world);
         globals.light_projection_from_world =
             globals.projection_from_camera * globals.camera_from_world;
 
@@ -91,7 +92,8 @@ impl Draw {
 
         // Render each pass
         for (pass_index, pass) in self.passes.iter().enumerate() {
-            let (viewport, canvas_size) = pass.get_viewport_and_canvas_size(frame_context)?;
+            // TODO: remove canvas_size
+            let (viewport, _canvas_size) = pass.get_viewport_and_canvas_size(frame_context)?;
 
             // Set globals unspecific to pass
             self.set_common_globals(&mut frame_context.globals);
@@ -100,7 +102,7 @@ impl Draw {
             if pass.id == "shadow" {
                 self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
             } else {
-                camera.set_globals(&mut frame_context.globals, canvas_size);
+                camera.set_globals(&mut frame_context.globals, viewport.size);
             }
 
             let mut render_pass_context = pass.make_render_pass_context(frame_context)?;

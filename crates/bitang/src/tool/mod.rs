@@ -13,8 +13,6 @@ use runners::window_runner::WindowRunner;
 
 use crate::engine::PixelFormat;
 
-const START_IN_DEMO_MODE: bool = false;
-
 pub const FRAMEDUMP_MODE: bool = false;
 pub const FRAMEDUMP_WIDTH: u32 = 3840;
 pub const FRAMEDUMP_HEIGHT: u32 = 2160;
