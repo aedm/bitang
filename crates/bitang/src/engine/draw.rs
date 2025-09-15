@@ -92,7 +92,8 @@ impl Draw {
 
         // Render each pass
         for (pass_index, pass) in self.passes.iter().enumerate() {
-            let (viewport, canvas_size) = pass.get_viewport_and_canvas_size(frame_context)?;
+            // TODO: remove canvas_size
+            let (viewport, _canvas_size) = pass.get_viewport_and_canvas_size(frame_context)?;
 
             // Set globals unspecific to pass
             self.set_common_globals(&mut frame_context.globals);
