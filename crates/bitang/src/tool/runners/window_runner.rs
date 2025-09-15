@@ -17,7 +17,7 @@ use crate::engine::{
 use crate::tool::app_config::AppConfig;
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
-use crate::tool::{SCREEN_RATIO};
+use crate::tool::SCREEN_RATIO;
 
 pub struct WindowRunner {}
 

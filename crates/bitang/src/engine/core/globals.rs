@@ -53,7 +53,7 @@ pub struct Globals {
     pub world_from_model: Mat4,
 
     // Lightspace and worldspace share origin, mat3 is enough
-    pub lightspace_from_world: Mat3,  
+    pub lightspace_from_world: Mat3,
     pub light_projection_from_world: Mat4,
     pub light_projection_from_model: Mat4,
     pub pixel_size: Vec2,

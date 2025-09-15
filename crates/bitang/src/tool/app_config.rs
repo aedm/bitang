@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
+
+use serde::{Deserialize, Serialize};
 
 const APP_CONFIG_FILE: &str = "config.ron";
 static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();

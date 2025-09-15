@@ -171,7 +171,8 @@ impl ShaderCompilation {
         };
         info!("compiled in {:?}.", now.elapsed());
 
-        let shader_artifact = ShaderArtifact::from_spirv_binary(context, kind, entry_point, &spirv)?;
+        let shader_artifact =
+            ShaderArtifact::from_spirv_binary(context, kind, entry_point, &spirv)?;
 
         Ok(Self {
             shader_artifact,
