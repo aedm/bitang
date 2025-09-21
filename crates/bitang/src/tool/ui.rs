@@ -14,34 +14,24 @@ pub struct Ui {
 impl Ui {
     pub fn new() -> Result<Ui> {
         let spline_editor = SplineEditor::new();
-
         Ok(Ui { spline_editor })
     }
 
-    pub fn draw(
-        &mut self,
-        ctx: &egui::Context,
-        app_state: &mut AppState,
-        bottom_panel_height: f32,
-    ) {
+    pub fn draw(&mut self, ui: &mut egui::Ui, app_state: &mut AppState) {
         let spline_editor = &mut self.spline_editor;
-        egui::TopBottomPanel::bottom("ui_root")
-            .height_range(bottom_panel_height..=bottom_panel_height)
-            .show(&ctx, |ui| {
-                ui.add_space(5.0);
-                ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                    Self::draw_control_tree(ui, app_state);
-                    ui.separator();
-                    if let Some(controls) = app_state.get_current_chart_control_set() {
-                        if let Some((control, component_index)) =
-                            Self::draw_control_sliders(ui, app_state, &controls)
-                        {
-                            spline_editor.set_control(control, component_index);
-                        }
-                    }
-                    spline_editor.draw(ui, app_state);
-                });
-            });
+        ui.add_space(5.0);
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+            Self::draw_control_tree(ui, app_state);
+            ui.separator();
+            if let Some(controls) = app_state.get_current_chart_control_set() {
+                if let Some((control, component_index)) =
+                    Self::draw_control_sliders(ui, app_state, &controls)
+                {
+                    spline_editor.set_control(control, component_index);
+                }
+            }
+            spline_editor.draw(ui, app_state);
+        });
     }
 
     fn draw_control_tree(ui: &mut egui::Ui, ui_state: &mut AppState) {

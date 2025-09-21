@@ -3,6 +3,8 @@ use std::rc::Rc;
 use anyhow::{ensure, Result};
 use glam::{Mat3, Mat4, Vec2, Vec3};
 
+use crate::engine::RenderPassDrawBatch;
+
 use super::{
     Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene, Viewport,
 };
@@ -93,7 +95,7 @@ impl Draw {
         // Render each pass
         for (pass_index, pass) in self.passes.iter().enumerate() {
             // TODO: remove canvas_size
-            let (viewport, _canvas_size) = pass.get_viewport_and_canvas_size(frame_context)?;
+            let viewport_size = pass.get_viewport_size(frame_context)?;
 
             // Set globals unspecific to pass
             self.set_common_globals(&mut frame_context.globals);
@@ -102,23 +104,42 @@ impl Draw {
             if pass.id == "shadow" {
                 self.set_globals_for_shadow_map_rendering(&mut frame_context.globals);
             } else {
-                camera.set_globals(&mut frame_context.globals, viewport.size);
+                camera.set_globals(&mut frame_context.globals, viewport_size);
             }
 
-            let mut render_pass_context = pass.make_render_pass_context(frame_context)?;
-            let Viewport { x, y, size } = viewport;
-            render_pass_context.pass.set_viewport(
-                x as f32,
-                y as f32,
-                size[0] as f32,
-                size[1] as f32,
-                0.0,
-                1.0,
-            );
+            if pass.is_screen_pass() {
+                self.render_screen_pass(pass_index, frame_context)?;
+                continue;
+            }
 
+            let mut draw_batch = RenderPassDrawBatch::default();
+            let mut render_pass_context = RenderPassContext {
+                gpu_context: &frame_context.gpu_context,
+                globals: &mut frame_context.globals,
+                pass_queue: &mut draw_batch,
+            };
             self.render_items(&mut render_pass_context, pass_index)?;
+
+            let mut render_pass = pass.make_render_pass(&mut frame_context.command_encoder)?;
+
+            render_pass.set_viewport(0.0, 0.0, viewport_size[0] as f32, viewport_size[1] as f32, 0.0, 1.0);
+
+            draw_batch.render(&mut render_pass);
         }
 
         Ok(())
+    }
+
+    fn render_screen_pass(
+        &self,
+        pass_index: usize,
+        frame_context: &mut FrameContext,
+    ) -> Result<()> {
+        let mut render_pass_context = RenderPassContext {
+            gpu_context: &frame_context.gpu_context,
+            globals: &mut frame_context.globals,
+            pass_queue: &mut frame_context.screen_pass_draw_batch,
+        };
+        self.render_items(&mut render_pass_context, pass_index)
     }
 }

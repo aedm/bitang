@@ -8,7 +8,7 @@ mod timer;
 mod ui;
 
 use anyhow::Result;
-use runners::frame_dump_runner::FrameDumpRunner;
+// use runners::frame_dump_runner::FrameDumpRunner;
 use runners::window_runner::WindowRunner;
 
 use crate::engine::PixelFormat;
@@ -24,7 +24,8 @@ pub const FRAMEDUMP_PIXEL_FORMAT: PixelFormat = PixelFormat::Rgba8U;
 
 pub fn run_app() -> Result<()> {
     if FRAMEDUMP_MODE {
-        FrameDumpRunner::run()
+        // FrameDumpRunner::run()
+        unimplemented!()
     } else {
         WindowRunner::run()
     }

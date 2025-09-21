@@ -5,14 +5,16 @@ use std::time::Instant;
 
 use anyhow::{Context, Result};
 use eframe::egui;
-use egui::ViewportBuilder;
+use egui::{Pos2, ViewportBuilder};
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew};
+use smallvec::SmallVec;
 use tracing::{debug, error, info};
 #[cfg(windows)]
 use wgpu::Backends;
 
 use crate::engine::{
-    BitangImage, FrameContext, GpuContext, PixelFormat, Size2D, SwapchainImage, Viewport,
+    BitangImage, FrameContext, GpuContext, PixelFormat, RenderPassDrawBatch, Size2D,
+    SwapchainImage, Viewport,
 };
 use crate::tool::app_config::AppConfig;
 use crate::tool::content_renderer::ContentRenderer;
@@ -44,21 +46,21 @@ impl WindowRunner {
                 }),
                 ..Default::default()
             }),
-            on_draw_background: Some(Rc::new(move |props| {
-                let mut inner = inner_clone.lock().unwrap();
-                let Some(app_inner) = inner.as_mut() else {
-                    error!("Failed to get app inner");
-                    return;
-                };
-                app_inner.render_frame_to_screen(props).unwrap();
-            })),
+            // on_draw_background: Some(Rc::new(move |props| {
+            //     let mut inner = inner_clone.lock().unwrap();
+            //     let Some(app_inner) = inner.as_mut() else {
+            //         error!("Failed to get app inner");
+            //         return;
+            //     };
+            //     app_inner.render_frame_to_screen(props).unwrap();
+            // })),
             ..Default::default()
         };
         let viewport_builder = ViewportBuilder::default().with_title("Bitang");
         let viewport_builder = if AppConfig::get().start_in_demo_mode {
             viewport_builder.with_fullscreen(true)
         } else {
-            viewport_builder.with_inner_size(egui::vec2(1280.0, 1000.0))
+            viewport_builder.with_inner_size(egui::vec2(960.0, 800.0))
         };
         let native_options = eframe::NativeOptions {
             wgpu_options: wgpu_configuration,
@@ -142,21 +144,16 @@ impl AppInner {
         };
     }
 
-    fn render_frame_to_screen(&mut self, props: egui_wgpu::BackgroundRenderProps) -> Result<()> {
-        // Don't render anything if the window is minimized
-        if props.surface_size[0] == 0 || props.surface_size[1] == 0 {
-            return Ok(());
-        }
-
-        self.compute_viewport(props.surface_size);
+    fn render_frame_to_screen(&mut self) -> RenderPassDrawBatch {
+        // self.compute_viewport(props.surface_size);
 
         // Update swapchain target
-        let swapchain_view = props.surface_view;
-        let swapchain_image = Some(SwapchainImage {
-            texture_view: swapchain_view,
-            size: props.surface_size,
-        });
-        self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
+        // let swapchain_view = props.surface_view;
+        // let swapchain_image = Some(SwapchainImage {
+        //     texture_view: swapchain_view,
+        //     size: props.surface_size,
+        // });
+        // self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
 
         // Create frame context
         // TODO: create it content_renderer
@@ -168,7 +165,10 @@ impl AppInner {
             gpu_context: self.gpu_context.clone(),
             command_encoder,
             globals: Default::default(),
-            screen_viewport: self.viewport,
+            screen_size: self.viewport.size,
+            screen_pass_draw_batch: RenderPassDrawBatch {
+                draw_commands: SmallVec::new(),
+            },
         };
         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
 
@@ -187,10 +187,60 @@ impl AppInner {
         self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
 
         // Set swapchain image view to None, DX12 would fail without this
-        self.gpu_context.final_render_target.set_swapchain_image_view(None);
+        // self.gpu_context.final_render_target.set_swapchain_image_view(None);
 
-        Ok(())
+        frame_context.screen_pass_draw_batch
     }
+
+    // fn render_frame_to_screen(&mut self, props: egui_wgpu::BackgroundRenderProps) -> Result<()> {
+    //     // Don't render anything if the window is minimized
+    //     if props.surface_size[0] == 0 || props.surface_size[1] == 0 {
+    //         return Ok(());
+    //     }
+
+    //     self.compute_viewport(props.surface_size);
+
+    //     // Update swapchain target
+    //     let swapchain_view = props.surface_view;
+    //     let swapchain_image = Some(SwapchainImage {
+    //         texture_view: swapchain_view,
+    //         size: props.surface_size,
+    //     });
+    //     self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
+
+    //     // Create frame context
+    //     // TODO: create it content_renderer
+    //     let command_encoder = self
+    //         .gpu_context
+    //         .device
+    //         .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+    //     let mut frame_context = FrameContext {
+    //         gpu_context: self.gpu_context.clone(),
+    //         command_encoder,
+    //         globals: Default::default(),
+    //         screen_viewport: self.viewport,
+    //     };
+    //     frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
+
+    //     // Reload project
+    //     // TODO: start render function with this block
+    //     if self.content_renderer.reload_project(&self.gpu_context) {
+    //         self.content_renderer.reset_simulation(&self.gpu_context).unwrap();
+    //         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
+    //         self.content_renderer.unset_last_render_time();
+    //     }
+
+    //     // Render content
+    //     self.content_renderer.draw(&mut frame_context);
+
+    //     // Execute commands and display the result
+    //     self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
+
+    //     // Set swapchain image view to None, DX12 would fail without this
+    //     self.gpu_context.final_render_target.set_swapchain_image_view(None);
+
+    //     Ok(())
+    // }
 
     fn has_timeline_ended(&self) -> bool {
         let Some(project) = &self.content_renderer.app_state.project else {
@@ -213,20 +263,61 @@ impl AppInner {
         }
 
         let scale_factor = ctx.pixels_per_point();
-        let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size() * scale_factor;
-        self.compute_viewport([size.x as u32, size.y as u32]);
-        let pixels_per_point =
-            if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
-        let bottom_panel_height = self.ui_height / pixels_per_point;
+        // println!("scale factor: {}", scale_factor);
+        let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size();
+        // println!("size: {}x{}", size.x, size.y);
 
-        if bottom_panel_height > 0.0 {
-            ctx.set_pixels_per_point(pixels_per_point);
-            self.ui.draw(
-                ctx,
-                &mut self.content_renderer.app_state,
-                bottom_panel_height,
-            );
+        // Don't render anything if the window is minimized
+        if size[0] <= 0.0 || size[1] <= 0.0 {
+            return;
         }
+
+        // println!(
+        //     "viewport size: {}x{}",
+        //     self.viewport.size[0], self.viewport.size[1]
+        // );
+
+        // let rect = egui::Rect::from_min_size(
+        //     egui::Pos2::new(0.0, 0.0),
+        //     egui::Vec2::new(self.viewport.size[0] as f32, self.viewport.size[1] as f32),
+        // );
+        // ctx.set_pixels_per_point(1.0);
+        egui::CentralPanel::default().show(&ctx, |ui| {
+            ui.vertical(|ui| {
+                let panel_size = ui.max_rect().size();
+                self.compute_viewport([
+                    (panel_size.x * scale_factor) as u32,
+                    (panel_size.y * scale_factor) as u32,
+                ]);
+                let screen_pass_batch = self.render_frame_to_screen();
+                let custom_callback = CustomRenderCallback { screen_pass_batch };
+
+                let desired_size = egui::Vec2::new(
+                    self.viewport.size[0] as f32 / scale_factor,
+                    self.viewport.size[1] as f32 / scale_factor,
+                );
+                let sense = egui::Sense::all();
+                let (rect, _response) = ui.allocate_exact_size(desired_size, sense);
+                ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                    rect,
+                    custom_callback,
+                ));
+                self.ui.draw(ui, &mut self.content_renderer.app_state);
+            });
+        });
+
+        // let pixels_per_point =
+        //     if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
+        // let bottom_panel_height = self.ui_height / pixels_per_point;
+
+        // if bottom_panel_height > 0.0 {
+        //     ctx.set_pixels_per_point(pixels_per_point);
+        //     self.ui.draw(
+        //         ctx,
+        //         &mut self.content_renderer.app_state,
+        //         bottom_panel_height,
+        //     );
+        // }
     }
 
     const SAVE_SHORTCUT: egui::KeyboardShortcut =
@@ -283,6 +374,21 @@ impl AppInner {
         self.is_fullscreen = !self.is_fullscreen;
         debug!("Setting fullscreen to {}", self.is_fullscreen);
         ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
+    }
+}
+
+struct CustomRenderCallback {
+    screen_pass_batch: RenderPassDrawBatch,
+}
+
+impl egui_wgpu::CallbackTrait for CustomRenderCallback {
+    fn paint(
+        &self,
+        info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        callback_resources: &egui_wgpu::CallbackResources,
+    ) {
+        self.screen_pass_batch.render(render_pass);
     }
 }
 
