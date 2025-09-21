@@ -70,6 +70,3 @@ web-time = "1.1.0" # Timekeeping for native and web
 wgpu = { version = "24.0.0", default-features = false }
 windows-sys = "0.59"
 winit = { version = "0.30.7", default-features = false }
-
-[patch.crates-io]
-egui-wgpu = { path= "crates/egui-wgpu-patch", version = "0.31.0" }

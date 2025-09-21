@@ -575,7 +575,7 @@ dependencies = [
  "dunce",
  "eframe",
  "egui",
- "egui-wgpu",
+ "egui-wgpu 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "egui_plot",
  "futures",
  "glam",
@@ -1149,7 +1149,7 @@ dependencies = [
  "bytemuck",
  "document-features",
  "egui",
- "egui-wgpu",
+ "egui-wgpu 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "egui-winit",
  "egui_glow",
  "glow",
@@ -1196,6 +1196,26 @@ dependencies = [
 [[package]]
 name = "egui-wgpu"
 version = "0.31.0"
+dependencies = [
+ "ahash",
+ "bytemuck",
+ "document-features",
+ "egui",
+ "epaint",
+ "log",
+ "profiling",
+ "thiserror 1.0.69",
+ "type-map",
+ "web-time",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
+name = "egui-wgpu"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d8151704bcef6271bec1806c51544d70e79ef20e8616e5eac01facfd9c8c54a"
 dependencies = [
  "ahash",
  "bytemuck",
