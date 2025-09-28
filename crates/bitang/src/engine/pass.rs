@@ -50,63 +50,6 @@ impl Pass {
             && self.color_buffers.iter().all(|image| image.is_swapchain())
     }
 
-    // pub fn get_attachment_views(&self) -> Result<(SmallVec<[wgpu::TextureView; 64]>, Option<wgpu::TextureView>)> {
-    //     let color_attachment_views: SmallVec<[_; 64]> = self
-    //         .color_buffers
-    //         .iter()
-    //         .map(|image| image.view_as_render_target())
-    //         .collect::<Result<_>>()?;
-
-    //     let depth_buffer_view = self
-    //         .depth_buffer
-    //         .as_ref()
-    //         .map(|depth_image| depth_image.view_as_render_target())
-    //         .transpose()?;
-
-    //     Ok((color_attachment_views, depth_buffer_view))
-    // }
-
-    // pub fn make_render_pass_context<'pass, 'frame>(
-    //     &'pass self,
-    //     frame_context: &'pass mut FrameContext,
-    // ) -> Result<RenderPassContext<'pass>> {
-    //     // Collect attachment texture views
-    //     let color_attachment_views: SmallVec<[_; 64]> = self
-    //         .color_buffers
-    //         .iter()
-    //         .map(|image| image.view_as_render_target())
-    //         .collect::<Result<_>>()?;
-
-    //     let depth_buffer_view = self
-    //         .depth_buffer
-    //         .as_ref()
-    //         .map(|depth_image| depth_image.view_as_render_target())
-    //         .transpose()?;
-
-    //     // Collect attachments
-    //     let mut color_attachments = SmallVec::<[_; 64]>::new();
-    //     for i in 0..color_attachment_views.len() {
-    //         color_attachments.push(Some(self.make_color_attachment(&color_attachment_views[i])));
-    //     }
-    //     let depth_stencil_attachment =
-    //         depth_buffer_view.as_ref().map(|view| self.make_depth_attachment(view));
-
-    //     let pass = frame_context.command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-    //         // TODO: label
-    //         label: None,
-    //         color_attachments: &color_attachments,
-    //         depth_stencil_attachment,
-    //         timestamp_writes: None,
-    //         occlusion_query_set: None,
-    //     });
-
-    //     Ok(RenderPassContext {
-    //         gpu_context: &frame_context.gpu_context,
-    //         pass,
-    //         globals: &mut frame_context.globals,
-    //     })
-    // }
-
     pub fn make_render_pass<'pass, 'frame>(
         &'pass self,
         command_encoder: &'pass mut wgpu::CommandEncoder,

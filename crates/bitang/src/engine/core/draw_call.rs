@@ -153,23 +153,6 @@ impl DrawCall {
             index_count: mesh.index_count,
             instance_count: context.globals.instance_count as u32,
         });
-
-        // context.pass.set_pipeline(&self.pipeline);
-        // context.pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-
-        // let instance_count = context.globals.instance_count as u32;
-        // self.vertex_shader.bind_to_render_pass(context)?;
-        // self.fragment_shader.bind_to_render_pass(context)?;
-
-        // match &mesh.index_buffer {
-        //     None => {
-        //         context.pass.draw(0..mesh.vertex_count, 0..instance_count);
-        //     }
-        //     Some(index_buffer) => {
-        //         context.pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        //         context.pass.draw_indexed(0..mesh.index_count, 0, 0..instance_count);
-        //     }
-        // }
         Ok(())
     }
 }

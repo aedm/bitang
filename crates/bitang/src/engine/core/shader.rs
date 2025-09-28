@@ -187,12 +187,6 @@ impl Shader {
         }
     }
 
-    // pub fn bind_to_render_pass(&self, context: &mut RenderPassContext<'_>) -> Result<()> {
-    //     let bind_group = self.make_bind_group(&context.gpu_context, &context.globals)?;
-    //     context.pass.set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);
-    //     Ok(())
-    // }
-
     pub fn bind_to_compute_pass(&self, context: &mut ComputePassContext<'_>) -> Result<()> {
         let bind_group = self.make_bind_group(&context.gpu_context, &context.globals)?;
         context.pass.set_bind_group(self.kind.get_descriptor_set_index(), &bind_group, &[]);

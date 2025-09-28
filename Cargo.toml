@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "crates/bitang",
-    "crates/egui-wgpu-patch",
 ]
 resolver = "2"
 
@@ -18,9 +17,6 @@ opt-level = 0
 overflow-checks = true
 debug = true
 
-# [profile.dev.package.vulkano]
-# opt-level = 2
-
 [profile.dev-nowarn]
 inherits = "dev"
 
@@ -30,43 +26,3 @@ strip = true
 lto = true
 panic = "abort"
 opt-level = "s"
-
-# Copy from egui for egui-wgpu-patch
-[workspace.dependencies]
-egui = "0.31"
-epaint = "0.31"
-ahash = { version = "0.8.11", default-features = false, features = [
-    "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
-    "std",
-] }
-backtrace = "0.3"
-bitflags = "2.6"
-bytemuck = "1.7.2"
-criterion = { version = "0.5.1", default-features = false }
-dify = { version = "0.7", default-features = false }
-document-features = "0.2.10"
-glow = "0.16"
-glutin = { version = "0.32.0", default-features = false }
-glutin-winit = { version = "0.5.0", default-features = false }
-home = "0.5.9"
-image = { version = "0.25", default-features = false }
-kittest = { version = "0.1" }
-log = { version = "0.4", features = ["std"] }
-nohash-hasher = "0.2"
-parking_lot = "0.12"
-pollster = "0.4"
-profiling = { version = "1.0.16", default-features = false }
-puffin = "0.19"
-puffin_http = "0.16"
-raw-window-handle = "0.6.0"
-ron = "0.8"
-serde = { version = "1", features = ["derive"] }
-thiserror = "1.0.37"
-type-map = "0.5.0"
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-web-sys = "0.3.70"
-web-time = "1.1.0" # Timekeeping for native and web
-wgpu = { version = "24.0.0", default-features = false }
-windows-sys = "0.59"
-winit = { version = "0.30.7", default-features = false }

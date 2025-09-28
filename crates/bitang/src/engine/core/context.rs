@@ -100,46 +100,6 @@ impl RenderPassDrawBatch {
             }
         }
     }
-
-    // fn make_color_attachment<'a>(
-    //     texture_view: &'a wgpu::TextureView,
-    //     clear_color: &Option<[f32; 4]>,
-    // ) -> wgpu::RenderPassColorAttachment<'a> {
-    //     let load = match clear_color {
-    //         Some(clear_color) => wgpu::LoadOp::Clear(wgpu::Color {
-    //             r: clear_color[0] as f64,
-    //             g: clear_color[1] as f64,
-    //             b: clear_color[2] as f64,
-    //             a: clear_color[3] as f64,
-    //         }),
-    //         None => wgpu::LoadOp::Load,
-    //     };
-
-    //     wgpu::RenderPassColorAttachment {
-    //         view: texture_view,
-    //         resolve_target: None,
-    //         ops: wgpu::Operations {
-    //             load,
-    //             store: wgpu::StoreOp::Store,
-    //         },
-    //     }
-    // }
-
-    // fn make_depth_attachment<'a>(
-    //     texture_view: &'a wgpu::TextureView,
-    //     should_clear: bool,
-    // ) -> wgpu::RenderPassDepthStencilAttachment<'a> {
-    //     let load = if should_clear { wgpu::LoadOp::Clear(1.0) } else { wgpu::LoadOp::Load };
-
-    //     wgpu::RenderPassDepthStencilAttachment {
-    //         view: texture_view,
-    //         depth_ops: Some(wgpu::Operations {
-    //             load,
-    //             store: wgpu::StoreOp::Store,
-    //         }),
-    //         stencil_ops: None,
-    //     }
-    // }
 }
 
 pub struct RenderPassContext<'pass> {
