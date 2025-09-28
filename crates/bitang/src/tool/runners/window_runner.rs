@@ -21,7 +21,17 @@ use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::SCREEN_RATIO;
 
-pub struct WindowRunner {}
+pub struct WindowRunner {
+    gpu_context: Arc<GpuContext>,
+    is_fullscreen: bool,
+    ui: Ui,
+    content_renderer: ContentRenderer,
+    app_start_time: Instant,
+    demo_mode: bool,
+
+    viewport: Viewport,
+    ui_height: f32,
+}
 
 impl WindowRunner {
     pub fn run() -> Result<()> {
@@ -57,25 +67,15 @@ impl WindowRunner {
             ..eframe::NativeOptions::default()
         };
 
-        eframe::run_native("Bitang", native_options, Box::new(|cc| Ok(App::new(cc)?)))
-            .map_err(|e| anyhow::anyhow!("Failed to run app: {e:?}"))
+        eframe::run_native(
+            "Bitang",
+            native_options,
+            Box::new(|cc| Ok(Box::new(Self::new(cc)?))),
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to run app: {e:?}"))
     }
-}
 
-struct App {
-    gpu_context: Arc<GpuContext>,
-    is_fullscreen: bool,
-    ui: Ui,
-    content_renderer: ContentRenderer,
-    app_start_time: Instant,
-    demo_mode: bool,
-
-    viewport: Viewport,
-    ui_height: f32,
-}
-
-impl App {
-    fn new(cc: &eframe::CreationContext<'_>) -> Result<Box<dyn eframe::App>> {
+    fn new(cc: &eframe::CreationContext<'_>) -> Result<Self> {
         let render_state = cc.wgpu_render_state.as_ref().context("No WGPU render state")?;
 
         let adapter_info = render_state.adapter.get_info();
@@ -107,7 +107,7 @@ impl App {
             content_renderer.play();
         }
 
-        let app = App {
+        Ok(Self {
             gpu_context,
             is_fullscreen: demo_mode,
             ui,
@@ -116,9 +116,7 @@ impl App {
             demo_mode,
             viewport: Viewport::default(),
             ui_height: 0.0,
-        };
-
-        Ok(Box::new(app))
+        })
     }
 
     fn compute_viewport(&mut self, swapchain_size: Size2D) {
@@ -310,7 +308,7 @@ impl App {
     }
 }
 
-impl eframe::App for App {
+impl eframe::App for WindowRunner {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.render_ui(ctx, frame);
         ctx.request_repaint();
