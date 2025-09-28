@@ -12,9 +12,6 @@ pub struct GpuContext {
     pub adapter: wgpu::Adapter,
     pub queue: wgpu::Queue,
     pub device: wgpu::Device,
-
-    // TODO: rename to swapchain something
-    // TODO: remove from here
     pub final_render_target: Arc<BitangImage>,
 }
 
@@ -104,7 +101,6 @@ impl RenderPassDrawBatch {
 
 pub struct RenderPassContext<'pass> {
     pub gpu_context: &'pass GpuContext,
-    // pub pass: wgpu::RenderPass<'pass>,
     pub globals: &'pass mut Globals,
     pub pass_queue: &'pass mut RenderPassDrawBatch,
 }
