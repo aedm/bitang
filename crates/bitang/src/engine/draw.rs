@@ -3,9 +3,8 @@ use std::rc::Rc;
 use anyhow::{ensure, Result};
 use glam::{Mat3, Mat4, Vec2, Vec3};
 
-use crate::engine::RenderPassDrawBatch;
-
 use super::{Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene};
+use crate::engine::RenderPassDrawBatch;
 
 pub enum DrawItem {
     Object(Rc<RenderObject>),
