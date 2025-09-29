@@ -244,7 +244,7 @@ checksum = "df099ccb16cd014ff054ac1bf392c67feeef57164b05c42f037cd40f5d4357f4"
 dependencies = [
  "clipboard-win",
  "core-graphics",
- "image 0.25.5",
+ "image",
  "log",
  "objc2",
  "objc2-app-kit",
@@ -580,7 +580,7 @@ dependencies = [
  "futures",
  "glam",
  "gltf",
- "image 0.24.9",
+ "image",
  "itertools 0.12.1",
  "jxl-oxide",
  "naga",
@@ -823,12 +823,6 @@ dependencies = [
  "termcolor",
  "unicode-width 0.1.14",
 ]
-
-[[package]]
-name = "color_quant"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
 name = "combine"
@@ -1155,7 +1149,7 @@ dependencies = [
  "glow",
  "glutin",
  "glutin-winit",
- "image 0.25.5",
+ "image",
  "js-sys",
  "log",
  "objc2",
@@ -1684,7 +1678,7 @@ dependencies = [
  "base64 0.13.1",
  "byteorder",
  "gltf-json",
- "image 0.25.5",
+ "image",
  "lazy_static",
  "serde_json",
  "urlencoding",
@@ -2056,20 +2050,6 @@ checksum = "daca1df1c957320b2cf139ac61e7bd64fed304c5040df000a745aa1de3b4ef71"
 dependencies = [
  "icu_normalizer",
  "icu_properties",
-]
-
-[[package]]
-name = "image"
-version = "0.24.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5690139d2f55868e080017335e4b94cb7414274c74f1669c84fb5feba2c9f69d"
-dependencies = [
- "bytemuck",
- "byteorder",
- "color_quant",
- "jpeg-decoder",
- "num-traits",
- "png",
 ]
 
 [[package]]
