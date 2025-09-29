@@ -139,7 +139,7 @@ impl Pass {
         };
 
         if first_image.is_swapchain() {
-            return Ok(context.screen_size)
+            return Ok(context.screen_size);
         }
 
         // Check that all render targets have the same size

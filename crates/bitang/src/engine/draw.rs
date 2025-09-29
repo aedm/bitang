@@ -5,9 +5,7 @@ use glam::{Mat3, Mat4, Vec2, Vec3};
 
 use crate::engine::RenderPassDrawBatch;
 
-use super::{
-    Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene,
-};
+use super::{Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene};
 
 pub enum DrawItem {
     Object(Rc<RenderObject>),
@@ -122,7 +120,14 @@ impl Draw {
 
             let mut render_pass = pass.make_render_pass(&mut frame_context.command_encoder)?;
 
-            render_pass.set_viewport(0.0, 0.0, viewport_size[0] as f32, viewport_size[1] as f32, 0.0, 1.0);
+            render_pass.set_viewport(
+                0.0,
+                0.0,
+                viewport_size[0] as f32,
+                viewport_size[1] as f32,
+                0.0,
+                1.0,
+            );
 
             draw_batch.render(&mut render_pass);
         }

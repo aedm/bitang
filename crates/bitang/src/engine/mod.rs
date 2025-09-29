@@ -13,8 +13,7 @@ mod scene;
 
 pub use core::compute_call::ComputeCall;
 pub use core::context::{
-    ComputePassContext, FrameContext, GpuContext, RenderPassContext, Viewport,
-    RenderPassDrawBatch
+    ComputePassContext, FrameContext, GpuContext, RenderPassContext, RenderPassDrawBatch, Viewport,
 };
 pub use core::double_buffer::DoubleBuffer;
 pub use core::draw_call::{BlendMode, DrawCall, DrawCallProps};

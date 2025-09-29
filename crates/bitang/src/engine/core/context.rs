@@ -55,7 +55,6 @@ pub struct FrameContext {
     pub screen_pass_draw_batch: RenderPassDrawBatch,
 }
 
-
 // A draw command that belong to a certain render pass
 pub struct RenderPassDrawCommand {
     pub pipeline: wgpu::RenderPipeline,
@@ -76,10 +75,7 @@ pub struct RenderPassDrawBatch {
 }
 
 impl RenderPassDrawBatch {
-    pub fn render(
-        &self,
-        render_pass: &mut wgpu::RenderPass,
-    ) {
+    pub fn render(&self, render_pass: &mut wgpu::RenderPass) {
         for draw_command in &self.draw_commands {
             render_pass.set_pipeline(&draw_command.pipeline);
             render_pass.set_vertex_buffer(0, draw_command.vertex_buffer.slice(..));

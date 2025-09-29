@@ -147,8 +147,12 @@ impl DrawCall {
             pipeline: self.pipeline.clone(),
             vertex_buffer: mesh.vertex_buffer.clone(),
             index_buffer: mesh.index_buffer.clone(),
-            vertex_bind_group: self.vertex_shader.make_bind_group(&context.gpu_context, &context.globals)?,
-            fragment_bind_group: self.fragment_shader.make_bind_group(&context.gpu_context, &context.globals)?,
+            vertex_bind_group: self
+                .vertex_shader
+                .make_bind_group(&context.gpu_context, &context.globals)?,
+            fragment_bind_group: self
+                .fragment_shader
+                .make_bind_group(&context.gpu_context, &context.globals)?,
             vertex_count: mesh.vertex_count,
             index_count: mesh.index_count,
             instance_count: context.globals.instance_count as u32,
