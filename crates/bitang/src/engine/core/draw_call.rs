@@ -7,6 +7,7 @@ use super::context::{GpuContext, RenderPassContext};
 use super::mesh::Mesh;
 use super::shader::Shader;
 use super::{Vertex3, VERTEX_FORMAT};
+use crate::engine::core::context::RenderPassDrawCommand;
 use crate::engine::pass::FramebufferInfo;
 
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -22,7 +23,7 @@ pub struct DrawCall {
     pub _id: String,
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
-    pipeline: wgpu::RenderPipeline,
+    pub pipeline: wgpu::RenderPipeline,
 }
 
 pub struct DrawCallProps {
@@ -142,22 +143,20 @@ impl DrawCall {
     }
 
     pub fn render(&self, context: &mut RenderPassContext, mesh: &Mesh) -> Result<()> {
-        context.pass.set_pipeline(&self.pipeline);
-        context.pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-
-        let instance_count = context.globals.instance_count as u32;
-        self.vertex_shader.bind_to_render_pass(context)?;
-        self.fragment_shader.bind_to_render_pass(context)?;
-
-        match &mesh.index_buffer {
-            None => {
-                context.pass.draw(0..mesh.vertex_count, 0..instance_count);
-            }
-            Some(index_buffer) => {
-                context.pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                context.pass.draw_indexed(0..mesh.index_count, 0, 0..instance_count);
-            }
-        }
+        context.pass_queue.draw_commands.push(RenderPassDrawCommand {
+            pipeline: self.pipeline.clone(),
+            vertex_buffer: mesh.vertex_buffer.clone(),
+            index_buffer: mesh.index_buffer.clone(),
+            vertex_bind_group: self
+                .vertex_shader
+                .make_bind_group(&context.gpu_context, &context.globals)?,
+            fragment_bind_group: self
+                .fragment_shader
+                .make_bind_group(&context.gpu_context, &context.globals)?,
+            vertex_count: mesh.vertex_count,
+            index_count: mesh.index_count,
+            instance_count: context.globals.instance_count as u32,
+        });
         Ok(())
     }
 }

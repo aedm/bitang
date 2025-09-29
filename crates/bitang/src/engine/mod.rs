@@ -13,12 +13,12 @@ mod scene;
 
 pub use core::compute_call::ComputeCall;
 pub use core::context::{
-    ComputePassContext, FrameContext, GpuContext, RenderPassContext, Viewport,
+    ComputePassContext, FrameContext, GpuContext, RenderPassContext, RenderPassDrawBatch, Viewport,
 };
 pub use core::double_buffer::DoubleBuffer;
 pub use core::draw_call::{BlendMode, DrawCall, DrawCallProps};
 pub use core::globals::{GlobalType, Globals};
-pub use core::image::{BitangImage, ImageSizeRule, PixelFormat, SwapchainImage};
+pub use core::image::{BitangImage, ImageSizeRule, PixelFormat};
 pub use core::mesh::Mesh;
 pub use core::mipmap_generator::MipmapGenerator;
 pub use core::shader::{

@@ -348,7 +348,7 @@ impl BitangImage {
         matches!(&self.inner, ImageInner::Swapchain(_))
     }
 
-    pub fn set_swapchain_image_view(&self, view: Option<SwapchainImage>) {
+    pub fn _set_swapchain_image_view(&self, view: Option<SwapchainImage>) {
         match &self.inner {
             ImageInner::Swapchain(rw_lock) => {
                 let mut swapchain_view = rw_lock.write().unwrap();
@@ -374,7 +374,7 @@ impl BitangImage {
         }
     }
 
-    pub fn copy_attachment_to_buffer(
+    pub fn _copy_attachment_to_buffer(
         &self,
         context: &mut FrameContext,
         buffer: &wgpu::Buffer,

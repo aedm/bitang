@@ -1,31 +1,38 @@
 use std::cmp::max;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
 use eframe::egui;
 use egui::ViewportBuilder;
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew};
+use smallvec::SmallVec;
 use tracing::{debug, error, info};
 #[cfg(windows)]
 use wgpu::Backends;
 
 use crate::engine::{
-    BitangImage, FrameContext, GpuContext, PixelFormat, Size2D, SwapchainImage, Viewport,
+    BitangImage, FrameContext, GpuContext, PixelFormat, RenderPassDrawBatch, Size2D, Viewport,
 };
 use crate::tool::app_config::AppConfig;
 use crate::tool::content_renderer::ContentRenderer;
 use crate::tool::ui::Ui;
 use crate::tool::SCREEN_RATIO;
 
-pub struct WindowRunner {}
+pub struct WindowRunner {
+    gpu_context: Arc<GpuContext>,
+    is_fullscreen: bool,
+    ui: Ui,
+    content_renderer: ContentRenderer,
+    app_start_time: Instant,
+    demo_mode: bool,
+
+    viewport: Viewport,
+    ui_height: f32,
+}
 
 impl WindowRunner {
     pub fn run() -> Result<()> {
-        let inner = Arc::new(Mutex::new(None::<AppInner>));
-        let inner_clone = inner.clone();
-
         let wgpu_configuration = egui_wgpu::WgpuConfiguration {
             #[cfg(windows)]
             present_mode: wgpu::PresentMode::Mailbox,
@@ -44,21 +51,13 @@ impl WindowRunner {
                 }),
                 ..Default::default()
             }),
-            on_draw_background: Some(Rc::new(move |props| {
-                let mut inner = inner_clone.lock().unwrap();
-                let Some(app_inner) = inner.as_mut() else {
-                    error!("Failed to get app inner");
-                    return;
-                };
-                app_inner.render_frame_to_screen(props).unwrap();
-            })),
             ..Default::default()
         };
         let viewport_builder = ViewportBuilder::default().with_title("Bitang");
         let viewport_builder = if AppConfig::get().start_in_demo_mode {
             viewport_builder.with_fullscreen(true)
         } else {
-            viewport_builder.with_inner_size(egui::vec2(1280.0, 1000.0))
+            viewport_builder.with_inner_size(egui::vec2(960.0, 800.0))
         };
         let native_options = eframe::NativeOptions {
             wgpu_options: wgpu_configuration,
@@ -66,38 +65,58 @@ impl WindowRunner {
             ..eframe::NativeOptions::default()
         };
 
-        // TODO: no unwrap
         eframe::run_native(
             "Bitang",
             native_options,
-            Box::new(|cc| {
-                // TODO: no unwrap
-                Ok(App::new(cc, inner).unwrap())
-            }),
+            Box::new(|cc| Ok(Box::new(Self::new(cc)?))),
         )
-        .map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to run app: {e:?}"),
-            )
-        })?;
-        Ok(())
+        .map_err(|e| anyhow::anyhow!("Failed to run app: {e:?}"))
     }
-}
 
-struct AppInner {
-    gpu_context: Arc<GpuContext>,
-    is_fullscreen: bool,
-    ui: Ui,
-    content_renderer: ContentRenderer,
-    app_start_time: Instant,
-    demo_mode: bool,
+    fn new(cc: &eframe::CreationContext<'_>) -> Result<Self> {
+        let render_state = cc.wgpu_render_state.as_ref().context("No WGPU render state")?;
 
-    viewport: Viewport,
-    ui_height: f32,
-}
+        let adapter_info = render_state.adapter.get_info();
+        info!(
+            "WGPU adapter: {:?} on {}",
+            adapter_info.backend, adapter_info.name
+        );
 
-impl AppInner {
+        let swapchain_pixel_format = PixelFormat::from_wgpu_format(render_state.target_format)?;
+        let final_render_target = BitangImage::new_swapchain("__screen", swapchain_pixel_format);
+
+        let gpu_context = Arc::new(GpuContext {
+            adapter: render_state.adapter.clone(),
+            queue: render_state.queue.clone(),
+            device: render_state.device.clone(),
+            final_render_target,
+        });
+
+        let mut content_renderer = ContentRenderer::new(&gpu_context)?;
+        content_renderer.reset_simulation(&gpu_context)?;
+
+        let ui = Ui::new()?;
+
+        let demo_mode = AppConfig::get().start_in_demo_mode;
+
+        if demo_mode {
+            // Start demo in fullscreen
+            info!("Starting demo.");
+            content_renderer.play();
+        }
+
+        Ok(Self {
+            gpu_context,
+            is_fullscreen: demo_mode,
+            ui,
+            content_renderer,
+            app_start_time: Instant::now(),
+            demo_mode,
+            viewport: Viewport::default(),
+            ui_height: 0.0,
+        })
+    }
+
     fn compute_viewport(&mut self, swapchain_size: Size2D) {
         // Calculate viewport
         // TODO: simplify, the is_fullscreen flag is probably not used
@@ -136,28 +155,13 @@ impl AppInner {
         };
         self.ui_height = max(swapchain_size[1] as i32 - height as i32, 0) as f32;
         self.viewport = Viewport {
-            x: left,
-            y: top,
+            _x: left,
+            _y: top,
             size: [width, height],
         };
     }
 
-    fn render_frame_to_screen(&mut self, props: egui_wgpu::BackgroundRenderProps) -> Result<()> {
-        // Don't render anything if the window is minimized
-        if props.surface_size[0] == 0 || props.surface_size[1] == 0 {
-            return Ok(());
-        }
-
-        self.compute_viewport(props.surface_size);
-
-        // Update swapchain target
-        let swapchain_view = props.surface_view;
-        let swapchain_image = Some(SwapchainImage {
-            texture_view: swapchain_view,
-            size: props.surface_size,
-        });
-        self.gpu_context.final_render_target.set_swapchain_image_view(swapchain_image);
-
+    fn render_frame_to_screen(&mut self) -> RenderPassDrawBatch {
         // Create frame context
         // TODO: create it content_renderer
         let command_encoder = self
@@ -168,7 +172,10 @@ impl AppInner {
             gpu_context: self.gpu_context.clone(),
             command_encoder,
             globals: Default::default(),
-            screen_viewport: self.viewport,
+            screen_size: self.viewport.size,
+            screen_pass_draw_batch: RenderPassDrawBatch {
+                draw_commands: SmallVec::new(),
+            },
         };
         frame_context.globals.app_time = self.app_start_time.elapsed().as_secs_f32();
 
@@ -186,10 +193,7 @@ impl AppInner {
         // Execute commands and display the result
         self.gpu_context.queue.submit(Some(frame_context.command_encoder.finish()));
 
-        // Set swapchain image view to None, DX12 would fail without this
-        self.gpu_context.final_render_target.set_swapchain_image_view(None);
-
-        Ok(())
+        frame_context.screen_pass_draw_batch
     }
 
     fn has_timeline_ended(&self) -> bool {
@@ -213,20 +217,36 @@ impl AppInner {
         }
 
         let scale_factor = ctx.pixels_per_point();
-        let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size() * scale_factor;
-        self.compute_viewport([size.x as u32, size.y as u32]);
-        let pixels_per_point =
-            if scale_factor > 1.0 { scale_factor } else { 1.15f32 * scale_factor };
-        let bottom_panel_height = self.ui_height / pixels_per_point;
+        let size = ctx.input(|i: &egui::InputState| i.screen_rect()).size();
 
-        if bottom_panel_height > 0.0 {
-            ctx.set_pixels_per_point(pixels_per_point);
-            self.ui.draw(
-                ctx,
-                &mut self.content_renderer.app_state,
-                bottom_panel_height,
-            );
+        // Don't render anything if the window is minimized
+        if size[0] <= 0.0 || size[1] <= 0.0 {
+            return;
         }
+
+        egui::CentralPanel::default().show(&ctx, |ui| {
+            ui.vertical(|ui| {
+                let panel_size = ui.max_rect().size();
+                self.compute_viewport([
+                    (panel_size.x * scale_factor) as u32,
+                    (panel_size.y * scale_factor) as u32,
+                ]);
+                let screen_pass_batch = self.render_frame_to_screen();
+                let custom_callback = CustomRenderCallback { screen_pass_batch };
+
+                let desired_size = egui::Vec2::new(
+                    self.viewport.size[0] as f32 / scale_factor,
+                    self.viewport.size[1] as f32 / scale_factor,
+                );
+                let sense = egui::Sense::all();
+                let (rect, _response) = ui.allocate_exact_size(desired_size, sense);
+                ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                    rect,
+                    custom_callback,
+                ));
+                self.ui.draw(ui, &mut self.content_renderer.app_state);
+            });
+        });
     }
 
     const SAVE_SHORTCUT: egui::KeyboardShortcut =
@@ -286,74 +306,24 @@ impl AppInner {
     }
 }
 
-struct App {
-    inner: Arc<Mutex<Option<AppInner>>>,
-}
-
-impl eframe::App for App {
+impl eframe::App for WindowRunner {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let mut inner = self.inner.lock().unwrap();
-        if let Some(inner) = &mut *inner {
-            inner.render_ui(ctx, frame);
-            ctx.request_repaint();
-        }
+        self.render_ui(ctx, frame);
+        ctx.request_repaint();
     }
 }
 
-impl App {
-    fn new(
-        cc: &eframe::CreationContext<'_>,
-        inner: Arc<Mutex<Option<AppInner>>>,
-    ) -> Result<Box<dyn eframe::App>> {
-        let render_state = cc.wgpu_render_state.as_ref().context("No WGPU render state")?;
+struct CustomRenderCallback {
+    screen_pass_batch: RenderPassDrawBatch,
+}
 
-        let adapter_info = render_state.adapter.get_info();
-        info!(
-            "WGPU adapter: {:?} on {}",
-            adapter_info.backend, adapter_info.name
-        );
-
-        let swapchain_pixel_format = PixelFormat::from_wgpu_format(render_state.target_format)?;
-        let final_render_target = BitangImage::new_swapchain("__screen", swapchain_pixel_format);
-
-        let gpu_context = Arc::new(GpuContext {
-            adapter: render_state.adapter.clone(),
-            queue: render_state.queue.clone(),
-            device: render_state.device.clone(),
-            final_render_target,
-        });
-
-        let mut content_renderer = ContentRenderer::new(&gpu_context)?;
-        content_renderer.reset_simulation(&gpu_context)?;
-
-        let ui = Ui::new()?;
-
-        let demo_mode = AppConfig::get().start_in_demo_mode;
-        let app_inner = AppInner {
-            gpu_context,
-            is_fullscreen: demo_mode,
-            ui,
-            content_renderer,
-            app_start_time: Instant::now(),
-            demo_mode,
-            viewport: Viewport::default(),
-            ui_height: 0.0,
-        };
-
-        *inner.lock().unwrap() = Some(app_inner);
-
-        let app = Self { inner };
-
-        if demo_mode {
-            // Start demo in fullscreen
-            info!("Starting demo.");
-            // TODO: this is not pretty
-
-            let mut lock = app.inner.lock().unwrap();
-            let inner = lock.as_mut().unwrap();
-            inner.content_renderer.play();
-        }
-
-        Ok(Box::new(app))
+impl egui_wgpu::CallbackTrait for CustomRenderCallback {
+    fn paint(
+        &self,
+        _info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        _callback_resources: &egui_wgpu::CallbackResources,
+    ) {
+        self.screen_pass_batch.render(render_pass);
     }
 }
