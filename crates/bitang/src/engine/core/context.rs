@@ -16,7 +16,7 @@ pub struct GpuContext {
 }
 
 impl GpuContext {
-    pub async fn new_for_offscreen(final_render_target: Arc<BitangImage>) -> Result<Self> {
+    pub async fn _new_for_offscreen(final_render_target: Arc<BitangImage>) -> Result<Self> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())

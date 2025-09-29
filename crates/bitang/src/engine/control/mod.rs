@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub mod controls;
 pub mod spline;
 
+#[allow(dead_code)]
 pub struct ArcHashRef<T>(Arc<T>);
 
 impl<T> std::hash::Hash for ArcHashRef<T> {

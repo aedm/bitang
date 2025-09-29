@@ -5,7 +5,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use smallvec::SmallVec;
 
-use super::context::{ComputePassContext, GpuContext, RenderPassContext};
+use super::context::{ComputePassContext, GpuContext};
 use super::double_buffer::DoubleBuffer;
 use super::globals::{GlobalType, Globals};
 use super::image::{BitangImage, PixelFormat};

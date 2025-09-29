@@ -246,12 +246,6 @@ pub enum ComputeRun {
 }
 
 #[derive(Debug, Deserialize)]
-pub enum BufferSelector {
-    Current,
-    Next,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct Compute {
     id: String,
     shader: String,

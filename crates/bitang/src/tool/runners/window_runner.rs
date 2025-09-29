@@ -1,11 +1,10 @@
 use std::cmp::max;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
 use eframe::egui;
-use egui::{Pos2, ViewportBuilder};
+use egui::ViewportBuilder;
 use egui_wgpu::{WgpuSetup, WgpuSetupCreateNew};
 use smallvec::SmallVec;
 use tracing::{debug, error, info};
@@ -13,8 +12,7 @@ use tracing::{debug, error, info};
 use wgpu::Backends;
 
 use crate::engine::{
-    BitangImage, FrameContext, GpuContext, PixelFormat, RenderPassDrawBatch, Size2D,
-    SwapchainImage, Viewport,
+    BitangImage, FrameContext, GpuContext, PixelFormat, RenderPassDrawBatch, Size2D, Viewport,
 };
 use crate::tool::app_config::AppConfig;
 use crate::tool::content_renderer::ContentRenderer;

@@ -6,7 +6,7 @@ use glam::{Mat3, Mat4, Vec2, Vec3};
 use crate::engine::RenderPassDrawBatch;
 
 use super::{
-    Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene, Viewport,
+    Camera, Control, FrameContext, Globals, Pass, RenderObject, RenderPassContext, Scene,
 };
 
 pub enum DrawItem {
