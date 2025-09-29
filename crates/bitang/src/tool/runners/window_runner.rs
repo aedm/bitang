@@ -157,8 +157,8 @@ impl WindowRunner {
         };
         self.ui_height = max(swapchain_size[1] as i32 - height as i32, 0) as f32;
         self.viewport = Viewport {
-            x: left,
-            y: top,
+            _x: left,
+            _y: top,
             size: [width, height],
         };
     }
