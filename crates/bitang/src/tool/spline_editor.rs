@@ -175,7 +175,7 @@ impl SplineEditor {
             [time as f64, self.center_y as f64 - time_dy],
             [time as f64, self.center_y as f64 + time_dy],
         ];
-        plot_ui.line(Line::new(points).color(Color32::from_rgb(150, 0, 150)).width(1.0));
+        plot_ui.line(Line::new("", points).color(Color32::from_rgb(150, 0, 150)).width(1.0));
     }
 
     // Returns the index of the hovered point
@@ -229,7 +229,7 @@ impl SplineEditor {
                 [x - hover_xs, y + hover_ys],
                 [x - hover_xs, y - hover_ys],
             ];
-            let rect = Line::new(points).name("circle");
+            let rect = Line::new("circle", points);
             let rect = if Some(index) == self.selected_index {
                 rect.color(Color32::from_rgb(255, 255, 255)).width(2.0)
             } else if Some(index) == hover_index {
@@ -248,10 +248,7 @@ impl SplineEditor {
                 [time as f64, value as f64]
             })
             .collect::<Vec<_>>();
-        let line = Line::new(points)
-            .color(Color32::from_rgb(100, 200, 100))
-            // .style(self.line_style)
-            .name("circle");
+        let line = Line::new("circle", points).color(Color32::from_rgb(100, 200, 100));
         plot_ui.line(line);
 
         (hover_index, pointer_coordinate)

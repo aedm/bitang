@@ -15,9 +15,9 @@ tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 nu-ansi-term = "*"
 codespan-reporting = "0.11.1"
 
-eframe = { version = "0.31", features = ["wgpu"] }
-egui-wgpu = { version = "0.31" }
-egui_plot = "0.31"
+eframe = { version = "0.32.3", features = ["wgpu"] }
+egui-wgpu = { version = "0.32.3" }
+egui_plot = "0.33"
 egui = "*"
 wgpu = { version = "*", features = ["spirv", "dx12"] }
 wesl = "0.2"
