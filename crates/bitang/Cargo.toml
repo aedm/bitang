@@ -5,15 +5,15 @@ edition.workspace = true
 
 [dependencies]
 anyhow = { version = "1.0.79", features = ["backtrace"] }
-itertools = "0.12.1"
-strum = { version = "0.26.1", features = ["derive"] }
+itertools = "0.14.0"
+strum = { version = "0.27.2", features = ["derive"] }
 smallvec = "1.11.0"
 bytemuck = "1.21.0"
 
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 nu-ansi-term = "*"
-codespan-reporting = "0.11.1"
+codespan-reporting = "0.12.0"
 
 eframe = { version = "0.32.3", features = ["wgpu"] }
 egui-wgpu = { version = "0.32.3" }
@@ -24,10 +24,10 @@ wesl = "0.2"
 
 naga = { version = "*", features = ["spv-out", "wgsl-in"] }
 spirq = "1.2.2"
-glam = "0.25"
+glam = "0.30.8"
 
 ahash = "0.8.7"
-dashmap = "5.5.3"
+dashmap = "6.1.0"
 tokio = { version = "1.36.0", features = ["fs", "rt-multi-thread", "sync"] }
 futures = "0.3.30"
 num_cpus = "*"
