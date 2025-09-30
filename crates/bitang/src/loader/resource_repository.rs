@@ -143,12 +143,9 @@ fn load_texture(
             JxlImage::builder().read(content).map_err(|e| anyhow!("Can't load image {e}"))?;
         let size = [image.width(), image.height()];
         let render = image.render_frame(0).map_err(|e| anyhow!("Can't render image {e}"))?;
-        let frame = render.image();
+        let frame = render.image_all_channels();
         let buf = frame.buf();
-        ensure!(
-            image.image_header().metadata.encoded_color_channels() == 3,
-            "Only RGB images are supported"
-        );
+        ensure!(frame.channels() == 3, "Only RGB images are supported");
         // Map RGB to RGBA
         let mut raw = vec![0.0f32; (size[0] * size[1] * 4) as usize];
         for i in 0..((size[0] * size[1]) as usize) {
