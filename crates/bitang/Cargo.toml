@@ -19,10 +19,10 @@ eframe = { version = "0.32.3", features = ["wgpu"] }
 egui-wgpu = { version = "0.32.3" }
 egui_plot = "0.33"
 egui = "*"
-wgpu = { version = "*", features = ["spirv", "dx12"] }
+wgpu = { version = "25.0.2", features = ["spirv", "dx12"] }
 wesl = "0.2"
 
-naga = { version = "*", features = ["spv-out", "wgsl-in"] }
+naga = { version = "25.0.1", features = ["spv-out", "wgsl-in"] }
 spirq = "1.2.2"
 glam = "0.30.8"
 
