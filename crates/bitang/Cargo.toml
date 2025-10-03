@@ -6,7 +6,7 @@ edition.workspace = true
 [dependencies]
 anyhow = { version = "1.0.79", features = ["backtrace"] }
 itertools = "0.14.0"
-strum = { version = "0.27.2", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
 smallvec = "1.11.0"
 bytemuck = "1.21.0"
 
@@ -15,11 +15,11 @@ tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 nu-ansi-term = "*"
 codespan-reporting = "0.12.0"
 
-eframe = { version = "0.32.3", features = ["wgpu"] }
+eframe = { version = "0.32.3", default-features = false, features = ["wgpu"] }
 egui-wgpu = { version = "0.32.3" }
 egui_plot = "0.33"
-egui = "*"
-wgpu = { version = "25.0.2", features = ["spirv", "dx12"] }
+egui = "0.32.3"
+wgpu = { version = "25.0.2", default-features = false, features = ["spirv", "dx12", "metal", "vulkan"] }
 wesl = "0.2"
 
 naga = { version = "25.0.1", features = ["spv-out", "wgsl-in"] }

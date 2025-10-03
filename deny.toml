@@ -198,6 +198,24 @@ deny = [
 
 # Certain crates/versions that will be skipped when doing duplicate detection.
 skip = [
+    "windows_x86_64_msvc",
+    "windows_x86_64_gnullvm",
+    "windows_x86_64_gnu",
+    "windows_i686_msvc",
+    "windows_i686_gnullvm",
+    "windows_i686_gnu",
+    "windows_aarch64_msvc",
+    "windows_aarch64_gnullvm",
+    "windows_aarch64_gnu",
+    "windows-targets",  
+    "windows-sys",
+    "windows-strings",
+    "windows-result",
+    "windows-link",
+    "windows-interface",
+    "windows-implement",
+    "windows-core",
+    "windows"
     #"ansi_term@0.11.0",
     #{ crate = "ansi_term@0.11.0", reason = "you can specify a reason why it can't be updated/removed" },
 ]
