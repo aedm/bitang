@@ -5,40 +5,40 @@ edition.workspace = true
 
 [dependencies]
 anyhow = { version = "1.0.79", features = ["backtrace"] }
-itertools = "0.12.1"
-strum = { version = "0.26.1", features = ["derive"] }
+itertools = "0.14.0"
+strum = { version = "0.26.3", features = ["derive"] }
 smallvec = "1.11.0"
 bytemuck = "1.21.0"
 
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 nu-ansi-term = "*"
-codespan-reporting = "0.11.1"
+codespan-reporting = "0.12.0"
 
-eframe = { version = "0.31", features = ["wgpu"] }
-egui-wgpu = { version = "0.31" }
-egui_plot = "0.31"
-egui = "*"
-wgpu = { version = "*", features = ["spirv", "dx12"] }
+eframe = { version = "0.32.3", default-features = false, features = ["wgpu"] }
+egui-wgpu = { version = "0.32.3" }
+egui_plot = "0.33"
+egui = "0.32.3"
+wgpu = { version = "25.0.2", default-features = false, features = ["spirv", "dx12", "metal", "vulkan"] }
 wesl = "0.2"
 
-naga = { version = "*", features = ["spv-out", "wgsl-in"] }
+naga = { version = "25.0.1", features = ["spv-out", "wgsl-in"] }
 spirq = "1.2.2"
-glam = "0.25"
+glam = "0.30.8"
 
 ahash = "0.8.7"
-dashmap = "5.5.3"
+dashmap = "6.1.0"
 tokio = { version = "1.36.0", features = ["fs", "rt-multi-thread", "sync"] }
 futures = "0.3.30"
 num_cpus = "*"
 
 serde = { version = "*", features = ["derive", "rc"] }
-notify = "5.1.0"
+notify = "8.2.0"
 image = { version = "0.25.5", default-features = false, features = ["jpeg", "png"] }
-ron = "0.8"
+ron = "0.11.0"
 gltf = "1.4.0"
 dunce = "1.0.4"
-jxl-oxide = "0.8.1"
+jxl-oxide = "0.12.5"
 
 rodio = { version = "0.17.3", default-features = false, features = ["mp3"] }
 build-time = "0.1.3"
