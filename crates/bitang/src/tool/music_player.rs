@@ -2,82 +2,76 @@ use std::fs::File;
 use std::io::BufReader;
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
-use tracing::{debug, info, warn};
+use anyhow::{bail, ensure, Context, Result};
+use rodio::{source, Decoder, OutputStream, Sink, Source};
+use tracing::{debug, error, info, warn};
 
 struct MusicDevice {
     sink: Sink,
-    _stream_handle: OutputStreamHandle,
     _stream: OutputStream,
+    music_file_path: String,
 }
 
 pub struct MusicPlayer {
     device: Option<MusicDevice>,
     is_playing: bool,
-    music_file_path: Option<String>,
 }
 
 impl MusicPlayer {
     pub fn new() -> Self {
-        let Ok((stream, stream_handle)) = OutputStream::try_default() else {
-            warn!("No audio device found");
-            return Self {
-                device: None,
-                is_playing: false,
-                music_file_path: None,
-            };
-        };
-        let sink = Sink::try_new(&stream_handle).unwrap();
-
         Self {
-            device: Some(MusicDevice {
-                sink,
-                _stream_handle: stream_handle,
-                _stream: stream,
-            }),
+            device: None,
             is_playing: false,
-            music_file_path: None,
         }
     }
 
     pub fn set_root_path(&mut self, root_path: &str) {
-        self.music_file_path = Self::find_music_file(root_path).ok();
+        let Ok(stream) = rodio::OutputStreamBuilder::open_default_stream() else {
+            warn!("No audio device found");
+            return;
+        };
+        let Ok(music_file_path) = Self::find_music_file(root_path) else {
+            warn!("Music file not found");
+            return;
+        };
+        let sink = rodio::Sink::connect_new(stream.mixer());
+        self.device = Some(MusicDevice {
+            sink,
+            _stream: stream,
+            music_file_path,
+        });
     }
 
     pub fn play_from(&mut self, time: f32) {
-        if self.device.is_none() {
-            return;
-        }
         if time < 0. {
-            info!("Music can't be played from negative time");
+            warn!("Music can't be played from negative time");
             return;
         }
-        let Some(path) = &self.music_file_path else {
-            info!("Music file not found");
-            return;
-        };
-        let Ok(file) = File::open(path) else {
-            info!("Music file '{path}' not found");
-            return;
-        };
-        let reader = BufReader::new(file);
-        let source = Decoder::new(reader).unwrap();
         self.stop();
-        self.device
-            .as_mut()
-            .unwrap()
-            .sink
-            .append(source.skip_duration(Duration::from_secs_f32(time)));
+        let Some(device) = self.device.as_mut() else {
+            warn!("Music device not found");
+            return;
+        };
+        let Ok(file) = File::open(&device.music_file_path) else {
+            error!("Failed to open music file: {}.", device.music_file_path);
+            return;
+        };
+        let Ok(source) = Decoder::try_from(file) else {
+            error!("Failed to decode music file: {}.", device.music_file_path);
+            return;
+        };
+        device.sink.append(source);
+        if let Err(err) = device.sink.try_seek(Duration::from_secs_f32(time)) {
+            error!("Failed to seek music: {err}");
+        }
+        device.sink.play();
         self.is_playing = true;
     }
 
     pub fn stop(&mut self) {
         if let Some(device) = &mut self.device {
-            if self.is_playing {
-                device.sink.stop();
-                self.is_playing = false;
-            }
+            device.sink.stop();
+            self.is_playing = false;
         }
     }
 
