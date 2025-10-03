@@ -40,5 +40,5 @@ gltf = "1.4.0"
 dunce = "1.0.4"
 jxl-oxide = "0.12.5"
 
-rodio = { version = "0.17.3", default-features = false, features = ["mp3"] }
+rodio = { version = "0.21.1", default-features = false, features = ["mp3", "playback"] }
 build-time = "0.1.3"
