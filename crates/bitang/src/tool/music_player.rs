@@ -1,10 +1,9 @@
 use std::fs::File;
-use std::io::BufReader;
 use std::time::Duration;
 
-use anyhow::{bail, ensure, Context, Result};
-use rodio::{source, Decoder, OutputStream, Sink, Source};
-use tracing::{debug, error, info, warn};
+use anyhow::{bail, Context, Result};
+use rodio::{Decoder, OutputStream, Sink};
+use tracing::{debug, error, warn};
 
 struct MusicDevice {
     sink: Sink,
