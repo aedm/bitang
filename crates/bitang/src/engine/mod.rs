@@ -10,6 +10,7 @@ mod pass;
 mod project;
 mod render_object;
 mod scene;
+mod graph;
 
 pub use core::compute_call::ComputeCall;
 pub use core::context::{
