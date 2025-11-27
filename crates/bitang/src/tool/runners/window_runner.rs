@@ -212,8 +212,8 @@ impl WindowRunner {
                 self.demo_mode = false;
                 info!("End of demo.");
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                return;
             }
-            return;
         }
 
         let scale_factor = ctx.pixels_per_point();
